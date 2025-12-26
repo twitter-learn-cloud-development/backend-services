@@ -8,11 +8,14 @@ ENV GOPROXY=https://goproxy.cn,direct
 
 # 预下载依赖
 COPY go.mod go.sum ./
-COPY vendor vendor/
+
+# 下载依赖（会被 Docker 缓存）
+RUN go mod download
+
 COPY . .
 
 # 编译
-RUN go build -mod=vendor -o gateway ./cmd/gateway/main.go
+RUN go build -o gateway ./cmd/gateway/main.go
 
 # 2. Run Stage
 FROM alpine:latest
