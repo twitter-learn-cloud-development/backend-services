@@ -1,0 +1,27 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'gateway'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['gateway:9638']
+
+  - job_name: 'user-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['user-service:2111']
+
+  - job_name: 'tweet-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['tweet-service:2112']
+
+  - job_name: 'follow-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['follow-service:2113']

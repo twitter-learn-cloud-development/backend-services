@@ -1,0 +1,23 @@
+apiVersion: v2
+name: twitter-clone
+description: A Helm chart for the Twitter Clone microservices
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+dependencies:
+  - name: redis
+    version: "*"
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled
+  - name: consul
+    version: "*"
+    repository: https://helm.releases.hashicorp.com
+    condition: consul.enabled
+  - name: prometheus
+    version: "*"
+    repository: https://prometheus-community.github.io/helm-charts
+    condition: prometheus.enabled
+  - name: jaeger
+    version: "*"
+    repository: https://jaegertracing.github.io/helm-charts
+    condition: jaeger.enabled

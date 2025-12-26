@@ -1,0 +1,100 @@
+syntax = "proto3";
+
+package follow.v1;
+
+option go_package = "twitter-clone/api/follow/v1;followv1";
+
+// FollowService 关注服务
+service FollowService {
+  // Follow 关注用户
+  rpc Follow(FollowRequest) returns (FollowResponse);
+
+  // Unfollow 取消关注
+  rpc Unfollow(UnfollowRequest) returns (UnfollowResponse);
+
+  // IsFollowing 检查是否关注
+  rpc IsFollowing(IsFollowingRequest) returns (IsFollowingResponse);
+
+  // GetFollowers 获取粉丝列表
+  rpc GetFollowers(GetFollowersRequest) returns (GetFollowersResponse);
+
+  // GetFollowees 获取关注列表
+  rpc GetFollowees(GetFolloweesRequest) returns (GetFolloweesResponse);
+
+  // GetFollowStats 获取关注统计
+  rpc GetFollowStats(GetFollowStatsRequest) returns (GetFollowStatsResponse);
+}
+
+// ==================== 消息定义 ====================
+
+// ==================== Follow ====================
+
+message FollowRequest {
+  uint64 follower_id = 1;
+  uint64 followee_id = 2;
+}
+
+message FollowResponse {
+  string message = 1;
+}
+
+// ==================== Unfollow ====================
+
+message UnfollowRequest {
+  uint64 follower_id = 1;
+  uint64 followee_id = 2;
+}
+
+message UnfollowResponse {
+  string message = 1;
+}
+
+// ==================== IsFollowing ====================
+
+message IsFollowingRequest {
+  uint64 follower_id = 1;
+  uint64 followee_id = 2;
+}
+
+message IsFollowingResponse {
+  bool is_following = 1;
+}
+
+// ==================== GetFollowers ====================
+
+message GetFollowersRequest {
+  uint64 user_id = 1;
+  uint64 cursor = 2;
+  int32 limit = 3;
+}
+
+message GetFollowersResponse {
+  repeated uint64 follower_ids = 1;
+  uint64 next_cursor = 2;
+  bool has_more = 3;
+}
+
+// ==================== GetFollowees ====================
+
+message GetFolloweesRequest {
+  uint64 user_id = 1;
+  uint64 cursor = 2;
+  int32 limit = 3;
+}
+
+message GetFolloweesResponse {
+  repeated uint64 followee_ids = 1;
+  uint64 next_cursor = 2;
+  bool has_more = 3;
+}
+
+// ==================== GetFollowStats ====================
+
+message GetFollowStatsRequest {
+  uint64 user_id = 1;
+}
+
+message GetFollowStatsResponse {
+  int64 follower_count = 1;
+  int64 followee_count = 2;
+}

@@ -1,0 +1,104 @@
+syntax = "proto3";
+
+package tweet.v1;
+
+option go_package = "twitter-clone/api/tweet/v1;tweetv1";
+
+// TweetService 推文服务
+service TweetService {
+  // CreateTweet 发布推文
+  rpc CreateTweet(CreateTweetRequest) returns (CreateTweetResponse);
+
+  // GetTweet 获取推文详情
+  rpc GetTweet(GetTweetRequest) returns (GetTweetResponse);
+
+  // DeleteTweet 删除推文
+  rpc DeleteTweet(DeleteTweetRequest) returns (DeleteTweetResponse);
+
+  // GetUserTimeline 获取用户时间线
+  rpc GetUserTimeline(GetUserTimelineRequest) returns (GetUserTimelineResponse);
+
+  // GetFeeds 获取关注流
+  rpc GetFeeds(GetFeedsRequest) returns (GetFeedsResponse);
+}
+
+// ==================== 消息定义 ====================
+
+// Tweet 推文
+message Tweet {
+  uint64 id = 1;
+  uint64 user_id = 2;
+  string content = 3;
+  repeated string media_urls = 4;
+  int32 type = 5;
+  int32 visible_type = 6;
+  int64 created_at = 7;
+  int64 updated_at = 8;
+
+  // 统计数据
+  int32 like_count = 9;
+  int32 comment_count = 10;
+  int32 share_count = 11;
+  bool is_liked = 12;
+}
+
+// ==================== CreateTweet ====================
+
+message CreateTweetRequest {
+  uint64 user_id = 1;
+  string content = 2;
+  repeated string media_urls = 3;
+}
+
+message CreateTweetResponse {
+  Tweet tweet = 1;
+}
+
+// ==================== GetTweet ====================
+
+message GetTweetRequest {
+  uint64 tweet_id = 1;
+}
+
+message GetTweetResponse {
+  Tweet tweet = 1;
+}
+
+// ==================== DeleteTweet ====================
+
+message DeleteTweetRequest {
+  uint64 tweet_id = 1;
+  uint64 user_id = 2;
+}
+
+message DeleteTweetResponse {
+  string message = 1;
+}
+
+// ==================== GetUserTimeline ====================
+
+message GetUserTimelineRequest {
+  uint64 user_id = 1;
+  uint64 cursor = 2;
+  int32 limit = 3;
+}
+
+message GetUserTimelineResponse {
+  repeated Tweet tweets = 1;
+  uint64 next_cursor = 2;
+  bool has_more = 3;
+}
+
+// ==================== GetFeeds ====================
+
+message GetFeedsRequest {
+  uint64 user_id = 1;
+  uint64 cursor = 2;
+  int32 limit = 3;
+}
+
+message GetFeedsResponse {
+  repeated Tweet tweets = 1;
+  uint64 next_cursor = 2;
+  bool has_more = 3;
+}

@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "twitter.fullname" . }}-user
+  labels:
+    {{- include "twitter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: user-service
+spec:
+  replicas: {{ .Values.services.userService.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "twitter.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: user-service
+  template:
+    metadata:
+      labels:
+        {{- include "twitter.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: user-service
+    spec:
+      containers:
+        - name: user-service
+          image: "{{ .Values.services.userService.image.repository }}:{{ .Values.services.userService.image.tag }}"
+          imagePullPolicy: {{ .Values.services.userService.image.pullPolicy }}
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.services.userService.containerPort }}
+              protocol: TCP
+          env:
+            - name: DB_HOST
+              value: {{ include "twitter.mysql.host" . }}
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_USER
+              value: "root"
+            - name: DB_PASSWORD
+              value: {{ .Values.mysql.auth.rootPassword | quote }}
+            - name: DB_NAME
+              value: {{ .Values.mysql.auth.database | quote }}
+            - name: REDIS_HOST
+              value: {{ include "twitter.redis.host" . }}
+            - name: REDIS_PORT
+              value: "6379"
+            - name: CONSUL_HOST
+              value: {{ include "twitter.consul.host" . }}
+            - name: CONSUL_PORT
+              value: "8500"
+            - name: SERVICE_NAME
+              value: "user-service"
+            - name: SERVICE_ADDR
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: SERVICE_PORT
+              value: {{ .Values.services.userService.containerPort | quote }}
+            - name: JAEGER_AGENT_HOST
+              value: {{ include "twitter.jaeger.host" . }}
+            - name: JAEGER_SAMPLER_TYPE
+              value: "const"
+            - name: JAEGER_SAMPLER_PARAM
+              value: "1"
+          resources:
+            {{- toYaml .Values.services.userService.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "twitter.fullname" . }}-user
+  labels:
+    {{- include "twitter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: user-service
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.services.userService.containerPort }}
+      targetPort: grpc
+      protocol: TCP
+      name: grpc
+  selector:
+    {{- include "twitter.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: user-service

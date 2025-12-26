@@ -1,0 +1,158 @@
+# Global settings
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: "standard"
+
+# Autoscaling configuration
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+  hosts:
+    - host: twitter-clone.local
+      paths:
+        - path: /
+          pathType: Prefix
+
+# Infrastructure dependencies configuration
+# Infrastructure dependencies configuration
+mysql:
+  enabled: true
+  image:
+    repository: mysql
+    tag: "8.0"
+  auth:
+    rootPassword: "31415927"
+    database: "twitter"
+  service:
+    port: 3306
+
+redis:
+  enabled: true
+  architecture: standalone
+  auth:
+    enabled: false
+
+rabbitmq:
+  enabled: true
+  image:
+    repository: rabbitmq
+    tag: "3.13-management"
+  auth:
+    username: "guest"
+    password: "guest"
+  service:
+    port: 5672
+    managementPort: 15672
+
+consul:
+  enabled: true
+  global:
+    name: consul
+  server:
+    replicas: 1
+    bootstrapExpect: 1
+  ui:
+    enabled: false
+
+prometheus:
+  enabled: true
+  server:
+    global:
+      scrape_interval: 15s
+
+jaeger:
+  enabled: true
+  provisionDataStore:
+    cassandra: false
+    elasticsearch: false
+    kafka: false
+  allInOne:
+    enabled: true
+    image:
+      repository: jaegertracing/all-in-one
+      tag: "1.66.0"
+      pullPolicy: IfNotPresent
+    livenessProbe:
+      httpGet:
+        path: /
+        port: 14269
+      initialDelaySeconds: 5
+      periodSeconds: 15
+    readinessProbe:
+      httpGet:
+        path: /
+        port: 14269
+      initialDelaySeconds: 5
+      periodSeconds: 15
+
+# Microservices configuration
+services:
+  userService:
+    name: user-service
+    image:
+      repository: user-service
+      tag: latest
+      pullPolicy: IfNotPresent
+    replicaCount: 1
+    containerPort: 9091
+    resources: 
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+  
+  tweetService:
+    name: tweet-service
+    image:
+      repository: tweet-service
+      tag: latest
+      pullPolicy: IfNotPresent
+    replicaCount: 1
+    containerPort: 9092
+    resources: {}
+
+  followService:
+    name: follow-service
+    image:
+      repository: follow-service
+      tag: latest
+      pullPolicy: IfNotPresent
+    replicaCount: 1
+    containerPort: 9093
+    resources: {}
+
+  gateway:
+    name: gateway
+    image:
+      repository: gateway
+      tag: latest
+      pullPolicy: IfNotPresent
+    replicaCount: 1
+    service:
+      type: LoadBalancer
+      port: 9638
+      nodePort: 30638
+    env:
+      GATEWAY_PORT: "9638"
+    resources: {}
+
+  consumer:
+    name: consumer
+    image:
+      repository: consumer
+      tag: latest
+      pullPolicy: IfNotPresent
+    replicaCount: 1
+    resources: {}

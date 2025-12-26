@@ -1,0 +1,94 @@
+syntax = "proto3";
+
+package user.v1;
+
+option go_package = "twitter-clone/api/user/v1;userv1";
+
+// UserService 用户服务
+service UserService {
+  // Register 用户注册
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+
+  // Login 用户登录
+  rpc Login(LoginRequest) returns (LoginResponse);
+
+  // GetProfile 获取用户资料
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
+
+  // UpdateProfile 更新用户资料
+  rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
+
+  // ChangePassword 修改密码
+  rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
+}
+
+// ==================== 消息定义 ====================
+
+// User 用户
+message User {
+  uint64 id = 1;
+  string username = 2;
+  string email = 3;
+  string avatar = 4;
+  string bio = 5;
+  int64 created_at = 6;
+  int64 updated_at = 7;
+}
+
+// ==================== Register ====================
+
+message RegisterRequest {
+  string username = 1;
+  string email = 2;
+  string password = 3;
+}
+
+message RegisterResponse {
+  User user = 1;
+}
+
+// ==================== Login ====================
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string token = 1;
+  User user = 2;
+}
+
+// ==================== GetProfile ====================
+
+message GetProfileRequest {
+  uint64 user_id = 1;
+}
+
+message GetProfileResponse {
+  User user = 1;
+}
+
+// ==================== UpdateProfile ====================
+
+message UpdateProfileRequest {
+  uint64 user_id = 1;
+  string avatar = 2;
+  string bio = 3;
+}
+
+message UpdateProfileResponse {
+  User user = 1;
+}
+
+// ==================== ChangePassword ====================
+
+message ChangePasswordRequest {
+  uint64 user_id = 1;
+  string old_password = 2;
+  string new_password = 3;
+}
+
+message ChangePasswordResponse {
+  string message = 1;
+}

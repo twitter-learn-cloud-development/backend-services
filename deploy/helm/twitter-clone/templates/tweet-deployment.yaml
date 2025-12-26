@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "twitter.fullname" . }}-tweet
+  labels:
+    {{- include "twitter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: tweet-service
+spec:
+  replicas: {{ .Values.services.tweetService.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "twitter.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: tweet-service
+  template:
+    metadata:
+      labels:
+        {{- include "twitter.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: tweet-service
+    spec:
+      containers:
+        - name: tweet-service
+          image: "{{ .Values.services.tweetService.image.repository }}:{{ .Values.services.tweetService.image.tag }}"
+          imagePullPolicy: {{ .Values.services.tweetService.image.pullPolicy }}
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.services.tweetService.containerPort }}
+              protocol: TCP
+          env:
+            - name: DB_HOST
+              value: {{ include "twitter.mysql.host" . }}
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_USER
+              value: "root"
+            - name: DB_PASSWORD
+              value: {{ .Values.mysql.auth.rootPassword | quote }}
+            - name: DB_NAME
+              value: {{ .Values.mysql.auth.database | quote }}
+            - name: REDIS_HOST
+              value: {{ include "twitter.redis.host" . }}
+            - name: REDIS_PORT
+              value: "6379"
+            - name: MQ_HOST
+              value: {{ include "twitter.rabbitmq.host" . }}
+            - name: MQ_PORT
+              value: "5672"
+            - name: MQ_USER
+              value: {{ .Values.rabbitmq.auth.username | quote }}
+            - name: MQ_PASSWORD
+              value: {{ .Values.rabbitmq.auth.password | quote }}
+            - name: CONSUL_HOST
+              value: {{ include "twitter.consul.host" . }}
+            - name: CONSUL_PORT
+              value: "8500"
+            - name: SERVICE_NAME
+              value: "tweet-service"
+            - name: SERVICE_ADDR
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: SERVICE_PORT
+              value: {{ .Values.services.tweetService.containerPort | quote }}
+            - name: JAEGER_AGENT_HOST
+              value: {{ include "twitter.jaeger.host" . }}
+            - name: JAEGER_SAMPLER_TYPE
+              value: "const"
+            - name: JAEGER_SAMPLER_PARAM
+              value: "1"
+          resources:
+            {{- toYaml .Values.services.tweetService.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "twitter.fullname" . }}-tweet
+  labels:
+    {{- include "twitter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: tweet-service
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.services.tweetService.containerPort }}
+      targetPort: grpc
+      protocol: TCP
+      name: grpc
+  selector:
+    {{- include "twitter.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: tweet-service

@@ -1,0 +1,15 @@
+dependencies:
+- name: redis
+  repository: https://charts.bitnami.com/bitnami
+  version: 24.1.0
+- name: consul
+  repository: https://helm.releases.hashicorp.com
+  version: 1.9.2
+- name: prometheus
+  repository: https://prometheus-community.github.io/helm-charts
+  version: 27.52.0
+- name: jaeger
+  repository: https://jaegertracing.github.io/helm-charts
+  version: 4.1.5
+digest: sha256:54ebd15516e6a20bce80b54d4d293cccbffd197768dc92de2977a04bee4bae98
+generated: "2025-12-24T19:33:24.22994+08:00"

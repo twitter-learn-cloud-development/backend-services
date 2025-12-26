@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "twitter.fullname" . }}-consumer
+  labels:
+    {{- include "twitter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: consumer
+spec:
+  replicas: {{ .Values.services.consumer.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "twitter.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: consumer
+  template:
+    metadata:
+      labels:
+        {{- include "twitter.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: consumer
+    spec:
+      containers:
+        - name: consumer
+          image: "{{ .Values.services.consumer.image.repository }}:{{ .Values.services.consumer.image.tag }}"
+          imagePullPolicy: {{ .Values.services.consumer.image.pullPolicy }}
+          env:
+            - name: DB_HOST
+              value: {{ include "twitter.mysql.host" . }}
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_USER
+              value: "root"
+            - name: DB_PASSWORD
+              value: {{ .Values.mysql.auth.rootPassword | quote }}
+            - name: DB_NAME
+              value: {{ .Values.mysql.auth.database | quote }}
+            - name: REDIS_HOST
+              value: {{ include "twitter.redis.host" . }}
+            - name: REDIS_PORT
+              value: "6379"
+            - name: MQ_HOST
+              value: {{ include "twitter.rabbitmq.host" . }}
+            - name: MQ_PORT
+              value: "5672"
+            - name: MQ_USER
+              value: {{ .Values.rabbitmq.auth.username | quote }}
+            - name: MQ_PASSWORD
+              value: {{ .Values.rabbitmq.auth.password | quote }}
+            - name: JAEGER_AGENT_HOST
+              value: {{ include "twitter.jaeger.host" . }}
+            - name: JAEGER_SAMPLER_TYPE
+              value: "const"
+            - name: JAEGER_SAMPLER_PARAM
+              value: "1"
+          resources:
+            {{- toYaml .Values.services.consumer.resources | nindent 12 }}

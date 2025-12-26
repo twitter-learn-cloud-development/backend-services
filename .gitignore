@@ -1,0 +1,35 @@
+# 环境变量
+.env
+.env.local
+
+# Go 编译产物
+*.exe
+*.dll
+*.so
+main.exe
+
+# Go 依赖
+vendor/
+
+# IDE 配置
+.idea/
+.vscode/
+
+# 临时文件
+*.txt
+*.ps1
+*.Dockerfile
+
+# 临时配置
+*-debug.yaml
+*-fixed.yaml
+deployment.json
+ns.json
+patch_args.yaml
+*-deployment.json
+
+# 测试数据
+test_data/
+
+# GitHub workflows
+.github/

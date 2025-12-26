@@ -1,0 +1,240 @@
+version: '3.8'
+
+services:
+  # === 基础设施 ===
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: 31415927
+      MYSQL_DATABASE: twitter
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  consul:
+    image: consul:1.15
+    command: "agent -dev -client=0.0.0.0"
+    ports:
+      - "8500:8500"
+      - "8600:8600/udp"
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.37
+    ports:
+      - "16686:16686"
+      - "6831:6831/udp"
+    environment:
+      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
+      - COLLECTOR_OTLP_ENABLED=true
+      - COLLECTOR_OTLP_ENABLED=true
+
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+
+  grafana:
+    image: grafana/grafana:10.0.0
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+  user-service:
+    build:
+      context: .
+      dockerfile: deploy/docker/user.dockerfile
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=31415927
+      - DB_NAME=twitter
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CONSUL_HOST=consul
+      - CONSUL_PORT=8500
+      - SERVICE_NAME=user-service
+      - SERVICE_ADDR=user-service
+      - SERVICE_PORT=9091
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_SAMPLER_TYPE=const
+      - JAEGER_SAMPLER_PARAM=1
+    # ports:
+    #   - "9091:9091"
+    restart: on-failure
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  tweet-service:
+    build:
+      context: .
+      dockerfile: deploy/docker/tweet.dockerfile
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=31415927
+      - DB_NAME=twitter
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MQ_HOST=rabbitmq
+      - MQ_PORT=5672
+      - MQ_USER=guest
+      - MQ_PASSWORD=guest
+      - CONSUL_HOST=consul
+      - CONSUL_PORT=8500
+      - SERVICE_NAME=tweet-service
+      - SERVICE_ADDR=tweet-service
+      - SERVICE_PORT=9092
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_SAMPLER_TYPE=const
+      - JAEGER_SAMPLER_PARAM=1
+    # ports:
+    #   - "9092:9092"
+    restart: on-failure
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  follow-service:
+    build:
+      context: .
+      dockerfile: deploy/docker/follow.dockerfile
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=31415927
+      - DB_NAME=twitter
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MQ_HOST=rabbitmq
+      - MQ_PORT=5672
+      - MQ_USER=guest
+      - MQ_PASSWORD=guest
+      - CONSUL_HOST=consul
+      - CONSUL_PORT=8500
+      - SERVICE_NAME=follow-service
+      - SERVICE_ADDR=follow-service
+      - SERVICE_PORT=9093
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_SAMPLER_TYPE=const
+      - JAEGER_SAMPLER_PARAM=1
+    # ports:
+    #   - "9093:9093"
+    restart: on-failure
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  # === 消费者 ===
+  consumer:
+    build:
+      context: .
+      dockerfile: deploy/docker/consumer.dockerfile
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=31415927
+      - DB_NAME=twitter
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MQ_HOST=rabbitmq
+      - MQ_PORT=5672
+      - MQ_USER=guest
+      - MQ_PASSWORD=guest
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_SAMPLER_TYPE=const
+      - JAEGER_SAMPLER_PARAM=1
+    restart: on-failure
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  # === 网关 ===
+  gateway:
+    build:
+      context: .
+      dockerfile: deploy/docker/gateway.dockerfile
+    environment:
+      - GATEWAY_PORT=9638
+      - USER_SERVICE_ADDR=user-service:9091
+      - TWEET_SERVICE_ADDR=tweet-service:9092
+      - FOLLOW_SERVICE_ADDR=follow-service:9093
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CONSUL_HOST=consul
+      - CONSUL_PORT=8500
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_SAMPLER_TYPE=const
+      - JAEGER_SAMPLER_PARAM=1
+    ports:
+      - "9638:9638"
+    restart: on-failure
+    depends_on:
+      - user-service
+      - tweet-service
+      - follow-service
+  # Sentinel Dashboard
+  sentinel:
+    image: bladex/sentinel-dashboard
+    ports:
+      - "8858:8858"
+    restart: always
+
+volumes:
+  mysql_data:
+  prometheus_data:

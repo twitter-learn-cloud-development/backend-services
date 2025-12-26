@@ -1,0 +1,17 @@
+database:
+  host: 127.0.0.1
+  port: 3307
+  user: root
+  password: password
+  dbname: twitter
+  charset: utf8mb4
+
+  # 连接池配置
+  max_idle_conns: 50
+  max_open_conns: 100
+  conn_max_lifetime: 30m
+  conn_max_idle_time: 10m
+
+  # 日志配置
+  log_level: info        # silent, error, warn, info
+  slow_threshold: 200ms
