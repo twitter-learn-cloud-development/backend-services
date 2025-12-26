@@ -1,35 +1,32 @@
-# 环境变量
-.env
-.env.local
-
-# Go 编译产物
+# If you prefer the allow list template instead of the deny list, see community template:
+# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
+#
+# Binaries for programs and plugins
 *.exe
+*.exe~
 *.dll
 *.so
-main.exe
+*.dylib
 
-# Go 依赖
-vendor/
+# Test binary, built with `go test -c`
+*.test
 
-# IDE 配置
-.idea/
-.vscode/
+# Code coverage profiles and other test artifacts
+*.out
+coverage.*
+*.coverprofile
+profile.cov
 
-# 临时文件
-*.txt
-*.ps1
-*.Dockerfile
+# Dependency directories (remove the comment below to include it)
+# vendor/
 
-# 临时配置
-*-debug.yaml
-*-fixed.yaml
-deployment.json
-ns.json
-patch_args.yaml
-*-deployment.json
+# Go workspace file
+go.work
+go.work.sum
 
-# 测试数据
-test_data/
+# env file
+.env
 
-# GitHub workflows
-.github/
+# Editor/IDE
+# .idea/
+# .vscode/
