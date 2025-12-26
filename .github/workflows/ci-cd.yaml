@@ -5,6 +5,7 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  workflow_dispatch:  # ← 添加这一行，允许手动触发
 
 jobs:
   # 1. Test Job: Runs Go Unit Tests
