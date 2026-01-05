@@ -3,14 +3,12 @@ global:
   imageRegistry: ""
   imagePullSecrets: []
   storageClass: "standard"
-
 # Autoscaling configuration
 autoscaling:
   enabled: true
   minReplicas: 1
   maxReplicas: 3
   targetCPUUtilizationPercentage: 80
-
 # Ingress configuration
 ingress:
   enabled: true
@@ -22,7 +20,6 @@ ingress:
       paths:
         - path: /
           pathType: Prefix
-
 # Infrastructure dependencies configuration
 # Infrastructure dependencies configuration
 mysql:
@@ -35,13 +32,11 @@ mysql:
     database: "twitter"
   service:
     port: 3306
-
 redis:
   enabled: true
   architecture: standalone
   auth:
     enabled: false
-
 rabbitmq:
   enabled: true
   image:
@@ -53,7 +48,6 @@ rabbitmq:
   service:
     port: 5672
     managementPort: 15672
-
 consul:
   enabled: true
   global:
@@ -63,13 +57,11 @@ consul:
     bootstrapExpect: 1
   ui:
     enabled: false
-
 prometheus:
   enabled: true
   server:
     global:
       scrape_interval: 15s
-
 jaeger:
   enabled: true
   provisionDataStore:
@@ -94,52 +86,46 @@ jaeger:
         port: 14269
       initialDelaySeconds: 5
       periodSeconds: 15
-
-
-
 # Microservices configuration
 services:
   userService:
     name: user-service
     image:
       repository: user-service
-      tag: latest
+      tag: 73f6dcb409d4bd778c2dbe91c5beddd8fc072780
       pullPolicy: IfNotPresent
     replicaCount: 1
     containerPort: 9091
-    resources: 
+    resources:
       requests:
         cpu: 100m
         memory: 128Mi
       limits:
         cpu: 200m
         memory: 256Mi
-  
   tweetService:
     name: tweet-service
     image:
       repository: tweet-service
-      tag: latest
+      tag: 73f6dcb409d4bd778c2dbe91c5beddd8fc072780
       pullPolicy: IfNotPresent
     replicaCount: 1
     containerPort: 9092
     resources: {}
-
   followService:
     name: follow-service
     image:
       repository: follow-service
-      tag: latest
+      tag: 73f6dcb409d4bd778c2dbe91c5beddd8fc072780
       pullPolicy: IfNotPresent
     replicaCount: 1
     containerPort: 9093
     resources: {}
-
   gateway:
     name: gateway
     image:
       repository: gateway
-      tag: latest
+      tag: 73f6dcb409d4bd778c2dbe91c5beddd8fc072780
       pullPolicy: IfNotPresent
     replicaCount: 1
     service:
@@ -149,12 +135,11 @@ services:
     env:
       GATEWAY_PORT: "9638"
     resources: {}
-
   consumer:
     name: consumer
     image:
       repository: consumer
-      tag: latest
+      tag: 73f6dcb409d4bd778c2dbe91c5beddd8fc072780
       pullPolicy: IfNotPresent
     replicaCount: 1
     resources: {}
