@@ -96,7 +96,7 @@ services:
     name: user-service
     image:
       repository: user-service
-      tag: 73f6dcb409d4bd778c2dbe91c5beddd8fc072780
+      tag: c07f8c29f2b733f6a42da5e131671a9196394a8b
       pullPolicy: IfNotPresent
     replicaCount: 1
     containerPort: 9091
@@ -111,7 +111,7 @@ services:
     name: tweet-service
     image:
       repository: tweet-service
-      tag: 73f6dcb409d4bd778c2dbe91c5beddd8fc072780
+      tag: c07f8c29f2b733f6a42da5e131671a9196394a8b
       pullPolicy: IfNotPresent
     replicaCount: 1
     containerPort: 9092
@@ -120,7 +120,7 @@ services:
     name: follow-service
     image:
       repository: follow-service
-      tag: 73f6dcb409d4bd778c2dbe91c5beddd8fc072780
+      tag: c07f8c29f2b733f6a42da5e131671a9196394a8b
       pullPolicy: IfNotPresent
     replicaCount: 1
     containerPort: 9093
@@ -129,7 +129,7 @@ services:
     name: gateway
     image:
       repository: gateway
-      tag: 73f6dcb409d4bd778c2dbe91c5beddd8fc072780
+      tag: c07f8c29f2b733f6a42da5e131671a9196394a8b
       pullPolicy: IfNotPresent
     replicaCount: 1
     service:
@@ -143,7 +143,7 @@ services:
     name: consumer
     image:
       repository: consumer
-      tag: 73f6dcb409d4bd778c2dbe91c5beddd8fc072780
+      tag: c07f8c29f2b733f6a42da5e131671a9196394a8b
       pullPolicy: IfNotPresent
     replicaCount: 1
     resources: {}
