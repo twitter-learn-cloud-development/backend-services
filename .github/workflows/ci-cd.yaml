@@ -5,7 +5,10 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-  workflow_dispatch:  # ← 添加这一行，允许手动触发
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   # 1. Test Job: Runs Go Unit Tests
@@ -56,4 +59,45 @@ jobs:
           context: .
           file: deploy/docker/${{ matrix.service == 'user-service' && 'user' || matrix.service == 'tweet-service' && 'tweet' || matrix.service == 'follow-service' && 'follow' || matrix.service }}.dockerfile
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/${{ matrix.service }}:latest
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/${{ matrix.service }}:latest
+            ${{ secrets.DOCKER_USERNAME }}/${{ matrix.service }}:${{ github.sha }}
+
+  # 3. Update GitOps Manifests
+  update-manifests:
+    name: Update Helm Values
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Update Image Tags
+        run: |
+          # Install yq
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod a+x /usr/local/bin/yq
+
+          # Update tags
+          TAG="${{ github.sha }}"
+          VALUES_FILE="deploy/helm/twitter-clone/values.yaml"
+          
+          yq -i ".services.userService.image.tag = \"$TAG\"" $VALUES_FILE
+          yq -i ".services.tweetService.image.tag = \"$TAG\"" $VALUES_FILE
+          yq -i ".services.followService.image.tag = \"$TAG\"" $VALUES_FILE
+          yq -i ".services.gateway.image.tag = \"$TAG\"" $VALUES_FILE
+          yq -i ".services.consumer.image.tag = \"$TAG\"" $VALUES_FILE
+
+      - name: Commit and Push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add deploy/helm/twitter-clone/values.yaml
+          if git diff-index --quiet HEAD; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: update image tags to ${{ github.sha }} [skip ci]"
+            git push
+          fi
+

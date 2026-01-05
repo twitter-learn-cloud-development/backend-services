@@ -20,7 +20,7 @@ func InitSentinel() {
 	conf.Sentinel.Log.Dir = "/tmp/sentinel/logs"
 
 	// Use Environment Variables for Transport Config (avoiding struct field issues)
-	os.Setenv("SENTINEL_DASHBOARD_ADDR", "sentinel:8080")
+	os.Setenv("SENTINEL_DASHBOARD_ADDR", "sentinel:9142")
 	os.Setenv("SENTINEL_TRANSPORT_PORT", "8719")
 	// Also set App Name via Env for consistency
 	os.Setenv("SENTINEL_APP_NAME", "gateway")
