@@ -95,8 +95,13 @@ services:
   userService:
     name: user-service
     image:
+<<<<<<< HEAD
       repository: user-service
       tag: c07f8c29f2b733f6a42da5e131671a9196394a8b
+=======
+      repository: daguozhai/user-service
+      tag: 73f6dcb409d4bd778c2dbe91c5beddd8fc072780
+>>>>>>> 3bfe3df (fix(helm): update image repositories to use daguozhai namespace)
       pullPolicy: IfNotPresent
     replicaCount: 1
     containerPort: 9091
@@ -110,8 +115,13 @@ services:
   tweetService:
     name: tweet-service
     image:
+<<<<<<< HEAD
       repository: tweet-service
       tag: c07f8c29f2b733f6a42da5e131671a9196394a8b
+=======
+      repository: daguozhai/tweet-service
+      tag: 73f6dcb409d4bd778c2dbe91c5beddd8fc072780
+>>>>>>> 3bfe3df (fix(helm): update image repositories to use daguozhai namespace)
       pullPolicy: IfNotPresent
     replicaCount: 1
     containerPort: 9092
@@ -119,8 +129,13 @@ services:
   followService:
     name: follow-service
     image:
+<<<<<<< HEAD
       repository: follow-service
       tag: c07f8c29f2b733f6a42da5e131671a9196394a8b
+=======
+      repository: daguozhai/follow-service
+      tag: 73f6dcb409d4bd778c2dbe91c5beddd8fc072780
+>>>>>>> 3bfe3df (fix(helm): update image repositories to use daguozhai namespace)
       pullPolicy: IfNotPresent
     replicaCount: 1
     containerPort: 9093
@@ -128,8 +143,13 @@ services:
   gateway:
     name: gateway
     image:
+<<<<<<< HEAD
       repository: gateway
       tag: c07f8c29f2b733f6a42da5e131671a9196394a8b
+=======
+      repository: daguozhai/gateway
+      tag: 73f6dcb409d4bd778c2dbe91c5beddd8fc072780
+>>>>>>> 3bfe3df (fix(helm): update image repositories to use daguozhai namespace)
       pullPolicy: IfNotPresent
     replicaCount: 1
     service:
@@ -142,8 +162,13 @@ services:
   consumer:
     name: consumer
     image:
+<<<<<<< HEAD
       repository: consumer
       tag: c07f8c29f2b733f6a42da5e131671a9196394a8b
+=======
+      repository: daguozhai/consumer
+      tag: 73f6dcb409d4bd778c2dbe91c5beddd8fc072780
+>>>>>>> 3bfe3df (fix(helm): update image repositories to use daguozhai namespace)
       pullPolicy: IfNotPresent
     replicaCount: 1
     resources: {}
