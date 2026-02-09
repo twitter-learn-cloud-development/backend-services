@@ -96,7 +96,7 @@ services:
     name: user-service
     image:
       repository: daguozhai/user-service
-      tag: 72e6cfe5ffbcf17d1c6c73834d656559176f02ba
+      tag: latest
       pullPolicy: IfNotPresent
     replicaCount: 1
     containerPort: 9091
