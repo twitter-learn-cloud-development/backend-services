@@ -78,18 +78,25 @@ jaeger:
       repository: jaegertracing/all-in-one
       tag: "1.66.0"
       pullPolicy: IfNotPresent
+    extraEnv:
+      - name: ADMIN_HTTP_HOST_PORT
+        value: ":14269"
     livenessProbe:
       httpGet:
         path: /
         port: 14269
-      initialDelaySeconds: 5
+      initialDelaySeconds: 10
       periodSeconds: 15
+      failureThreshold: 5
+      timeoutSeconds: 2
     readinessProbe:
       httpGet:
         path: /
         port: 14269
       initialDelaySeconds: 5
-      periodSeconds: 15
+      periodSeconds: 10
+      failureThreshold: 3
+      timeoutSeconds: 2
 # Microservices configuration
 services:
   userService:
