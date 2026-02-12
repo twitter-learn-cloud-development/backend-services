@@ -1,11 +1,76 @@
+# Loki Stack values for twitter-clone
+# Includes: Loki (log storage) + Promtail (log collector)
+# Compatible with loki-stack chart (Loki v2.x)
+
 loki:
   enabled: true
   persistence:
     enabled: true
-    size: 10Gi
+    size: 5Gi
+    storageClassName: standard
+  config:
+    auth_enabled: false
+    server:
+      http_listen_port: 3100
+    ingester:
+      lifecycler:
+        ring:
+          kvstore:
+            store: inmemory
+          replication_factor: 1
+    schema_config:
+      configs:
+        - from: "2024-01-01"
+          store: boltdb-shipper
+          object_store: filesystem
+          schema: v11
+          index:
+            prefix: index_
+            period: 24h
+    storage_config:
+      boltdb_shipper:
+        active_index_directory: /data/loki/boltdb-shipper-active
+        cache_location: /data/loki/boltdb-shipper-cache
+        shared_store: filesystem
+      filesystem:
+        directory: /data/loki/chunks
+    limits_config:
+      reject_old_samples: true
+      reject_old_samples_max_age: 168h
+    compactor:
+      working_directory: /data/loki/compactor
+      shared_store: filesystem
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
 
 promtail:
   enabled: true
   config:
     clients:
       - url: http://loki:3100/loki/api/v1/push
+    snippets:
+      pipelineStages:
+        - cri: {}
+        - json:
+            expressions:
+              level: level
+              trace_id: trace_id
+              msg: msg
+        - labels:
+            level:
+            trace_id:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+grafana:
+  enabled: false

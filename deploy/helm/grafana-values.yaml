@@ -1,0 +1,56 @@
+# Grafana values for twitter-clone monitoring
+# Deploys Grafana with pre-configured data sources
+
+adminUser: admin
+adminPassword: admin123
+
+service:
+  type: NodePort
+  nodePort: 31300
+
+persistence:
+  enabled: true
+  size: 2Gi
+  storageClassName: standard
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+# Pre-configure data sources
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      # Loki — 日志数据源
+      - name: Loki
+        type: loki
+        access: proxy
+        url: http://loki.monitoring:3100
+        isDefault: true
+        jsonData:
+          derivedFields:
+            - datasourceUid: jaeger
+              matcherRegex: '"trace_id":"(\w+)"'
+              name: TraceID
+              url: '$${__value.raw}'
+        editable: true
+
+      # Jaeger — 链路追踪数据源
+      - name: Jaeger
+        type: jaeger
+        uid: jaeger
+        access: proxy
+        url: http://twitter-clone-jaeger-query.default:16686
+        editable: true
+
+      # Prometheus — 指标数据源
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://twitter-clone-prometheus-server.default:80
+        editable: true
