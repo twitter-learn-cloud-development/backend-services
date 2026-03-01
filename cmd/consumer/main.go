@@ -48,6 +48,8 @@ func main() {
 		&domain.User{},
 		&domain.Tweet{},
 		&domain.Follow{},
+		&domain.Like{},
+		&domain.Comment{},
 	); err != nil {
 		log.Fatalf("❌ Failed to migrate database: %v", err)
 	}
@@ -75,7 +77,7 @@ func main() {
 	timelineCache := tweetCache.NewTimelineCache(redisClient)
 
 	// 7. 创建 Consumer
-	timelineConsumer, err := consumer.NewTimelineConsumer(mqClient, followRepo, timelineCache)
+	timelineConsumer, err := consumer.NewTimelineConsumer(mqClient, followRepo, timelineCache, redisClient)
 	if err != nil {
 		log.Fatalf("❌ Failed to create consumer: %v", err)
 	}

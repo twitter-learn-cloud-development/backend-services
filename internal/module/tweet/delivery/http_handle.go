@@ -3,11 +3,12 @@ package delivery
 import (
 	"errors"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
 	"twitter-clone/internal/domain"
 	"twitter-clone/internal/module/tweet/service"
+
+	"github.com/gin-gonic/gin"
 )
 
 // TweetHandler 推文HTTP处理器
@@ -38,7 +39,7 @@ func (h *TweetHandler) CreateTweet(c *gin.Context) {
 	}
 
 	//3.调用 Service
-	tweet, err := h.svc.CreateTweet(c.Request.Context(), userID.(uint64), req.Content, req.MediaURLs)
+	tweet, err := h.svc.CreateTweet(c.Request.Context(), userID.(uint64), req.Content, req.MediaURLs, 0)
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -85,8 +86,13 @@ func (h *TweetHandler) GetTweet(c *gin.Context) {
 		return
 	}
 
-	// 2. 调用 Service
-	tweet, err := h.svc.GetTweet(c.Request.Context(), tweetID)
+	// 2. 调用 Service (获取当前用户用于判断 is_liked)
+	var requestingUserID uint64
+	if val, exists := c.Get("user_id"); exists {
+		requestingUserID = val.(uint64)
+	}
+
+	tweet, err := h.svc.GetTweet(c.Request.Context(), tweetID, requestingUserID)
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -110,7 +116,12 @@ func (h *TweetHandler) GetUserTimeline(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 
 	// 3. 调用 Service
-	tweets, nextCursor, hasMore, err := h.svc.GetUserTimeline(c.Request.Context(), userID, cursor, limit)
+	var requestingUserID uint64
+	if val, exists := c.Get("user_id"); exists {
+		requestingUserID = val.(uint64)
+	}
+
+	tweets, nextCursor, hasMore, err := h.svc.GetUserTimeline(c.Request.Context(), userID, cursor, limit, requestingUserID)
 	if err != nil {
 		h.handleError(c, err)
 		return

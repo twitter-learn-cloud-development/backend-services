@@ -1,0 +1,31 @@
+# Git
+.git
+.gitignore
+
+# Go
+bin/
+tmp/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+test/
+
+# IDEs
+.idea/
+.vscode/
+
+# Web
+web/node_modules/
+web/dist/
+web/.output/
+web/.nuxt/
+web/.turbo/
+
+# Logs
+logs/
+*.log
+
+# Docker
+docker-compose.override.yml

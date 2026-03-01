@@ -25,9 +25,9 @@ func InitTracer(serviceName string, collectorHost string) {
 		log.Printf("⚠️ Failed to merge resource: %v", err)
 	}
 
-	// 2. 配置 Exporter (将数据发送给 Jaeger Agent)
-	// AgentHost 默认为 localhost，这里需要传入 Jaeger 的 Host (如 "jaeger")
-	exporter, err := jaeger.New(jaeger.WithAgentEndpoint(jaeger.WithAgentHost(collectorHost)))
+	// 2. 配置 Exporter (将数据发送给 Jaeger Collector - HTTP)
+	// 使用 HTTP Collector Endpoint 替代 UDP Agent，适用于无 Sidecar 部署
+	exporter, err := jaeger.New(jaeger.WithCollectorEndpoint(jaeger.WithEndpoint(collectorHost)))
 	if err != nil {
 		log.Printf("⚠️ Failed to create jaeger exporter: %v", err)
 		return

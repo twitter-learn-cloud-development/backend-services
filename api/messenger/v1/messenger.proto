@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package messenger.v1;
+
+option go_package = "twitter-clone/api/messenger/v1;messengerv1";
+
+service MessengerService {
+  // 发送消息
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+  // 获取会话列表
+  rpc GetConversations(GetConversationsRequest) returns (GetConversationsResponse);
+  // 获取消息历史
+  rpc GetMessages(GetMessagesRequest) returns (GetMessagesResponse);
+}
+
+message Message {
+  uint64 id = 1;
+  uint64 sender_id = 2;
+  uint64 receiver_id = 3;
+  string content = 4;
+  int64 created_at = 5;
+  bool is_read = 6;
+}
+
+message Conversation {
+  uint64 peer_id = 1; // 对方的用户ID
+  Message latest_message = 2;
+  int32 unread_count = 3;
+}
+
+message SendMessageRequest {
+  uint64 sender_id = 1;
+  uint64 receiver_id = 2;
+  string content = 3;
+}
+
+message SendMessageResponse {
+  Message message = 1;
+}
+
+message GetConversationsRequest {
+  uint64 user_id = 1;
+  int32 limit = 2;
+  string cursor = 3; // 游标，通常是时间戳或ID
+}
+
+message GetConversationsResponse {
+  repeated Conversation conversations = 1;
+  string next_cursor = 2;
+  bool has_more = 3;
+}
+
+message GetMessagesRequest {
+  uint64 user_id = 1;
+  uint64 peer_id = 2;
+  int32 limit = 3;
+  string cursor = 4; // 游标，通常是消息ID
+}
+
+message GetMessagesResponse {
+  repeated Message messages = 1;
+  string next_cursor = 2;
+  bool has_more = 3;
+}

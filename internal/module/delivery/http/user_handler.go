@@ -2,9 +2,10 @@ package http
 
 import (
 	"errors"
-	"github.com/gin-gonic/gin"
 	"twitter-clone/internal/domain"
 	"twitter-clone/internal/module/user/service"
+
+	"github.com/gin-gonic/gin"
 )
 
 // UserHandler 用户 HTTP 处理器
@@ -146,7 +147,8 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	}
 
 	//3.调用Service
-	err := h.svc.UpdateProfile(c.Request.Context(), userID.(uint64), req.Bio, req.Avatar)
+	//3.调用Service
+	err := h.svc.UpdateProfile(c.Request.Context(), userID.(uint64), req.Bio, req.Avatar, req.CoverURL, req.Website, req.Location)
 	if err != nil {
 		h.handleServiceError(c, err)
 		return

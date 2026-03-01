@@ -3,10 +3,11 @@ package repository
 import (
 	"context"
 	"fmt"
-	"gorm.io/gorm"
 	"time"
 	"twitter-clone/internal/domain"
 	"twitter-clone/pkg/pkg/snowflake"
+
+	"gorm.io/gorm"
 )
 
 type userRepo struct {
@@ -48,6 +49,20 @@ func (r *userRepo) GetByID(ctx context.Context, id uint64) (*domain.User, error)
 	return &user, nil
 }
 
+func (r *userRepo) GetByIDs(ctx context.Context, ids []uint64) ([]*domain.User, error) {
+	if len(ids) == 0 {
+		return []*domain.User{}, nil
+	}
+	var users []*domain.User
+	err := r.db.WithContext(ctx).
+		Where("id IN ? AND deleted_at = 0", ids).
+		Find(&users).Error
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
 func (r *userRepo) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
 	var user domain.User
 	// ✅ 修复：必须手动加 deleted_at = 0
@@ -71,6 +86,28 @@ func (r *userRepo) GetByUsername(ctx context.Context, username string) (*domain.
 		return nil, err
 	}
 	return &user, nil
+}
+
+// Search 搜索用户 (按用户名模糊匹配)
+func (r *userRepo) Search(ctx context.Context, keyword string, cursor uint64, limit int) ([]*domain.User, error) {
+	var users []*domain.User
+	query := r.db.WithContext(ctx).Model(&domain.User{}).Where("deleted_at = 0")
+
+	if keyword != "" {
+		// PostgreSQL usage: query.Where("username ILIKE ? OR bio ILIKE ?", "%"+keyword+"%", "%"+keyword+"%")
+		// MySQL usage for case-insensitive: LIKE is usually case-insensitive depending on collation
+		query = query.Where("username LIKE ? OR bio LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
+	}
+
+	if cursor > 0 {
+		query = query.Where("id < ?", cursor)
+	}
+
+	err := query.Order("id DESC").Limit(limit).Find(&users).Error
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
 }
 
 // Update ✅ 修复：实现了真正的保存逻辑

@@ -84,6 +84,18 @@
 - [ ] **Grafana** — 数据可视化面板（待部署）
 - [ ] **PLG Stack (Loki + Promtail)** — 分布式日志（待部署）
 
+### 阶段 6：业务功能扩展
+- [x] **Like System** — 点赞推文 (Redis 缓存 + 异步持久化)
+- [x] **Comment System** — 二级评论、评论计数
+- [x] **Notification System** — 互动通知 (RabbitMQ + WebSocket 实时推送)
+- [x] **Simple Search** — 简易推文搜索 (MySQL Like / FullText)
+- [x] **Trending Topics** — 热门话题排行榜 (Redis Sorted Set + 异步计算)
+- [x] **User Profile** — 用户资料完善 (头像/简介)
+- [x] **Media Upload** — 媒体上传服务 (Local Storage)
+- [x] **Retweet System** — 转发推文 (gateway 直连 DB + 前端切换)
+- [x] **Profile Tabs** — 个人资料页 Tabs (帖子/回复/媒体/喜欢)
+- [x] **Messenger System** — 私信系统 (gRPC + WebSocket 实时聊天)
+
 ---
 
 ## 🚧 当前阶段：分布式日志系统 (PLG Stack)

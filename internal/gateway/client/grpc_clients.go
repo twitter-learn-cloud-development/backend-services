@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	followv1 "twitter-clone/api/follow/v1"
+	messengerv1 "twitter-clone/api/messenger/v1"
 	tweetv1 "twitter-clone/api/tweet/v1"
 	userv1 "twitter-clone/api/user/v1"
 
@@ -18,13 +19,15 @@ import (
 )
 
 type GRPCClients struct {
-	UserClient   userv1.UserServiceClient
-	TweetClient  tweetv1.TweetServiceClient
-	FollowClient followv1.FollowServiceClient
+	UserClient      userv1.UserServiceClient
+	TweetClient     tweetv1.TweetServiceClient
+	FollowClient    followv1.FollowServiceClient
+	MessengerClient messengerv1.MessengerServiceClient
 
-	userConn   *grpc.ClientConn
-	tweetConn  *grpc.ClientConn
-	followConn *grpc.ClientConn
+	userConn      *grpc.ClientConn
+	tweetConn     *grpc.ClientConn
+	followConn    *grpc.ClientConn
+	messengerConn *grpc.ClientConn
 }
 
 func NewGRPCClients(consulAddr string) (*GRPCClients, error) {
@@ -86,6 +89,23 @@ func NewGRPCClients(consulAddr string) (*GRPCClients, error) {
 	clients.FollowClient = followv1.NewFollowServiceClient(followConn)
 	log.Printf("✅ Gateway connected to Follow Service info (Target: %s)", followTarget)
 
+	// 4. 连接 Messenger Service
+	messengerTarget := fmt.Sprintf("consul://%s/messenger-service?healthy=true", consulAddr)
+	messengerConn, err := grpc.NewClient(messengerTarget,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultServiceConfig(serviceConfig),
+		otelInterceptor,
+	)
+	if err != nil {
+		userConn.Close()
+		tweetConn.Close()
+		followConn.Close()
+		return nil, fmt.Errorf("failed to create messenger service client: %v", err)
+	}
+	clients.messengerConn = messengerConn
+	clients.MessengerClient = messengerv1.NewMessengerServiceClient(messengerConn)
+	log.Printf("✅ Gateway connected to Messenger Service info (Target: %s)", messengerTarget)
+
 	return clients, nil
 }
 
@@ -98,6 +118,9 @@ func (c *GRPCClients) Close() {
 	}
 	if c.followConn != nil {
 		c.followConn.Close()
+	}
+	if c.messengerConn != nil {
+		c.messengerConn.Close()
 	}
 }
 

@@ -23,8 +23,8 @@ const (
 
 type FollowRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	FollowerId    uint64                 `protobuf:"varint,1,opt,name=follower_id,test_data=followerId,proto3" test_data:"follower_id,omitempty"`
-	FolloweeId    uint64                 `protobuf:"varint,2,opt,name=followee_id,test_data=followeeId,proto3" test_data:"followee_id,omitempty"`
+	FollowerId    uint64                 `protobuf:"varint,1,opt,name=follower_id,json=followerId,proto3" json:"follower_id,omitempty"`
+	FolloweeId    uint64                 `protobuf:"varint,2,opt,name=followee_id,json=followeeId,proto3" json:"followee_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -75,7 +75,7 @@ func (x *FollowRequest) GetFolloweeId() uint64 {
 
 type FollowResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" test_data:"message,omitempty"`
+	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -119,8 +119,8 @@ func (x *FollowResponse) GetMessage() string {
 
 type UnfollowRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	FollowerId    uint64                 `protobuf:"varint,1,opt,name=follower_id,test_data=followerId,proto3" test_data:"follower_id,omitempty"`
-	FolloweeId    uint64                 `protobuf:"varint,2,opt,name=followee_id,test_data=followeeId,proto3" test_data:"followee_id,omitempty"`
+	FollowerId    uint64                 `protobuf:"varint,1,opt,name=follower_id,json=followerId,proto3" json:"follower_id,omitempty"`
+	FolloweeId    uint64                 `protobuf:"varint,2,opt,name=followee_id,json=followeeId,proto3" json:"followee_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -171,7 +171,7 @@ func (x *UnfollowRequest) GetFolloweeId() uint64 {
 
 type UnfollowResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" test_data:"message,omitempty"`
+	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -215,8 +215,8 @@ func (x *UnfollowResponse) GetMessage() string {
 
 type IsFollowingRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	FollowerId    uint64                 `protobuf:"varint,1,opt,name=follower_id,test_data=followerId,proto3" test_data:"follower_id,omitempty"`
-	FolloweeId    uint64                 `protobuf:"varint,2,opt,name=followee_id,test_data=followeeId,proto3" test_data:"followee_id,omitempty"`
+	FollowerId    uint64                 `protobuf:"varint,1,opt,name=follower_id,json=followerId,proto3" json:"follower_id,omitempty"`
+	FolloweeId    uint64                 `protobuf:"varint,2,opt,name=followee_id,json=followeeId,proto3" json:"followee_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -267,7 +267,7 @@ func (x *IsFollowingRequest) GetFolloweeId() uint64 {
 
 type IsFollowingResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	IsFollowing   bool                   `protobuf:"varint,1,opt,name=is_following,test_data=isFollowing,proto3" test_data:"is_following,omitempty"`
+	IsFollowing   bool                   `protobuf:"varint,1,opt,name=is_following,json=isFollowing,proto3" json:"is_following,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -311,9 +311,9 @@ func (x *IsFollowingResponse) GetIsFollowing() bool {
 
 type GetFollowersRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,test_data=userId,proto3" test_data:"user_id,omitempty"`
-	Cursor        uint64                 `protobuf:"varint,2,opt,name=cursor,proto3" test_data:"cursor,omitempty"`
-	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" test_data:"limit,omitempty"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Cursor        uint64                 `protobuf:"varint,2,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -371,9 +371,9 @@ func (x *GetFollowersRequest) GetLimit() int32 {
 
 type GetFollowersResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	FollowerIds   []uint64               `protobuf:"varint,1,rep,packed,name=follower_ids,test_data=followerIds,proto3" test_data:"follower_ids,omitempty"`
-	NextCursor    uint64                 `protobuf:"varint,2,opt,name=next_cursor,test_data=nextCursor,proto3" test_data:"next_cursor,omitempty"`
-	HasMore       bool                   `protobuf:"varint,3,opt,name=has_more,test_data=hasMore,proto3" test_data:"has_more,omitempty"`
+	FollowerIds   []uint64               `protobuf:"varint,1,rep,packed,name=follower_ids,json=followerIds,proto3" json:"follower_ids,omitempty"`
+	NextCursor    uint64                 `protobuf:"varint,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	HasMore       bool                   `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -431,9 +431,9 @@ func (x *GetFollowersResponse) GetHasMore() bool {
 
 type GetFolloweesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,test_data=userId,proto3" test_data:"user_id,omitempty"`
-	Cursor        uint64                 `protobuf:"varint,2,opt,name=cursor,proto3" test_data:"cursor,omitempty"`
-	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" test_data:"limit,omitempty"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Cursor        uint64                 `protobuf:"varint,2,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -491,9 +491,9 @@ func (x *GetFolloweesRequest) GetLimit() int32 {
 
 type GetFolloweesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	FolloweeIds   []uint64               `protobuf:"varint,1,rep,packed,name=followee_ids,test_data=followeeIds,proto3" test_data:"followee_ids,omitempty"`
-	NextCursor    uint64                 `protobuf:"varint,2,opt,name=next_cursor,test_data=nextCursor,proto3" test_data:"next_cursor,omitempty"`
-	HasMore       bool                   `protobuf:"varint,3,opt,name=has_more,test_data=hasMore,proto3" test_data:"has_more,omitempty"`
+	FolloweeIds   []uint64               `protobuf:"varint,1,rep,packed,name=followee_ids,json=followeeIds,proto3" json:"followee_ids,omitempty"`
+	NextCursor    uint64                 `protobuf:"varint,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	HasMore       bool                   `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -551,7 +551,7 @@ func (x *GetFolloweesResponse) GetHasMore() bool {
 
 type GetFollowStatsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,test_data=userId,proto3" test_data:"user_id,omitempty"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -595,8 +595,8 @@ func (x *GetFollowStatsRequest) GetUserId() uint64 {
 
 type GetFollowStatsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	FollowerCount int64                  `protobuf:"varint,1,opt,name=follower_count,test_data=followerCount,proto3" test_data:"follower_count,omitempty"`
-	FolloweeCount int64                  `protobuf:"varint,2,opt,name=followee_count,test_data=followeeCount,proto3" test_data:"followee_count,omitempty"`
+	FollowerCount int64                  `protobuf:"varint,1,opt,name=follower_count,json=followerCount,proto3" json:"follower_count,omitempty"`
+	FolloweeCount int64                  `protobuf:"varint,2,opt,name=followee_count,json=followeeCount,proto3" json:"followee_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

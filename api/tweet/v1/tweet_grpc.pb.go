@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.0
 // - protoc             v6.33.0--rc1
-// source: api/tweet/v1/tweet.proto
+// source: tweet.proto
 
 package tweetv1
 
@@ -19,11 +19,21 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	TweetService_CreateTweet_FullMethodName     = "/tweet.v1.TweetService/CreateTweet"
-	TweetService_GetTweet_FullMethodName        = "/tweet.v1.TweetService/GetTweet"
-	TweetService_DeleteTweet_FullMethodName     = "/tweet.v1.TweetService/DeleteTweet"
-	TweetService_GetUserTimeline_FullMethodName = "/tweet.v1.TweetService/GetUserTimeline"
-	TweetService_GetFeeds_FullMethodName        = "/tweet.v1.TweetService/GetFeeds"
+	TweetService_CreateTweet_FullMethodName       = "/tweet.v1.TweetService/CreateTweet"
+	TweetService_GetTweet_FullMethodName          = "/tweet.v1.TweetService/GetTweet"
+	TweetService_DeleteTweet_FullMethodName       = "/tweet.v1.TweetService/DeleteTweet"
+	TweetService_GetUserTimeline_FullMethodName   = "/tweet.v1.TweetService/GetUserTimeline"
+	TweetService_GetFeeds_FullMethodName          = "/tweet.v1.TweetService/GetFeeds"
+	TweetService_LikeTweet_FullMethodName         = "/tweet.v1.TweetService/LikeTweet"
+	TweetService_UnlikeTweet_FullMethodName       = "/tweet.v1.TweetService/UnlikeTweet"
+	TweetService_CreateComment_FullMethodName     = "/tweet.v1.TweetService/CreateComment"
+	TweetService_DeleteComment_FullMethodName     = "/tweet.v1.TweetService/DeleteComment"
+	TweetService_GetTweetComments_FullMethodName  = "/tweet.v1.TweetService/GetTweetComments"
+	TweetService_SearchTweets_FullMethodName      = "/tweet.v1.TweetService/SearchTweets"
+	TweetService_GetTrendingTopics_FullMethodName = "/tweet.v1.TweetService/GetTrendingTopics"
+	TweetService_ListTweets_FullMethodName        = "/tweet.v1.TweetService/ListTweets"
+	TweetService_GetTweetReplies_FullMethodName   = "/tweet.v1.TweetService/GetTweetReplies"
+	TweetService_VotePoll_FullMethodName          = "/tweet.v1.TweetService/VotePoll"
 )
 
 // TweetServiceClient is the client API for TweetService service.
@@ -42,6 +52,26 @@ type TweetServiceClient interface {
 	GetUserTimeline(ctx context.Context, in *GetUserTimelineRequest, opts ...grpc.CallOption) (*GetUserTimelineResponse, error)
 	// GetFeeds 获取关注流
 	GetFeeds(ctx context.Context, in *GetFeedsRequest, opts ...grpc.CallOption) (*GetFeedsResponse, error)
+	// LikeTweet 点赞推文
+	LikeTweet(ctx context.Context, in *LikeTweetRequest, opts ...grpc.CallOption) (*LikeTweetResponse, error)
+	// UnlikeTweet 取消点赞
+	UnlikeTweet(ctx context.Context, in *UnlikeTweetRequest, opts ...grpc.CallOption) (*UnlikeTweetResponse, error)
+	// CreateComment 发布评论
+	CreateComment(ctx context.Context, in *CreateCommentRequest, opts ...grpc.CallOption) (*CreateCommentResponse, error)
+	// DeleteComment 删除评论
+	DeleteComment(ctx context.Context, in *DeleteCommentRequest, opts ...grpc.CallOption) (*DeleteCommentResponse, error)
+	// GetTweetComments 获取推文评论
+	GetTweetComments(ctx context.Context, in *GetTweetCommentsRequest, opts ...grpc.CallOption) (*GetTweetCommentsResponse, error)
+	// SearchTweets 搜索推文
+	SearchTweets(ctx context.Context, in *SearchTweetsRequest, opts ...grpc.CallOption) (*SearchTweetsResponse, error)
+	// GetTrendingTopics 获取热门话题
+	GetTrendingTopics(ctx context.Context, in *GetTrendingTopicsRequest, opts ...grpc.CallOption) (*GetTrendingTopicsResponse, error)
+	// ListTweets 获取推文列表（全站）
+	ListTweets(ctx context.Context, in *ListTweetsRequest, opts ...grpc.CallOption) (*ListTweetsResponse, error)
+	// GetTweetReplies 获取推文回复列表 (Thread)
+	GetTweetReplies(ctx context.Context, in *GetTweetRepliesRequest, opts ...grpc.CallOption) (*GetTweetRepliesResponse, error)
+	// VotePoll 投票
+	VotePoll(ctx context.Context, in *VotePollRequest, opts ...grpc.CallOption) (*VotePollResponse, error)
 }
 
 type tweetServiceClient struct {
@@ -102,6 +132,106 @@ func (c *tweetServiceClient) GetFeeds(ctx context.Context, in *GetFeedsRequest, 
 	return out, nil
 }
 
+func (c *tweetServiceClient) LikeTweet(ctx context.Context, in *LikeTweetRequest, opts ...grpc.CallOption) (*LikeTweetResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LikeTweetResponse)
+	err := c.cc.Invoke(ctx, TweetService_LikeTweet_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tweetServiceClient) UnlikeTweet(ctx context.Context, in *UnlikeTweetRequest, opts ...grpc.CallOption) (*UnlikeTweetResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UnlikeTweetResponse)
+	err := c.cc.Invoke(ctx, TweetService_UnlikeTweet_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tweetServiceClient) CreateComment(ctx context.Context, in *CreateCommentRequest, opts ...grpc.CallOption) (*CreateCommentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateCommentResponse)
+	err := c.cc.Invoke(ctx, TweetService_CreateComment_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tweetServiceClient) DeleteComment(ctx context.Context, in *DeleteCommentRequest, opts ...grpc.CallOption) (*DeleteCommentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteCommentResponse)
+	err := c.cc.Invoke(ctx, TweetService_DeleteComment_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tweetServiceClient) GetTweetComments(ctx context.Context, in *GetTweetCommentsRequest, opts ...grpc.CallOption) (*GetTweetCommentsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetTweetCommentsResponse)
+	err := c.cc.Invoke(ctx, TweetService_GetTweetComments_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tweetServiceClient) SearchTweets(ctx context.Context, in *SearchTweetsRequest, opts ...grpc.CallOption) (*SearchTweetsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SearchTweetsResponse)
+	err := c.cc.Invoke(ctx, TweetService_SearchTweets_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tweetServiceClient) GetTrendingTopics(ctx context.Context, in *GetTrendingTopicsRequest, opts ...grpc.CallOption) (*GetTrendingTopicsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetTrendingTopicsResponse)
+	err := c.cc.Invoke(ctx, TweetService_GetTrendingTopics_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tweetServiceClient) ListTweets(ctx context.Context, in *ListTweetsRequest, opts ...grpc.CallOption) (*ListTweetsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListTweetsResponse)
+	err := c.cc.Invoke(ctx, TweetService_ListTweets_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tweetServiceClient) GetTweetReplies(ctx context.Context, in *GetTweetRepliesRequest, opts ...grpc.CallOption) (*GetTweetRepliesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetTweetRepliesResponse)
+	err := c.cc.Invoke(ctx, TweetService_GetTweetReplies_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tweetServiceClient) VotePoll(ctx context.Context, in *VotePollRequest, opts ...grpc.CallOption) (*VotePollResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(VotePollResponse)
+	err := c.cc.Invoke(ctx, TweetService_VotePoll_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TweetServiceServer is the server API for TweetService service.
 // All implementations must embed UnimplementedTweetServiceServer
 // for forward compatibility.
@@ -118,6 +248,26 @@ type TweetServiceServer interface {
 	GetUserTimeline(context.Context, *GetUserTimelineRequest) (*GetUserTimelineResponse, error)
 	// GetFeeds 获取关注流
 	GetFeeds(context.Context, *GetFeedsRequest) (*GetFeedsResponse, error)
+	// LikeTweet 点赞推文
+	LikeTweet(context.Context, *LikeTweetRequest) (*LikeTweetResponse, error)
+	// UnlikeTweet 取消点赞
+	UnlikeTweet(context.Context, *UnlikeTweetRequest) (*UnlikeTweetResponse, error)
+	// CreateComment 发布评论
+	CreateComment(context.Context, *CreateCommentRequest) (*CreateCommentResponse, error)
+	// DeleteComment 删除评论
+	DeleteComment(context.Context, *DeleteCommentRequest) (*DeleteCommentResponse, error)
+	// GetTweetComments 获取推文评论
+	GetTweetComments(context.Context, *GetTweetCommentsRequest) (*GetTweetCommentsResponse, error)
+	// SearchTweets 搜索推文
+	SearchTweets(context.Context, *SearchTweetsRequest) (*SearchTweetsResponse, error)
+	// GetTrendingTopics 获取热门话题
+	GetTrendingTopics(context.Context, *GetTrendingTopicsRequest) (*GetTrendingTopicsResponse, error)
+	// ListTweets 获取推文列表（全站）
+	ListTweets(context.Context, *ListTweetsRequest) (*ListTweetsResponse, error)
+	// GetTweetReplies 获取推文回复列表 (Thread)
+	GetTweetReplies(context.Context, *GetTweetRepliesRequest) (*GetTweetRepliesResponse, error)
+	// VotePoll 投票
+	VotePoll(context.Context, *VotePollRequest) (*VotePollResponse, error)
 	mustEmbedUnimplementedTweetServiceServer()
 }
 
@@ -142,6 +292,36 @@ func (UnimplementedTweetServiceServer) GetUserTimeline(context.Context, *GetUser
 }
 func (UnimplementedTweetServiceServer) GetFeeds(context.Context, *GetFeedsRequest) (*GetFeedsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetFeeds not implemented")
+}
+func (UnimplementedTweetServiceServer) LikeTweet(context.Context, *LikeTweetRequest) (*LikeTweetResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method LikeTweet not implemented")
+}
+func (UnimplementedTweetServiceServer) UnlikeTweet(context.Context, *UnlikeTweetRequest) (*UnlikeTweetResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UnlikeTweet not implemented")
+}
+func (UnimplementedTweetServiceServer) CreateComment(context.Context, *CreateCommentRequest) (*CreateCommentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateComment not implemented")
+}
+func (UnimplementedTweetServiceServer) DeleteComment(context.Context, *DeleteCommentRequest) (*DeleteCommentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteComment not implemented")
+}
+func (UnimplementedTweetServiceServer) GetTweetComments(context.Context, *GetTweetCommentsRequest) (*GetTweetCommentsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetTweetComments not implemented")
+}
+func (UnimplementedTweetServiceServer) SearchTweets(context.Context, *SearchTweetsRequest) (*SearchTweetsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SearchTweets not implemented")
+}
+func (UnimplementedTweetServiceServer) GetTrendingTopics(context.Context, *GetTrendingTopicsRequest) (*GetTrendingTopicsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetTrendingTopics not implemented")
+}
+func (UnimplementedTweetServiceServer) ListTweets(context.Context, *ListTweetsRequest) (*ListTweetsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListTweets not implemented")
+}
+func (UnimplementedTweetServiceServer) GetTweetReplies(context.Context, *GetTweetRepliesRequest) (*GetTweetRepliesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetTweetReplies not implemented")
+}
+func (UnimplementedTweetServiceServer) VotePoll(context.Context, *VotePollRequest) (*VotePollResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method VotePoll not implemented")
 }
 func (UnimplementedTweetServiceServer) mustEmbedUnimplementedTweetServiceServer() {}
 func (UnimplementedTweetServiceServer) testEmbeddedByValue()                      {}
@@ -254,6 +434,186 @@ func _TweetService_GetFeeds_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TweetService_LikeTweet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LikeTweetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TweetServiceServer).LikeTweet(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TweetService_LikeTweet_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TweetServiceServer).LikeTweet(ctx, req.(*LikeTweetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TweetService_UnlikeTweet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UnlikeTweetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TweetServiceServer).UnlikeTweet(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TweetService_UnlikeTweet_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TweetServiceServer).UnlikeTweet(ctx, req.(*UnlikeTweetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TweetService_CreateComment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateCommentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TweetServiceServer).CreateComment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TweetService_CreateComment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TweetServiceServer).CreateComment(ctx, req.(*CreateCommentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TweetService_DeleteComment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteCommentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TweetServiceServer).DeleteComment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TweetService_DeleteComment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TweetServiceServer).DeleteComment(ctx, req.(*DeleteCommentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TweetService_GetTweetComments_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTweetCommentsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TweetServiceServer).GetTweetComments(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TweetService_GetTweetComments_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TweetServiceServer).GetTweetComments(ctx, req.(*GetTweetCommentsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TweetService_SearchTweets_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SearchTweetsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TweetServiceServer).SearchTweets(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TweetService_SearchTweets_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TweetServiceServer).SearchTweets(ctx, req.(*SearchTweetsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TweetService_GetTrendingTopics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTrendingTopicsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TweetServiceServer).GetTrendingTopics(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TweetService_GetTrendingTopics_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TweetServiceServer).GetTrendingTopics(ctx, req.(*GetTrendingTopicsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TweetService_ListTweets_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListTweetsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TweetServiceServer).ListTweets(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TweetService_ListTweets_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TweetServiceServer).ListTweets(ctx, req.(*ListTweetsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TweetService_GetTweetReplies_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTweetRepliesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TweetServiceServer).GetTweetReplies(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TweetService_GetTweetReplies_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TweetServiceServer).GetTweetReplies(ctx, req.(*GetTweetRepliesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TweetService_VotePoll_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VotePollRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TweetServiceServer).VotePoll(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TweetService_VotePoll_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TweetServiceServer).VotePoll(ctx, req.(*VotePollRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // TweetService_ServiceDesc is the grpc.ServiceDesc for TweetService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -281,7 +641,47 @@ var TweetService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "GetFeeds",
 			Handler:    _TweetService_GetFeeds_Handler,
 		},
+		{
+			MethodName: "LikeTweet",
+			Handler:    _TweetService_LikeTweet_Handler,
+		},
+		{
+			MethodName: "UnlikeTweet",
+			Handler:    _TweetService_UnlikeTweet_Handler,
+		},
+		{
+			MethodName: "CreateComment",
+			Handler:    _TweetService_CreateComment_Handler,
+		},
+		{
+			MethodName: "DeleteComment",
+			Handler:    _TweetService_DeleteComment_Handler,
+		},
+		{
+			MethodName: "GetTweetComments",
+			Handler:    _TweetService_GetTweetComments_Handler,
+		},
+		{
+			MethodName: "SearchTweets",
+			Handler:    _TweetService_SearchTweets_Handler,
+		},
+		{
+			MethodName: "GetTrendingTopics",
+			Handler:    _TweetService_GetTrendingTopics_Handler,
+		},
+		{
+			MethodName: "ListTweets",
+			Handler:    _TweetService_ListTweets_Handler,
+		},
+		{
+			MethodName: "GetTweetReplies",
+			Handler:    _TweetService_GetTweetReplies_Handler,
+		},
+		{
+			MethodName: "VotePoll",
+			Handler:    _TweetService_VotePoll_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "api/tweet/v1/tweet.proto",
+	Metadata: "tweet.proto",
 }

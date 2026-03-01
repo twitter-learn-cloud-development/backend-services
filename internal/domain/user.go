@@ -12,6 +12,9 @@ type User struct {
 	Email        string `gorm:"uniqueIndex:uk_email;type:varchar(128);not null;comment:邮箱" test_data:"email"`
 	Avatar       string `gorm:"type:varchar(255);default:'';comment:头像URL" test_data:"avatar"`
 	Bio          string `gorm:"type:varchar(255);default:'';comment:简介" test_data:"bio"`
+	CoverURL     string `gorm:"type:varchar(255);default:'';comment:封面图URL" test_data:"cover_url"`
+	Website      string `gorm:"type:varchar(255);default:'';comment:个人网站" test_data:"website"`
+	Location     string `gorm:"type:varchar(100);default:'';comment:地理位置" test_data:"location"`
 	CreatedAt    int64  `gorm:"column:created_at;not null;comment:创建时间戳 (毫秒)" test_data:"created_at"`
 	UpdatedAt    int64  `gorm:"column:updated_at;not null;comment:更新时间戳 (毫秒)" test_data:"updated_at"`
 	DeletedAt    int64  `gorm:"column:deleted_at;default:0;comment:软删除时间戳，0表示未删除" test_data:"deleted_at,omitempty"`
@@ -29,6 +32,12 @@ type UserRepository interface {
 
 	// GetByID 根据ID获取用户
 	GetByID(ctx context.Context, id uint64) (*User, error)
+
+	// GetByIDs 批量获取用户
+	GetByIDs(ctx context.Context, ids []uint64) ([]*User, error)
+
+	// Search 搜索用户
+	Search(ctx context.Context, keyword string, cursor uint64, limit int) ([]*User, error)
 
 	// GetByEmail 根据邮箱获取用户
 	GetByEmail(ctx context.Context, email string) (*User, error)

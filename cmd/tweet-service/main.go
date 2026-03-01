@@ -26,6 +26,7 @@ import (
 	tweetService "twitter-clone/internal/module/tweet/service"
 	"twitter-clone/internal/mq/producer"
 	consulConfig "twitter-clone/pkg/config"
+	"twitter-clone/pkg/logger"
 	"twitter-clone/pkg/pkg/snowflake"
 	"twitter-clone/pkg/registry"
 	"twitter-clone/pkg/trace"
@@ -40,14 +41,17 @@ func main() {
 	log.Println("🚀 Tweet Service (gRPC)")
 	log.Println("========================================")
 
+	// 0. 初始化 Logger (TraceID 支持)
+	logger.InitLogger()
+
 	// 加载 .env 文件
 	if err := godotenv.Load(); err != nil {
 		log.Println("⚠️  No .env file found, using default/environment config")
 	}
 
 	// 🔍 初始化链路追踪
-	jaegerHost := getEnv("JAEGER_AGENT_HOST", "localhost")
-	trace.InitTracer("tweet-service", jaegerHost)
+	jaegerEndpoint := getEnv("JAEGER_COLLECTOR_ENDPOINT", "http://localhost:14268/api/traces")
+	trace.InitTracer("tweet-service", jaegerEndpoint)
 
 	// 1. 初始化 Snowflake
 	if err := snowflake.Init(1); err != nil {
@@ -87,7 +91,7 @@ func main() {
 	log.Println("✅ Database connected")
 
 	// 3. 自动迁移
-	if err := db.AutoMigrate(&domain.Tweet{}, &domain.Follow{}); err != nil {
+	if err := db.AutoMigrate(&domain.Tweet{}, &domain.Follow{}, &domain.Like{}, &domain.Comment{}, &domain.Retweet{}, &domain.Poll{}, &domain.PollOption{}, &domain.PollVote{}); err != nil {
 		log.Fatalf("❌ Failed to migrate database: %v", err)
 	}
 	log.Println("✅ Database migrated")
@@ -124,6 +128,9 @@ func main() {
 	// 6. 创建依赖
 	tweetRepo := tweetRepository.NewTweetRepository(db)
 	followRepo := followRepository.NewFollowRepository(db)
+	likeRepo := tweetRepository.NewLikeRepository(db)       // 点赞仓储
+	commentRepo := tweetRepository.NewCommentRepository(db) // 🆕 评论仓储
+	pollRepo := tweetRepository.NewPollRepository(db)       // 🆕 投票仓储
 	timelineCache := tweetCache.NewTimelineCache(redisClient)
 	eventProducer, err := producer.NewEventProducer(mqClient)
 	if err != nil {
@@ -134,6 +141,9 @@ func main() {
 	tweetSvc := tweetService.NewTweetService(
 		tweetRepo,
 		followRepo,
+		likeRepo,
+		commentRepo, // 🆕 注入评论仓储
+		pollRepo,    // 🆕 注入投票仓储
 		timelineCache,
 		eventProducer,
 	)

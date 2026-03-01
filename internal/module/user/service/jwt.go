@@ -2,8 +2,10 @@ package service
 
 import (
 	"fmt"
-	"github.com/golang-jwt/jwt/v5"
+	"os"
 	"time"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type JWTConfig struct {
@@ -13,17 +15,21 @@ type JWTConfig struct {
 
 // DefaultJWTConfig 默认JWT配置
 func DefaultJWTConfig() *JWTConfig {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		secret = "your secret key"
+	}
 	return &JWTConfig{
-		Secret:     []byte("your secret key"),
+		Secret:     []byte(secret),
 		Expiration: 7 * 24 * time.Hour,
 	}
 }
 
 // UserCliaims 用户JWT Claims
 type UserClaims struct {
-	UserID   uint64 `test_data:"user_id"`
-	Username string `test_data:"username"`
-	Email    string `test_data:"email"`
+	UserID   uint64 `json:"user_id"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
 	jwt.RegisteredClaims
 }
 

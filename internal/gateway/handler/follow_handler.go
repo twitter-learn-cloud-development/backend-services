@@ -25,8 +25,9 @@ func NewFollowHandler(followClient followv1.FollowServiceClient) *FollowHandler 
 }
 
 // FollowRequest 关注请求
+// 使用 string 避免 JS 大整数精度丢失
 type FollowRequest struct {
-	FolloweeID uint64 `json:"followee_id" binding:"required"`
+	FolloweeID string `json:"followee_id" binding:"required"`
 }
 
 // Follow 关注用户
@@ -47,8 +48,16 @@ func (h *FollowHandler) Follow(c *gin.Context) {
 		return
 	}
 
+	followeeID, err := strconv.ParseUint(req.FolloweeID, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid followee_id",
+		})
+		return
+	}
+
 	// 不能关注自己
-	if followerID == req.FolloweeID {
+	if followerID == followeeID {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "cannot follow yourself",
 		})
@@ -60,7 +69,7 @@ func (h *FollowHandler) Follow(c *gin.Context) {
 
 	resp, err := h.followClient.Follow(ctx, &followv1.FollowRequest{
 		FollowerId: followerID,
-		FolloweeId: req.FolloweeID,
+		FolloweeId: followeeID,
 	})
 
 	if err != nil {
@@ -186,9 +195,14 @@ func (h *FollowHandler) GetFollowers(c *gin.Context) {
 		return
 	}
 
+	var strFollowerIDs []string
+	for _, id := range resp.FollowerIds {
+		strFollowerIDs = append(strFollowerIDs, strconv.FormatUint(id, 10))
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"follower_ids": resp.FollowerIds,
-		"next_cursor":  resp.NextCursor,
+		"follower_ids": strFollowerIDs,
+		"next_cursor":  strconv.FormatUint(resp.NextCursor, 10),
 		"has_more":     resp.HasMore,
 	})
 }
@@ -226,9 +240,14 @@ func (h *FollowHandler) GetFollowees(c *gin.Context) {
 		return
 	}
 
+	var strFolloweeIDs []string
+	for _, id := range resp.FolloweeIds {
+		strFolloweeIDs = append(strFolloweeIDs, strconv.FormatUint(id, 10))
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"followee_ids": resp.FolloweeIds,
-		"next_cursor":  resp.NextCursor,
+		"followee_ids": strFolloweeIDs,
+		"next_cursor":  strconv.FormatUint(resp.NextCursor, 10),
 		"has_more":     resp.HasMore,
 	})
 }

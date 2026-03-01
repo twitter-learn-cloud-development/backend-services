@@ -24,6 +24,8 @@ const (
 	UserService_GetProfile_FullMethodName     = "/user.v1.UserService/GetProfile"
 	UserService_UpdateProfile_FullMethodName  = "/user.v1.UserService/UpdateProfile"
 	UserService_ChangePassword_FullMethodName = "/user.v1.UserService/ChangePassword"
+	UserService_GetBatchUsers_FullMethodName  = "/user.v1.UserService/GetBatchUsers"
+	UserService_SearchUsers_FullMethodName    = "/user.v1.UserService/SearchUsers"
 )
 
 // UserServiceClient is the client API for UserService service.
@@ -42,6 +44,10 @@ type UserServiceClient interface {
 	UpdateProfile(ctx context.Context, in *UpdateProfileRequest, opts ...grpc.CallOption) (*UpdateProfileResponse, error)
 	// ChangePassword 修改密码
 	ChangePassword(ctx context.Context, in *ChangePasswordRequest, opts ...grpc.CallOption) (*ChangePasswordResponse, error)
+	// GetBatchUsers 批量获取用户信息
+	GetBatchUsers(ctx context.Context, in *GetBatchUsersRequest, opts ...grpc.CallOption) (*GetBatchUsersResponse, error)
+	// SearchUsers 搜索用户
+	SearchUsers(ctx context.Context, in *SearchUsersRequest, opts ...grpc.CallOption) (*SearchUsersResponse, error)
 }
 
 type userServiceClient struct {
@@ -102,6 +108,26 @@ func (c *userServiceClient) ChangePassword(ctx context.Context, in *ChangePasswo
 	return out, nil
 }
 
+func (c *userServiceClient) GetBatchUsers(ctx context.Context, in *GetBatchUsersRequest, opts ...grpc.CallOption) (*GetBatchUsersResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetBatchUsersResponse)
+	err := c.cc.Invoke(ctx, UserService_GetBatchUsers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) SearchUsers(ctx context.Context, in *SearchUsersRequest, opts ...grpc.CallOption) (*SearchUsersResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SearchUsersResponse)
+	err := c.cc.Invoke(ctx, UserService_SearchUsers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // UserServiceServer is the server API for UserService service.
 // All implementations must embed UnimplementedUserServiceServer
 // for forward compatibility.
@@ -118,6 +144,10 @@ type UserServiceServer interface {
 	UpdateProfile(context.Context, *UpdateProfileRequest) (*UpdateProfileResponse, error)
 	// ChangePassword 修改密码
 	ChangePassword(context.Context, *ChangePasswordRequest) (*ChangePasswordResponse, error)
+	// GetBatchUsers 批量获取用户信息
+	GetBatchUsers(context.Context, *GetBatchUsersRequest) (*GetBatchUsersResponse, error)
+	// SearchUsers 搜索用户
+	SearchUsers(context.Context, *SearchUsersRequest) (*SearchUsersResponse, error)
 	mustEmbedUnimplementedUserServiceServer()
 }
 
@@ -142,6 +172,12 @@ func (UnimplementedUserServiceServer) UpdateProfile(context.Context, *UpdateProf
 }
 func (UnimplementedUserServiceServer) ChangePassword(context.Context, *ChangePasswordRequest) (*ChangePasswordResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ChangePassword not implemented")
+}
+func (UnimplementedUserServiceServer) GetBatchUsers(context.Context, *GetBatchUsersRequest) (*GetBatchUsersResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetBatchUsers not implemented")
+}
+func (UnimplementedUserServiceServer) SearchUsers(context.Context, *SearchUsersRequest) (*SearchUsersResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SearchUsers not implemented")
 }
 func (UnimplementedUserServiceServer) mustEmbedUnimplementedUserServiceServer() {}
 func (UnimplementedUserServiceServer) testEmbeddedByValue()                     {}
@@ -254,6 +290,42 @@ func _UserService_ChangePassword_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _UserService_GetBatchUsers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetBatchUsersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).GetBatchUsers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_GetBatchUsers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).GetBatchUsers(ctx, req.(*GetBatchUsersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_SearchUsers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SearchUsersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).SearchUsers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_SearchUsers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).SearchUsers(ctx, req.(*SearchUsersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // UserService_ServiceDesc is the grpc.ServiceDesc for UserService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -280,6 +352,14 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ChangePassword",
 			Handler:    _UserService_ChangePassword_Handler,
+		},
+		{
+			MethodName: "GetBatchUsers",
+			Handler:    _UserService_GetBatchUsers_Handler,
+		},
+		{
+			MethodName: "SearchUsers",
+			Handler:    _UserService_SearchUsers_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

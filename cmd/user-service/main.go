@@ -22,6 +22,7 @@ import (
 	userRepository "twitter-clone/internal/module/user/repository"
 	userService "twitter-clone/internal/module/user/service"
 	consulConfig "twitter-clone/pkg/config"
+	"twitter-clone/pkg/logger"
 	"twitter-clone/pkg/pkg/snowflake"
 	"twitter-clone/pkg/registry"
 	"twitter-clone/pkg/trace"
@@ -36,14 +37,17 @@ func main() {
 	log.Println("🚀 User Service (gRPC)")
 	log.Println("========================================")
 
+	// 0. 初始化 Logger (TraceID 支持)
+	logger.InitLogger()
+
 	// 加载 .env 文件
 	if err := godotenv.Load(); err != nil {
 		log.Println("⚠️  No .env file found, using default/environment config")
 	}
 
 	// 🔍 初始化链路追踪
-	jaegerHost := getEnv("JAEGER_AGENT_HOST", "localhost")
-	trace.InitTracer("user-service", jaegerHost)
+	jaegerEndpoint := getEnv("JAEGER_COLLECTOR_ENDPOINT", "http://localhost:14268/api/traces")
+	trace.InitTracer("user-service", jaegerEndpoint)
 
 	// 1. 初始化 Snowflake
 	if err := snowflake.Init(1); err != nil {

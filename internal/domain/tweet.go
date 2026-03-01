@@ -63,6 +63,7 @@ func (m *MediaURLs) Scan(value interface{}) error {
 type Tweet struct {
 	ID          uint64    `gorm:"primaryKey;column:id;comment:主键ID (Snowflake)" test_data:"id"`
 	UserID      uint64    `gorm:"index:idx_user_created;not null;comment:用户ID" test_data:"user_id"`
+	ParentID    uint64    `gorm:"index:idx_parent;default:0;comment:父推文ID (回复)" test_data:"parent_id"`
 	Content     string    `gorm:"type:text;comment:内容" test_data:"content"`
 	MediaURLs   MediaURLs `gorm:"type:json;comment:媒体地址" json:"media_urls"`
 	Type        int       `gorm:"default:0;comment:类型(0文1图2视)" test_data:"type"`
@@ -79,6 +80,9 @@ type Tweet struct {
 
 	// 额外信息 (用于前端渲染，比如是否已点赞)
 	IsLiked bool `gorm:"-" test_data:"is_liked"`
+
+	// 投票信息 (聚合)
+	Poll *Poll `gorm:"-"`
 }
 
 // TableName 指定表名
@@ -102,9 +106,22 @@ type TweetRepository interface {
 	// cursor: 上一页最后一条 tweet 的 ID (Snowflake ID 自带时间属性，天然适合做 cursor)
 	ListByUserID(ctx context.Context, userID uint64, cursor uint64, limit int) ([]*Tweet, error)
 
-	//ListFeeds 查关注流 (最难的部分，暂留接口)
-	ListFeeds(ctx context.Context, userID uint64, cursor uint64, limit int) ([]*Tweet, error)
+	// GetFeeds 获取关注者的推文
+	GetFeeds(ctx context.Context, userIDs []uint64, cursor uint64, limit int) ([]*Tweet, error)
+
+	// Search 搜索推文
+	Search(ctx context.Context, query string, cursor uint64, limit int) ([]*Tweet, error)
 
 	// GetByIDs 批量查询推文
 	GetByIDs(ctx context.Context, ids []uint64) ([]*Tweet, error)
+
+	// ListAll 查询所有推文（全站最新）
+	ListAll(ctx context.Context, cursor uint64, limit int) ([]*Tweet, error)
+	GetReplies(ctx context.Context, parentID uint64, cursor uint64, limit int) ([]*Tweet, uint64, error)
+}
+
+// TrendingTopic 热门话题实体
+type TrendingTopic struct {
+	Topic string `json:"topic"`
+	Score int32  `json:"score"`
 }

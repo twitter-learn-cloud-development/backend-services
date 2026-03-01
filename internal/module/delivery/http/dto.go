@@ -15,8 +15,11 @@ type LoginRequest struct {
 
 // UpdateProfileRequest 更新资料请求 DTO
 type UpdateProfileRequest struct {
-	Bio    string `test_data:"bio" binding:"omitempty,max=255"`
-	Avatar string `test_data:"avatar" binding:"omitempty,url"`
+	Bio      string `json:"bio" binding:"omitempty,max=255"`
+	Avatar   string `json:"avatar" binding:"omitempty,url"`
+	CoverURL string `json:"cover_url" binding:"omitempty,url"`
+	Website  string `json:"website" binding:"omitempty,max=255,url"`
+	Location string `json:"location" binding:"omitempty,max=100"`
 }
 
 // ChangePasswordRequest 修改密码请求 DTO

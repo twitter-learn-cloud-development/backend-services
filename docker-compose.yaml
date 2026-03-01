@@ -96,6 +96,8 @@ services:
       - JAEGER_AGENT_HOST=jaeger
       - JAEGER_SAMPLER_TYPE=const
       - JAEGER_SAMPLER_PARAM=1
+      - JAEGER_COLLECTOR_ENDPOINT=http://jaeger:14268/api/traces
+      - JWT_SECRET=twitter_clone_secret_key_2023
     # ports:
     #   - "9091:9091"
     restart: on-failure
@@ -129,6 +131,7 @@ services:
       - JAEGER_AGENT_HOST=jaeger
       - JAEGER_SAMPLER_TYPE=const
       - JAEGER_SAMPLER_PARAM=1
+      - JAEGER_COLLECTOR_ENDPOINT=http://jaeger:14268/api/traces
     # ports:
     #   - "9092:9092"
     restart: on-failure
@@ -164,6 +167,7 @@ services:
       - JAEGER_AGENT_HOST=jaeger
       - JAEGER_SAMPLER_TYPE=const
       - JAEGER_SAMPLER_PARAM=1
+      - JAEGER_COLLECTOR_ENDPOINT=http://jaeger:14268/api/traces
     # ports:
     #   - "9093:9093"
     restart: on-failure
@@ -195,6 +199,7 @@ services:
       - JAEGER_AGENT_HOST=jaeger
       - JAEGER_SAMPLER_TYPE=const
       - JAEGER_SAMPLER_PARAM=1
+      - JAEGER_COLLECTOR_ENDPOINT=http://jaeger:14268/api/traces
     restart: on-failure
     depends_on:
       mysql:
@@ -214,13 +219,21 @@ services:
       - USER_SERVICE_ADDR=user-service:9091
       - TWEET_SERVICE_ADDR=tweet-service:9092
       - FOLLOW_SERVICE_ADDR=follow-service:9093
+      - MESSENGER_SERVICE_ADDR=messenger-service:9094
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=31415927
+      - DB_NAME=twitter
       - CONSUL_HOST=consul
       - CONSUL_PORT=8500
       - JAEGER_AGENT_HOST=jaeger
       - JAEGER_SAMPLER_TYPE=const
       - JAEGER_SAMPLER_PARAM=1
+      - JAEGER_COLLECTOR_ENDPOINT=http://jaeger:14268/api/traces
+      - JWT_SECRET=twitter_clone_secret_key_2023
     ports:
       - "9638:9638"
     restart: on-failure
@@ -228,6 +241,70 @@ services:
       - user-service
       - tweet-service
       - follow-service
+      - notification-service
+    volumes:
+      - ./uploads:/app/uploads
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: deploy/docker/notification.dockerfile
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=31415927
+      - DB_NAME=twitter
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MQ_HOST=rabbitmq
+      - MQ_PORT=5672
+      - MQ_USER=guest
+      - MQ_PASSWORD=guest
+      - CONSUL_HOST=consul
+      - CONSUL_PORT=8500
+      - SERVICE_NAME=notification-service
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_SAMPLER_TYPE=const
+      - JAEGER_SAMPLER_PARAM=1
+      - JAEGER_COLLECTOR_ENDPOINT=http://jaeger:14268/api/traces
+    restart: on-failure
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  messenger-service:
+    build:
+      context: .
+      dockerfile: deploy/docker/messenger.dockerfile
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=31415927
+      - DB_NAME=twitter
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CONSUL_HOST=consul
+      - CONSUL_PORT=8500
+      - SERVICE_NAME=messenger-service
+      - SERVICE_ADDR=messenger-service
+      - SERVICE_PORT=9094
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_SAMPLER_TYPE=const
+      - JAEGER_SAMPLER_PARAM=1
+      - JAEGER_COLLECTOR_ENDPOINT=http://jaeger:14268/api/traces
+    restart: on-failure
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   # Sentinel Dashboard
   sentinel:
     image: bladex/sentinel-dashboard

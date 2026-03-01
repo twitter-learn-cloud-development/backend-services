@@ -14,9 +14,14 @@ import (
 
 // SetupRouter 设置路由
 func SetupRouter(
-	userHandler *handler.UserHandler,
 	tweetHandler *handler.TweetHandler,
 	followHandler *handler.FollowHandler,
+	userHandler *handler.UserHandler,
+	uploadHandler *handler.UploadHandler,
+	notificationHandler *handler.NotificationHandler,
+	bookmarkHandler *handler.BookmarkHandler,
+	messengerHandler *handler.MessengerHandler,
+	wsHandler *handler.WebSocketHandler,
 	jwtMW *middleware.JWTMiddleware,
 	redisClient *redis.Client,
 ) *gin.Engine {
@@ -67,13 +72,19 @@ func SetupRouter(
 		// 用户相关
 		users := v1.Group("/users")
 		{
-			// 公开接口
+			// 公开接口 (允许可选认证以提取 currentUserID)
+			users.Use(jwtMW.AuthOptional())
+			users.GET("/search", userHandler.SearchUsers) // P3 新增
+			users.POST("/batch", userHandler.GetBatchUsers)
 			users.GET("/:id", userHandler.GetProfile)
 			users.GET("/:id/timeline", tweetHandler.GetUserTimeline)
 			users.GET("/:id/followers", followHandler.GetFollowers)
 			users.GET("/:id/followees", followHandler.GetFollowees)
 			users.GET("/:id/stats", followHandler.GetFollowStats)
 			users.GET("/:id/full_profile", userHandler.GetFullProfile)
+			users.GET("/:id/likes", tweetHandler.GetUserLikes)
+			users.GET("/:id/replies", tweetHandler.GetUserReplies)
+			users.GET("/:id/media", tweetHandler.GetUserMedia)
 
 			// 需要认证的接口
 			users.Use(jwtMW.AuthRequired())
@@ -83,20 +94,36 @@ func SetupRouter(
 			}
 		}
 
+		// 公共搜索接口 (推文搜索)
+		v1.GET("/search", jwtMW.AuthOptional(), tweetHandler.SearchTweets)
+		v1.GET("/trends", tweetHandler.GetTrendingTopics)
+
 		// 推文相关
 		tweets := v1.Group("/tweets")
 		{
-			// 公开接口
+			// 公开接口 (允许可选认证以提取 currentUserID)
+			tweets.Use(jwtMW.AuthOptional())
+			tweets.GET("/public", tweetHandler.ListTweets) // 映射到 ListTweets
 			tweets.GET("/:id", tweetHandler.GetTweet)
+			tweets.GET("/:id/comments", tweetHandler.GetTweetComments)
+			tweets.GET("/:id/replies", tweetHandler.GetTweetReplies)
 
 			// 需要认证的接口
 			tweets.Use(jwtMW.AuthRequired())
 			{
 				tweets.POST("", tweetHandler.CreateTweet)
 				tweets.DELETE("/:id", tweetHandler.DeleteTweet)
+				tweets.POST("/:id/like", tweetHandler.LikeTweet)
+				tweets.DELETE("/:id/like", tweetHandler.UnlikeTweet)
+				tweets.POST("/:id/retweet", tweetHandler.RetweetTweet)
+				tweets.DELETE("/:id/retweet", tweetHandler.UnretweetTweet)
+				tweets.POST("/:id/comments", tweetHandler.CreateComment)
+				tweets.POST("/:id/bookmark", bookmarkHandler.AddBookmark)
+				tweets.DELETE("/:id/bookmark", bookmarkHandler.RemoveBookmark)
 			}
 		}
 
+		// ---------- 其他服务 (已存在) ----------
 		// Feeds（需要认证）
 		feeds := v1.Group("/feeds")
 		feeds.Use(jwtMW.AuthRequired())
@@ -112,6 +139,54 @@ func SetupRouter(
 			follows.DELETE("/:id", followHandler.Unfollow)
 			follows.GET("/:id/status", followHandler.IsFollowing)
 		}
+
+		// ---------- 恢复之前被覆盖的路由 ----------
+
+		// 媒体上传
+		v1.POST("/upload", jwtMW.AuthRequired(), uploadHandler.UploadFile) // UploadFile, not UploadMedia
+
+		// 收藏系统
+		bookmarks := v1.Group("/bookmarks")
+		bookmarks.Use(jwtMW.AuthRequired())
+		{
+			bookmarks.GET("", bookmarkHandler.ListBookmarks)
+		}
+
+		// 评论相关
+		comments := v1.Group("/comments")
+		comments.Use(jwtMW.AuthRequired())
+		{
+			comments.DELETE("/:id", tweetHandler.DeleteComment)
+		}
+
+		// 投票相关
+		polls := v1.Group("/polls")
+		polls.Use(jwtMW.AuthRequired())
+		{
+			polls.POST("/vote", tweetHandler.VotePoll)
+		}
+
+		// 通知系统
+		notifications := v1.Group("/notifications")
+		notifications.Use(jwtMW.AuthRequired())
+		{
+			notifications.GET("", notificationHandler.GetNotifications)
+			notifications.GET("/unread-count", notificationHandler.GetUnreadCount)
+			notifications.PUT("/read", notificationHandler.MarkAsRead)
+			notifications.PUT("/read-all", notificationHandler.MarkAllAsRead) // Found this in handler
+		}
+
+		// 私信系统 (Messenger)
+		messenger := v1.Group("/messenger")
+		messenger.Use(jwtMW.AuthRequired())
+		{
+			messenger.POST("/messages", messengerHandler.SendMessage)
+			messenger.GET("/conversations", messengerHandler.GetConversations)
+			messenger.GET("/conversations/:peer_id/messages", messengerHandler.GetMessages) // /:peer_id/messages to match handler
+		}
+
+		// WebSocket
+		v1.GET("/ws", wsHandler.HandleConnection)
 	}
 
 	return r

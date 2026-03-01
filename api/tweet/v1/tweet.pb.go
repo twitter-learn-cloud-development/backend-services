@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.10
 // 	protoc        v6.33.0--rc1
-// source: api/tweet/v1/tweet.proto
+// source: tweet.proto
 
 package tweetv1
 
@@ -24,26 +24,29 @@ const (
 // Tweet 推文
 type Tweet struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
-	Id          uint64                 `protobuf:"varint,1,opt,name=id,proto3" test_data:"id,omitempty"`
-	UserId      uint64                 `protobuf:"varint,2,opt,name=user_id,test_data=userId,proto3" test_data:"user_id,omitempty"`
-	Content     string                 `protobuf:"bytes,3,opt,name=content,proto3" test_data:"content,omitempty"`
-	MediaUrls   []string               `protobuf:"bytes,4,rep,name=media_urls,test_data=mediaUrls,proto3" test_data:"media_urls,omitempty"`
-	Type        int32                  `protobuf:"varint,5,opt,name=type,proto3" test_data:"type,omitempty"`
-	VisibleType int32                  `protobuf:"varint,6,opt,name=visible_type,test_data=visibleType,proto3" test_data:"visible_type,omitempty"`
-	CreatedAt   int64                  `protobuf:"varint,7,opt,name=created_at,test_data=createdAt,proto3" test_data:"created_at,omitempty"`
-	UpdatedAt   int64                  `protobuf:"varint,8,opt,name=updated_at,test_data=updatedAt,proto3" test_data:"updated_at,omitempty"`
+	Id          uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	UserId      uint64                 `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	ParentId    uint64                 `protobuf:"varint,13,opt,name=parent_id,json=parentId,proto3" json:"parent_id,omitempty"` // 新增：父推文 ID
+	Content     string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
+	MediaUrls   []string               `protobuf:"bytes,4,rep,name=media_urls,json=mediaUrls,proto3" json:"media_urls,omitempty"`
+	Type        int32                  `protobuf:"varint,5,opt,name=type,proto3" json:"type,omitempty"`
+	VisibleType int32                  `protobuf:"varint,6,opt,name=visible_type,json=visibleType,proto3" json:"visible_type,omitempty"`
+	CreatedAt   int64                  `protobuf:"varint,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt   int64                  `protobuf:"varint,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	// 统计数据
-	LikeCount     int32 `protobuf:"varint,9,opt,name=like_count,test_data=likeCount,proto3" test_data:"like_count,omitempty"`
-	CommentCount  int32 `protobuf:"varint,10,opt,name=comment_count,test_data=commentCount,proto3" test_data:"comment_count,omitempty"`
-	ShareCount    int32 `protobuf:"varint,11,opt,name=share_count,test_data=shareCount,proto3" test_data:"share_count,omitempty"`
-	IsLiked       bool  `protobuf:"varint,12,opt,name=is_liked,test_data=isLiked,proto3" test_data:"is_liked,omitempty"`
+	LikeCount    int32 `protobuf:"varint,9,opt,name=like_count,json=likeCount,proto3" json:"like_count,omitempty"`
+	CommentCount int32 `protobuf:"varint,10,opt,name=comment_count,json=commentCount,proto3" json:"comment_count,omitempty"`
+	ShareCount   int32 `protobuf:"varint,11,opt,name=share_count,json=shareCount,proto3" json:"share_count,omitempty"`
+	IsLiked      bool  `protobuf:"varint,12,opt,name=is_liked,json=isLiked,proto3" json:"is_liked,omitempty"`
+	// 投票信息
+	Poll          *Poll `protobuf:"bytes,14,opt,name=poll,proto3" json:"poll,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Tweet) Reset() {
 	*x = Tweet{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[0]
+	mi := &file_tweet_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -55,7 +58,7 @@ func (x *Tweet) String() string {
 func (*Tweet) ProtoMessage() {}
 
 func (x *Tweet) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[0]
+	mi := &file_tweet_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -68,7 +71,7 @@ func (x *Tweet) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Tweet.ProtoReflect.Descriptor instead.
 func (*Tweet) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{0}
+	return file_tweet_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *Tweet) GetId() uint64 {
@@ -81,6 +84,13 @@ func (x *Tweet) GetId() uint64 {
 func (x *Tweet) GetUserId() uint64 {
 	if x != nil {
 		return x.UserId
+	}
+	return 0
+}
+
+func (x *Tweet) GetParentId() uint64 {
+	if x != nil {
+		return x.ParentId
 	}
 	return 0
 }
@@ -155,18 +165,370 @@ func (x *Tweet) GetIsLiked() bool {
 	return false
 }
 
-type CreateTweetRequest struct {
+func (x *Tweet) GetPoll() *Poll {
+	if x != nil {
+		return x.Poll
+	}
+	return nil
+}
+
+// Poll 投票
+type Poll struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,test_data=userId,proto3" test_data:"user_id,omitempty"`
-	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" test_data:"content,omitempty"`
-	MediaUrls     []string               `protobuf:"bytes,3,rep,name=media_urls,test_data=mediaUrls,proto3" test_data:"media_urls,omitempty"`
+	Id            uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	TweetId       uint64                 `protobuf:"varint,2,opt,name=tweet_id,json=tweetId,proto3" json:"tweet_id,omitempty"`
+	Question      string                 `protobuf:"bytes,3,opt,name=question,proto3" json:"question,omitempty"`
+	Options       []*PollOption          `protobuf:"bytes,4,rep,name=options,proto3" json:"options,omitempty"`
+	EndTime       int64                  `protobuf:"varint,5,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
+	IsExpired     bool                   `protobuf:"varint,6,opt,name=is_expired,json=isExpired,proto3" json:"is_expired,omitempty"`               // 计算字段
+	IsVoted       bool                   `protobuf:"varint,7,opt,name=is_voted,json=isVoted,proto3" json:"is_voted,omitempty"`                     // 当前用户是否已投票
+	VotedOptionId uint64                 `protobuf:"varint,8,opt,name=voted_option_id,json=votedOptionId,proto3" json:"voted_option_id,omitempty"` // 当前用户投的选项 ID
+	TotalVotes    int32                  `protobuf:"varint,9,opt,name=total_votes,json=totalVotes,proto3" json:"total_votes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
+func (x *Poll) Reset() {
+	*x = Poll{}
+	mi := &file_tweet_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Poll) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Poll) ProtoMessage() {}
+
+func (x *Poll) ProtoReflect() protoreflect.Message {
+	mi := &file_tweet_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Poll.ProtoReflect.Descriptor instead.
+func (*Poll) Descriptor() ([]byte, []int) {
+	return file_tweet_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *Poll) GetId() uint64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *Poll) GetTweetId() uint64 {
+	if x != nil {
+		return x.TweetId
+	}
+	return 0
+}
+
+func (x *Poll) GetQuestion() string {
+	if x != nil {
+		return x.Question
+	}
+	return ""
+}
+
+func (x *Poll) GetOptions() []*PollOption {
+	if x != nil {
+		return x.Options
+	}
+	return nil
+}
+
+func (x *Poll) GetEndTime() int64 {
+	if x != nil {
+		return x.EndTime
+	}
+	return 0
+}
+
+func (x *Poll) GetIsExpired() bool {
+	if x != nil {
+		return x.IsExpired
+	}
+	return false
+}
+
+func (x *Poll) GetIsVoted() bool {
+	if x != nil {
+		return x.IsVoted
+	}
+	return false
+}
+
+func (x *Poll) GetVotedOptionId() uint64 {
+	if x != nil {
+		return x.VotedOptionId
+	}
+	return 0
+}
+
+func (x *Poll) GetTotalVotes() int32 {
+	if x != nil {
+		return x.TotalVotes
+	}
+	return 0
+}
+
+// PollOption 投票选项
+type PollOption struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	PollId        uint64                 `protobuf:"varint,2,opt,name=poll_id,json=pollId,proto3" json:"poll_id,omitempty"`
+	Text          string                 `protobuf:"bytes,3,opt,name=text,proto3" json:"text,omitempty"`
+	VoteCount     int32                  `protobuf:"varint,4,opt,name=vote_count,json=voteCount,proto3" json:"vote_count,omitempty"`
+	Percentage    float32                `protobuf:"fixed32,5,opt,name=percentage,proto3" json:"percentage,omitempty"` // 计算字段：百分比 (0-100)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PollOption) Reset() {
+	*x = PollOption{}
+	mi := &file_tweet_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PollOption) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PollOption) ProtoMessage() {}
+
+func (x *PollOption) ProtoReflect() protoreflect.Message {
+	mi := &file_tweet_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PollOption.ProtoReflect.Descriptor instead.
+func (*PollOption) Descriptor() ([]byte, []int) {
+	return file_tweet_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *PollOption) GetId() uint64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *PollOption) GetPollId() uint64 {
+	if x != nil {
+		return x.PollId
+	}
+	return 0
+}
+
+func (x *PollOption) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *PollOption) GetVoteCount() int32 {
+	if x != nil {
+		return x.VoteCount
+	}
+	return 0
+}
+
+func (x *PollOption) GetPercentage() float32 {
+	if x != nil {
+		return x.Percentage
+	}
+	return 0
+}
+
+// Comment 评论
+type Comment struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Id        uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	UserId    uint64                 `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	TweetId   uint64                 `protobuf:"varint,3,opt,name=tweet_id,json=tweetId,proto3" json:"tweet_id,omitempty"`
+	Content   string                 `protobuf:"bytes,4,opt,name=content,proto3" json:"content,omitempty"`
+	CreatedAt int64                  `protobuf:"varint,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// 用户信息 (聚合)
+	Username      string `protobuf:"bytes,6,opt,name=username,proto3" json:"username,omitempty"`
+	Nickname      string `protobuf:"bytes,7,opt,name=nickname,proto3" json:"nickname,omitempty"`
+	AvatarUrl     string `protobuf:"bytes,8,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Comment) Reset() {
+	*x = Comment{}
+	mi := &file_tweet_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Comment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Comment) ProtoMessage() {}
+
+func (x *Comment) ProtoReflect() protoreflect.Message {
+	mi := &file_tweet_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Comment.ProtoReflect.Descriptor instead.
+func (*Comment) Descriptor() ([]byte, []int) {
+	return file_tweet_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *Comment) GetId() uint64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *Comment) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *Comment) GetTweetId() uint64 {
+	if x != nil {
+		return x.TweetId
+	}
+	return 0
+}
+
+func (x *Comment) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+func (x *Comment) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *Comment) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *Comment) GetNickname() string {
+	if x != nil {
+		return x.Nickname
+	}
+	return ""
+}
+
+func (x *Comment) GetAvatarUrl() string {
+	if x != nil {
+		return x.AvatarUrl
+	}
+	return ""
+}
+
+// TrendingTopic 热门话题
+type TrendingTopic struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Topic         string                 `protobuf:"bytes,1,opt,name=topic,proto3" json:"topic,omitempty"`
+	Score         int32                  `protobuf:"varint,2,opt,name=score,proto3" json:"score,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TrendingTopic) Reset() {
+	*x = TrendingTopic{}
+	mi := &file_tweet_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TrendingTopic) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TrendingTopic) ProtoMessage() {}
+
+func (x *TrendingTopic) ProtoReflect() protoreflect.Message {
+	mi := &file_tweet_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TrendingTopic.ProtoReflect.Descriptor instead.
+func (*TrendingTopic) Descriptor() ([]byte, []int) {
+	return file_tweet_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *TrendingTopic) GetTopic() string {
+	if x != nil {
+		return x.Topic
+	}
+	return ""
+}
+
+func (x *TrendingTopic) GetScore() int32 {
+	if x != nil {
+		return x.Score
+	}
+	return 0
+}
+
+type CreateTweetRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	UserId    uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Content   string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
+	MediaUrls []string               `protobuf:"bytes,3,rep,name=media_urls,json=mediaUrls,proto3" json:"media_urls,omitempty"`
+	ParentId  uint64                 `protobuf:"varint,4,opt,name=parent_id,json=parentId,proto3" json:"parent_id,omitempty"` // 新增：回复的推文 ID
+	// 投票数据 (可选)
+	PollOptions         []string `protobuf:"bytes,5,rep,name=poll_options,json=pollOptions,proto3" json:"poll_options,omitempty"`
+	PollDurationMinutes int32    `protobuf:"varint,6,opt,name=poll_duration_minutes,json=pollDurationMinutes,proto3" json:"poll_duration_minutes,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
 func (x *CreateTweetRequest) Reset() {
 	*x = CreateTweetRequest{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[1]
+	mi := &file_tweet_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -178,7 +540,7 @@ func (x *CreateTweetRequest) String() string {
 func (*CreateTweetRequest) ProtoMessage() {}
 
 func (x *CreateTweetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[1]
+	mi := &file_tweet_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -191,7 +553,7 @@ func (x *CreateTweetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateTweetRequest.ProtoReflect.Descriptor instead.
 func (*CreateTweetRequest) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{1}
+	return file_tweet_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CreateTweetRequest) GetUserId() uint64 {
@@ -215,16 +577,37 @@ func (x *CreateTweetRequest) GetMediaUrls() []string {
 	return nil
 }
 
+func (x *CreateTweetRequest) GetParentId() uint64 {
+	if x != nil {
+		return x.ParentId
+	}
+	return 0
+}
+
+func (x *CreateTweetRequest) GetPollOptions() []string {
+	if x != nil {
+		return x.PollOptions
+	}
+	return nil
+}
+
+func (x *CreateTweetRequest) GetPollDurationMinutes() int32 {
+	if x != nil {
+		return x.PollDurationMinutes
+	}
+	return 0
+}
+
 type CreateTweetResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Tweet         *Tweet                 `protobuf:"bytes,1,opt,name=tweet,proto3" test_data:"tweet,omitempty"`
+	Tweet         *Tweet                 `protobuf:"bytes,1,opt,name=tweet,proto3" json:"tweet,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateTweetResponse) Reset() {
 	*x = CreateTweetResponse{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[2]
+	mi := &file_tweet_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -236,7 +619,7 @@ func (x *CreateTweetResponse) String() string {
 func (*CreateTweetResponse) ProtoMessage() {}
 
 func (x *CreateTweetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[2]
+	mi := &file_tweet_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -249,7 +632,7 @@ func (x *CreateTweetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateTweetResponse.ProtoReflect.Descriptor instead.
 func (*CreateTweetResponse) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{2}
+	return file_tweet_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *CreateTweetResponse) GetTweet() *Tweet {
@@ -260,15 +643,16 @@ func (x *CreateTweetResponse) GetTweet() *Tweet {
 }
 
 type GetTweetRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TweetId       uint64                 `protobuf:"varint,1,opt,name=tweet_id,test_data=tweetId,proto3" test_data:"tweet_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	TweetId          uint64                 `protobuf:"varint,1,opt,name=tweet_id,json=tweetId,proto3" json:"tweet_id,omitempty"`
+	RequestingUserId uint64                 `protobuf:"varint,2,opt,name=requesting_user_id,json=requestingUserId,proto3" json:"requesting_user_id,omitempty"` // 当前请求用户 ID（用于判断 is_liked）
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *GetTweetRequest) Reset() {
 	*x = GetTweetRequest{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[3]
+	mi := &file_tweet_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -280,7 +664,7 @@ func (x *GetTweetRequest) String() string {
 func (*GetTweetRequest) ProtoMessage() {}
 
 func (x *GetTweetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[3]
+	mi := &file_tweet_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -293,7 +677,7 @@ func (x *GetTweetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTweetRequest.ProtoReflect.Descriptor instead.
 func (*GetTweetRequest) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{3}
+	return file_tweet_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetTweetRequest) GetTweetId() uint64 {
@@ -303,16 +687,23 @@ func (x *GetTweetRequest) GetTweetId() uint64 {
 	return 0
 }
 
+func (x *GetTweetRequest) GetRequestingUserId() uint64 {
+	if x != nil {
+		return x.RequestingUserId
+	}
+	return 0
+}
+
 type GetTweetResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Tweet         *Tweet                 `protobuf:"bytes,1,opt,name=tweet,proto3" test_data:"tweet,omitempty"`
+	Tweet         *Tweet                 `protobuf:"bytes,1,opt,name=tweet,proto3" json:"tweet,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetTweetResponse) Reset() {
 	*x = GetTweetResponse{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[4]
+	mi := &file_tweet_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -324,7 +715,7 @@ func (x *GetTweetResponse) String() string {
 func (*GetTweetResponse) ProtoMessage() {}
 
 func (x *GetTweetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[4]
+	mi := &file_tweet_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -337,7 +728,7 @@ func (x *GetTweetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTweetResponse.ProtoReflect.Descriptor instead.
 func (*GetTweetResponse) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{4}
+	return file_tweet_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetTweetResponse) GetTweet() *Tweet {
@@ -349,15 +740,15 @@ func (x *GetTweetResponse) GetTweet() *Tweet {
 
 type DeleteTweetRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TweetId       uint64                 `protobuf:"varint,1,opt,name=tweet_id,test_data=tweetId,proto3" test_data:"tweet_id,omitempty"`
-	UserId        uint64                 `protobuf:"varint,2,opt,name=user_id,test_data=userId,proto3" test_data:"user_id,omitempty"`
+	TweetId       uint64                 `protobuf:"varint,1,opt,name=tweet_id,json=tweetId,proto3" json:"tweet_id,omitempty"`
+	UserId        uint64                 `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DeleteTweetRequest) Reset() {
 	*x = DeleteTweetRequest{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[5]
+	mi := &file_tweet_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -369,7 +760,7 @@ func (x *DeleteTweetRequest) String() string {
 func (*DeleteTweetRequest) ProtoMessage() {}
 
 func (x *DeleteTweetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[5]
+	mi := &file_tweet_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -382,7 +773,7 @@ func (x *DeleteTweetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteTweetRequest.ProtoReflect.Descriptor instead.
 func (*DeleteTweetRequest) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{5}
+	return file_tweet_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *DeleteTweetRequest) GetTweetId() uint64 {
@@ -401,14 +792,14 @@ func (x *DeleteTweetRequest) GetUserId() uint64 {
 
 type DeleteTweetResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" test_data:"message,omitempty"`
+	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DeleteTweetResponse) Reset() {
 	*x = DeleteTweetResponse{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[6]
+	mi := &file_tweet_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -420,7 +811,7 @@ func (x *DeleteTweetResponse) String() string {
 func (*DeleteTweetResponse) ProtoMessage() {}
 
 func (x *DeleteTweetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[6]
+	mi := &file_tweet_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -433,7 +824,7 @@ func (x *DeleteTweetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteTweetResponse.ProtoReflect.Descriptor instead.
 func (*DeleteTweetResponse) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{6}
+	return file_tweet_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *DeleteTweetResponse) GetMessage() string {
@@ -444,17 +835,18 @@ func (x *DeleteTweetResponse) GetMessage() string {
 }
 
 type GetUserTimelineRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,test_data=userId,proto3" test_data:"user_id,omitempty"`
-	Cursor        uint64                 `protobuf:"varint,2,opt,name=cursor,proto3" test_data:"cursor,omitempty"`
-	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" test_data:"limit,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	UserId           uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Cursor           uint64                 `protobuf:"varint,2,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	Limit            int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	RequestingUserId uint64                 `protobuf:"varint,4,opt,name=requesting_user_id,json=requestingUserId,proto3" json:"requesting_user_id,omitempty"` // 当前请求用户 ID
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *GetUserTimelineRequest) Reset() {
 	*x = GetUserTimelineRequest{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[7]
+	mi := &file_tweet_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -466,7 +858,7 @@ func (x *GetUserTimelineRequest) String() string {
 func (*GetUserTimelineRequest) ProtoMessage() {}
 
 func (x *GetUserTimelineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[7]
+	mi := &file_tweet_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -479,7 +871,7 @@ func (x *GetUserTimelineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserTimelineRequest.ProtoReflect.Descriptor instead.
 func (*GetUserTimelineRequest) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{7}
+	return file_tweet_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetUserTimelineRequest) GetUserId() uint64 {
@@ -503,18 +895,25 @@ func (x *GetUserTimelineRequest) GetLimit() int32 {
 	return 0
 }
 
+func (x *GetUserTimelineRequest) GetRequestingUserId() uint64 {
+	if x != nil {
+		return x.RequestingUserId
+	}
+	return 0
+}
+
 type GetUserTimelineResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Tweets        []*Tweet               `protobuf:"bytes,1,rep,name=tweets,proto3" test_data:"tweets,omitempty"`
-	NextCursor    uint64                 `protobuf:"varint,2,opt,name=next_cursor,test_data=nextCursor,proto3" test_data:"next_cursor,omitempty"`
-	HasMore       bool                   `protobuf:"varint,3,opt,name=has_more,test_data=hasMore,proto3" test_data:"has_more,omitempty"`
+	Tweets        []*Tweet               `protobuf:"bytes,1,rep,name=tweets,proto3" json:"tweets,omitempty"`
+	NextCursor    uint64                 `protobuf:"varint,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	HasMore       bool                   `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetUserTimelineResponse) Reset() {
 	*x = GetUserTimelineResponse{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[8]
+	mi := &file_tweet_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -526,7 +925,7 @@ func (x *GetUserTimelineResponse) String() string {
 func (*GetUserTimelineResponse) ProtoMessage() {}
 
 func (x *GetUserTimelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[8]
+	mi := &file_tweet_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -539,7 +938,7 @@ func (x *GetUserTimelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserTimelineResponse.ProtoReflect.Descriptor instead.
 func (*GetUserTimelineResponse) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{8}
+	return file_tweet_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetUserTimelineResponse) GetTweets() []*Tweet {
@@ -565,16 +964,16 @@ func (x *GetUserTimelineResponse) GetHasMore() bool {
 
 type GetFeedsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,test_data=userId,proto3" test_data:"user_id,omitempty"`
-	Cursor        uint64                 `protobuf:"varint,2,opt,name=cursor,proto3" test_data:"cursor,omitempty"`
-	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" test_data:"limit,omitempty"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Cursor        uint64                 `protobuf:"varint,2,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetFeedsRequest) Reset() {
 	*x = GetFeedsRequest{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[9]
+	mi := &file_tweet_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -586,7 +985,7 @@ func (x *GetFeedsRequest) String() string {
 func (*GetFeedsRequest) ProtoMessage() {}
 
 func (x *GetFeedsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[9]
+	mi := &file_tweet_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -599,7 +998,7 @@ func (x *GetFeedsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFeedsRequest.ProtoReflect.Descriptor instead.
 func (*GetFeedsRequest) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{9}
+	return file_tweet_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetFeedsRequest) GetUserId() uint64 {
@@ -625,16 +1024,16 @@ func (x *GetFeedsRequest) GetLimit() int32 {
 
 type GetFeedsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Tweets        []*Tweet               `protobuf:"bytes,1,rep,name=tweets,proto3" test_data:"tweets,omitempty"`
-	NextCursor    uint64                 `protobuf:"varint,2,opt,name=next_cursor,test_data=nextCursor,proto3" test_data:"next_cursor,omitempty"`
-	HasMore       bool                   `protobuf:"varint,3,opt,name=has_more,test_data=hasMore,proto3" test_data:"has_more,omitempty"`
+	Tweets        []*Tweet               `protobuf:"bytes,1,rep,name=tweets,proto3" json:"tweets,omitempty"`
+	NextCursor    uint64                 `protobuf:"varint,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	HasMore       bool                   `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetFeedsResponse) Reset() {
 	*x = GetFeedsResponse{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[10]
+	mi := &file_tweet_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -646,7 +1045,7 @@ func (x *GetFeedsResponse) String() string {
 func (*GetFeedsResponse) ProtoMessage() {}
 
 func (x *GetFeedsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[10]
+	mi := &file_tweet_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -659,7 +1058,7 @@ func (x *GetFeedsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFeedsResponse.ProtoReflect.Descriptor instead.
 func (*GetFeedsResponse) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{10}
+	return file_tweet_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GetFeedsResponse) GetTweets() []*Tweet {
@@ -683,14 +1082,1079 @@ func (x *GetFeedsResponse) GetHasMore() bool {
 	return false
 }
 
-var File_api_tweet_v1_tweet_proto protoreflect.FileDescriptor
+type LikeTweetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	TweetId       uint64                 `protobuf:"varint,2,opt,name=tweet_id,json=tweetId,proto3" json:"tweet_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
 
-const file_api_tweet_v1_tweet_proto_rawDesc = "" +
+func (x *LikeTweetRequest) Reset() {
+	*x = LikeTweetRequest{}
+	mi := &file_tweet_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LikeTweetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LikeTweetRequest) ProtoMessage() {}
+
+func (x *LikeTweetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tweet_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LikeTweetRequest.ProtoReflect.Descriptor instead.
+func (*LikeTweetRequest) Descriptor() ([]byte, []int) {
+	return file_tweet_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *LikeTweetRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *LikeTweetRequest) GetTweetId() uint64 {
+	if x != nil {
+		return x.TweetId
+	}
+	return 0
+}
+
+type LikeTweetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	LikeCount     int32                  `protobuf:"varint,1,opt,name=like_count,json=likeCount,proto3" json:"like_count,omitempty"` // 点赞后的总数
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LikeTweetResponse) Reset() {
+	*x = LikeTweetResponse{}
+	mi := &file_tweet_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LikeTweetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LikeTweetResponse) ProtoMessage() {}
+
+func (x *LikeTweetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tweet_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LikeTweetResponse.ProtoReflect.Descriptor instead.
+func (*LikeTweetResponse) Descriptor() ([]byte, []int) {
+	return file_tweet_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *LikeTweetResponse) GetLikeCount() int32 {
+	if x != nil {
+		return x.LikeCount
+	}
+	return 0
+}
+
+type UnlikeTweetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	TweetId       uint64                 `protobuf:"varint,2,opt,name=tweet_id,json=tweetId,proto3" json:"tweet_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnlikeTweetRequest) Reset() {
+	*x = UnlikeTweetRequest{}
+	mi := &file_tweet_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnlikeTweetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnlikeTweetRequest) ProtoMessage() {}
+
+func (x *UnlikeTweetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tweet_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnlikeTweetRequest.ProtoReflect.Descriptor instead.
+func (*UnlikeTweetRequest) Descriptor() ([]byte, []int) {
+	return file_tweet_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *UnlikeTweetRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *UnlikeTweetRequest) GetTweetId() uint64 {
+	if x != nil {
+		return x.TweetId
+	}
+	return 0
+}
+
+type UnlikeTweetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	LikeCount     int32                  `protobuf:"varint,1,opt,name=like_count,json=likeCount,proto3" json:"like_count,omitempty"` // 点赞后的总数
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnlikeTweetResponse) Reset() {
+	*x = UnlikeTweetResponse{}
+	mi := &file_tweet_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnlikeTweetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnlikeTweetResponse) ProtoMessage() {}
+
+func (x *UnlikeTweetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tweet_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnlikeTweetResponse.ProtoReflect.Descriptor instead.
+func (*UnlikeTweetResponse) Descriptor() ([]byte, []int) {
+	return file_tweet_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *UnlikeTweetResponse) GetLikeCount() int32 {
+	if x != nil {
+		return x.LikeCount
+	}
+	return 0
+}
+
+type CreateCommentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	TweetId       uint64                 `protobuf:"varint,2,opt,name=tweet_id,json=tweetId,proto3" json:"tweet_id,omitempty"`
+	Content       string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
+	ParentId      uint64                 `protobuf:"varint,4,opt,name=parent_id,json=parentId,proto3" json:"parent_id,omitempty"` // 可选，回复评论
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateCommentRequest) Reset() {
+	*x = CreateCommentRequest{}
+	mi := &file_tweet_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateCommentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateCommentRequest) ProtoMessage() {}
+
+func (x *CreateCommentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tweet_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateCommentRequest.ProtoReflect.Descriptor instead.
+func (*CreateCommentRequest) Descriptor() ([]byte, []int) {
+	return file_tweet_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *CreateCommentRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *CreateCommentRequest) GetTweetId() uint64 {
+	if x != nil {
+		return x.TweetId
+	}
+	return 0
+}
+
+func (x *CreateCommentRequest) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+func (x *CreateCommentRequest) GetParentId() uint64 {
+	if x != nil {
+		return x.ParentId
+	}
+	return 0
+}
+
+type CreateCommentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Comment       *Comment               `protobuf:"bytes,1,opt,name=comment,proto3" json:"comment,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateCommentResponse) Reset() {
+	*x = CreateCommentResponse{}
+	mi := &file_tweet_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateCommentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateCommentResponse) ProtoMessage() {}
+
+func (x *CreateCommentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tweet_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateCommentResponse.ProtoReflect.Descriptor instead.
+func (*CreateCommentResponse) Descriptor() ([]byte, []int) {
+	return file_tweet_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *CreateCommentResponse) GetComment() *Comment {
+	if x != nil {
+		return x.Comment
+	}
+	return nil
+}
+
+type DeleteCommentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CommentId     uint64                 `protobuf:"varint,1,opt,name=comment_id,json=commentId,proto3" json:"comment_id,omitempty"`
+	UserId        uint64                 `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteCommentRequest) Reset() {
+	*x = DeleteCommentRequest{}
+	mi := &file_tweet_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteCommentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteCommentRequest) ProtoMessage() {}
+
+func (x *DeleteCommentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tweet_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteCommentRequest.ProtoReflect.Descriptor instead.
+func (*DeleteCommentRequest) Descriptor() ([]byte, []int) {
+	return file_tweet_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *DeleteCommentRequest) GetCommentId() uint64 {
+	if x != nil {
+		return x.CommentId
+	}
+	return 0
+}
+
+func (x *DeleteCommentRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+type DeleteCommentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteCommentResponse) Reset() {
+	*x = DeleteCommentResponse{}
+	mi := &file_tweet_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteCommentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteCommentResponse) ProtoMessage() {}
+
+func (x *DeleteCommentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tweet_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteCommentResponse.ProtoReflect.Descriptor instead.
+func (*DeleteCommentResponse) Descriptor() ([]byte, []int) {
+	return file_tweet_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *DeleteCommentResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type GetTweetCommentsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TweetId       uint64                 `protobuf:"varint,1,opt,name=tweet_id,json=tweetId,proto3" json:"tweet_id,omitempty"`
+	Cursor        uint64                 `protobuf:"varint,2,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTweetCommentsRequest) Reset() {
+	*x = GetTweetCommentsRequest{}
+	mi := &file_tweet_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTweetCommentsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTweetCommentsRequest) ProtoMessage() {}
+
+func (x *GetTweetCommentsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tweet_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTweetCommentsRequest.ProtoReflect.Descriptor instead.
+func (*GetTweetCommentsRequest) Descriptor() ([]byte, []int) {
+	return file_tweet_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *GetTweetCommentsRequest) GetTweetId() uint64 {
+	if x != nil {
+		return x.TweetId
+	}
+	return 0
+}
+
+func (x *GetTweetCommentsRequest) GetCursor() uint64 {
+	if x != nil {
+		return x.Cursor
+	}
+	return 0
+}
+
+func (x *GetTweetCommentsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type GetTweetCommentsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Comments      []*Comment             `protobuf:"bytes,1,rep,name=comments,proto3" json:"comments,omitempty"`
+	NextCursor    uint64                 `protobuf:"varint,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	HasMore       bool                   `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTweetCommentsResponse) Reset() {
+	*x = GetTweetCommentsResponse{}
+	mi := &file_tweet_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTweetCommentsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTweetCommentsResponse) ProtoMessage() {}
+
+func (x *GetTweetCommentsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tweet_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTweetCommentsResponse.ProtoReflect.Descriptor instead.
+func (*GetTweetCommentsResponse) Descriptor() ([]byte, []int) {
+	return file_tweet_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *GetTweetCommentsResponse) GetComments() []*Comment {
+	if x != nil {
+		return x.Comments
+	}
+	return nil
+}
+
+func (x *GetTweetCommentsResponse) GetNextCursor() uint64 {
+	if x != nil {
+		return x.NextCursor
+	}
+	return 0
+}
+
+func (x *GetTweetCommentsResponse) GetHasMore() bool {
+	if x != nil {
+		return x.HasMore
+	}
+	return false
+}
+
+type SearchTweetsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Query         string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
+	Cursor        uint64                 `protobuf:"varint,2,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchTweetsRequest) Reset() {
+	*x = SearchTweetsRequest{}
+	mi := &file_tweet_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchTweetsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchTweetsRequest) ProtoMessage() {}
+
+func (x *SearchTweetsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tweet_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchTweetsRequest.ProtoReflect.Descriptor instead.
+func (*SearchTweetsRequest) Descriptor() ([]byte, []int) {
+	return file_tweet_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *SearchTweetsRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
+func (x *SearchTweetsRequest) GetCursor() uint64 {
+	if x != nil {
+		return x.Cursor
+	}
+	return 0
+}
+
+func (x *SearchTweetsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type SearchTweetsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Tweets        []*Tweet               `protobuf:"bytes,1,rep,name=tweets,proto3" json:"tweets,omitempty"`
+	NextCursor    uint64                 `protobuf:"varint,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	HasMore       bool                   `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchTweetsResponse) Reset() {
+	*x = SearchTweetsResponse{}
+	mi := &file_tweet_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchTweetsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchTweetsResponse) ProtoMessage() {}
+
+func (x *SearchTweetsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tweet_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchTweetsResponse.ProtoReflect.Descriptor instead.
+func (*SearchTweetsResponse) Descriptor() ([]byte, []int) {
+	return file_tweet_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *SearchTweetsResponse) GetTweets() []*Tweet {
+	if x != nil {
+		return x.Tweets
+	}
+	return nil
+}
+
+func (x *SearchTweetsResponse) GetNextCursor() uint64 {
+	if x != nil {
+		return x.NextCursor
+	}
+	return 0
+}
+
+func (x *SearchTweetsResponse) GetHasMore() bool {
+	if x != nil {
+		return x.HasMore
+	}
+	return false
+}
+
+type GetTrendingTopicsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Limit         int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTrendingTopicsRequest) Reset() {
+	*x = GetTrendingTopicsRequest{}
+	mi := &file_tweet_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTrendingTopicsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTrendingTopicsRequest) ProtoMessage() {}
+
+func (x *GetTrendingTopicsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tweet_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTrendingTopicsRequest.ProtoReflect.Descriptor instead.
+func (*GetTrendingTopicsRequest) Descriptor() ([]byte, []int) {
+	return file_tweet_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *GetTrendingTopicsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type GetTrendingTopicsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Topics        []*TrendingTopic       `protobuf:"bytes,1,rep,name=topics,proto3" json:"topics,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTrendingTopicsResponse) Reset() {
+	*x = GetTrendingTopicsResponse{}
+	mi := &file_tweet_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTrendingTopicsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTrendingTopicsResponse) ProtoMessage() {}
+
+func (x *GetTrendingTopicsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tweet_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTrendingTopicsResponse.ProtoReflect.Descriptor instead.
+func (*GetTrendingTopicsResponse) Descriptor() ([]byte, []int) {
+	return file_tweet_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *GetTrendingTopicsResponse) GetTopics() []*TrendingTopic {
+	if x != nil {
+		return x.Topics
+	}
+	return nil
+}
+
+type ListTweetsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Cursor        uint64                 `protobuf:"varint,1,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListTweetsRequest) Reset() {
+	*x = ListTweetsRequest{}
+	mi := &file_tweet_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListTweetsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListTweetsRequest) ProtoMessage() {}
+
+func (x *ListTweetsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tweet_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListTweetsRequest.ProtoReflect.Descriptor instead.
+func (*ListTweetsRequest) Descriptor() ([]byte, []int) {
+	return file_tweet_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *ListTweetsRequest) GetCursor() uint64 {
+	if x != nil {
+		return x.Cursor
+	}
+	return 0
+}
+
+func (x *ListTweetsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type ListTweetsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Tweets        []*Tweet               `protobuf:"bytes,1,rep,name=tweets,proto3" json:"tweets,omitempty"`
+	NextCursor    uint64                 `protobuf:"varint,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	HasMore       bool                   `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListTweetsResponse) Reset() {
+	*x = ListTweetsResponse{}
+	mi := &file_tweet_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListTweetsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListTweetsResponse) ProtoMessage() {}
+
+func (x *ListTweetsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tweet_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListTweetsResponse.ProtoReflect.Descriptor instead.
+func (*ListTweetsResponse) Descriptor() ([]byte, []int) {
+	return file_tweet_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *ListTweetsResponse) GetTweets() []*Tweet {
+	if x != nil {
+		return x.Tweets
+	}
+	return nil
+}
+
+func (x *ListTweetsResponse) GetNextCursor() uint64 {
+	if x != nil {
+		return x.NextCursor
+	}
+	return 0
+}
+
+func (x *ListTweetsResponse) GetHasMore() bool {
+	if x != nil {
+		return x.HasMore
+	}
+	return false
+}
+
+type GetTweetRepliesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TweetId       uint64                 `protobuf:"varint,1,opt,name=tweet_id,json=tweetId,proto3" json:"tweet_id,omitempty"`
+	Cursor        uint64                 `protobuf:"varint,2,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTweetRepliesRequest) Reset() {
+	*x = GetTweetRepliesRequest{}
+	mi := &file_tweet_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTweetRepliesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTweetRepliesRequest) ProtoMessage() {}
+
+func (x *GetTweetRepliesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tweet_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTweetRepliesRequest.ProtoReflect.Descriptor instead.
+func (*GetTweetRepliesRequest) Descriptor() ([]byte, []int) {
+	return file_tweet_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *GetTweetRepliesRequest) GetTweetId() uint64 {
+	if x != nil {
+		return x.TweetId
+	}
+	return 0
+}
+
+func (x *GetTweetRepliesRequest) GetCursor() uint64 {
+	if x != nil {
+		return x.Cursor
+	}
+	return 0
+}
+
+func (x *GetTweetRepliesRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type GetTweetRepliesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Replies       []*Tweet               `protobuf:"bytes,1,rep,name=replies,proto3" json:"replies,omitempty"`
+	NextCursor    uint64                 `protobuf:"varint,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	HasMore       bool                   `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTweetRepliesResponse) Reset() {
+	*x = GetTweetRepliesResponse{}
+	mi := &file_tweet_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTweetRepliesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTweetRepliesResponse) ProtoMessage() {}
+
+func (x *GetTweetRepliesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tweet_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTweetRepliesResponse.ProtoReflect.Descriptor instead.
+func (*GetTweetRepliesResponse) Descriptor() ([]byte, []int) {
+	return file_tweet_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *GetTweetRepliesResponse) GetReplies() []*Tweet {
+	if x != nil {
+		return x.Replies
+	}
+	return nil
+}
+
+func (x *GetTweetRepliesResponse) GetNextCursor() uint64 {
+	if x != nil {
+		return x.NextCursor
+	}
+	return 0
+}
+
+func (x *GetTweetRepliesResponse) GetHasMore() bool {
+	if x != nil {
+		return x.HasMore
+	}
+	return false
+}
+
+type VotePollRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	PollId        uint64                 `protobuf:"varint,2,opt,name=poll_id,json=pollId,proto3" json:"poll_id,omitempty"`
+	OptionId      uint64                 `protobuf:"varint,3,opt,name=option_id,json=optionId,proto3" json:"option_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VotePollRequest) Reset() {
+	*x = VotePollRequest{}
+	mi := &file_tweet_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VotePollRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VotePollRequest) ProtoMessage() {}
+
+func (x *VotePollRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tweet_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VotePollRequest.ProtoReflect.Descriptor instead.
+func (*VotePollRequest) Descriptor() ([]byte, []int) {
+	return file_tweet_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *VotePollRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *VotePollRequest) GetPollId() uint64 {
+	if x != nil {
+		return x.PollId
+	}
+	return 0
+}
+
+func (x *VotePollRequest) GetOptionId() uint64 {
+	if x != nil {
+		return x.OptionId
+	}
+	return 0
+}
+
+type VotePollResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Poll          *Poll                  `protobuf:"bytes,1,opt,name=poll,proto3" json:"poll,omitempty"` // 返回最新的投票状态
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VotePollResponse) Reset() {
+	*x = VotePollResponse{}
+	mi := &file_tweet_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VotePollResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VotePollResponse) ProtoMessage() {}
+
+func (x *VotePollResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tweet_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VotePollResponse.ProtoReflect.Descriptor instead.
+func (*VotePollResponse) Descriptor() ([]byte, []int) {
+	return file_tweet_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *VotePollResponse) GetPoll() *Poll {
+	if x != nil {
+		return x.Poll
+	}
+	return nil
+}
+
+var File_tweet_proto protoreflect.FileDescriptor
+
+const file_tweet_proto_rawDesc = "" +
 	"\n" +
-	"\x18api/tweet/v1/tweet.proto\x12\btweet.v1\"\xde\x02\n" +
+	"\vtweet.proto\x12\btweet.v1\"\x9f\x03\n" +
 	"\x05Tweet\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\x04R\x06userId\x12\x18\n" +
+	"\auser_id\x18\x02 \x01(\x04R\x06userId\x12\x1b\n" +
+	"\tparent_id\x18\r \x01(\x04R\bparentId\x12\x18\n" +
 	"\acontent\x18\x03 \x01(\tR\acontent\x12\x1d\n" +
 	"\n" +
 	"media_urls\x18\x04 \x03(\tR\tmediaUrls\x12\x12\n" +
@@ -706,27 +2170,69 @@ const file_api_tweet_v1_tweet_proto_rawDesc = "" +
 	" \x01(\x05R\fcommentCount\x12\x1f\n" +
 	"\vshare_count\x18\v \x01(\x05R\n" +
 	"shareCount\x12\x19\n" +
-	"\bis_liked\x18\f \x01(\bR\aisLiked\"f\n" +
+	"\bis_liked\x18\f \x01(\bR\aisLiked\x12\"\n" +
+	"\x04poll\x18\x0e \x01(\v2\x0e.tweet.v1.PollR\x04poll\"\x9b\x02\n" +
+	"\x04Poll\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x19\n" +
+	"\btweet_id\x18\x02 \x01(\x04R\atweetId\x12\x1a\n" +
+	"\bquestion\x18\x03 \x01(\tR\bquestion\x12.\n" +
+	"\aoptions\x18\x04 \x03(\v2\x14.tweet.v1.PollOptionR\aoptions\x12\x19\n" +
+	"\bend_time\x18\x05 \x01(\x03R\aendTime\x12\x1d\n" +
+	"\n" +
+	"is_expired\x18\x06 \x01(\bR\tisExpired\x12\x19\n" +
+	"\bis_voted\x18\a \x01(\bR\aisVoted\x12&\n" +
+	"\x0fvoted_option_id\x18\b \x01(\x04R\rvotedOptionId\x12\x1f\n" +
+	"\vtotal_votes\x18\t \x01(\x05R\n" +
+	"totalVotes\"\x88\x01\n" +
+	"\n" +
+	"PollOption\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x17\n" +
+	"\apoll_id\x18\x02 \x01(\x04R\x06pollId\x12\x12\n" +
+	"\x04text\x18\x03 \x01(\tR\x04text\x12\x1d\n" +
+	"\n" +
+	"vote_count\x18\x04 \x01(\x05R\tvoteCount\x12\x1e\n" +
+	"\n" +
+	"percentage\x18\x05 \x01(\x02R\n" +
+	"percentage\"\xdd\x01\n" +
+	"\aComment\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\x04R\x06userId\x12\x19\n" +
+	"\btweet_id\x18\x03 \x01(\x04R\atweetId\x12\x18\n" +
+	"\acontent\x18\x04 \x01(\tR\acontent\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x05 \x01(\x03R\tcreatedAt\x12\x1a\n" +
+	"\busername\x18\x06 \x01(\tR\busername\x12\x1a\n" +
+	"\bnickname\x18\a \x01(\tR\bnickname\x12\x1d\n" +
+	"\n" +
+	"avatar_url\x18\b \x01(\tR\tavatarUrl\";\n" +
+	"\rTrendingTopic\x12\x14\n" +
+	"\x05topic\x18\x01 \x01(\tR\x05topic\x12\x14\n" +
+	"\x05score\x18\x02 \x01(\x05R\x05score\"\xda\x01\n" +
 	"\x12CreateTweetRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x18\n" +
 	"\acontent\x18\x02 \x01(\tR\acontent\x12\x1d\n" +
 	"\n" +
-	"media_urls\x18\x03 \x03(\tR\tmediaUrls\"<\n" +
+	"media_urls\x18\x03 \x03(\tR\tmediaUrls\x12\x1b\n" +
+	"\tparent_id\x18\x04 \x01(\x04R\bparentId\x12!\n" +
+	"\fpoll_options\x18\x05 \x03(\tR\vpollOptions\x122\n" +
+	"\x15poll_duration_minutes\x18\x06 \x01(\x05R\x13pollDurationMinutes\"<\n" +
 	"\x13CreateTweetResponse\x12%\n" +
-	"\x05tweet\x18\x01 \x01(\v2\x0f.tweet.v1.TweetR\x05tweet\",\n" +
+	"\x05tweet\x18\x01 \x01(\v2\x0f.tweet.v1.TweetR\x05tweet\"Z\n" +
 	"\x0fGetTweetRequest\x12\x19\n" +
-	"\btweet_id\x18\x01 \x01(\x04R\atweetId\"9\n" +
+	"\btweet_id\x18\x01 \x01(\x04R\atweetId\x12,\n" +
+	"\x12requesting_user_id\x18\x02 \x01(\x04R\x10requestingUserId\"9\n" +
 	"\x10GetTweetResponse\x12%\n" +
 	"\x05tweet\x18\x01 \x01(\v2\x0f.tweet.v1.TweetR\x05tweet\"H\n" +
 	"\x12DeleteTweetRequest\x12\x19\n" +
 	"\btweet_id\x18\x01 \x01(\x04R\atweetId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x04R\x06userId\"/\n" +
 	"\x13DeleteTweetResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage\"_\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"\x8d\x01\n" +
 	"\x16GetUserTimelineRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x16\n" +
 	"\x06cursor\x18\x02 \x01(\x04R\x06cursor\x12\x14\n" +
-	"\x05limit\x18\x03 \x01(\x05R\x05limit\"~\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12,\n" +
+	"\x12requesting_user_id\x18\x04 \x01(\x04R\x10requestingUserId\"~\n" +
 	"\x17GetUserTimelineResponse\x12'\n" +
 	"\x06tweets\x18\x01 \x03(\v2\x0f.tweet.v1.TweetR\x06tweets\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\x04R\n" +
@@ -740,82 +2246,216 @@ const file_api_tweet_v1_tweet_proto_rawDesc = "" +
 	"\x06tweets\x18\x01 \x03(\v2\x0f.tweet.v1.TweetR\x06tweets\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\x04R\n" +
 	"nextCursor\x12\x19\n" +
-	"\bhas_more\x18\x03 \x01(\bR\ahasMore2\x84\x03\n" +
+	"\bhas_more\x18\x03 \x01(\bR\ahasMore\"F\n" +
+	"\x10LikeTweetRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x19\n" +
+	"\btweet_id\x18\x02 \x01(\x04R\atweetId\"2\n" +
+	"\x11LikeTweetResponse\x12\x1d\n" +
+	"\n" +
+	"like_count\x18\x01 \x01(\x05R\tlikeCount\"H\n" +
+	"\x12UnlikeTweetRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x19\n" +
+	"\btweet_id\x18\x02 \x01(\x04R\atweetId\"4\n" +
+	"\x13UnlikeTweetResponse\x12\x1d\n" +
+	"\n" +
+	"like_count\x18\x01 \x01(\x05R\tlikeCount\"\x81\x01\n" +
+	"\x14CreateCommentRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x19\n" +
+	"\btweet_id\x18\x02 \x01(\x04R\atweetId\x12\x18\n" +
+	"\acontent\x18\x03 \x01(\tR\acontent\x12\x1b\n" +
+	"\tparent_id\x18\x04 \x01(\x04R\bparentId\"D\n" +
+	"\x15CreateCommentResponse\x12+\n" +
+	"\acomment\x18\x01 \x01(\v2\x11.tweet.v1.CommentR\acomment\"N\n" +
+	"\x14DeleteCommentRequest\x12\x1d\n" +
+	"\n" +
+	"comment_id\x18\x01 \x01(\x04R\tcommentId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\x04R\x06userId\"1\n" +
+	"\x15DeleteCommentResponse\x12\x18\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"b\n" +
+	"\x17GetTweetCommentsRequest\x12\x19\n" +
+	"\btweet_id\x18\x01 \x01(\x04R\atweetId\x12\x16\n" +
+	"\x06cursor\x18\x02 \x01(\x04R\x06cursor\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\"\x85\x01\n" +
+	"\x18GetTweetCommentsResponse\x12-\n" +
+	"\bcomments\x18\x01 \x03(\v2\x11.tweet.v1.CommentR\bcomments\x12\x1f\n" +
+	"\vnext_cursor\x18\x02 \x01(\x04R\n" +
+	"nextCursor\x12\x19\n" +
+	"\bhas_more\x18\x03 \x01(\bR\ahasMore\"Y\n" +
+	"\x13SearchTweetsRequest\x12\x14\n" +
+	"\x05query\x18\x01 \x01(\tR\x05query\x12\x16\n" +
+	"\x06cursor\x18\x02 \x01(\x04R\x06cursor\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\"{\n" +
+	"\x14SearchTweetsResponse\x12'\n" +
+	"\x06tweets\x18\x01 \x03(\v2\x0f.tweet.v1.TweetR\x06tweets\x12\x1f\n" +
+	"\vnext_cursor\x18\x02 \x01(\x04R\n" +
+	"nextCursor\x12\x19\n" +
+	"\bhas_more\x18\x03 \x01(\bR\ahasMore\"0\n" +
+	"\x18GetTrendingTopicsRequest\x12\x14\n" +
+	"\x05limit\x18\x01 \x01(\x05R\x05limit\"L\n" +
+	"\x19GetTrendingTopicsResponse\x12/\n" +
+	"\x06topics\x18\x01 \x03(\v2\x17.tweet.v1.TrendingTopicR\x06topics\"A\n" +
+	"\x11ListTweetsRequest\x12\x16\n" +
+	"\x06cursor\x18\x01 \x01(\x04R\x06cursor\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\"y\n" +
+	"\x12ListTweetsResponse\x12'\n" +
+	"\x06tweets\x18\x01 \x03(\v2\x0f.tweet.v1.TweetR\x06tweets\x12\x1f\n" +
+	"\vnext_cursor\x18\x02 \x01(\x04R\n" +
+	"nextCursor\x12\x19\n" +
+	"\bhas_more\x18\x03 \x01(\bR\ahasMore\"a\n" +
+	"\x16GetTweetRepliesRequest\x12\x19\n" +
+	"\btweet_id\x18\x01 \x01(\x04R\atweetId\x12\x16\n" +
+	"\x06cursor\x18\x02 \x01(\x04R\x06cursor\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\"\x80\x01\n" +
+	"\x17GetTweetRepliesResponse\x12)\n" +
+	"\areplies\x18\x01 \x03(\v2\x0f.tweet.v1.TweetR\areplies\x12\x1f\n" +
+	"\vnext_cursor\x18\x02 \x01(\x04R\n" +
+	"nextCursor\x12\x19\n" +
+	"\bhas_more\x18\x03 \x01(\bR\ahasMore\"`\n" +
+	"\x0fVotePollRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x17\n" +
+	"\apoll_id\x18\x02 \x01(\x04R\x06pollId\x12\x1b\n" +
+	"\toption_id\x18\x03 \x01(\x04R\boptionId\"6\n" +
+	"\x10VotePollResponse\x12\"\n" +
+	"\x04poll\x18\x01 \x01(\v2\x0e.tweet.v1.PollR\x04poll2\xa6\t\n" +
 	"\fTweetService\x12J\n" +
 	"\vCreateTweet\x12\x1c.tweet.v1.CreateTweetRequest\x1a\x1d.tweet.v1.CreateTweetResponse\x12A\n" +
 	"\bGetTweet\x12\x19.tweet.v1.GetTweetRequest\x1a\x1a.tweet.v1.GetTweetResponse\x12J\n" +
 	"\vDeleteTweet\x12\x1c.tweet.v1.DeleteTweetRequest\x1a\x1d.tweet.v1.DeleteTweetResponse\x12V\n" +
 	"\x0fGetUserTimeline\x12 .tweet.v1.GetUserTimelineRequest\x1a!.tweet.v1.GetUserTimelineResponse\x12A\n" +
-	"\bGetFeeds\x12\x19.tweet.v1.GetFeedsRequest\x1a\x1a.tweet.v1.GetFeedsResponseB$Z\"twitter-clone/api/tweet/v1;tweetv1b\x06proto3"
+	"\bGetFeeds\x12\x19.tweet.v1.GetFeedsRequest\x1a\x1a.tweet.v1.GetFeedsResponse\x12D\n" +
+	"\tLikeTweet\x12\x1a.tweet.v1.LikeTweetRequest\x1a\x1b.tweet.v1.LikeTweetResponse\x12J\n" +
+	"\vUnlikeTweet\x12\x1c.tweet.v1.UnlikeTweetRequest\x1a\x1d.tweet.v1.UnlikeTweetResponse\x12P\n" +
+	"\rCreateComment\x12\x1e.tweet.v1.CreateCommentRequest\x1a\x1f.tweet.v1.CreateCommentResponse\x12P\n" +
+	"\rDeleteComment\x12\x1e.tweet.v1.DeleteCommentRequest\x1a\x1f.tweet.v1.DeleteCommentResponse\x12Y\n" +
+	"\x10GetTweetComments\x12!.tweet.v1.GetTweetCommentsRequest\x1a\".tweet.v1.GetTweetCommentsResponse\x12M\n" +
+	"\fSearchTweets\x12\x1d.tweet.v1.SearchTweetsRequest\x1a\x1e.tweet.v1.SearchTweetsResponse\x12\\\n" +
+	"\x11GetTrendingTopics\x12\".tweet.v1.GetTrendingTopicsRequest\x1a#.tweet.v1.GetTrendingTopicsResponse\x12G\n" +
+	"\n" +
+	"ListTweets\x12\x1b.tweet.v1.ListTweetsRequest\x1a\x1c.tweet.v1.ListTweetsResponse\x12V\n" +
+	"\x0fGetTweetReplies\x12 .tweet.v1.GetTweetRepliesRequest\x1a!.tweet.v1.GetTweetRepliesResponse\x12A\n" +
+	"\bVotePoll\x12\x19.tweet.v1.VotePollRequest\x1a\x1a.tweet.v1.VotePollResponseB$Z\"twitter-clone/api/tweet/v1;tweetv1b\x06proto3"
 
 var (
-	file_api_tweet_v1_tweet_proto_rawDescOnce sync.Once
-	file_api_tweet_v1_tweet_proto_rawDescData []byte
+	file_tweet_proto_rawDescOnce sync.Once
+	file_tweet_proto_rawDescData []byte
 )
 
-func file_api_tweet_v1_tweet_proto_rawDescGZIP() []byte {
-	file_api_tweet_v1_tweet_proto_rawDescOnce.Do(func() {
-		file_api_tweet_v1_tweet_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_api_tweet_v1_tweet_proto_rawDesc), len(file_api_tweet_v1_tweet_proto_rawDesc)))
+func file_tweet_proto_rawDescGZIP() []byte {
+	file_tweet_proto_rawDescOnce.Do(func() {
+		file_tweet_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_tweet_proto_rawDesc), len(file_tweet_proto_rawDesc)))
 	})
-	return file_api_tweet_v1_tweet_proto_rawDescData
+	return file_tweet_proto_rawDescData
 }
 
-var file_api_tweet_v1_tweet_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
-var file_api_tweet_v1_tweet_proto_goTypes = []any{
-	(*Tweet)(nil),                   // 0: tweet.v1.Tweet
-	(*CreateTweetRequest)(nil),      // 1: tweet.v1.CreateTweetRequest
-	(*CreateTweetResponse)(nil),     // 2: tweet.v1.CreateTweetResponse
-	(*GetTweetRequest)(nil),         // 3: tweet.v1.GetTweetRequest
-	(*GetTweetResponse)(nil),        // 4: tweet.v1.GetTweetResponse
-	(*DeleteTweetRequest)(nil),      // 5: tweet.v1.DeleteTweetRequest
-	(*DeleteTweetResponse)(nil),     // 6: tweet.v1.DeleteTweetResponse
-	(*GetUserTimelineRequest)(nil),  // 7: tweet.v1.GetUserTimelineRequest
-	(*GetUserTimelineResponse)(nil), // 8: tweet.v1.GetUserTimelineResponse
-	(*GetFeedsRequest)(nil),         // 9: tweet.v1.GetFeedsRequest
-	(*GetFeedsResponse)(nil),        // 10: tweet.v1.GetFeedsResponse
+var file_tweet_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
+var file_tweet_proto_goTypes = []any{
+	(*Tweet)(nil),                     // 0: tweet.v1.Tweet
+	(*Poll)(nil),                      // 1: tweet.v1.Poll
+	(*PollOption)(nil),                // 2: tweet.v1.PollOption
+	(*Comment)(nil),                   // 3: tweet.v1.Comment
+	(*TrendingTopic)(nil),             // 4: tweet.v1.TrendingTopic
+	(*CreateTweetRequest)(nil),        // 5: tweet.v1.CreateTweetRequest
+	(*CreateTweetResponse)(nil),       // 6: tweet.v1.CreateTweetResponse
+	(*GetTweetRequest)(nil),           // 7: tweet.v1.GetTweetRequest
+	(*GetTweetResponse)(nil),          // 8: tweet.v1.GetTweetResponse
+	(*DeleteTweetRequest)(nil),        // 9: tweet.v1.DeleteTweetRequest
+	(*DeleteTweetResponse)(nil),       // 10: tweet.v1.DeleteTweetResponse
+	(*GetUserTimelineRequest)(nil),    // 11: tweet.v1.GetUserTimelineRequest
+	(*GetUserTimelineResponse)(nil),   // 12: tweet.v1.GetUserTimelineResponse
+	(*GetFeedsRequest)(nil),           // 13: tweet.v1.GetFeedsRequest
+	(*GetFeedsResponse)(nil),          // 14: tweet.v1.GetFeedsResponse
+	(*LikeTweetRequest)(nil),          // 15: tweet.v1.LikeTweetRequest
+	(*LikeTweetResponse)(nil),         // 16: tweet.v1.LikeTweetResponse
+	(*UnlikeTweetRequest)(nil),        // 17: tweet.v1.UnlikeTweetRequest
+	(*UnlikeTweetResponse)(nil),       // 18: tweet.v1.UnlikeTweetResponse
+	(*CreateCommentRequest)(nil),      // 19: tweet.v1.CreateCommentRequest
+	(*CreateCommentResponse)(nil),     // 20: tweet.v1.CreateCommentResponse
+	(*DeleteCommentRequest)(nil),      // 21: tweet.v1.DeleteCommentRequest
+	(*DeleteCommentResponse)(nil),     // 22: tweet.v1.DeleteCommentResponse
+	(*GetTweetCommentsRequest)(nil),   // 23: tweet.v1.GetTweetCommentsRequest
+	(*GetTweetCommentsResponse)(nil),  // 24: tweet.v1.GetTweetCommentsResponse
+	(*SearchTweetsRequest)(nil),       // 25: tweet.v1.SearchTweetsRequest
+	(*SearchTweetsResponse)(nil),      // 26: tweet.v1.SearchTweetsResponse
+	(*GetTrendingTopicsRequest)(nil),  // 27: tweet.v1.GetTrendingTopicsRequest
+	(*GetTrendingTopicsResponse)(nil), // 28: tweet.v1.GetTrendingTopicsResponse
+	(*ListTweetsRequest)(nil),         // 29: tweet.v1.ListTweetsRequest
+	(*ListTweetsResponse)(nil),        // 30: tweet.v1.ListTweetsResponse
+	(*GetTweetRepliesRequest)(nil),    // 31: tweet.v1.GetTweetRepliesRequest
+	(*GetTweetRepliesResponse)(nil),   // 32: tweet.v1.GetTweetRepliesResponse
+	(*VotePollRequest)(nil),           // 33: tweet.v1.VotePollRequest
+	(*VotePollResponse)(nil),          // 34: tweet.v1.VotePollResponse
 }
-var file_api_tweet_v1_tweet_proto_depIdxs = []int32{
-	0,  // 0: tweet.v1.CreateTweetResponse.tweet:type_name -> tweet.v1.Tweet
-	0,  // 1: tweet.v1.GetTweetResponse.tweet:type_name -> tweet.v1.Tweet
-	0,  // 2: tweet.v1.GetUserTimelineResponse.tweets:type_name -> tweet.v1.Tweet
-	0,  // 3: tweet.v1.GetFeedsResponse.tweets:type_name -> tweet.v1.Tweet
-	1,  // 4: tweet.v1.TweetService.CreateTweet:input_type -> tweet.v1.CreateTweetRequest
-	3,  // 5: tweet.v1.TweetService.GetTweet:input_type -> tweet.v1.GetTweetRequest
-	5,  // 6: tweet.v1.TweetService.DeleteTweet:input_type -> tweet.v1.DeleteTweetRequest
-	7,  // 7: tweet.v1.TweetService.GetUserTimeline:input_type -> tweet.v1.GetUserTimelineRequest
-	9,  // 8: tweet.v1.TweetService.GetFeeds:input_type -> tweet.v1.GetFeedsRequest
-	2,  // 9: tweet.v1.TweetService.CreateTweet:output_type -> tweet.v1.CreateTweetResponse
-	4,  // 10: tweet.v1.TweetService.GetTweet:output_type -> tweet.v1.GetTweetResponse
-	6,  // 11: tweet.v1.TweetService.DeleteTweet:output_type -> tweet.v1.DeleteTweetResponse
-	8,  // 12: tweet.v1.TweetService.GetUserTimeline:output_type -> tweet.v1.GetUserTimelineResponse
-	10, // 13: tweet.v1.TweetService.GetFeeds:output_type -> tweet.v1.GetFeedsResponse
-	9,  // [9:14] is the sub-list for method output_type
-	4,  // [4:9] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+var file_tweet_proto_depIdxs = []int32{
+	1,  // 0: tweet.v1.Tweet.poll:type_name -> tweet.v1.Poll
+	2,  // 1: tweet.v1.Poll.options:type_name -> tweet.v1.PollOption
+	0,  // 2: tweet.v1.CreateTweetResponse.tweet:type_name -> tweet.v1.Tweet
+	0,  // 3: tweet.v1.GetTweetResponse.tweet:type_name -> tweet.v1.Tweet
+	0,  // 4: tweet.v1.GetUserTimelineResponse.tweets:type_name -> tweet.v1.Tweet
+	0,  // 5: tweet.v1.GetFeedsResponse.tweets:type_name -> tweet.v1.Tweet
+	3,  // 6: tweet.v1.CreateCommentResponse.comment:type_name -> tweet.v1.Comment
+	3,  // 7: tweet.v1.GetTweetCommentsResponse.comments:type_name -> tweet.v1.Comment
+	0,  // 8: tweet.v1.SearchTweetsResponse.tweets:type_name -> tweet.v1.Tweet
+	4,  // 9: tweet.v1.GetTrendingTopicsResponse.topics:type_name -> tweet.v1.TrendingTopic
+	0,  // 10: tweet.v1.ListTweetsResponse.tweets:type_name -> tweet.v1.Tweet
+	0,  // 11: tweet.v1.GetTweetRepliesResponse.replies:type_name -> tweet.v1.Tweet
+	1,  // 12: tweet.v1.VotePollResponse.poll:type_name -> tweet.v1.Poll
+	5,  // 13: tweet.v1.TweetService.CreateTweet:input_type -> tweet.v1.CreateTweetRequest
+	7,  // 14: tweet.v1.TweetService.GetTweet:input_type -> tweet.v1.GetTweetRequest
+	9,  // 15: tweet.v1.TweetService.DeleteTweet:input_type -> tweet.v1.DeleteTweetRequest
+	11, // 16: tweet.v1.TweetService.GetUserTimeline:input_type -> tweet.v1.GetUserTimelineRequest
+	13, // 17: tweet.v1.TweetService.GetFeeds:input_type -> tweet.v1.GetFeedsRequest
+	15, // 18: tweet.v1.TweetService.LikeTweet:input_type -> tweet.v1.LikeTweetRequest
+	17, // 19: tweet.v1.TweetService.UnlikeTweet:input_type -> tweet.v1.UnlikeTweetRequest
+	19, // 20: tweet.v1.TweetService.CreateComment:input_type -> tweet.v1.CreateCommentRequest
+	21, // 21: tweet.v1.TweetService.DeleteComment:input_type -> tweet.v1.DeleteCommentRequest
+	23, // 22: tweet.v1.TweetService.GetTweetComments:input_type -> tweet.v1.GetTweetCommentsRequest
+	25, // 23: tweet.v1.TweetService.SearchTweets:input_type -> tweet.v1.SearchTweetsRequest
+	27, // 24: tweet.v1.TweetService.GetTrendingTopics:input_type -> tweet.v1.GetTrendingTopicsRequest
+	29, // 25: tweet.v1.TweetService.ListTweets:input_type -> tweet.v1.ListTweetsRequest
+	31, // 26: tweet.v1.TweetService.GetTweetReplies:input_type -> tweet.v1.GetTweetRepliesRequest
+	33, // 27: tweet.v1.TweetService.VotePoll:input_type -> tweet.v1.VotePollRequest
+	6,  // 28: tweet.v1.TweetService.CreateTweet:output_type -> tweet.v1.CreateTweetResponse
+	8,  // 29: tweet.v1.TweetService.GetTweet:output_type -> tweet.v1.GetTweetResponse
+	10, // 30: tweet.v1.TweetService.DeleteTweet:output_type -> tweet.v1.DeleteTweetResponse
+	12, // 31: tweet.v1.TweetService.GetUserTimeline:output_type -> tweet.v1.GetUserTimelineResponse
+	14, // 32: tweet.v1.TweetService.GetFeeds:output_type -> tweet.v1.GetFeedsResponse
+	16, // 33: tweet.v1.TweetService.LikeTweet:output_type -> tweet.v1.LikeTweetResponse
+	18, // 34: tweet.v1.TweetService.UnlikeTweet:output_type -> tweet.v1.UnlikeTweetResponse
+	20, // 35: tweet.v1.TweetService.CreateComment:output_type -> tweet.v1.CreateCommentResponse
+	22, // 36: tweet.v1.TweetService.DeleteComment:output_type -> tweet.v1.DeleteCommentResponse
+	24, // 37: tweet.v1.TweetService.GetTweetComments:output_type -> tweet.v1.GetTweetCommentsResponse
+	26, // 38: tweet.v1.TweetService.SearchTweets:output_type -> tweet.v1.SearchTweetsResponse
+	28, // 39: tweet.v1.TweetService.GetTrendingTopics:output_type -> tweet.v1.GetTrendingTopicsResponse
+	30, // 40: tweet.v1.TweetService.ListTweets:output_type -> tweet.v1.ListTweetsResponse
+	32, // 41: tweet.v1.TweetService.GetTweetReplies:output_type -> tweet.v1.GetTweetRepliesResponse
+	34, // 42: tweet.v1.TweetService.VotePoll:output_type -> tweet.v1.VotePollResponse
+	28, // [28:43] is the sub-list for method output_type
+	13, // [13:28] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
-func init() { file_api_tweet_v1_tweet_proto_init() }
-func file_api_tweet_v1_tweet_proto_init() {
-	if File_api_tweet_v1_tweet_proto != nil {
+func init() { file_tweet_proto_init() }
+func file_tweet_proto_init() {
+	if File_tweet_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_tweet_v1_tweet_proto_rawDesc), len(file_api_tweet_v1_tweet_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tweet_proto_rawDesc), len(file_tweet_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   35,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_api_tweet_v1_tweet_proto_goTypes,
-		DependencyIndexes: file_api_tweet_v1_tweet_proto_depIdxs,
-		MessageInfos:      file_api_tweet_v1_tweet_proto_msgTypes,
+		GoTypes:           file_tweet_proto_goTypes,
+		DependencyIndexes: file_tweet_proto_depIdxs,
+		MessageInfos:      file_tweet_proto_msgTypes,
 	}.Build()
-	File_api_tweet_v1_tweet_proto = out.File
-	file_api_tweet_v1_tweet_proto_goTypes = nil
-	file_api_tweet_v1_tweet_proto_depIdxs = nil
+	File_tweet_proto = out.File
+	file_tweet_proto_goTypes = nil
+	file_tweet_proto_depIdxs = nil
 }

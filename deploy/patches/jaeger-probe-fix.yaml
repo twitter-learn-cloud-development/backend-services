@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: twitter-clone-jaeger
+  namespace: default
+spec:
+  template:
+    spec:
+      containers:
+        - name: jaeger
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 14269
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            failureThreshold: 5
+            timeoutSeconds: 1
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 14269
+              scheme: HTTP
+            initialDelaySeconds: 1
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 1

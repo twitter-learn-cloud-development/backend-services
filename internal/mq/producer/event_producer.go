@@ -105,3 +105,57 @@ func (p *EventProducer) PublishUserUnfollowed(ctx context.Context, event *events
 	log.Printf("📤 Published: user.unfollowed (follower_id=%d, followee_id=%d)", event.FollowerID, event.FolloweeID)
 	return nil
 }
+
+// RoutingKeyTweetLiked 推文点赞路由键
+const RoutingKeyTweetLiked = "tweet.liked"
+
+// PublishTweetLiked 发布推文点赞事件
+func (p *EventProducer) PublishTweetLiked(ctx context.Context, event *events.TweetLikedEvent) error {
+	body, err := event.ToJSON()
+	if err != nil {
+		return fmt.Errorf("failed to marshal event: %w", err)
+	}
+
+	if err := p.mq.Publish(ctx, ExchangeName, RoutingKeyTweetLiked, body); err != nil {
+		return fmt.Errorf("failed to publish tweet liked event: %w", err)
+	}
+
+	log.Printf("📤 Published: tweet.liked (tweet_id=%d, user_id=%d)", event.TweetID, event.UserID)
+	return nil
+}
+
+// RoutingKeyTweetUnliked 推文取消点赞路由键
+const RoutingKeyTweetUnliked = "tweet.unliked"
+
+// PublishTweetUnliked 发布推文取消点赞事件
+func (p *EventProducer) PublishTweetUnliked(ctx context.Context, event *events.TweetUnlikedEvent) error {
+	body, err := event.ToJSON()
+	if err != nil {
+		return fmt.Errorf("failed to marshal event: %w", err)
+	}
+
+	if err := p.mq.Publish(ctx, ExchangeName, RoutingKeyTweetUnliked, body); err != nil {
+		return fmt.Errorf("failed to publish tweet unliked event: %w", err)
+	}
+
+	log.Printf("📤 Published: tweet.unliked (tweet_id=%d, user_id=%d)", event.TweetID, event.UserID)
+	return nil
+}
+
+// RoutingKeyCommentCreated 评论创建路由键
+const RoutingKeyCommentCreated = "comment.created"
+
+// PublishCommentCreated 发布评论创建事件
+func (p *EventProducer) PublishCommentCreated(ctx context.Context, event *events.CommentCreatedEvent) error {
+	body, err := event.ToJSON()
+	if err != nil {
+		return fmt.Errorf("failed to marshal event: %w", err)
+	}
+
+	if err := p.mq.Publish(ctx, ExchangeName, RoutingKeyCommentCreated, body); err != nil {
+		return fmt.Errorf("failed to publish comment created event: %w", err)
+	}
+
+	log.Printf("📤 Published: comment.created (comment_id=%d, tweet_id=%d)", event.CommentID, event.TweetID)
+	return nil
+}

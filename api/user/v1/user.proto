@@ -20,6 +20,12 @@ service UserService {
 
   // ChangePassword 修改密码
   rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
+
+  // GetBatchUsers 批量获取用户信息
+  rpc GetBatchUsers(GetBatchUsersRequest) returns (GetBatchUsersResponse);
+
+  // SearchUsers 搜索用户
+  rpc SearchUsers(SearchUsersRequest) returns (SearchUsersResponse);
 }
 
 // ==================== 消息定义 ====================
@@ -33,6 +39,9 @@ message User {
   string bio = 5;
   int64 created_at = 6;
   int64 updated_at = 7;
+  string cover_url = 8;
+  string website = 9;
+  string location = 10;
 }
 
 // ==================== Register ====================
@@ -75,6 +84,9 @@ message UpdateProfileRequest {
   uint64 user_id = 1;
   string avatar = 2;
   string bio = 3;
+  string cover_url = 4;
+  string website = 5;
+  string location = 6;
 }
 
 message UpdateProfileResponse {
@@ -91,4 +103,28 @@ message ChangePasswordRequest {
 
 message ChangePasswordResponse {
   string message = 1;
+}
+
+// ==================== GetBatchUsers ====================
+
+message GetBatchUsersRequest {
+  repeated uint64 user_ids = 1;
+}
+
+message GetBatchUsersResponse {
+  repeated User users = 1;
+}
+
+// ==================== SearchUsers ====================
+
+message SearchUsersRequest {
+  string keyword = 1;
+  uint64 cursor = 2; // 分页游标
+  int32 limit = 3;   // 每页数量
+}
+
+message SearchUsersResponse {
+  repeated User users = 1;
+  uint64 next_cursor = 2;
+  bool has_more = 3;
 }

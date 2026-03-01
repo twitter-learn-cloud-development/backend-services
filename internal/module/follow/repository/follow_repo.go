@@ -3,10 +3,11 @@ package repository
 import (
 	"context"
 	"fmt"
-	"gorm.io/gorm"
 	"time"
 	"twitter-clone/internal/domain"
 	"twitter-clone/pkg/pkg/snowflake"
+
+	"gorm.io/gorm"
 )
 
 type followRepo struct {
@@ -94,7 +95,7 @@ func (r *followRepo) GetFollowers(ctx context.Context, userID uint64, cursor uin
 		limit = 100
 	}
 
-	query := r.db.WithContext(ctx).Model(&domain.Follow{}).Where("followee_id = ? and deleted_id = 0", userID)
+	query := r.db.WithContext(ctx).Model(&domain.Follow{}).Where("followee_id = ? and deleted_at = 0", userID)
 
 	if cursor > 0 {
 		query = query.Where("id < ?", cursor)

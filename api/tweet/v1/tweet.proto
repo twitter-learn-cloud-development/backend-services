@@ -20,85 +20,291 @@ service TweetService {
 
   // GetFeeds 获取关注流
   rpc GetFeeds(GetFeedsRequest) returns (GetFeedsResponse);
+
+  // LikeTweet 点赞推文
+  rpc LikeTweet(LikeTweetRequest) returns (LikeTweetResponse);
+
+  // UnlikeTweet 取消点赞
+  rpc UnlikeTweet(UnlikeTweetRequest) returns (UnlikeTweetResponse);
+
+  // CreateComment 发布评论
+  rpc CreateComment(CreateCommentRequest) returns (CreateCommentResponse);
+
+  // DeleteComment 删除评论
+  rpc DeleteComment(DeleteCommentRequest) returns (DeleteCommentResponse);
+
+  // GetTweetComments 获取推文评论
+  rpc GetTweetComments(GetTweetCommentsRequest) returns (GetTweetCommentsResponse);
+	// SearchTweets 搜索推文
+	rpc SearchTweets(SearchTweetsRequest) returns (SearchTweetsResponse);
+
+	// GetTrendingTopics 获取热门话题
+	rpc GetTrendingTopics(GetTrendingTopicsRequest) returns (GetTrendingTopicsResponse);
+
+	// ListTweets 获取推文列表（全站）
+	rpc ListTweets(ListTweetsRequest) returns (ListTweetsResponse);
+
+	// GetTweetReplies 获取推文回复列表 (Thread)
+	rpc GetTweetReplies(GetTweetRepliesRequest) returns (GetTweetRepliesResponse);
+
+	// VotePoll 投票
+	rpc VotePoll(VotePollRequest) returns (VotePollResponse);
 }
 
 // ==================== 消息定义 ====================
 
 // Tweet 推文
 message Tweet {
-  uint64 id = 1;
-  uint64 user_id = 2;
-  string content = 3;
-  repeated string media_urls = 4;
-  int32 type = 5;
-  int32 visible_type = 6;
-  int64 created_at = 7;
-  int64 updated_at = 8;
+	uint64 id = 1;
+	uint64 user_id = 2;
+	uint64 parent_id = 13; // 新增：父推文 ID
+	string content = 3;
+	repeated string media_urls = 4;
+	int32 type = 5;
+	int32 visible_type = 6;
+	int64 created_at = 7;
+	int64 updated_at = 8;
+	
+	// 统计数据
+	int32 like_count = 9;
+	int32 comment_count = 10;
+	int32 share_count = 11;
+	bool is_liked = 12;
 
-  // 统计数据
-  int32 like_count = 9;
-  int32 comment_count = 10;
-  int32 share_count = 11;
-  bool is_liked = 12;
+	// 投票信息
+	Poll poll = 14;
+}
+
+// Poll 投票
+message Poll {
+	uint64 id = 1;
+	uint64 tweet_id = 2;
+	string question = 3;
+	repeated PollOption options = 4;
+	int64 end_time = 5;
+	bool is_expired = 6; // 计算字段
+	bool is_voted = 7;   // 当前用户是否已投票
+	uint64 voted_option_id = 8; // 当前用户投的选项 ID
+	int32 total_votes = 9;
+}
+
+// PollOption 投票选项
+message PollOption {
+	uint64 id = 1;
+	uint64 poll_id = 2;
+	string text = 3;
+	int32 vote_count = 4;
+	float percentage = 5; // 计算字段：百分比 (0-100)
+}
+
+// Comment 评论
+message Comment {
+	uint64 id = 1;
+	uint64 user_id = 2;
+	uint64 tweet_id = 3;
+	string content = 4;
+	int64 created_at = 5;
+	
+	// 用户信息 (聚合)
+	string username = 6;
+	string nickname = 7;
+	string avatar_url = 8;
+}
+
+// TrendingTopic 热门话题
+message TrendingTopic {
+	string topic = 1;
+	int32 score = 2;
 }
 
 // ==================== CreateTweet ====================
 
 message CreateTweetRequest {
-  uint64 user_id = 1;
-  string content = 2;
-  repeated string media_urls = 3;
+	uint64 user_id = 1;
+	string content = 2;
+	repeated string media_urls = 3;
+	uint64 parent_id = 4; // 新增：回复的推文 ID
+	
+	// 投票数据 (可选)
+	repeated string poll_options = 5;
+	int32 poll_duration_minutes = 6;
 }
 
 message CreateTweetResponse {
-  Tweet tweet = 1;
+	Tweet tweet = 1;
 }
 
 // ==================== GetTweet ====================
 
 message GetTweetRequest {
-  uint64 tweet_id = 1;
+	uint64 tweet_id = 1;
+	uint64 requesting_user_id = 2; // 当前请求用户 ID（用于判断 is_liked）
 }
 
 message GetTweetResponse {
-  Tweet tweet = 1;
+	Tweet tweet = 1;
 }
 
 // ==================== DeleteTweet ====================
 
 message DeleteTweetRequest {
-  uint64 tweet_id = 1;
-  uint64 user_id = 2;
+	uint64 tweet_id = 1;
+	uint64 user_id = 2;
 }
 
 message DeleteTweetResponse {
-  string message = 1;
+	string message = 1;
 }
 
 // ==================== GetUserTimeline ====================
 
 message GetUserTimelineRequest {
-  uint64 user_id = 1;
-  uint64 cursor = 2;
-  int32 limit = 3;
+	uint64 user_id = 1;
+	uint64 cursor = 2;
+	int32 limit = 3;
+	uint64 requesting_user_id = 4; // 当前请求用户 ID
 }
 
 message GetUserTimelineResponse {
-  repeated Tweet tweets = 1;
-  uint64 next_cursor = 2;
-  bool has_more = 3;
+	repeated Tweet tweets = 1;
+	uint64 next_cursor = 2;
+	bool has_more = 3;
 }
 
 // ==================== GetFeeds ====================
 
 message GetFeedsRequest {
-  uint64 user_id = 1;
-  uint64 cursor = 2;
-  int32 limit = 3;
+	uint64 user_id = 1;
+	uint64 cursor = 2;
+	int32 limit = 3;
 }
 
 message GetFeedsResponse {
-  repeated Tweet tweets = 1;
-  uint64 next_cursor = 2;
-  bool has_more = 3;
+	repeated Tweet tweets = 1;
+	uint64 next_cursor = 2;
+	bool has_more = 3;
 }
+
+// ==================== LikeTweet ====================
+
+message LikeTweetRequest {
+	uint64 user_id = 1;
+	uint64 tweet_id = 2;
+}
+
+message LikeTweetResponse {
+	int32 like_count = 1; // 点赞后的总数
+}
+
+// ==================== UnlikeTweet ====================
+
+message UnlikeTweetRequest {
+	uint64 user_id = 1;
+	uint64 tweet_id = 2;
+}
+
+message UnlikeTweetResponse {
+	int32 like_count = 1; // 点赞后的总数
+}
+
+// ==================== CreateComment ====================
+
+message CreateCommentRequest {
+	uint64 user_id = 1;
+	uint64 tweet_id = 2;
+	string content = 3;
+	uint64 parent_id = 4; // 可选，回复评论
+}
+
+message CreateCommentResponse {
+	Comment comment = 1;
+}
+
+// ==================== DeleteComment ====================
+
+message DeleteCommentRequest {
+	uint64 comment_id = 1;
+	uint64 user_id = 2;
+}
+
+message DeleteCommentResponse {
+	string message = 1;
+}
+
+// ==================== GetTweetComments ====================
+
+message GetTweetCommentsRequest {
+	uint64 tweet_id = 1;
+	uint64 cursor = 2;
+	int32 limit = 3;
+}
+
+message GetTweetCommentsResponse {
+	repeated Comment comments = 1;
+	uint64 next_cursor = 2;
+	bool has_more = 3;
+}
+
+// ==================== SearchTweets ====================
+
+message SearchTweetsRequest {
+	string query = 1;
+	uint64 cursor = 2;
+	int32 limit = 3;
+}
+
+message SearchTweetsResponse {
+	repeated Tweet tweets = 1;
+	uint64 next_cursor = 2;
+	bool has_more = 3;
+}
+
+// ==================== GetTrendingTopics ====================
+
+message GetTrendingTopicsRequest {
+	int32 limit = 1;
+}
+
+message GetTrendingTopicsResponse {
+	repeated TrendingTopic topics = 1;
+}
+
+// ==================== ListTweets ====================
+
+message ListTweetsRequest {
+	uint64 cursor = 1;
+	int32 limit = 2;
+}
+
+message ListTweetsResponse {
+	repeated Tweet tweets = 1;
+	uint64 next_cursor = 2;
+	bool has_more = 3;
+}
+
+// ==================== GetTweetReplies ====================
+
+message GetTweetRepliesRequest {
+	uint64 tweet_id = 1;
+	uint64 cursor = 2;
+	int32 limit = 3;
+}
+
+message GetTweetRepliesResponse {
+	repeated Tweet replies = 1;
+	uint64 next_cursor = 2;
+	bool has_more = 3;
+}
+
+// ==================== VotePoll ====================
+
+message VotePollRequest {
+	uint64 user_id = 1;
+	uint64 poll_id = 2;
+	uint64 option_id = 3;
+}
+
+message VotePollResponse {
+	Poll poll = 1; // 返回最新的投票状态
+}
+

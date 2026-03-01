@@ -103,10 +103,16 @@ services:
     name: user-service
     image:
       repository: daguozhai/user-service
+<<<<<<< HEAD
       tag: e8b42274503fd074ed07dd03704480e2933a38f3
+=======
+      tag: "trace-v2"
+>>>>>>> 4e227a7 (项目v1版本开发完成)
       pullPolicy: IfNotPresent
     replicaCount: 1
     containerPort: 9091
+    env:
+      JAEGER_COLLECTOR_ENDPOINT: "http://jaeger-query-clusterip.default:14268/api/traces"
     resources:
       requests:
         cpu: 100m
@@ -118,10 +124,16 @@ services:
     name: tweet-service
     image:
       repository: daguozhai/tweet-service
+<<<<<<< HEAD
       tag: e8b42274503fd074ed07dd03704480e2933a38f3
+=======
+      tag: "trace-v2"
+>>>>>>> 4e227a7 (项目v1版本开发完成)
       pullPolicy: IfNotPresent
     replicaCount: 1
     containerPort: 9092
+    env:
+      JAEGER_COLLECTOR_ENDPOINT: "http://jaeger-query-clusterip.default:14268/api/traces"
     resources: {}
   followService:
     name: follow-service
@@ -136,7 +148,11 @@ services:
     name: gateway
     image:
       repository: daguozhai/gateway
+<<<<<<< HEAD
       tag: e8b42274503fd074ed07dd03704480e2933a38f3
+=======
+      tag: "trace-v1"
+>>>>>>> 4e227a7 (项目v1版本开发完成)
       pullPolicy: IfNotPresent
     replicaCount: 1
     service:
@@ -145,6 +161,12 @@ services:
       nodePort: 30638
     env:
       GATEWAY_PORT: "9638"
+      DB_HOST: "mysql"
+      DB_PORT: "3306"
+      DB_USER: "root"
+      DB_PASSWORD: "31415927"
+      DB_NAME: "twitter"
+      JAEGER_COLLECTOR_ENDPOINT: "http://jaeger-query-clusterip.default:14268/api/traces"
     resources: {}
   consumer:
     name: consumer
@@ -154,3 +176,12 @@ services:
       pullPolicy: IfNotPresent
     replicaCount: 1
     resources: {}
+  notificationService:
+    name: notification-service
+    image:
+      repository: daguozhai/notification-service
+      tag: "latest"
+      pullPolicy: IfNotPresent
+    replicaCount: 1
+    resources: {}
+

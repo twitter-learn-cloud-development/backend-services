@@ -1,10 +1,11 @@
 package middleware
 
 import (
-	"log"
 	"time"
+	"twitter-clone/pkg/logger"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 // CORS 跨域中间件
@@ -45,14 +46,13 @@ func Logger() gin.HandlerFunc {
 		method := c.Request.Method
 		path := c.Request.URL.Path
 
-		// 打印日志
-		log.Printf("[Gateway] %s | %3d | %13v | %15s | %-7s %s",
-			time.Now().Format("2006/01/02 - 15:04:05"),
-			statusCode,
-			latency,
-			clientIP,
-			method,
-			path,
+		// 打印结构化日志 (JSON + TraceID)
+		logger.Info(c.Request.Context(), "Request",
+			zap.Int("status", statusCode),
+			zap.String("method", method),
+			zap.String("path", path),
+			zap.String("ip", clientIP),
+			zap.Duration("latency", latency),
 		)
 	}
 }
@@ -65,7 +65,7 @@ func ErrorHandler() gin.HandlerFunc {
 		// 检查是否有错误
 		if len(c.Errors) > 0 {
 			err := c.Errors.Last()
-			log.Printf("❌ Error: %v", err.Err)
+			logger.Error(c.Request.Context(), "Request Error", zap.Error(err.Err))
 
 			c.JSON(-1, gin.H{
 				"error": err.Error(),

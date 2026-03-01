@@ -77,7 +77,7 @@ func (s *UserServer) UpdateProfile(ctx context.Context, req *userv1.UpdateProfil
 	log.Printf("gRPC: UpdateProfile - user_id=%d", req.UserId)
 
 	// 调用 Service 层（只返回 error）
-	err := s.svc.UpdateProfile(ctx, req.UserId, req.Avatar, req.Bio)
+	err := s.svc.UpdateProfile(ctx, req.UserId, req.Bio, req.Avatar, req.CoverUrl, req.Website, req.Location)
 	if err != nil {
 		log.Printf("❌ UpdateProfile error: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to update profile: %v", err)
@@ -110,6 +110,46 @@ func (s *UserServer) ChangePassword(ctx context.Context, req *userv1.ChangePassw
 	}, nil
 }
 
+// GetBatchUsers 批量获取用户资料
+func (s *UserServer) GetBatchUsers(ctx context.Context, req *userv1.GetBatchUsersRequest) (*userv1.GetBatchUsersResponse, error) {
+	log.Printf("gRPC: GetBatchUsers - count=%d", len(req.UserIds))
+	users, err := s.svc.GetBatchUsers(ctx, req.UserIds)
+	if err != nil {
+		log.Printf("❌ GetBatchUsers error: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to get users: %v", err)
+	}
+
+	protoUsers := make([]*userv1.User, len(users))
+	for i, user := range users {
+		protoUsers[i] = domainUserToProto(user)
+	}
+
+	return &userv1.GetBatchUsersResponse{
+		Users: protoUsers,
+	}, nil
+}
+
+// SearchUsers 搜索用户
+func (s *UserServer) SearchUsers(ctx context.Context, req *userv1.SearchUsersRequest) (*userv1.SearchUsersResponse, error) {
+	log.Printf("gRPC: SearchUsers - keyword=%s, cursor=%d, limit=%d", req.Keyword, req.Cursor, req.Limit)
+	users, nextCursor, hasMore, err := s.svc.SearchUsers(ctx, req.Keyword, req.Cursor, int(req.Limit))
+	if err != nil {
+		log.Printf("❌ SearchUsers error: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to search users: %v", err)
+	}
+
+	protoUsers := make([]*userv1.User, len(users))
+	for i, user := range users {
+		protoUsers[i] = domainUserToProto(user)
+	}
+
+	return &userv1.SearchUsersResponse{
+		Users:      protoUsers,
+		NextCursor: nextCursor,
+		HasMore:    hasMore,
+	}, nil
+}
+
 // domainUserToProto 将 Domain User 转换为 Protobuf User
 func domainUserToProto(user *domain.User) *userv1.User {
 	return &userv1.User{
@@ -118,6 +158,9 @@ func domainUserToProto(user *domain.User) *userv1.User {
 		Email:     user.Email,
 		Avatar:    user.Avatar,
 		Bio:       user.Bio,
+		CoverUrl:  user.CoverURL,
+		Website:   user.Website,
+		Location:  user.Location,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 	}

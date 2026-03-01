@@ -90,14 +90,7 @@ func (m *JWTMiddleware) AuthRequired() gin.HandlerFunc {
 		tokenString := parts[1]
 
 		// 解析 Token
-		token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-			}
-			// 🔒 获取当前的 Secret 用于验证
-			return []byte(m.GetSecret()), nil
-		})
-
+		claims, err := m.ParseToken(tokenString)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error": fmt.Sprintf("invalid token: %v", err),
@@ -106,18 +99,54 @@ func (m *JWTMiddleware) AuthRequired() gin.HandlerFunc {
 			return
 		}
 
-		if claims, ok := token.Claims.(*JWTClaims); ok && token.Valid {
-			// 将 UserID 存入上下文
-			c.Set("user_id", claims.UserID)
+		// 将 UserID 存入上下文
+		c.Set("user_id", claims.UserID)
+		c.Next()
+	}
+}
+
+// AuthOptional 可选认证中间件：有 token 就解析 user_id，没有则静默跳过
+func (m *JWTMiddleware) AuthOptional() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
 			c.Next()
-		} else {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": "invalid token claims",
-			})
-			c.Abort()
 			return
 		}
+
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			c.Next()
+			return
+		}
+
+		claims, err := m.ParseToken(parts[1])
+		if err == nil {
+			c.Set("user_id", claims.UserID)
+		}
+		c.Next()
 	}
+}
+
+// ParseToken 解析并验证 Token
+func (m *JWTMiddleware) ParseToken(tokenString string) (*JWTClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		// 🔒 获取当前的 Secret 用于验证
+		return []byte(m.GetSecret()), nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if claims, ok := token.Claims.(*JWTClaims); ok && token.Valid {
+		return claims, nil
+	}
+
+	return nil, fmt.Errorf("invalid token claims")
 }
 
 // GetUserID 从上下文获取 UserID

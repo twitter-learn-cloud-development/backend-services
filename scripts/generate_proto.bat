@@ -47,6 +47,20 @@ if %errorlevel% neq 0 (
 )
 echo ✅ Follow Service generated
 
+REM 生成 Messenger Service
+echo.
+echo Generating Messenger Service...
+if not exist "api\messenger\v1" mkdir "api\messenger\v1"
+protoc --go_out=. --go_opt=paths=source_relative ^
+       --go-grpc_out=. --go-grpc_opt=paths=source_relative ^
+       api/messenger/v1/messenger.proto
+
+if %errorlevel% neq 0 (
+    echo ERROR: Failed to generate Messenger Service
+    exit /b 1
+)
+echo ✅ Messenger Service generated
+
 echo.
 echo ========================================
 echo ✅ All gRPC code generated successfully!
@@ -59,4 +73,6 @@ echo   api/user/v1/user.pb.go
 echo   api/user/v1/user_grpc.pb.go
 echo   api/follow/v1/follow.pb.go
 echo   api/follow/v1/follow_grpc.pb.go
+echo   api/messenger/v1/messenger.pb.go
+echo   api/messenger/v1/messenger_grpc.pb.go
 echo ========================================

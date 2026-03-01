@@ -3,9 +3,11 @@ package cache
 import (
 	"context"
 	"fmt"
-	"github.com/go-redis/redis/v8"
 	"strconv"
 	"time"
+	"twitter-clone/internal/domain"
+
+	"github.com/go-redis/redis/v8"
 )
 
 const (
@@ -193,4 +195,22 @@ func (c *TimelineCache) GetTimelineSize(ctx context.Context, userID uint64) (int
 // getTimelineKey 获取 Timeline 的 Redis Key
 func (c *TimelineCache) getTimelineKey(userID uint64) string {
 	return fmt.Sprintf("%s%d", TimelineKeyPrefix, userID)
+}
+
+// GetTrendingTopics 获取热门话题
+func (c *TimelineCache) GetTrendingTopics(ctx context.Context, limit int) ([]*domain.TrendingTopic, error) {
+	// ZREVRANGE trends:global 0 limit-1 WITHSCORES
+	res, err := c.redis.ZRevRangeWithScores(ctx, "trends:global", 0, int64(limit-1)).Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get trending topics: %w", err)
+	}
+
+	topics := make([]*domain.TrendingTopic, 0, len(res))
+	for _, z := range res {
+		topics = append(topics, &domain.TrendingTopic{
+			Topic: z.Member.(string),
+			Score: int32(z.Score),
+		})
+	}
+	return topics, nil
 }

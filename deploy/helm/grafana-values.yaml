@@ -9,9 +9,11 @@ service:
   nodePort: 31300
 
 persistence:
-  enabled: true
-  size: 2Gi
-  storageClassName: standard
+  enabled: false
+
+# Fix init-chown-data crash on Minikube
+initChownData:
+  enabled: false
 
 resources:
   requests:
@@ -35,9 +37,9 @@ datasources:
         jsonData:
           derivedFields:
             - datasourceUid: jaeger
-              matcherRegex: '"trace_id":"(\w+)"'
+              matcherRegex: "trace_id\\W+(\\w+)"
               name: TraceID
-              url: '$${__value.raw}'
+              url: "$${__value.raw}"
         editable: true
 
       # Jaeger — 链路追踪数据源
@@ -45,7 +47,7 @@ datasources:
         type: jaeger
         uid: jaeger
         access: proxy
-        url: http://twitter-clone-jaeger-query.default:16686
+        url: http://jaeger-query-clusterip.default:16686
         editable: true
 
       # Prometheus — 指标数据源

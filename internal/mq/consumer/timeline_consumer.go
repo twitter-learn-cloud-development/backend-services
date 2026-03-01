@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"regexp"
 	"time"
 
+	"github.com/go-redis/redis/v8"
 	amqp "github.com/rabbitmq/amqp091-go"
 
 	"twitter-clone/internal/domain"
@@ -37,6 +39,7 @@ type TimelineConsumer struct {
 	mq            *mq.RabbitMQ
 	followRepo    domain.FollowRepository
 	timelineCache *tweetCache.TimelineCache
+	redisClient   *redis.Client
 }
 
 // NewTimelineConsumer 创建 Timeline 消费者
@@ -44,6 +47,7 @@ func NewTimelineConsumer(
 	mqClient *mq.RabbitMQ,
 	followRepo domain.FollowRepository,
 	timelineCache *tweetCache.TimelineCache,
+	redisClient *redis.Client,
 ) (*TimelineConsumer, error) {
 	if err := mqClient.DeclareExchange("twitter.events", "topic", true); err != nil {
 		return nil, fmt.Errorf("failed to declare exchange: %w", err)
@@ -78,6 +82,7 @@ func NewTimelineConsumer(
 		mq:            mqClient,
 		followRepo:    followRepo,
 		timelineCache: timelineCache,
+		redisClient:   redisClient,
 	}, nil
 }
 
@@ -159,7 +164,44 @@ func (c *TimelineConsumer) handleFanoutMessage(msg amqp.Delivery) {
 		log.Printf("❌ Failed to ack message: %v", err)
 	}
 
+	// 提取并更新 Hashtags 用于热门话题
+	go c.processHashtags(context.Background(), event.Content)
+
 	log.Printf("✅ Fanout completed: tweet_id=%d", event.TweetID)
+}
+
+// processHashtags 提取 Hashtags 并更新 Redis ZSet
+func (c *TimelineConsumer) processHashtags(ctx context.Context, content string) {
+	// 正则匹配 #hashtag
+	re := regexp.MustCompile(`#(\w+)`)
+	matches := re.FindAllStringSubmatch(content, -1)
+
+	if len(matches) == 0 {
+		return
+	}
+
+	pipeline := c.redisClient.Pipeline()
+
+	for _, match := range matches {
+		if len(match) > 1 {
+			tag := match[1]
+			// ZINCRBY trends:global 1 timestamp
+			// 这里我们统计出现次数作为热度，或者可以使用时间窗口
+			// 简单实现：热度 +1
+			pipeline.ZIncrBy(ctx, "trends:global", 1, tag)
+
+			// 可以设置过期时间，或者定期清理老的 ZREM
+		}
+	}
+
+	// 设置 Key 过期时间，例如 24 小时后重置榜单 (生产环境通常用 rolling window)
+	pipeline.Expire(ctx, "trends:global", 24*time.Hour)
+
+	if _, err := pipeline.Exec(ctx); err != nil {
+		log.Printf("⚠️  Failed to update trending topics: %v", err)
+	} else {
+		log.Printf("🔥 Updated trending topics: %v", matches)
+	}
 }
 
 // fanoutToFollowers 扇出到粉丝

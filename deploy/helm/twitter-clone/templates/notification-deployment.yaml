@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "twitter.fullname" . }}-notification
+  labels:
+    {{- include "twitter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: notification-service
+spec:
+  replicas: {{ .Values.services.notificationService.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "twitter.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: notification-service
+  template:
+    metadata:
+      labels:
+        {{- include "twitter.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: notification-service
+    spec:
+      containers:
+        - name: notification-service
+          image: "{{ .Values.services.notificationService.image.repository }}:{{ .Values.services.notificationService.image.tag }}"
+          imagePullPolicy: {{ .Values.services.notificationService.image.pullPolicy }}
+          env:
+            - name: DB_HOST
+              value: {{ include "twitter.mysql.host" . }}
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_USER
+              value: "root"
+            - name: DB_PASSWORD
+              value: {{ .Values.mysql.auth.rootPassword | quote }}
+            - name: DB_NAME
+              value: {{ .Values.mysql.auth.database | quote }}
+            - name: REDIS_HOST
+              value: {{ include "twitter.redis.host" . }}
+            - name: REDIS_PORT
+              value: "6379"
+            - name: MQ_HOST
+              value: {{ include "twitter.rabbitmq.host" . }}
+            - name: MQ_PORT
+              value: "5672"
+            - name: MQ_USER
+              value: {{ .Values.rabbitmq.auth.username | quote }}
+            - name: MQ_PASSWORD
+              value: {{ .Values.rabbitmq.auth.password | quote }}
+            - name: CONSUL_HOST
+              value: {{ include "twitter.consul.host" . }}
+            - name: CONSUL_PORT
+              value: "8500"
+            - name: JAEGER_AGENT_HOST
+              value: {{ include "twitter.jaeger.host" . }}
+            - name: JAEGER_SAMPLER_TYPE
+              value: "const"
+            - name: JAEGER_SAMPLER_PARAM
+              value: "1"
+          resources:
+            {{- toYaml .Values.services.notificationService.resources | nindent 12 }}

@@ -24,13 +24,16 @@ const (
 // User 用户
 type User struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint64                 `protobuf:"varint,1,opt,name=id,proto3" test_data:"id,omitempty"`
-	Username      string                 `protobuf:"bytes,2,opt,name=username,proto3" test_data:"username,omitempty"`
-	Email         string                 `protobuf:"bytes,3,opt,name=email,proto3" test_data:"email,omitempty"`
-	Avatar        string                 `protobuf:"bytes,4,opt,name=avatar,proto3" test_data:"avatar,omitempty"`
-	Bio           string                 `protobuf:"bytes,5,opt,name=bio,proto3" test_data:"bio,omitempty"`
-	CreatedAt     int64                  `protobuf:"varint,6,opt,name=created_at,test_data=createdAt,proto3" test_data:"created_at,omitempty"`
-	UpdatedAt     int64                  `protobuf:"varint,7,opt,name=updated_at,test_data=updatedAt,proto3" test_data:"updated_at,omitempty"`
+	Id            uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Username      string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
+	Email         string                 `protobuf:"bytes,3,opt,name=email,proto3" json:"email,omitempty"`
+	Avatar        string                 `protobuf:"bytes,4,opt,name=avatar,proto3" json:"avatar,omitempty"`
+	Bio           string                 `protobuf:"bytes,5,opt,name=bio,proto3" json:"bio,omitempty"`
+	CreatedAt     int64                  `protobuf:"varint,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt     int64                  `protobuf:"varint,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	CoverUrl      string                 `protobuf:"bytes,8,opt,name=cover_url,json=coverUrl,proto3" json:"cover_url,omitempty"`
+	Website       string                 `protobuf:"bytes,9,opt,name=website,proto3" json:"website,omitempty"`
+	Location      string                 `protobuf:"bytes,10,opt,name=location,proto3" json:"location,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -114,11 +117,32 @@ func (x *User) GetUpdatedAt() int64 {
 	return 0
 }
 
+func (x *User) GetCoverUrl() string {
+	if x != nil {
+		return x.CoverUrl
+	}
+	return ""
+}
+
+func (x *User) GetWebsite() string {
+	if x != nil {
+		return x.Website
+	}
+	return ""
+}
+
+func (x *User) GetLocation() string {
+	if x != nil {
+		return x.Location
+	}
+	return ""
+}
+
 type RegisterRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" test_data:"username,omitempty"`
-	Email         string                 `protobuf:"bytes,2,opt,name=email,proto3" test_data:"email,omitempty"`
-	Password      string                 `protobuf:"bytes,3,opt,name=password,proto3" test_data:"password,omitempty"`
+	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
+	Email         string                 `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
+	Password      string                 `protobuf:"bytes,3,opt,name=password,proto3" json:"password,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -176,7 +200,7 @@ func (x *RegisterRequest) GetPassword() string {
 
 type RegisterResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	User          *User                  `protobuf:"bytes,1,opt,name=user,proto3" test_data:"user,omitempty"`
+	User          *User                  `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -220,8 +244,8 @@ func (x *RegisterResponse) GetUser() *User {
 
 type LoginRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Email         string                 `protobuf:"bytes,1,opt,name=email,proto3" test_data:"email,omitempty"`
-	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" test_data:"password,omitempty"`
+	Email         string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
+	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -272,8 +296,8 @@ func (x *LoginRequest) GetPassword() string {
 
 type LoginResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" test_data:"token,omitempty"`
-	User          *User                  `protobuf:"bytes,2,opt,name=user,proto3" test_data:"user,omitempty"`
+	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	User          *User                  `protobuf:"bytes,2,opt,name=user,proto3" json:"user,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -324,7 +348,7 @@ func (x *LoginResponse) GetUser() *User {
 
 type GetProfileRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,test_data=userId,proto3" test_data:"user_id,omitempty"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -368,7 +392,7 @@ func (x *GetProfileRequest) GetUserId() uint64 {
 
 type GetProfileResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	User          *User                  `protobuf:"bytes,1,opt,name=user,proto3" test_data:"user,omitempty"`
+	User          *User                  `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -412,9 +436,12 @@ func (x *GetProfileResponse) GetUser() *User {
 
 type UpdateProfileRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,test_data=userId,proto3" test_data:"user_id,omitempty"`
-	Avatar        string                 `protobuf:"bytes,2,opt,name=avatar,proto3" test_data:"avatar,omitempty"`
-	Bio           string                 `protobuf:"bytes,3,opt,name=bio,proto3" test_data:"bio,omitempty"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Avatar        string                 `protobuf:"bytes,2,opt,name=avatar,proto3" json:"avatar,omitempty"`
+	Bio           string                 `protobuf:"bytes,3,opt,name=bio,proto3" json:"bio,omitempty"`
+	CoverUrl      string                 `protobuf:"bytes,4,opt,name=cover_url,json=coverUrl,proto3" json:"cover_url,omitempty"`
+	Website       string                 `protobuf:"bytes,5,opt,name=website,proto3" json:"website,omitempty"`
+	Location      string                 `protobuf:"bytes,6,opt,name=location,proto3" json:"location,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -470,9 +497,30 @@ func (x *UpdateProfileRequest) GetBio() string {
 	return ""
 }
 
+func (x *UpdateProfileRequest) GetCoverUrl() string {
+	if x != nil {
+		return x.CoverUrl
+	}
+	return ""
+}
+
+func (x *UpdateProfileRequest) GetWebsite() string {
+	if x != nil {
+		return x.Website
+	}
+	return ""
+}
+
+func (x *UpdateProfileRequest) GetLocation() string {
+	if x != nil {
+		return x.Location
+	}
+	return ""
+}
+
 type UpdateProfileResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	User          *User                  `protobuf:"bytes,1,opt,name=user,proto3" test_data:"user,omitempty"`
+	User          *User                  `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -516,9 +564,9 @@ func (x *UpdateProfileResponse) GetUser() *User {
 
 type ChangePasswordRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,test_data=userId,proto3" test_data:"user_id,omitempty"`
-	OldPassword   string                 `protobuf:"bytes,2,opt,name=old_password,test_data=oldPassword,proto3" test_data:"old_password,omitempty"`
-	NewPassword   string                 `protobuf:"bytes,3,opt,name=new_password,test_data=newPassword,proto3" test_data:"new_password,omitempty"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	OldPassword   string                 `protobuf:"bytes,2,opt,name=old_password,json=oldPassword,proto3" json:"old_password,omitempty"`
+	NewPassword   string                 `protobuf:"bytes,3,opt,name=new_password,json=newPassword,proto3" json:"new_password,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -576,7 +624,7 @@ func (x *ChangePasswordRequest) GetNewPassword() string {
 
 type ChangePasswordResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" test_data:"message,omitempty"`
+	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -618,11 +666,219 @@ func (x *ChangePasswordResponse) GetMessage() string {
 	return ""
 }
 
+type GetBatchUsersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserIds       []uint64               `protobuf:"varint,1,rep,packed,name=user_ids,json=userIds,proto3" json:"user_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetBatchUsersRequest) Reset() {
+	*x = GetBatchUsersRequest{}
+	mi := &file_api_user_v1_user_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBatchUsersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBatchUsersRequest) ProtoMessage() {}
+
+func (x *GetBatchUsersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_user_v1_user_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBatchUsersRequest.ProtoReflect.Descriptor instead.
+func (*GetBatchUsersRequest) Descriptor() ([]byte, []int) {
+	return file_api_user_v1_user_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *GetBatchUsersRequest) GetUserIds() []uint64 {
+	if x != nil {
+		return x.UserIds
+	}
+	return nil
+}
+
+type GetBatchUsersResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Users         []*User                `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetBatchUsersResponse) Reset() {
+	*x = GetBatchUsersResponse{}
+	mi := &file_api_user_v1_user_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBatchUsersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBatchUsersResponse) ProtoMessage() {}
+
+func (x *GetBatchUsersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_user_v1_user_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBatchUsersResponse.ProtoReflect.Descriptor instead.
+func (*GetBatchUsersResponse) Descriptor() ([]byte, []int) {
+	return file_api_user_v1_user_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *GetBatchUsersResponse) GetUsers() []*User {
+	if x != nil {
+		return x.Users
+	}
+	return nil
+}
+
+type SearchUsersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Keyword       string                 `protobuf:"bytes,1,opt,name=keyword,proto3" json:"keyword,omitempty"`
+	Cursor        uint64                 `protobuf:"varint,2,opt,name=cursor,proto3" json:"cursor,omitempty"` // 分页游标
+	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`   // 每页数量
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchUsersRequest) Reset() {
+	*x = SearchUsersRequest{}
+	mi := &file_api_user_v1_user_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchUsersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchUsersRequest) ProtoMessage() {}
+
+func (x *SearchUsersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_user_v1_user_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchUsersRequest.ProtoReflect.Descriptor instead.
+func (*SearchUsersRequest) Descriptor() ([]byte, []int) {
+	return file_api_user_v1_user_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *SearchUsersRequest) GetKeyword() string {
+	if x != nil {
+		return x.Keyword
+	}
+	return ""
+}
+
+func (x *SearchUsersRequest) GetCursor() uint64 {
+	if x != nil {
+		return x.Cursor
+	}
+	return 0
+}
+
+func (x *SearchUsersRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type SearchUsersResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Users         []*User                `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
+	NextCursor    uint64                 `protobuf:"varint,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	HasMore       bool                   `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchUsersResponse) Reset() {
+	*x = SearchUsersResponse{}
+	mi := &file_api_user_v1_user_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchUsersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchUsersResponse) ProtoMessage() {}
+
+func (x *SearchUsersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_user_v1_user_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchUsersResponse.ProtoReflect.Descriptor instead.
+func (*SearchUsersResponse) Descriptor() ([]byte, []int) {
+	return file_api_user_v1_user_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *SearchUsersResponse) GetUsers() []*User {
+	if x != nil {
+		return x.Users
+	}
+	return nil
+}
+
+func (x *SearchUsersResponse) GetNextCursor() uint64 {
+	if x != nil {
+		return x.NextCursor
+	}
+	return 0
+}
+
+func (x *SearchUsersResponse) GetHasMore() bool {
+	if x != nil {
+		return x.HasMore
+	}
+	return false
+}
+
 var File_api_user_v1_user_proto protoreflect.FileDescriptor
 
 const file_api_user_v1_user_proto_rawDesc = "" +
 	"\n" +
-	"\x16api/user/v1/user.proto\x12\auser.v1\"\xb0\x01\n" +
+	"\x16api/user/v1/user.proto\x12\auser.v1\"\x83\x02\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12\x14\n" +
@@ -632,7 +888,11 @@ const file_api_user_v1_user_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x06 \x01(\x03R\tcreatedAt\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\a \x01(\x03R\tupdatedAt\"_\n" +
+	"updated_at\x18\a \x01(\x03R\tupdatedAt\x12\x1b\n" +
+	"\tcover_url\x18\b \x01(\tR\bcoverUrl\x12\x18\n" +
+	"\awebsite\x18\t \x01(\tR\awebsite\x12\x1a\n" +
+	"\blocation\x18\n" +
+	" \x01(\tR\blocation\"_\n" +
 	"\x0fRegisterRequest\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x14\n" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\x1a\n" +
@@ -648,11 +908,14 @@ const file_api_user_v1_user_proto_rawDesc = "" +
 	"\x11GetProfileRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x04R\x06userId\"7\n" +
 	"\x12GetProfileResponse\x12!\n" +
-	"\x04user\x18\x01 \x01(\v2\r.user.v1.UserR\x04user\"Y\n" +
+	"\x04user\x18\x01 \x01(\v2\r.user.v1.UserR\x04user\"\xac\x01\n" +
 	"\x14UpdateProfileRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x16\n" +
 	"\x06avatar\x18\x02 \x01(\tR\x06avatar\x12\x10\n" +
-	"\x03bio\x18\x03 \x01(\tR\x03bio\":\n" +
+	"\x03bio\x18\x03 \x01(\tR\x03bio\x12\x1b\n" +
+	"\tcover_url\x18\x04 \x01(\tR\bcoverUrl\x12\x18\n" +
+	"\awebsite\x18\x05 \x01(\tR\awebsite\x12\x1a\n" +
+	"\blocation\x18\x06 \x01(\tR\blocation\":\n" +
 	"\x15UpdateProfileResponse\x12!\n" +
 	"\x04user\x18\x01 \x01(\v2\r.user.v1.UserR\x04user\"v\n" +
 	"\x15ChangePasswordRequest\x12\x17\n" +
@@ -660,14 +923,29 @@ const file_api_user_v1_user_proto_rawDesc = "" +
 	"\fold_password\x18\x02 \x01(\tR\voldPassword\x12!\n" +
 	"\fnew_password\x18\x03 \x01(\tR\vnewPassword\"2\n" +
 	"\x16ChangePasswordResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage2\xf0\x02\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"1\n" +
+	"\x14GetBatchUsersRequest\x12\x19\n" +
+	"\buser_ids\x18\x01 \x03(\x04R\auserIds\"<\n" +
+	"\x15GetBatchUsersResponse\x12#\n" +
+	"\x05users\x18\x01 \x03(\v2\r.user.v1.UserR\x05users\"\\\n" +
+	"\x12SearchUsersRequest\x12\x18\n" +
+	"\akeyword\x18\x01 \x01(\tR\akeyword\x12\x16\n" +
+	"\x06cursor\x18\x02 \x01(\x04R\x06cursor\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\"v\n" +
+	"\x13SearchUsersResponse\x12#\n" +
+	"\x05users\x18\x01 \x03(\v2\r.user.v1.UserR\x05users\x12\x1f\n" +
+	"\vnext_cursor\x18\x02 \x01(\x04R\n" +
+	"nextCursor\x12\x19\n" +
+	"\bhas_more\x18\x03 \x01(\bR\ahasMore2\x8a\x04\n" +
 	"\vUserService\x12?\n" +
 	"\bRegister\x12\x18.user.v1.RegisterRequest\x1a\x19.user.v1.RegisterResponse\x126\n" +
 	"\x05Login\x12\x15.user.v1.LoginRequest\x1a\x16.user.v1.LoginResponse\x12E\n" +
 	"\n" +
 	"GetProfile\x12\x1a.user.v1.GetProfileRequest\x1a\x1b.user.v1.GetProfileResponse\x12N\n" +
 	"\rUpdateProfile\x12\x1d.user.v1.UpdateProfileRequest\x1a\x1e.user.v1.UpdateProfileResponse\x12Q\n" +
-	"\x0eChangePassword\x12\x1e.user.v1.ChangePasswordRequest\x1a\x1f.user.v1.ChangePasswordResponseB\"Z twitter-clone/api/user/v1;userv1b\x06proto3"
+	"\x0eChangePassword\x12\x1e.user.v1.ChangePasswordRequest\x1a\x1f.user.v1.ChangePasswordResponse\x12N\n" +
+	"\rGetBatchUsers\x12\x1d.user.v1.GetBatchUsersRequest\x1a\x1e.user.v1.GetBatchUsersResponse\x12H\n" +
+	"\vSearchUsers\x12\x1b.user.v1.SearchUsersRequest\x1a\x1c.user.v1.SearchUsersResponseB\"Z twitter-clone/api/user/v1;userv1b\x06proto3"
 
 var (
 	file_api_user_v1_user_proto_rawDescOnce sync.Once
@@ -681,7 +959,7 @@ func file_api_user_v1_user_proto_rawDescGZIP() []byte {
 	return file_api_user_v1_user_proto_rawDescData
 }
 
-var file_api_user_v1_user_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_api_user_v1_user_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_api_user_v1_user_proto_goTypes = []any{
 	(*User)(nil),                   // 0: user.v1.User
 	(*RegisterRequest)(nil),        // 1: user.v1.RegisterRequest
@@ -694,27 +972,37 @@ var file_api_user_v1_user_proto_goTypes = []any{
 	(*UpdateProfileResponse)(nil),  // 8: user.v1.UpdateProfileResponse
 	(*ChangePasswordRequest)(nil),  // 9: user.v1.ChangePasswordRequest
 	(*ChangePasswordResponse)(nil), // 10: user.v1.ChangePasswordResponse
+	(*GetBatchUsersRequest)(nil),   // 11: user.v1.GetBatchUsersRequest
+	(*GetBatchUsersResponse)(nil),  // 12: user.v1.GetBatchUsersResponse
+	(*SearchUsersRequest)(nil),     // 13: user.v1.SearchUsersRequest
+	(*SearchUsersResponse)(nil),    // 14: user.v1.SearchUsersResponse
 }
 var file_api_user_v1_user_proto_depIdxs = []int32{
 	0,  // 0: user.v1.RegisterResponse.user:type_name -> user.v1.User
 	0,  // 1: user.v1.LoginResponse.user:type_name -> user.v1.User
 	0,  // 2: user.v1.GetProfileResponse.user:type_name -> user.v1.User
 	0,  // 3: user.v1.UpdateProfileResponse.user:type_name -> user.v1.User
-	1,  // 4: user.v1.UserService.Register:input_type -> user.v1.RegisterRequest
-	3,  // 5: user.v1.UserService.Login:input_type -> user.v1.LoginRequest
-	5,  // 6: user.v1.UserService.GetProfile:input_type -> user.v1.GetProfileRequest
-	7,  // 7: user.v1.UserService.UpdateProfile:input_type -> user.v1.UpdateProfileRequest
-	9,  // 8: user.v1.UserService.ChangePassword:input_type -> user.v1.ChangePasswordRequest
-	2,  // 9: user.v1.UserService.Register:output_type -> user.v1.RegisterResponse
-	4,  // 10: user.v1.UserService.Login:output_type -> user.v1.LoginResponse
-	6,  // 11: user.v1.UserService.GetProfile:output_type -> user.v1.GetProfileResponse
-	8,  // 12: user.v1.UserService.UpdateProfile:output_type -> user.v1.UpdateProfileResponse
-	10, // 13: user.v1.UserService.ChangePassword:output_type -> user.v1.ChangePasswordResponse
-	9,  // [9:14] is the sub-list for method output_type
-	4,  // [4:9] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	0,  // 4: user.v1.GetBatchUsersResponse.users:type_name -> user.v1.User
+	0,  // 5: user.v1.SearchUsersResponse.users:type_name -> user.v1.User
+	1,  // 6: user.v1.UserService.Register:input_type -> user.v1.RegisterRequest
+	3,  // 7: user.v1.UserService.Login:input_type -> user.v1.LoginRequest
+	5,  // 8: user.v1.UserService.GetProfile:input_type -> user.v1.GetProfileRequest
+	7,  // 9: user.v1.UserService.UpdateProfile:input_type -> user.v1.UpdateProfileRequest
+	9,  // 10: user.v1.UserService.ChangePassword:input_type -> user.v1.ChangePasswordRequest
+	11, // 11: user.v1.UserService.GetBatchUsers:input_type -> user.v1.GetBatchUsersRequest
+	13, // 12: user.v1.UserService.SearchUsers:input_type -> user.v1.SearchUsersRequest
+	2,  // 13: user.v1.UserService.Register:output_type -> user.v1.RegisterResponse
+	4,  // 14: user.v1.UserService.Login:output_type -> user.v1.LoginResponse
+	6,  // 15: user.v1.UserService.GetProfile:output_type -> user.v1.GetProfileResponse
+	8,  // 16: user.v1.UserService.UpdateProfile:output_type -> user.v1.UpdateProfileResponse
+	10, // 17: user.v1.UserService.ChangePassword:output_type -> user.v1.ChangePasswordResponse
+	12, // 18: user.v1.UserService.GetBatchUsers:output_type -> user.v1.GetBatchUsersResponse
+	14, // 19: user.v1.UserService.SearchUsers:output_type -> user.v1.SearchUsersResponse
+	13, // [13:20] is the sub-list for method output_type
+	6,  // [6:13] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_api_user_v1_user_proto_init() }
@@ -728,7 +1016,7 @@ func file_api_user_v1_user_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_user_v1_user_proto_rawDesc), len(file_api_user_v1_user_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

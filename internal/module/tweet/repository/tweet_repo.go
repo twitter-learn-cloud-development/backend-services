@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"gorm.io/gorm"
 	"time"
 	"twitter-clone/internal/domain"
 	"twitter-clone/pkg/pkg/snowflake"
+
+	"gorm.io/gorm"
 )
 
 // tweetRepo 推文仓储实现
@@ -113,8 +114,8 @@ func (r *tweetRepo) ListByUserID(ctx context.Context, userID uint64, cursor uint
 	return tweets, nil
 }
 
-// ListFeeds 查关注流 (拉模式：核心 SQL 实现)
-func (r *tweetRepo) ListFeeds(ctx context.Context, userID uint64, cursor uint64, limit int) ([]*domain.Tweet, error) {
+// GetFeeds 查关注流 (拉模式：核心 SQL 实现)
+func (r *tweetRepo) GetFeeds(ctx context.Context, userIDs []uint64, cursor uint64, limit int) ([]*domain.Tweet, error) {
 	// 参数验证
 	if limit <= 0 {
 		limit = 20
@@ -125,20 +126,15 @@ func (r *tweetRepo) ListFeeds(ctx context.Context, userID uint64, cursor uint64,
 
 	var tweets []*domain.Tweet
 
-	// 子查询：查出我关注的人的 ID
-	// SQL: SELECT followee_id FROM follows WHERE follower_id = ? AND deleted_at = 0
-	subQuery := r.db.Table("follows").
-		Select("followee_id").
-		Where("follower_id = ? AND deleted_at = 0", userID)
-
 	// 主查询：查这些人的推文
-	// SQL: SELECT * FROM tweets WHERE user_id IN (subQuery) AND deleted_at = 0 ...
+	// SQL: SELECT * FROM tweets WHERE user_id IN (?) AND deleted_at = 0 ...
 	query := r.db.WithContext(ctx).
-		Where("user_id IN (?)", subQuery).
+		Where("user_id IN ?", userIDs).
 		Where("deleted_at = 0 AND visible_type = ?", domain.VisiblePublic).
 		Order("id DESC").
 		Limit(limit)
 
+	// 游标分页
 	// 游标分页
 	if cursor > 0 {
 		query = query.Where("id < ?", cursor)
@@ -146,6 +142,54 @@ func (r *tweetRepo) ListFeeds(ctx context.Context, userID uint64, cursor uint64,
 
 	if err := query.Find(&tweets).Error; err != nil {
 		return nil, fmt.Errorf("failed to list feeds: %w", err)
+	}
+
+	return tweets, nil
+}
+
+// GetReplies 获取推文回复列表
+func (r *tweetRepo) GetReplies(ctx context.Context, parentID uint64, cursor uint64, limit int) ([]*domain.Tweet, uint64, error) {
+	var tweets []*domain.Tweet
+	query := r.db.WithContext(ctx).Where("parent_id = ? AND deleted_at = 0", parentID)
+
+	if cursor > 0 {
+		query = query.Where("id < ?", cursor)
+	}
+
+	err := query.Order("id DESC").Limit(limit).Find(&tweets).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var nextCursor uint64
+	if len(tweets) > 0 {
+		nextCursor = tweets[len(tweets)-1].ID
+	}
+
+	return tweets, nextCursor, nil
+}
+
+// Search 搜索推文 (MVP: LIKE 查询)
+func (r *tweetRepo) Search(ctx context.Context, queryStr string, cursor uint64, limit int) ([]*domain.Tweet, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	var tweets []*domain.Tweet
+	query := r.db.WithContext(ctx).
+		Where("content LIKE ? AND deleted_at = 0", "%"+queryStr+"%").
+		Order("id DESC").
+		Limit(limit)
+
+	if cursor > 0 {
+		query = query.Where("id < ?", cursor)
+	}
+
+	if err := query.Find(&tweets).Error; err != nil {
+		return nil, fmt.Errorf("failed to search tweets: %w", err)
 	}
 
 	return tweets, nil
@@ -165,6 +209,32 @@ func (r *tweetRepo) GetByIDs(ctx context.Context, ids []uint64) ([]*domain.Tweet
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tweets by ids: %w", err)
+	}
+
+	return tweets, nil
+}
+
+// ListAll 查询所有推文（全站最新）
+func (r *tweetRepo) ListAll(ctx context.Context, cursor uint64, limit int) ([]*domain.Tweet, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	var tweets []*domain.Tweet
+	query := r.db.WithContext(ctx).
+		Where("deleted_at = 0 AND visible_type = ?", domain.VisiblePublic).
+		Order("id DESC").
+		Limit(limit)
+
+	if cursor > 0 {
+		query = query.Where("id < ?", cursor)
+	}
+
+	if err := query.Find(&tweets).Error; err != nil {
+		return nil, fmt.Errorf("failed to list all tweets: %w", err)
 	}
 
 	return tweets, nil
