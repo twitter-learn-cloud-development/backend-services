@@ -5,7 +5,7 @@ services:
   mysql:
     image: mysql:8.0
     environment:
-      MYSQL_ROOT_PASSWORD: 31415927
+      MYSQL_ROOT_PASSWORD: ******
       MYSQL_DATABASE: twitter
     ports:
       - "3307:3306"
@@ -84,7 +84,7 @@ services:
       - DB_HOST=mysql
       - DB_PORT=3306
       - DB_USER=root
-      - DB_PASSWORD=31415927
+      - DB_PASSWORD=******
       - DB_NAME=twitter
       - REDIS_HOST=redis
       - REDIS_PORT=6379
@@ -115,7 +115,7 @@ services:
       - DB_HOST=mysql
       - DB_PORT=3306
       - DB_USER=root
-      - DB_PASSWORD=31415927
+      - DB_PASSWORD=******
       - DB_NAME=twitter
       - REDIS_HOST=redis
       - REDIS_PORT=6379
@@ -151,7 +151,7 @@ services:
       - DB_HOST=mysql
       - DB_PORT=3306
       - DB_USER=root
-      - DB_PASSWORD=31415927
+      - DB_PASSWORD=******
       - DB_NAME=twitter
       - REDIS_HOST=redis
       - REDIS_PORT=6379
@@ -188,7 +188,7 @@ services:
       - DB_HOST=mysql
       - DB_PORT=3306
       - DB_USER=root
-      - DB_PASSWORD=31415927
+      - DB_PASSWORD=******
       - DB_NAME=twitter
       - REDIS_HOST=redis
       - REDIS_PORT=6379
@@ -225,7 +225,7 @@ services:
       - DB_HOST=mysql
       - DB_PORT=3306
       - DB_USER=root
-      - DB_PASSWORD=31415927
+      - DB_PASSWORD=******
       - DB_NAME=twitter
       - CONSUL_HOST=consul
       - CONSUL_PORT=8500
@@ -253,7 +253,7 @@ services:
       - DB_HOST=mysql
       - DB_PORT=3306
       - DB_USER=root
-      - DB_PASSWORD=31415927
+      - DB_PASSWORD=******
       - DB_NAME=twitter
       - REDIS_HOST=redis
       - REDIS_PORT=6379
@@ -285,7 +285,7 @@ services:
       - DB_HOST=mysql
       - DB_PORT=3306
       - DB_USER=root
-      - DB_PASSWORD=31415927
+      - DB_PASSWORD=******
       - DB_NAME=twitter
       - REDIS_HOST=redis
       - REDIS_PORT=6379
