@@ -55,6 +55,22 @@ func (m *MockUserServiceClient) ChangePassword(ctx context.Context, in *userv1.C
 	return args.Get(0).(*userv1.ChangePasswordResponse), args.Error(1)
 }
 
+func (m *MockUserServiceClient) GetBatchUsers(ctx context.Context, in *userv1.GetBatchUsersRequest, opts ...grpc.CallOption) (*userv1.GetBatchUsersResponse, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*userv1.GetBatchUsersResponse), args.Error(1)
+}
+
+func (m *MockUserServiceClient) SearchUsers(ctx context.Context, in *userv1.SearchUsersRequest, opts ...grpc.CallOption) (*userv1.SearchUsersResponse, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*userv1.SearchUsersResponse), args.Error(1)
+}
+
 // MockTweetServiceClient 模拟推文服务客户端
 type MockTweetServiceClient struct {
 	mock.Mock
@@ -154,4 +170,28 @@ func (m *MockTweetServiceClient) GetTrendingTopics(ctx context.Context, in *twee
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*tweetv1.GetTrendingTopicsResponse), args.Error(1)
+}
+
+func (m *MockTweetServiceClient) GetTweetReplies(ctx context.Context, in *tweetv1.GetTweetRepliesRequest, opts ...grpc.CallOption) (*tweetv1.GetTweetRepliesResponse, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*tweetv1.GetTweetRepliesResponse), args.Error(1)
+}
+
+func (m *MockTweetServiceClient) VotePoll(ctx context.Context, in *tweetv1.VotePollRequest, opts ...grpc.CallOption) (*tweetv1.VotePollResponse, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*tweetv1.VotePollResponse), args.Error(1)
+}
+
+func (m *MockTweetServiceClient) ListTweets(ctx context.Context, in *tweetv1.ListTweetsRequest, opts ...grpc.CallOption) (*tweetv1.ListTweetsResponse, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*tweetv1.ListTweetsResponse), args.Error(1)
 }

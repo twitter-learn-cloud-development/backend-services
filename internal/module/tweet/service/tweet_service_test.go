@@ -23,7 +23,7 @@ func TestCreateTweet_Success(t *testing.T) {
 	mockProducer := new(MockEventProducer)
 
 	// 其他依赖暂时传 nil，因为 CreateTweet 只用了 repo 和 producer (以及 validation)
-	svc := NewTweetService(mockRepo, nil, nil, nil, nil, mockProducer)
+	svc := NewTweetService(mockRepo, nil, nil, nil, nil, nil, mockProducer)
 
 	ctx := context.Background()
 	userID := uint64(123)
@@ -42,7 +42,7 @@ func TestCreateTweet_Success(t *testing.T) {
 	})).Return(nil)
 
 	// 3. Execution
-	tweet, err := svc.CreateTweet(ctx, userID, content, mediaURLs, 0)
+	tweet, err := svc.CreateTweet(ctx, userID, content, mediaURLs, 0, nil, 0)
 
 	// 4. Assertions
 	assert.NoError(t, err)
@@ -56,7 +56,7 @@ func TestCreateTweet_Success(t *testing.T) {
 }
 
 func TestCreateTweet_ContentTooLong(t *testing.T) {
-	svc := NewTweetService(nil, nil, nil, nil, nil, nil)
+	svc := NewTweetService(nil, nil, nil, nil, nil, nil, nil)
 
 	// 构造超长字符串 (281 字符)
 	longContent := ""
@@ -64,7 +64,7 @@ func TestCreateTweet_ContentTooLong(t *testing.T) {
 		longContent += "a"
 	}
 
-	tweet, err := svc.CreateTweet(context.Background(), 1, longContent, nil, 0)
+	tweet, err := svc.CreateTweet(context.Background(), 1, longContent, nil, 0, nil, 0)
 
 	assert.Error(t, err)
 	assert.Nil(t, tweet)

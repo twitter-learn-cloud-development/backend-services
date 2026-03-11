@@ -39,7 +39,7 @@ func (h *TweetHandler) CreateTweet(c *gin.Context) {
 	}
 
 	//3.调用 Service
-	tweet, err := h.svc.CreateTweet(c.Request.Context(), userID.(uint64), req.Content, req.MediaURLs, 0)
+	tweet, err := h.svc.CreateTweet(c.Request.Context(), userID.(uint64), req.Content, req.MediaURLs, 0, nil, 0)
 	if err != nil {
 		h.handleError(c, err)
 		return

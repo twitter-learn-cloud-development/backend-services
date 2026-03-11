@@ -12,13 +12,15 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	tweetv1 "twitter-clone/api/tweet/v1"
+	userv1 "twitter-clone/api/user/v1"
 )
 
 func TestTweetHandler_CreateTweet(t *testing.T) {
 	// 1. Setup
 	gin.SetMode(gin.TestMode)
 	mockClient := new(MockTweetServiceClient)
-	handler := NewTweetHandler(mockClient, nil)
+	mockUserClient := new(MockUserServiceClient)
+	handler := NewTweetHandler(mockClient, mockUserClient, nil)
 
 	r := gin.New()
 
@@ -41,6 +43,17 @@ func TestTweetHandler_CreateTweet(t *testing.T) {
 		},
 	}, nil)
 
+	mockUserClient.On("GetProfile", mock.Anything, mock.MatchedBy(func(req *userv1.GetProfileRequest) bool {
+		return req.UserId == 123
+	})).Return(&userv1.GetProfileResponse{
+		User: &userv1.User{
+			Id:       123,
+			Username: "testuser",
+			Avatar:   "avatar.jpg",
+		},
+	}, nil)
+
+
 	// 3. Request
 	reqBody := CreateTweetRequest{
 		Content: "Hello World",
@@ -61,15 +74,17 @@ func TestTweetHandler_CreateTweet(t *testing.T) {
 
 	tweetMap := resp["tweet"].(map[string]interface{})
 	assert.Equal(t, "Hello World", tweetMap["content"])
-	assert.Equal(t, float64(1001), tweetMap["id"])
+	assert.Equal(t, "1001", tweetMap["id"])
 
 	mockClient.AssertExpectations(t)
+	mockUserClient.AssertExpectations(t)
 }
 
 func TestTweetHandler_CreateTweet_Unauthorized(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockClient := new(MockTweetServiceClient)
-	handler := NewTweetHandler(mockClient, nil)
+	mockUserClient := new(MockUserServiceClient)
+	handler := NewTweetHandler(mockClient, mockUserClient, nil)
 
 	r := gin.New()
 	// No Auth Middleware

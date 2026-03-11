@@ -18,7 +18,7 @@ func TestUserHandler_Register(t *testing.T) {
 	// 1. Setup
 	gin.SetMode(gin.TestMode)
 	mockClient := new(MockUserServiceClient)
-	handler := NewUserHandler(mockClient)
+	handler := NewUserHandler(mockClient, nil, nil)
 
 	r := gin.New()
 	r.POST("/api/v1/auth/register", handler.Register)
@@ -56,7 +56,7 @@ func TestUserHandler_Register(t *testing.T) {
 
 	userMap := resp["user"].(map[string]interface{})
 	assert.Equal(t, "alice", userMap["username"])
-	assert.Equal(t, float64(1), userMap["id"])
+	assert.Equal(t, "1", userMap["id"])
 
 	mockClient.AssertExpectations(t)
 }
@@ -64,7 +64,7 @@ func TestUserHandler_Register(t *testing.T) {
 func TestUserHandler_Register_InvalidInput(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockClient := new(MockUserServiceClient)
-	handler := NewUserHandler(mockClient)
+	handler := NewUserHandler(mockClient, nil, nil)
 
 	r := gin.New()
 	r.POST("/api/v1/auth/register", handler.Register)
