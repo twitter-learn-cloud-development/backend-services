@@ -43,7 +43,7 @@ func main() {
 
 	// 0. 初始化 Logger (TraceID 支持)
 	logger.InitLogger()
-
+	defer logger.Log.Sync()
 	// 加载 .env 文件
 	if err := godotenv.Load(); err != nil {
 		log.Println("⚠️  No .env file found, using default/environment config")

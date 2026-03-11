@@ -27,7 +27,6 @@ func InitLogger() {
 
 	// 开启 Caller 显示调用行号
 	Log = zap.New(core, zap.AddCaller())
-	defer Log.Sync()
 }
 
 // Info 带有 Context 的 Info 日志 (自动提取 TraceID)

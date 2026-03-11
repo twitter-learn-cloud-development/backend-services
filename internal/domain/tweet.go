@@ -18,7 +18,7 @@ const (
 const (
 	VisiblePublic  = 0 //公开
 	VisibleFollows = 1 //仅粉丝可见
-	VisiblePrivate = 2 //金自己可见
+	VisiblePrivate = 2 //仅自己可见
 )
 
 // MediaURLs 自定义类型，用于 GORM 处理 JSON 字段

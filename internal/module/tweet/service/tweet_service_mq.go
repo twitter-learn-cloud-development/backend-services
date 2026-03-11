@@ -525,6 +525,8 @@ func (s *TweetService) VotePoll(ctx context.Context, userID, pollID, optionID ui
 		CreatedAt: time.Now().UnixMilli(),
 	}
 
+	var finalVotedOptionID uint64
+
 	err := s.pollRepo.Vote(ctx, vote)
 	if err != nil {
 		// 2. 如果失败，检查是否是因为已经投过票
@@ -532,10 +534,13 @@ func (s *TweetService) VotePoll(ctx context.Context, userID, pollID, optionID ui
 		if checkErr == nil && existingVote != nil {
 			// 用户已经投过票，视为成功（幂等），返回最新数据
 			logger.Info(ctx, "user already voted", zap.Uint64("user_id", userID), zap.Uint64("poll_id", pollID))
+			finalVotedOptionID = existingVote.OptionID
 		} else {
 			// 其他错误
 			return nil, fmt.Errorf("failed to vote: %w", err)
 		}
+	} else {
+		finalVotedOptionID = optionID
 	}
 
 	// 3. 返回最新的 Poll 数据
@@ -545,12 +550,8 @@ func (s *TweetService) VotePoll(ctx context.Context, userID, pollID, optionID ui
 	}
 
 	// 4. 填充用户的投票状态 (GetByID 不会填充 IsVoted，因为它不知道是哪个用户)
-	// 我们需要再次确认用户的投票情况 (或者直接使用刚才的 vote/existingVote)
-	currentVote, err := s.pollRepo.GetVote(ctx, pollID, userID)
-	if err == nil && currentVote != nil {
-		poll.IsVoted = true
-		poll.VotedOptionID = currentVote.OptionID
-	}
+	poll.IsVoted = true
+	poll.VotedOptionID = finalVotedOptionID
 
 	// 5. 计算百分比
 	var totalVotes int

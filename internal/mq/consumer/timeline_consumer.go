@@ -120,12 +120,18 @@ func (c *TimelineConsumer) consumeFanout(ctx context.Context) {
 
 		case msg, ok := <-messages:
 			if !ok {
-				log.Println("⚠️  Fanout message channel closed, reconnecting...")
-				time.Sleep(5 * time.Second)
-				messages, _ = c.mq.Consume(QueueTweetFanout, ConsumerName+"-fanout")
+				log.Println("channel closed, reconnecting...")
+				for {
+					time.Sleep(5 * time.Second)
+					newMsgs, err := c.mq.Consume(QueueTweetFanout, ConsumerName+"-fanout")
+					if err == nil {
+						messages = newMsgs
+						break // 重连成功才退出循环
+					}
+					log.Printf("reconnect failed: %v, retrying...", err)
+				}
 				continue
 			}
-
 			c.handleFanoutMessage(msg)
 		}
 	}

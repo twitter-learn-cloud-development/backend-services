@@ -103,11 +103,7 @@ services:
     name: user-service
     image:
       repository: daguozhai/user-service
-<<<<<<< HEAD
-      tag: e8b42274503fd074ed07dd03704480e2933a38f3
-=======
       tag: "trace-v2"
->>>>>>> 4e227a7 (项目v1版本开发完成)
       pullPolicy: IfNotPresent
     replicaCount: 1
     containerPort: 9091
@@ -124,11 +120,7 @@ services:
     name: tweet-service
     image:
       repository: daguozhai/tweet-service
-<<<<<<< HEAD
-      tag: e8b42274503fd074ed07dd03704480e2933a38f3
-=======
       tag: "trace-v2"
->>>>>>> 4e227a7 (项目v1版本开发完成)
       pullPolicy: IfNotPresent
     replicaCount: 1
     containerPort: 9092
@@ -148,11 +140,7 @@ services:
     name: gateway
     image:
       repository: daguozhai/gateway
-<<<<<<< HEAD
-      tag: e8b42274503fd074ed07dd03704480e2933a38f3
-=======
       tag: "trace-v1"
->>>>>>> 4e227a7 (项目v1版本开发完成)
       pullPolicy: IfNotPresent
     replicaCount: 1
     service:
