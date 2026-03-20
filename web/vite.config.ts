@@ -16,6 +16,7 @@ export default defineConfig({
         target: 'http://localhost:9638',
         changeOrigin: true,
       }
-    }
+    },
+    port: 5173
   }
 })

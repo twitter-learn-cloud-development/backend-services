@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, nextTick } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { useMessengerStore, type Message } from '../stores/messenger'
 import { getConversations, getMessages, sendMessage, type Conversation } from '../api/messenger'

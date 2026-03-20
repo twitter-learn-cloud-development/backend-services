@@ -1,26 +1,26 @@
-version: '3.8'
+version: '3.8'  #设置docker版本，不同版本有不同语法规则，然后就是如果不设置就默认lastest，现在大家一般都是不写默认使用最新版，写这个只是程序员习惯。
 
-services:
+services:  #开始搭建服务
   # === 基础设施 ===
-  mysql:
-    image: mysql:8.0
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
-      MYSQL_DATABASE: twitter
+  mysql:    #mysql服务
+    image: mysql:8.0    #这个很重要，他是会决定我们到时候构造镜像时拉取镜像是什么，如果你自己构建的本地镜像可以换成本地镜像名字，没有的话，他会按照这个去docker hub中拉取镜像。
+    environment:        #环境变量，硬编码，直接使用.env，会映射过来的，注意${变量名}。
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}     #数据库密码
+      MYSQL_DATABASE: twitter                 #数据库名字
     ports:
-      - "3307:3306"
+      - "3307:3306"    #端口映射，左边是本机端口，右边是docker内部端口，我们电脑外界是与docker的mysql通过3307端口通信的，然后docker内部服务是通过3306进行的通信。
     volumes:
-      - mysql_data:/var/lib/mysql
+      - mysql_data:/var/lib/mysql     #数据卷，这里是存储数据库数据的文件位置，左边是文件名称，右边是目录路径。
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]     #这个是用来在服务构建后，在cmd中运行mysqladmin ping -h localhost指令，来实现健康检查的功效。
+      interval: 5s   #每5s检查一次
+      timeout: 5s    #5s未响应就超时，重新进行检查
+      retries: 10    #一共检查10次
 
   redis:
-    image: redis:alpine
+    image: redis:alpine   #redis镜像名称
     ports:
-      - "6379:6379"
+      - "6379:6379"      #主机端口号/端口号
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -311,16 +311,6 @@ services:
     ports:
       - "8858:8858"
     restart: always
-
-
-  frontend:
-    build:
-      context: ./web        # 前端项目路径
-      dockerfile: Dockerfile
-    ports:
-      - "5173:5556"
-    depends_on:
-        - gateway
 
 volumes:
   mysql_data:
