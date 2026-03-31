@@ -130,14 +130,14 @@ Elasticsearch：存用户偏好的向量（kNN 字段），用于语义级推荐
 为什么用 Neo4j：传统的 MySQL 找“朋友的朋友”（二度/三度人脉）需要极其消耗性能的多层 JOIN，而 Neo4j 作为图数据库，采用 Index-Free Adjacency（无索引邻接）底层设计，通过指针直连，沿关系查询的速度是 MySQL 的指数级倍数。
 
 应用场景：
-
+ 
 维护用户间的复杂社交网络。
 
 实现基于关系的精准好友推荐（PersonalRank / 共同关注）。
 
 挂钩用户兴趣，快速检索出“跟我兴趣相同，且在社交距离内的人”。
 
-📅 Action Items (开发路线图)
+Action Items (开发路线图)
 Step 1: 基础设施搭建
 
 接入 Elasticsearch，配置中文分词器。
@@ -146,7 +146,7 @@ Step 1: 基础设施搭建
 
 Step 2: 构建 MCP Server
 
-编写 AI 可调用的内部接口（发推、查推、查用户）。
+编写 AI 可调用的内部接口（ 发推、查推、查用户 ）。
 
 Step 3: 开发 agent-service
 
