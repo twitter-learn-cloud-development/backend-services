@@ -138,22 +138,22 @@ Elasticsearch：存用户偏好的向量（kNN 字段），用于语义级推荐
 挂钩用户兴趣，快速检索出“跟我兴趣相同，且在社交距离内的人”。
 
 📅 Action Items (开发路线图)
-[ ] Step 1: 基础设施搭建
+Step 1: 基础设施搭建
 
 接入 Elasticsearch，配置中文分词器。
 
 跑通 Canal，将 MySQL 的推文/用户数据平滑同步到 ES。
 
-[ ] Step 2: 构建 MCP Server
+Step 2: 构建 MCP Server
 
 编写 AI 可调用的内部接口（发推、查推、查用户）。
 
-[ ] Step 3: 开发 agent-service
+Step 3: 开发 agent-service
 
 搭建双模型业务流（查询推荐流 + 创作发布流）。
 
 将 ES 检索结果封装入 Prompt，提供 RAG 增强。
 
-[ ] Step 4: 探索 Neo4j (Future)
+Step 4: 探索 Neo4j (Future)
 
-建立节点（用户、话题）和边（关注、点赞）的图关系，开发基于图谱的推荐引擎。
+建立节点（用户、话题）和边（关注、点赞）的图关系，开发基于图谱的推荐引擎。 

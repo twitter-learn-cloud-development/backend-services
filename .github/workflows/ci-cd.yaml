@@ -3,6 +3,8 @@ name: Twitter Clone CI/CD
 on:
   push:
     branches: [ "main" ]
+    paths-ignore:
+      - 'pkg/es/es.go'
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
