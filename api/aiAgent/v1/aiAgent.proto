@@ -1,0 +1,188 @@
+syntax = "proto3";
+
+package aiAgent.v1;
+option go_package = "twitter-clone/api/aiAgent/v1;aiAgentv1";
+
+// AiAgentService 智能体服务
+service AiAgentService {
+    // 获取模型初始化详细信息
+    rpc getModelDetailedInformation (getModelDetailedInformationRequest) returns (getModelDetailedInformationResponse);
+    // 获取历史对话列表
+    rpc getRepositoryDialogue (getRepositoryDialogueRequest) returns (getRepositoryDialogueResponse);
+    // 获取某个历史对话的详细消息记录
+    rpc getDialogueDetail (getDialogueDetailRequest) returns (getDialogueDetailResponse);
+    // 解析前端 pdf、word 和图片等文件
+    rpc analysisFiles (analysisFilesRequest) returns (analysisFilesResponse);
+    // 模式一：直接调用 AI api 进行对话
+    rpc callApiOfAi (callApiOfAiRequest) returns (callApiOfAiResponse);
+    // 模式二：通过对话查询相关推文和作者
+    rpc consultContent (consultContentRequest) returns (consultContentResponse);
+    // 模式三：通过提供写作信息协助构建推文
+    rpc assistPublishTwitter (assistPublishTwitterRequest) returns (assistPublishTwitterResponse);
+}
+
+
+// =========== 基础消息定义 ============
+
+// 对话必备内容
+message MainContent {
+    uint64 id          = 1;
+    uint64 user_id     = 2;
+    uint64 dialogue_id = 3;
+    string content     = 4;
+}
+
+// 单条历史消息记录
+message RepositoryContentList {
+    uint64 id          = 1;
+    uint64 user_id     = 2;
+    uint64 dialogue_id = 3;
+    string question    = 4;
+    string response    = 5;
+}
+
+// 历史对话（标题级别）
+message RepositoryDialogue {
+    uint64 id      = 1;
+    uint64 user_id = 2;
+    string title   = 3;
+}
+
+// 文件类型
+message FileKind {
+    uint64 id   = 1;
+    string name = 2;
+}
+
+// 模型信息
+message ModelKind {
+    uint64          id             = 1;
+    string          name           = 2;
+    string          description    = 3;
+    uint32          max_tokens     = 4;
+    repeated FileKind file_kind_list = 5;
+}
+
+// Poll 投票
+message Poll {
+	uint64 id = 1;
+	uint64 tweet_id = 2;
+	string question = 3;
+	repeated PollOption options = 4;
+	int64 end_time = 5;
+	bool is_expired = 6; // 计算字段
+	bool is_voted = 7;   // 当前用户是否已投票
+	uint64 voted_option_id = 8; // 当前用户投的选项 ID
+	int32 total_votes = 9;
+}
+
+// PollOption 投票选项
+message PollOption {
+	uint64 id = 1;
+	uint64 poll_id = 2;
+	string text = 3;
+	int32 vote_count = 4;
+	float percentage = 5; // 计算字段：百分比 (0-100)
+}
+
+// 推文
+message Tweet {
+    uint64          id           = 1;
+    uint64          user_id      = 2;
+    string          content      = 3;
+    repeated string media_urls   = 4;
+    int32           type         = 5;
+    int32           visible_type = 6;
+    int64           created_at   = 7;
+    int64           updated_at   = 8;
+    int32           like_count   = 9;
+    int32           comment_count = 10;
+    int32           share_count  = 11;
+    bool            is_liked     = 12;
+    uint64          parent_id    = 13;
+    Poll            poll         = 14;
+}
+
+// 推文查询结果条目
+message TweetResult {
+    uint64 tweet_id  = 1;
+    string url       = 2;  // 站内访问 URL，如 /tweet/123456
+    string summary   = 3;  // AI 对这条推文的简短摘要，方便用户决定要不要点进去
+}
+
+// ========== 请求与响应消息体 ==========
+
+message getModelDetailedInformationRequest {
+    uint64 user_id = 1;
+}
+message getModelDetailedInformationResponse {
+    uint64            code           = 1;
+    string            msg            = 2;
+    repeated ModelKind model_kind_list = 3;
+}
+
+message getRepositoryDialogueRequest {
+    uint64 user_id = 1;
+}
+message getRepositoryDialogueResponse {
+    uint64                    code                   = 1;
+    string                    msg                    = 2;
+    repeated RepositoryDialogue repository_dialogue_list = 3;
+}
+
+message getDialogueDetailRequest {
+    uint64 user_id     = 1;
+    uint64 dialogue_id = 2;
+}
+message getDialogueDetailResponse {
+    uint64                       code     = 1;
+    string                       msg      = 2;
+    repeated RepositoryContentList messages = 3;
+}
+
+message analysisFilesRequest {
+    uint64 user_id       = 1;
+    uint64 file_kind_id  = 2;
+    bytes  file_content  = 3;
+}
+message analysisFilesResponse {
+    uint64 code           = 1;
+    string msg            = 2;
+    string parsed_content = 3; // 解析出的文本内容，供后续对话使用
+    string file_key       = 4; // 存储 key，后续对话可引用
+}
+
+message callApiOfAiRequest {
+    uint64      user_id       = 1;
+    uint64      model_kind_id = 2;
+    MainContent main_content  = 3;
+}
+message callApiOfAiResponse {
+    uint64 code     = 1;
+    string msg      = 2;
+    string response = 3;
+}
+
+message consultContentRequest {
+    uint64      user_id       = 1;
+    uint64      model_kind_id = 2;
+    MainContent main_content  = 3;
+}
+message consultContentResponse {
+    uint64         code       = 1;
+    string         msg        = 2;
+    string         response   = 3; // AI 自然语言回复
+    repeated TweetResult tweet_list  = 4; // 推文 id + 跳转 url + 摘要
+}
+
+message assistPublishTwitterRequest {
+    uint64      user_id       = 1;
+    uint64      model_kind_id = 2;
+    MainContent main_content  = 3;
+}
+message assistPublishTwitterResponse {
+    uint64         code       = 1;
+    string         msg        = 2;
+    string         response   = 3; // AI 生成的推文草稿说明
+    repeated Tweet tweet_list = 4; // 生成的推文候选列表
+}
