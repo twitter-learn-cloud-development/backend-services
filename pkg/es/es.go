@@ -1,6 +1,3 @@
-//go:build ignore_ci
-// +build ignore_ci
-
 package es
 
 import (
@@ -36,17 +33,14 @@ var defaultClient *Client
 
 // Init 初始化全局 ElasticSearch 客户端
 func Init() error {
-	addressesStr := os.Getenv("ES_ADDRESSES")
-	if addressesStr == "" {
-		addressesStr = "http://localhost:9200" // 默认本地单机
-	}
+	addressesStr := GetEnv("ES_ADDRESSES", "http://localhost:9200")
 
 	cfg := Config{
-		Addresses: strings.Split(addressesStr, ","),
-		Username:  os.Getenv("ES_USERNAME"),
-		Password:  os.Getenv("ES_PASSWORD"),
-		CloudID:   os.Getenv("ES_CLOUD_ID"),
-		APIKey:    os.Getenv("ES_API_KEY"),
+		Addresses: strings.Split(addressesStr, ","), // 支持多个地址，逗号分隔
+		Username:  GetEnv("ES_USERNAME", ""),
+		Password:  GetEnv("ES_PASSWORD", ""),
+		CloudID:   GetEnv("ES_CLOUD_ID", ""),
+		APIKey:    GetEnv("ES_API_KEY", ""),
 	}
 
 	client, err := NewClient(cfg)
@@ -55,16 +49,25 @@ func Init() error {
 	}
 
 	defaultClient = client
-	logger.Info("ElasticSearch client initialized successfully", zap.Strings("addresses", cfg.Addresses))
+	logger.Info(context.Background(), "ElasticSearch client initialized successfully", zap.Strings("addresses", cfg.Addresses))
 	return nil
 }
 
 // GetClient 获取全局 ElasticSearch 客户端
 func GetClient() *Client {
 	if defaultClient == nil {
-		logger.Fatal("ElasticSearch client not initialized. Please call es.Init() first")
+		logger.Fatal(context.Background(), "ElasticSearch client not initialized. Please call es.Init() first")
 	}
 	return defaultClient
+}
+
+// GetEnv 获取环境变量值，如果不存在则返回默认值
+func GetEnv(key, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	return value
 }
 
 // NewClient 创建一个新的 ElasticSearch 客户端实例
@@ -103,8 +106,8 @@ func NewClient(cfg Config) (*Client, error) {
 		return nil, fmt.Errorf("failed to ping elasticsearch: %w", err)
 	}
 
-	if !pingResp.IsSuccess() {
-		return nil, fmt.Errorf("elasticsearch ping failed, status: %d", pingResp.StatusCode)
+	if !pingResp {
+		return nil, fmt.Errorf("elasticsearch ping failed, status: %t", pingResp)
 	}
 
 	return &Client{TypedClient: client}, nil
@@ -120,7 +123,7 @@ func (c *Client) CreateIndexIfNotExists(ctx context.Context, indexName string, m
 	}
 
 	if exists {
-		logger.Info("ElasticSearch index already exists", zap.String("index", indexName))
+		logger.Info(ctx, "ElasticSearch index already exists", zap.String("index", indexName))
 		return nil
 	}
 
@@ -135,11 +138,12 @@ func (c *Client) CreateIndexIfNotExists(ctx context.Context, indexName string, m
 		return fmt.Errorf("create index err: %w", err)
 	}
 
-	if !resp.IsSuccess() {
-		return fmt.Errorf("create index failed with status: %d", resp.StatusCode)
+	//拦截集群业务层面的失败
+	if !resp.Acknowledged {
+		return fmt.Errorf("create index failed: request not acknowledged by the cluster")
 	}
 
-	logger.Info("ElasticSearch index created", zap.String("index", indexName))
+	logger.Info(ctx, "ElasticSearch index created", zap.String("index", indexName))
 	return nil
 }
 
@@ -149,8 +153,9 @@ func (c *Client) DeleteIndex(ctx context.Context, indexName string) error {
 	if err != nil {
 		return err
 	}
-	if !resp.IsSuccess() {
-		return fmt.Errorf("delete index failed with status: %d", resp.StatusCode)
+	if !resp.Acknowledged {
+		return fmt.Errorf("delete index failed: request not acknowledged by the cluster")
 	}
+
 	return nil
 }
