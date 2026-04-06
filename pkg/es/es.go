@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"twitter-clone/internal/domain"
 	"twitter-clone/pkg/logger"
 
 	"github.com/elastic/go-elasticsearch/v8"
@@ -28,6 +29,40 @@ type Config struct {
 	CloudID   string
 	APIKey    string
 }
+
+const TweetIndex = "tweets"
+
+type TweetDocument struct {
+	ID          string `json:"id"` // uint64 转 string，ES 的 keyword 类型
+	UserID      string `json:"user_id"`
+	ParentID    string `json:"parent_id"`    // 区分推文和回复
+	Content     string `json:"content"`      // 全文检索核心字段
+	Type        int    `json:"type"`         // 0文本 1图片 2视频，用于过滤
+	VisibleType int    `json:"visible_type"` // 0公开 1粉丝 2私密，搜索时过滤私密内容
+	CreatedAt   int64  `json:"created_at"`   // 用于时间排序
+	LikeCount   int    `json:"like_count"`   // 用于热度排序
+	DeletedAt   int64  `json:"deleted_at"`   // 软删除过滤，deleted_at=0 才展示
+}
+
+const tweetMapping = `{
+    "mappings": {
+        "properties": {
+            "id":           { "type": "keyword" },
+            "user_id":      { "type": "keyword" },
+            "parent_id":    { "type": "keyword" },
+            "content": {
+                "type":            "text",
+                "analyzer":        "ik_max_word",
+                "search_analyzer": "ik_smart"
+            },
+            "type":         { "type": "integer" },
+            "visible_type": { "type": "integer" },
+            "created_at":   { "type": "long" },
+            "like_count":   { "type": "integer" },
+            "deleted_at":   { "type": "long" }
+        }
+    }
+}`
 
 var defaultClient *Client
 
@@ -111,6 +146,20 @@ func NewClient(cfg Config) (*Client, error) {
 	}
 
 	return &Client{TypedClient: client}, nil
+}
+
+func FromTweet(tweet *domain.Tweet) TweetDocument {
+	return TweetDocument{
+		ID:          fmt.Sprintf("%d", tweet.ID),
+		UserID:      fmt.Sprintf("%d", tweet.UserID),
+		ParentID:    fmt.Sprintf("%d", tweet.ParentID),
+		Content:     tweet.Content,
+		Type:        tweet.Type,
+		VisibleType: tweet.VisibleType,
+		CreatedAt:   tweet.CreatedAt,
+		LikeCount:   tweet.LikeCount,
+		DeletedAt:   tweet.DeletedAt,
+	}
 }
 
 // CreateIndexIfNotExists 如果索引不存在则创建

@@ -39,6 +39,31 @@ services:
     volumes:
       - mongodb_data:/data/db
 
+  elasticsearch:
+    image: elasticsearch:8.13.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+  # 启动时自动安装 IK，已安装则跳过
+    command: >
+      bash -c "
+        if [ ! -d /usr/share/elasticsearch/plugins/analysis-ik ]; then
+          elasticsearch-plugin install --batch https://get.infini.cloud/elasticsearch/analysis-ik/8.13.0;
+        fi &&
+        /usr/local/bin/docker-entrypoint.sh elasticsearch
+      "
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   rabbitmq:
     image: rabbitmq:3-management
     ports:
@@ -337,4 +362,5 @@ services:
 volumes:
   mysql_data:
   mongodb_data:
+  es_data:
   prometheus_data:
