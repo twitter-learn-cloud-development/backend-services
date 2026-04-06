@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"time"
 
+	"twitter-clone/pkg/es"
+
 	"github.com/go-redis/redis/v8"
 	amqp "github.com/rabbitmq/amqp091-go"
 
@@ -40,6 +42,7 @@ type TimelineConsumer struct {
 	followRepo    domain.FollowRepository
 	timelineCache *tweetCache.TimelineCache
 	redisClient   *redis.Client
+	esClient      *es.Client // 新增
 }
 
 // NewTimelineConsumer 创建 Timeline 消费者
@@ -48,6 +51,7 @@ func NewTimelineConsumer(
 	followRepo domain.FollowRepository,
 	timelineCache *tweetCache.TimelineCache,
 	redisClient *redis.Client,
+	esClient *es.Client, // 新增
 ) (*TimelineConsumer, error) {
 	if err := mqClient.DeclareExchange("twitter.events", "topic", true); err != nil {
 		return nil, fmt.Errorf("failed to declare exchange: %w", err)
@@ -83,6 +87,7 @@ func NewTimelineConsumer(
 		followRepo:    followRepo,
 		timelineCache: timelineCache,
 		redisClient:   redisClient,
+		esClient:      esClient,
 	}, nil
 }
 
@@ -172,6 +177,9 @@ func (c *TimelineConsumer) handleFanoutMessage(msg amqp.Delivery) {
 
 	// 提取并更新 Hashtags 用于热门话题
 	go c.processHashtags(context.Background(), event.Content)
+
+	// 新增：异步同步到 ES
+	go c.syncToES(context.Background(), &event)
 
 	log.Printf("✅ Fanout completed: tweet_id=%d", event.TweetID)
 }
@@ -303,6 +311,13 @@ func (c *TimelineConsumer) handleDeleteMessage(msg amqp.Delivery) {
 
 	// 确认消息
 	msg.Ack(false)
+	// 新增：从 ES 删除
+	go func() {
+		tweetID := fmt.Sprintf("%d", event.TweetID)
+		if err := c.esClient.DeleteTweet(context.Background(), tweetID); err != nil {
+			log.Printf("⚠️ Failed to delete tweet from ES: %v", err)
+		}
+	}()
 	log.Printf("✅ Remove completed: tweet_id=%d", event.TweetID)
 }
 
@@ -333,4 +348,21 @@ func getRetryCount(headers amqp.Table) int {
 	}
 
 	return 0
+}
+
+// syncToES 同步推文到 ES
+func (c *TimelineConsumer) syncToES(ctx context.Context, event *events.TweetCreatedEvent) {
+	doc := es.TweetDocument{
+		ID:        fmt.Sprintf("%d", event.TweetID),
+		UserID:    fmt.Sprintf("%d", event.AuthorID),
+		Content:   event.Content,
+		Type:      event.Type,
+		CreatedAt: event.CreatedAt,
+		DeletedAt: 0,
+	}
+	if err := c.esClient.IndexTweet(ctx, doc); err != nil {
+		log.Printf("⚠️ Failed to sync tweet to ES: %v", err)
+	} else {
+		log.Printf("✅ Tweet synced to ES: tweet_id=%d", event.TweetID)
+	}
 }

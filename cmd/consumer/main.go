@@ -16,6 +16,8 @@ import (
 	followRepository "twitter-clone/internal/module/follow/repository"
 	tweetCache "twitter-clone/internal/module/tweet/cache"
 	"twitter-clone/internal/mq/consumer"
+	"twitter-clone/pkg/es"
+	"twitter-clone/pkg/logger"
 	"twitter-clone/pkg/pkg/snowflake"
 )
 
@@ -28,6 +30,8 @@ func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Println("⚠️  No .env file found, using default/environment config")
 	}
+
+	logger.InitLogger()
 
 	// 1. 初始化 Snowflake
 	if err := snowflake.Init(1); err != nil {
@@ -72,17 +76,28 @@ func main() {
 	defer mqClient.Close()
 	log.Println("✅ RabbitMQ connected")
 
-	// 6. 创建依赖
+	// 6. ES 初始化
+	if err := es.Init(); err != nil {
+		log.Fatalf("❌ Failed to init elasticsearch: %v", err)
+	}
+	esClient := es.GetClient()
+
+	// 创建推文索引（已存在则跳过）
+	if err := esClient.CreateTweetIndex(context.Background()); err != nil {
+		log.Fatalf("❌ Failed to create tweet index: %v", err)
+	}
+
+	// 7. 创建依赖
 	followRepo := followRepository.NewFollowRepository(db)
 	timelineCache := tweetCache.NewTimelineCache(redisClient)
 
-	// 7. 创建 Consumer
-	timelineConsumer, err := consumer.NewTimelineConsumer(mqClient, followRepo, timelineCache, redisClient)
+	// 8. 创建 Consumer
+	timelineConsumer, err := consumer.NewTimelineConsumer(mqClient, followRepo, timelineCache, redisClient, esClient)
 	if err != nil {
 		log.Fatalf("❌ Failed to create consumer: %v", err)
 	}
 
-	// 8. 启动 Consumer
+	// 9. 启动 Consumer
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 

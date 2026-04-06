@@ -104,7 +104,15 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
-
+  kibana:
+    image: kibana:8.13.0
+    container_name: kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
   grafana:
     image: grafana/grafana:10.0.0
     ports:
@@ -237,6 +245,7 @@ services:
       - JAEGER_SAMPLER_TYPE=const
       - JAEGER_SAMPLER_PARAM=1
       - JAEGER_COLLECTOR_ENDPOINT=http://jaeger:14268/api/traces
+      - ES_ADDRESSES=http://elasticsearch:9200
     restart: on-failure
     depends_on:
       mysql:
@@ -244,6 +253,8 @@ services:
       redis:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      elasticsearch:
         condition: service_healthy
 
   # === 网关 ===

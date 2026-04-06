@@ -28,10 +28,13 @@ const (
 
 // TweetCreatedEvent 推文创建事件
 type TweetCreatedEvent struct {
-	TweetID  uint64 `json:"tweet_id"`
-	AuthorID uint64 `json:"author_id"`
-	Content  string `json:"content"`
-	Type     int    `json:"type"`
+	TweetID     uint64 `json:"tweet_id"`
+	AuthorID    uint64 `json:"author_id"`
+	ParentID    uint64 `json:"parent_id"` // 新增
+	Content     string `json:"content"`
+	Type        int    `json:"type"`
+	VisibleType int    `json:"visible_type"` // 新增
+	CreatedAt   int64  `json:"created_at"`   // 新增
 }
 
 // ToJSON 转换为 JSON

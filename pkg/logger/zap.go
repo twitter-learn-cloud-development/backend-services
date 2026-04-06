@@ -2,6 +2,7 @@ package logger
 
 import (
 	"context"
+	"log"
 	"os"
 
 	"go.opentelemetry.io/otel/trace"
@@ -31,6 +32,10 @@ func InitLogger() {
 
 // Info 带有 Context 的 Info 日志 (自动提取 TraceID)
 func Info(ctx context.Context, msg string, fields ...zap.Field) {
+	if Log == nil {
+		log.Printf("[INFO] %s\n", msg)
+		return
+	}
 	traceID := trace.SpanFromContext(ctx).SpanContext().TraceID().String()
 	if traceID != "" && traceID != "00000000000000000000000000000000" {
 		fields = append(fields, zap.String("trace_id", traceID))
@@ -40,6 +45,10 @@ func Info(ctx context.Context, msg string, fields ...zap.Field) {
 
 // Error 带有 Context 的 Error 日志
 func Error(ctx context.Context, msg string, fields ...zap.Field) {
+	if Log == nil {
+		log.Printf("[ERROR] %s\n", msg)
+		return
+	}
 	traceID := trace.SpanFromContext(ctx).SpanContext().TraceID().String()
 	if traceID != "" && traceID != "00000000000000000000000000000000" {
 		fields = append(fields, zap.String("trace_id", traceID))

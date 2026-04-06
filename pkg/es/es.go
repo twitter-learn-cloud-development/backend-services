@@ -3,7 +3,9 @@ package es
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -13,6 +15,7 @@ import (
 	"twitter-clone/pkg/logger"
 
 	"github.com/elastic/go-elasticsearch/v8"
+	"github.com/elastic/go-elasticsearch/v8/typedapi/types"
 	"go.uber.org/zap"
 )
 
@@ -70,6 +73,8 @@ var defaultClient *Client
 func Init() error {
 	addressesStr := GetEnv("ES_ADDRESSES", "http://localhost:9200")
 
+	log.Printf("ES_ADDRESSES: %s", addressesStr)
+
 	cfg := Config{
 		Addresses: strings.Split(addressesStr, ","), // 支持多个地址，逗号分隔
 		Username:  GetEnv("ES_USERNAME", ""),
@@ -84,7 +89,7 @@ func Init() error {
 	}
 
 	defaultClient = client
-	logger.Info(context.Background(), "ElasticSearch client initialized successfully", zap.Strings("addresses", cfg.Addresses))
+	//logger.Info(context.Background(), "ElasticSearch client initialized successfully", zap.Strings("addresses", cfg.Addresses))
 	return nil
 }
 
@@ -162,6 +167,11 @@ func FromTweet(tweet *domain.Tweet) TweetDocument {
 	}
 }
 
+// 创建索引
+func (c *Client) CreateTweetIndex(ctx context.Context) error {
+	return c.CreateIndexIfNotExists(ctx, TweetIndex, tweetMapping)
+}
+
 // CreateIndexIfNotExists 如果索引不存在则创建
 // mappings 参数应为 JSON 字符串，例如：`{"properties": {"content": {"type": "text", "analyzer": "ik_max_word"}}}`
 func (c *Client) CreateIndexIfNotExists(ctx context.Context, indexName string, mappings string) error {
@@ -207,4 +217,51 @@ func (c *Client) DeleteIndex(ctx context.Context, indexName string) error {
 	}
 
 	return nil
+}
+
+// IndexTweet写入推文
+func (c *Client) IndexTweet(ctx context.Context, doc TweetDocument) error {
+	_, err := c.Index(TweetIndex).Id(doc.ID).Document(doc).Do(ctx)
+	if err != nil {
+		return fmt.Errorf("index tweet failed: %w", err)
+	}
+	return nil
+}
+
+// DeleteTweet删除推文
+func (c *Client) DeleteTweet(ctx context.Context, id string) error {
+	_, err := c.Delete(TweetIndex, id).Do(ctx)
+	if err != nil {
+		return fmt.Errorf("delete tweet failed: %w", err)
+	}
+	return nil
+}
+
+// SearchTweets 搜索推文
+func (c *Client) SearchTweets(ctx context.Context, keyword string, page, size int) ([]TweetDocument, error) {
+	from := (page - 1) * size
+
+	resp, err := c.Search().
+		Index(TweetIndex).
+		From(from).
+		Size(size).
+		Query(&types.Query{
+			Match: map[string]types.MatchQuery{
+				"content": {Query: keyword},
+			},
+		}).
+		Do(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("search tweets failed: %w", err)
+	}
+
+	var tweets []TweetDocument
+	for _, hit := range resp.Hits.Hits {
+		var tweet TweetDocument
+		if err := json.Unmarshal(hit.Source_, &tweet); err != nil {
+			continue
+		}
+		tweets = append(tweets, tweet)
+	}
+	return tweets, nil
 }
