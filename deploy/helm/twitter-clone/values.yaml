@@ -103,7 +103,7 @@ services:
     name: user-service
     image:
       repository: daguozhai/user-service
-      tag: "db5c9fc866dc4716a8ba9a667beaa18c04151847"
+      tag: "8f00b76f25a34764056587f734a2e252559e6939"
       pullPolicy: IfNotPresent
     replicaCount: 1
     containerPort: 9091
@@ -120,7 +120,7 @@ services:
     name: tweet-service
     image:
       repository: daguozhai/tweet-service
-      tag: "db5c9fc866dc4716a8ba9a667beaa18c04151847"
+      tag: "8f00b76f25a34764056587f734a2e252559e6939"
       pullPolicy: IfNotPresent
     replicaCount: 1
     containerPort: 9092
@@ -131,7 +131,7 @@ services:
     name: follow-service
     image:
       repository: daguozhai/follow-service
-      tag: db5c9fc866dc4716a8ba9a667beaa18c04151847
+      tag: 8f00b76f25a34764056587f734a2e252559e6939
       pullPolicy: IfNotPresent
     replicaCount: 1
     containerPort: 9093
@@ -140,7 +140,7 @@ services:
     name: gateway
     image:
       repository: daguozhai/gateway
-      tag: "db5c9fc866dc4716a8ba9a667beaa18c04151847"
+      tag: "8f00b76f25a34764056587f734a2e252559e6939"
       pullPolicy: IfNotPresent
     replicaCount: 1
     service:
@@ -160,7 +160,7 @@ services:
     name: consumer
     image:
       repository: daguozhai/consumer
-      tag: db5c9fc866dc4716a8ba9a667beaa18c04151847
+      tag: 8f00b76f25a34764056587f734a2e252559e6939
       pullPolicy: IfNotPresent
     replicaCount: 1
     resources: {}
