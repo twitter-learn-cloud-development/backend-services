@@ -157,6 +157,8 @@ func main() {
 	// 私信处理器 (gRPC)
 	messengerHandler := handler.NewMessengerHandler(grpcClients.MessengerClient, grpcClients.UserClient)
 
+	agentHandler := handler.NewAgentHandler(grpcClients.AgentClient)
+
 	// 创建 WebSocket 处理器
 	wsHandler := handler.NewWebSocketHandler(redisClient, jwtMW)
 
@@ -164,7 +166,7 @@ func main() {
 
 	// 设置路由
 	// 传入 Redis Client 用于限流
-	r = router.SetupRouter(tweetHandler, followHandler, userHandler, uploadHandler, notificationHandler, bookmarkHandler, messengerHandler, wsHandler, jwtMW, redisClient)
+	r = router.SetupRouter(tweetHandler, followHandler, userHandler, uploadHandler, notificationHandler, bookmarkHandler, messengerHandler, wsHandler, agentHandler, jwtMW, redisClient)
 
 	log.Println("✅ Router configured")
 

@@ -22,6 +22,7 @@ func SetupRouter(
 	bookmarkHandler *handler.BookmarkHandler,
 	messengerHandler *handler.MessengerHandler,
 	wsHandler *handler.WebSocketHandler,
+	agentHandler *handler.AgentHandler,
 	jwtMW *middleware.JWTMiddleware,
 	redisClient *redis.Client,
 ) *gin.Engine {
@@ -184,7 +185,14 @@ func SetupRouter(
 			messenger.GET("/conversations", messengerHandler.GetConversations)
 			messenger.GET("/conversations/:peer_id/messages", messengerHandler.GetMessages) // /:peer_id/messages to match handler
 		}
-
+		// AI Agent
+		agent := v1.Group("/agent")
+		agent.Use(jwtMW.AuthRequired())
+		{
+			agent.POST("/chat", agentHandler.CallApiOfAi)
+			agent.POST("/consult", agentHandler.ConsultContent)
+			agent.POST("/assist", agentHandler.AssistPublishTwitter)
+		}
 		// WebSocket
 		v1.GET("/ws", wsHandler.HandleConnection)
 	}

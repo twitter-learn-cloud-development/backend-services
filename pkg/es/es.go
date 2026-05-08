@@ -36,15 +36,16 @@ type Config struct {
 const TweetIndex = "tweets"
 
 type TweetDocument struct {
-	ID          string `json:"id"` // uint64 转 string，ES 的 keyword 类型
-	UserID      string `json:"user_id"`
-	ParentID    string `json:"parent_id"`    // 区分推文和回复
-	Content     string `json:"content"`      // 全文检索核心字段
-	Type        int    `json:"type"`         // 0文本 1图片 2视频，用于过滤
-	VisibleType int    `json:"visible_type"` // 0公开 1粉丝 2私密，搜索时过滤私密内容
-	CreatedAt   int64  `json:"created_at"`   // 用于时间排序
-	LikeCount   int    `json:"like_count"`   // 用于热度排序
-	DeletedAt   int64  `json:"deleted_at"`   // 软删除过滤，deleted_at=0 才展示
+	ID            string    `json:"id"` // uint64 转 string，ES 的 keyword 类型
+	UserID        string    `json:"user_id"`
+	ParentID      string    `json:"parent_id"`      // 区分推文和回复
+	Content       string    `json:"content"`        // 全文检索核心字段
+	ContentVector []float32 `json:"content_vector"` // 向量表示，用于相似度计算
+	Type          int       `json:"type"`           // 0文本 1图片 2视频，用于过滤
+	VisibleType   int       `json:"visible_type"`   // 0公开 1粉丝 2私密，搜索时过滤私密内容
+	CreatedAt     int64     `json:"created_at"`     // 用于时间排序
+	LikeCount     int       `json:"like_count"`     // 用于热度排序
+	DeletedAt     int64     `json:"deleted_at"`     // 软删除过滤，deleted_at=0 才展示
 }
 
 const tweetMapping = `{
@@ -57,6 +58,12 @@ const tweetMapping = `{
                 "type":            "text",
                 "analyzer":        "ik_max_word",
                 "search_analyzer": "ik_smart"
+            },
+            "content_vector": {
+                "type": "dense_vector",
+                "dims": 1024,
+                "index": true,
+                "similarity": "cosine"
             },
             "type":         { "type": "integer" },
             "visible_type": { "type": "integer" },
@@ -89,7 +96,7 @@ func Init() error {
 	}
 
 	defaultClient = client
-	//logger.Info(context.Background(), "ElasticSearch client initialized successfully", zap.Strings("addresses", cfg.Addresses))
+	logger.Info(context.Background(), "ElasticSearch client initialized successfully", zap.Strings("addresses", cfg.Addresses))
 	return nil
 }
 
@@ -153,17 +160,18 @@ func NewClient(cfg Config) (*Client, error) {
 	return &Client{TypedClient: client}, nil
 }
 
-func FromTweet(tweet *domain.Tweet) TweetDocument {
+func FromTweet(tweet *domain.Tweet, contentVector []float32) TweetDocument {
 	return TweetDocument{
-		ID:          fmt.Sprintf("%d", tweet.ID),
-		UserID:      fmt.Sprintf("%d", tweet.UserID),
-		ParentID:    fmt.Sprintf("%d", tweet.ParentID),
-		Content:     tweet.Content,
-		Type:        tweet.Type,
-		VisibleType: tweet.VisibleType,
-		CreatedAt:   tweet.CreatedAt,
-		LikeCount:   tweet.LikeCount,
-		DeletedAt:   tweet.DeletedAt,
+		ID:            fmt.Sprintf("%d", tweet.ID),
+		UserID:        fmt.Sprintf("%d", tweet.UserID),
+		ParentID:      fmt.Sprintf("%d", tweet.ParentID),
+		Content:       tweet.Content,
+		ContentVector: contentVector,
+		Type:          tweet.Type,
+		VisibleType:   tweet.VisibleType,
+		CreatedAt:     tweet.CreatedAt,
+		LikeCount:     tweet.LikeCount,
+		DeletedAt:     tweet.DeletedAt,
 	}
 }
 
@@ -264,4 +272,82 @@ func (c *Client) SearchTweets(ctx context.Context, keyword string, page, size in
 		tweets = append(tweets, tweet)
 	}
 	return tweets, nil
+}
+
+// SearchTweetsByVector 纯向量语义检索
+func (c *Client) SearchTweetsByVector(ctx context.Context, queryVector []float32, size int) ([]TweetDocument, error) {
+	// 声明局部变量，以便获取它们的内存地址指针
+	k := size
+	numCandidates := size * 10
+	resp, err := c.Search().
+		Index(TweetIndex).
+		Knn(types.KnnSearch{ // 使用 types.KnnSearch 的值类型
+			Field:         "content_vector", // 指定向量字段
+			QueryVector:   queryVector,      // 传入从 Jina 模型获取的用户提问向量
+			K:             &k,               // 最终返回的最相似文档数
+			NumCandidates: &numCandidates,   // 候选队列大小，通常设置为 K 的 10-50 倍，越大越准但越慢
+		}).
+		Size(size).
+		Do(ctx)
+
+	if err != nil {
+		return nil, fmt.Errorf("vector search failed: %w", err)
+	}
+
+	var tweets []TweetDocument
+	for _, hit := range resp.Hits.Hits {
+		var tweet TweetDocument
+		if err := json.Unmarshal(hit.Source_, &tweet); err != nil {
+			continue
+		}
+		tweets = append(tweets, tweet)
+	}
+	return tweets, nil
+}
+
+// HybridSearchTweets 混合检索：同时基于关键词和语义向量
+func (c *Client) HybridSearchTweets(ctx context.Context, keyword string, queryVector []float32, size int) ([]TweetDocument, error) {
+	// 声明局部变量，以便获取它们的内存地址指针
+	k := size
+	numCandidates := size * 10
+	resp, err := c.Search().
+		Index(TweetIndex).
+		// 1. 向量语义检索部分
+		Knn(types.KnnSearch{
+			Field:         "content_vector",
+			QueryVector:   queryVector,
+			K:             &k,
+			NumCandidates: &numCandidates,
+			Boost:         Float32Ptr(0.6), // 权重配置：给语义相似度 0.6 的权重
+		}).
+		// 2. 传统文本检索部分
+		Query(&types.Query{
+			Match: map[string]types.MatchQuery{
+				"content": {
+					Query: keyword,
+					Boost: Float32Ptr(0.4), // 权重配置：给关键词匹配 0.4 的权重
+				},
+			},
+		}).
+		Size(size).
+		Do(ctx)
+
+	if err != nil {
+		return nil, fmt.Errorf("hybrid search failed: %w", err)
+	}
+
+	var tweets []TweetDocument
+	for _, hit := range resp.Hits.Hits {
+		var tweet TweetDocument
+		if err := json.Unmarshal(hit.Source_, &tweet); err != nil {
+			continue
+		}
+		tweets = append(tweets, tweet)
+	}
+	return tweets, nil
+}
+
+// Float32Ptr 辅助函数，用于将 float32 转换为指针，供 typedAPI 使用
+func Float32Ptr(v float32) *float32 {
+	return &v
 }

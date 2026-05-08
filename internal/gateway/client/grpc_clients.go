@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	aiAgentv1 "twitter-clone/api/aiAgent/v1"
 	followv1 "twitter-clone/api/follow/v1"
 	messengerv1 "twitter-clone/api/messenger/v1"
 	tweetv1 "twitter-clone/api/tweet/v1"
@@ -23,11 +24,13 @@ type GRPCClients struct {
 	TweetClient     tweetv1.TweetServiceClient
 	FollowClient    followv1.FollowServiceClient
 	MessengerClient messengerv1.MessengerServiceClient
+	AgentClient     aiAgentv1.AiAgentServiceClient
 
 	userConn      *grpc.ClientConn
 	tweetConn     *grpc.ClientConn
 	followConn    *grpc.ClientConn
 	messengerConn *grpc.ClientConn
+	agentConn     *grpc.ClientConn
 }
 
 func NewGRPCClients(consulAddr string) (*GRPCClients, error) {
@@ -106,6 +109,24 @@ func NewGRPCClients(consulAddr string) (*GRPCClients, error) {
 	clients.MessengerClient = messengerv1.NewMessengerServiceClient(messengerConn)
 	log.Printf("✅ Gateway connected to Messenger Service info (Target: %s)", messengerTarget)
 
+	// 5. 连接 Agent Service
+	agentTarget := fmt.Sprintf("consul://%s/agent-service?healthy=true", consulAddr)
+	agentConn, err := grpc.NewClient(agentTarget,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultServiceConfig(serviceConfig),
+		otelInterceptor,
+	)
+	if err != nil {
+		userConn.Close()
+		tweetConn.Close()
+		followConn.Close()
+		messengerConn.Close()
+		return nil, fmt.Errorf("failed to create agent service client: %v", err)
+	}
+	clients.agentConn = agentConn
+	clients.AgentClient = aiAgentv1.NewAiAgentServiceClient(agentConn)
+	log.Printf("✅ Gateway connected to Agent Service (Target: %s)", agentTarget)
+
 	return clients, nil
 }
 
@@ -121,6 +142,9 @@ func (c *GRPCClients) Close() {
 	}
 	if c.messengerConn != nil {
 		c.messengerConn.Close()
+	}
+	if c.agentConn != nil {
+		c.agentConn.Close()
 	}
 }
 

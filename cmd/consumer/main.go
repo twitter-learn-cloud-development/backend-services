@@ -16,6 +16,7 @@ import (
 	followRepository "twitter-clone/internal/module/follow/repository"
 	tweetCache "twitter-clone/internal/module/tweet/cache"
 	"twitter-clone/internal/mq/consumer"
+	ai "twitter-clone/pkg/ai"
 	"twitter-clone/pkg/es"
 	"twitter-clone/pkg/logger"
 	"twitter-clone/pkg/pkg/snowflake"
@@ -91,8 +92,10 @@ func main() {
 	followRepo := followRepository.NewFollowRepository(db)
 	timelineCache := tweetCache.NewTimelineCache(redisClient)
 
+	aiClient := ai.NewClient(os.Getenv("LM_STUDIO_API_URL"))
+
 	// 8. 创建 Consumer
-	timelineConsumer, err := consumer.NewTimelineConsumer(mqClient, followRepo, timelineCache, redisClient, esClient)
+	timelineConsumer, err := consumer.NewTimelineConsumer(mqClient, followRepo, timelineCache, redisClient, esClient, aiClient)
 	if err != nil {
 		log.Fatalf("❌ Failed to create consumer: %v", err)
 	}

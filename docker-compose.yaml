@@ -246,6 +246,9 @@ services:
       - JAEGER_SAMPLER_PARAM=1
       - JAEGER_COLLECTOR_ENDPOINT=http://jaeger:14268/api/traces
       - ES_ADDRESSES=http://elasticsearch:9200
+      - LM_STUDIO_API_URL=http://host.docker.internal:1234/v1
+      - LM_STUDIO_MODEL_EMBEDDING=text-embedding-bge-m3
+      - LM_STUDIO_MODEL_CHAT=qwen2.5-3b-instruct
     restart: on-failure
     depends_on:
       mysql:
@@ -254,6 +257,29 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+
+  agent-service:
+    build:
+      context: .
+      dockerfile: deploy/docker/agent.dockerfile
+    environment:
+      - CONSUL_HOST=consul
+      - CONSUL_PORT=8500
+      - SERVICE_NAME=agent-service
+      - SERVICE_ADDR=agent-service
+      - SERVICE_PORT=9100
+      - MCP_SERVER_ADDR=0.0.0.0:9200
+      - ES_ADDRESSES=http://elasticsearch:9200
+      - LM_STUDIO_API_URL=http://host.docker.internal:1234/v1
+      - LM_STUDIO_MODEL_EMBEDDING=text-embedding-bge-m3
+      - JAEGER_COLLECTOR_ENDPOINT=http://jaeger:14268/api/traces
+      - DASHSCOPE_API_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+      - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
+      - LM_STUDIO_MODEL_CHAT=qwen3.6-plus
+    restart: on-failure
+    depends_on:
       elasticsearch:
         condition: service_healthy
 
@@ -268,6 +294,7 @@ services:
       - TWEET_SERVICE_ADDR=tweet-service:9092
       - FOLLOW_SERVICE_ADDR=follow-service:9093
       - MESSENGER_SERVICE_ADDR=messenger-service:9094
+      - AGENT_SERVICE_ADDR=agent-service:9100
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - DB_HOST=mysql

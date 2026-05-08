@@ -5,13 +5,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"regexp"
 	"time"
 
 	"twitter-clone/pkg/es"
+	"twitter-clone/pkg/logger"
+
+	"twitter-clone/pkg/ai"
 
 	"github.com/go-redis/redis/v8"
 	amqp "github.com/rabbitmq/amqp091-go"
+	"go.uber.org/zap"
 
 	"twitter-clone/internal/domain"
 	"twitter-clone/internal/events"
@@ -42,7 +47,8 @@ type TimelineConsumer struct {
 	followRepo    domain.FollowRepository
 	timelineCache *tweetCache.TimelineCache
 	redisClient   *redis.Client
-	esClient      *es.Client // 新增
+	esClient      *es.Client
+	aiClient      *ai.Client
 }
 
 // NewTimelineConsumer 创建 Timeline 消费者
@@ -51,7 +57,8 @@ func NewTimelineConsumer(
 	followRepo domain.FollowRepository,
 	timelineCache *tweetCache.TimelineCache,
 	redisClient *redis.Client,
-	esClient *es.Client, // 新增
+	esClient *es.Client,
+	aiClient *ai.Client,
 ) (*TimelineConsumer, error) {
 	if err := mqClient.DeclareExchange("twitter.events", "topic", true); err != nil {
 		return nil, fmt.Errorf("failed to declare exchange: %w", err)
@@ -88,6 +95,7 @@ func NewTimelineConsumer(
 		timelineCache: timelineCache,
 		redisClient:   redisClient,
 		esClient:      esClient,
+		aiClient:      aiClient,
 	}, nil
 }
 
@@ -352,13 +360,23 @@ func getRetryCount(headers amqp.Table) int {
 
 // syncToES 同步推文到 ES
 func (c *TimelineConsumer) syncToES(ctx context.Context, event *events.TweetCreatedEvent) {
+	embeddingData, err := c.aiClient.GetEmbedding(ctx, event.Content, os.Getenv("LM_STUDIO_MODEL_EMBEDDING"))
+	if err != nil {
+		logger.Error(ctx, "failed to get embedding", zap.Error(err))
+		return
+	}
+
 	doc := es.TweetDocument{
-		ID:        fmt.Sprintf("%d", event.TweetID),
-		UserID:    fmt.Sprintf("%d", event.AuthorID),
-		Content:   event.Content,
-		Type:      event.Type,
-		CreatedAt: event.CreatedAt,
-		DeletedAt: 0,
+		ID:            fmt.Sprintf("%d", event.TweetID),
+		UserID:        fmt.Sprintf("%d", event.AuthorID),
+		ParentID:      fmt.Sprintf("%d", event.ParentID),
+		Content:       "Document: " + event.Content,
+		ContentVector: embeddingData,
+		Type:          event.Type,
+		VisibleType:   event.VisibleType,
+		CreatedAt:     event.CreatedAt,
+		LikeCount:     0,
+		DeletedAt:     0,
 	}
 	if err := c.esClient.IndexTweet(ctx, doc); err != nil {
 		log.Printf("⚠️ Failed to sync tweet to ES: %v", err)
