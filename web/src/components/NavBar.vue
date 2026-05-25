@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { HomeIcon, HashtagIcon, BellIcon, BookmarkIcon, UserIcon, ArrowLeftOnRectangleIcon, EnvelopeIcon } from '@heroicons/vue/24/outline'
-import { HomeIcon as HomeIconSolid, HashtagIcon as HashtagIconSolid, BellIcon as BellIconSolid, BookmarkIcon as BookmarkIconSolid, UserIcon as UserIconSolid, EnvelopeIcon as EnvelopeIconSolid } from '@heroicons/vue/24/solid'
+import { HomeIcon, HashtagIcon, BellIcon, BookmarkIcon, UserIcon, ArrowLeftOnRectangleIcon, EnvelopeIcon, SparklesIcon } from '@heroicons/vue/24/outline'
+import { HomeIcon as HomeIconSolid, HashtagIcon as HashtagIconSolid, BellIcon as BellIconSolid, BookmarkIcon as BookmarkIconSolid, UserIcon as UserIconSolid, EnvelopeIcon as EnvelopeIconSolid, SparklesIcon as SparklesIconSolid } from '@heroicons/vue/24/solid'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { useMessengerStore } from '../stores/messenger'
@@ -64,6 +64,7 @@ const navItems = [
   { name: '通知', icon: BellIcon, activeIcon: BellIconSolid, path: '/notifications' },
   { name: '私信', icon: EnvelopeIcon, activeIcon: EnvelopeIconSolid, path: '/messages' },
   { name: '书签', icon: BookmarkIcon, activeIcon: BookmarkIconSolid, path: '/bookmarks' },
+  { name: 'AI 助手', icon: SparklesIcon, activeIcon: SparklesIconSolid, path: '/agent' },
   { name: '个人资料', icon: UserIcon, activeIcon: UserIconSolid, path: '/profile' },
 ]
 

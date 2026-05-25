@@ -116,6 +116,19 @@ func (r *RabbitMQ) DeclareQueue(name string, durable bool) (amqp.Queue, error) {
 	)
 }
 
+// DeclareQueueWithArgs 声明带参数的 Queue
+func (r *RabbitMQ) DeclareQueueWithArgs(name string, durable bool, args amqp.Table) (amqp.Queue, error) {
+	return r.channel.QueueDeclare(
+		name,    // name
+		durable, // durable
+		false,   // delete when unused
+		false,   // exclusive
+		false,   // no-wait
+		args,    // arguments
+	)
+}
+
+
 // BindQueue 绑定 Queue 到 Exchange
 func (r *RabbitMQ) BindQueue(queueName, routingKey, exchangeName string) error {
 	return r.channel.QueueBind(

@@ -1,0 +1,37 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker-containers
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    relabel_configs:
+      - source_labels: [__meta_docker_container_name]
+        regex: '/(.*)'
+        target_label: container
+    pipeline_stages:
+      # 1. 第一步：解析 Docker 默认容器日志的外层结构（将 stdout 包装为 JSON）
+      - json:
+          expressions:
+            log: log
+            stream: stream
+            time: time
+      # 2. 第二步：将真正的日志（log 字段）解析为业务 JSON 格式，提取 trace_id, level, msg
+      - json:
+          expressions:
+            level: level
+            trace_id: trace_id
+            msg: msg
+          source: log
+      # 3. 第三步：将提取出的 level 与 trace_id 升级为 Loki 的索引标签
+      - labels:
+          level:
+          trace_id:

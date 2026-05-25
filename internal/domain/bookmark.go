@@ -30,4 +30,7 @@ type BookmarkRepository interface {
 
 	// IsBookmarked 检查是否已收藏
 	IsBookmarked(ctx context.Context, userID, tweetID uint64) (bool, error)
+
+	// BatchIsBookmarked 批量检查用户是否已收藏
+	BatchIsBookmarked(ctx context.Context, userID uint64, tweetIDs []uint64) (map[uint64]bool, error)
 }

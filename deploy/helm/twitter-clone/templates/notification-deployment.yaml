@@ -13,6 +13,8 @@ spec:
       app.kubernetes.io/component: notification-service
   template:
     metadata:
+      annotations:
+        proxy.istio.io/config: '{ "holdApplicationUntilProxyStarts": true }'
       labels:
         {{- include "twitter.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: notification-service

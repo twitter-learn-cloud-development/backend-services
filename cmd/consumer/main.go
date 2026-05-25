@@ -15,6 +15,7 @@ import (
 	"twitter-clone/internal/infrastructure/persistence"
 	followRepository "twitter-clone/internal/module/follow/repository"
 	tweetCache "twitter-clone/internal/module/tweet/cache"
+	tweetRepository "twitter-clone/internal/module/tweet/repository"
 	"twitter-clone/internal/mq/consumer"
 	ai "twitter-clone/pkg/ai"
 	"twitter-clone/pkg/es"
@@ -55,6 +56,7 @@ func main() {
 		&domain.Follow{},
 		&domain.Like{},
 		&domain.Comment{},
+		&domain.OutboxTask{},
 	); err != nil {
 		log.Fatalf("❌ Failed to migrate database: %v", err)
 	}
@@ -78,24 +80,26 @@ func main() {
 	log.Println("✅ RabbitMQ connected")
 
 	// 6. ES 初始化
+	var esClient *es.Client
 	if err := es.Init(); err != nil {
-		log.Fatalf("❌ Failed to init elasticsearch: %v", err)
-	}
-	esClient := es.GetClient()
-
-	// 创建推文索引（已存在则跳过）
-	if err := esClient.CreateTweetIndex(context.Background()); err != nil {
-		log.Fatalf("❌ Failed to create tweet index: %v", err)
+		log.Printf("⚠️  Failed to init elasticsearch: %v. Continuing in degraded mode without search index support.", err)
+	} else {
+		esClient = es.GetClient()
+		// 创建推文索引（已存在则跳过）
+		if err := esClient.CreateTweetIndex(context.Background()); err != nil {
+			log.Printf("⚠️  Failed to create tweet index: %v. Search features might be limited.", err)
+		}
 	}
 
 	// 7. 创建依赖
 	followRepo := followRepository.NewFollowRepository(db)
 	timelineCache := tweetCache.NewTimelineCache(redisClient)
+	outboxRepo := tweetRepository.NewOutboxRepository(db)
 
 	aiClient := ai.NewClient(os.Getenv("LM_STUDIO_API_URL"))
 
 	// 8. 创建 Consumer
-	timelineConsumer, err := consumer.NewTimelineConsumer(mqClient, followRepo, timelineCache, redisClient, esClient, aiClient)
+	timelineConsumer, err := consumer.NewTimelineConsumer(mqClient, followRepo, timelineCache, redisClient, esClient, aiClient, outboxRepo)
 	if err != nil {
 		log.Fatalf("❌ Failed to create consumer: %v", err)
 	}

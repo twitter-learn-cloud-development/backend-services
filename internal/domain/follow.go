@@ -41,4 +41,7 @@ type FollowRepository interface {
 
 	// GetActiveFollowers 获取活跃粉丝（用于推送 Timeline）
 	GetActiveFollowers(ctx context.Context, userID uint64, limit int) ([]uint64, error)
+
+	// GetCelebrities 查询数据库中粉丝数 >= threshold 的大V ID 列表 (用于后台对账任务)
+	GetCelebrities(ctx context.Context, threshold int64) ([]uint64, error)
 }

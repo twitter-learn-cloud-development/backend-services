@@ -37,6 +37,8 @@ redis:
   architecture: standalone
   auth:
     enabled: false
+  networkPolicy:
+    enabled: false
 rabbitmq:
   enabled: true
   image:
@@ -52,6 +54,8 @@ consul:
   enabled: true
   global:
     name: consul
+  connectInject:
+    enabled: false
   server:
     replicas: 1
     bootstrapExpect: 1
@@ -63,9 +67,59 @@ consul:
     enabled: false
 prometheus:
   enabled: true
+  alertmanager:
+    enabled: true
+    config:
+      global:
+        resolve_timeout: 5m
+      route:
+        group_by: ['alertname']
+        group_wait: 10s
+        group_interval: 10s
+        repeat_interval: 1h
+        receiver: 'notification-webhook'
+      receivers:
+      - name: 'notification-webhook'
+        webhook_configs:
+        - url: 'http://twitter-clone-gateway.default.svc.cluster.local:9638/alerts'
+          send_resolved: true
+          http_config:
+            http_headers:
+              X-Alertmanager-Token:
+                values:
+                - "twitter-clone-secret-alert-token"
   server:
     global:
       scrape_interval: 15s
+  serverFiles:
+    alerting_rules.yml:
+      groups:
+        - name: twitter-clone-alerts
+          rules:
+            - alert: TwitterQPSDrop
+              expr: sum(rate(http_requests_total[2m])) < 2
+              for: 1m
+              labels:
+                severity: critical
+              annotations:
+                summary: "Twitter QPS Drop"
+                description: "Total QPS has dropped below 2 req/sec for more than 1m (current value: {{ $value }})."
+            - alert: TwitterHighLatency
+              expr: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 1.0
+              for: 1m
+              labels:
+                severity: warning
+              annotations:
+                summary: "Twitter High Latency"
+                description: "HTTP P99 request latency is above 1 second for more than 1m (current value: {{ $value }}s)."
+            - alert: TwitterHighErrorRate
+              expr: sum(rate(http_requests_total{status=~"5.."}[2m])) / sum(rate(http_requests_total[2m])) * 100 > 5
+              for: 1m
+              labels:
+                severity: critical
+              annotations:
+                summary: "Twitter High Error Rate"
+                description: "HTTP 5xx error rate has exceeded 5% for more than 1m (current value: {{ $value }}%)."
 jaeger:
   enabled: true
   provisionDataStore:
@@ -107,6 +161,7 @@ services:
       pullPolicy: IfNotPresent
     replicaCount: 1
     containerPort: 9091
+    metricsPort: 2111
     env:
       JAEGER_COLLECTOR_ENDPOINT: "http://jaeger-query-clusterip.default:14268/api/traces"
     resources:
@@ -124,6 +179,7 @@ services:
       pullPolicy: IfNotPresent
     replicaCount: 1
     containerPort: 9092
+    metricsPort: 2112
     env:
       JAEGER_COLLECTOR_ENDPOINT: "http://jaeger-query-clusterip.default:14268/api/traces"
     resources: {}
@@ -135,12 +191,13 @@ services:
       pullPolicy: IfNotPresent
     replicaCount: 1
     containerPort: 9093
+    metricsPort: 2113
     resources: {}
   gateway:
     name: gateway
     image:
       repository: daguozhai/gateway
-      tag: "8f00b76f25a34764056587f734a2e252559e6939"
+      tag: "v1.0.1-alerts"
       pullPolicy: IfNotPresent
     replicaCount: 1
     service:
@@ -160,15 +217,30 @@ services:
     name: consumer
     image:
       repository: daguozhai/consumer
-      tag: 8f00b76f25a34764056587f734a2e252559e6939
+      tag: "v1.0.1-batching"
       pullPolicy: IfNotPresent
     replicaCount: 1
     resources: {}
   notificationService:
     name: notification-service
     image:
-      repository: daguozhai/notification-service
+      repository: twitter-clone-notification-service
       tag: "latest"
       pullPolicy: IfNotPresent
     replicaCount: 1
     resources: {}
+
+# KEDA configuration
+keda:
+  enabled: false
+  pollingInterval: 15
+  cooldownPeriod: 300
+  minReplicaCount: 0
+  maxReplicaCount: 5
+  queueLength: 100
+
+# Istio configuration
+istio:
+  enabled: true
+
+

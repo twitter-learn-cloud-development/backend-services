@@ -35,20 +35,35 @@ service TweetService {
 
   // GetTweetComments 获取推文评论
   rpc GetTweetComments(GetTweetCommentsRequest) returns (GetTweetCommentsResponse);
-	// SearchTweets 搜索推文
-	rpc SearchTweets(SearchTweetsRequest) returns (SearchTweetsResponse);
 
-	// GetTrendingTopics 获取热门话题
-	rpc GetTrendingTopics(GetTrendingTopicsRequest) returns (GetTrendingTopicsResponse);
+  // SearchTweets 搜索推文
+  rpc SearchTweets(SearchTweetsRequest) returns (SearchTweetsResponse);
 
-	// ListTweets 获取推文列表（全站）
-	rpc ListTweets(ListTweetsRequest) returns (ListTweetsResponse);
+  // GetTrendingTopics 获取热门话题
+  rpc GetTrendingTopics(GetTrendingTopicsRequest) returns (GetTrendingTopicsResponse);
 
-	// GetTweetReplies 获取推文回复列表 (Thread)
-	rpc GetTweetReplies(GetTweetRepliesRequest) returns (GetTweetRepliesResponse);
+  // ListTweets 获取推文列表（全站）
+  rpc ListTweets(ListTweetsRequest) returns (ListTweetsResponse);
 
-	// VotePoll 投票
-	rpc VotePoll(VotePollRequest) returns (VotePollResponse);
+  // GetTweetReplies 获取推文回复列表 (Thread)
+  rpc GetTweetReplies(GetTweetRepliesRequest) returns (GetTweetRepliesResponse);
+
+  // VotePoll 投票
+  rpc VotePoll(VotePollRequest) returns (VotePollResponse);
+
+  // Bookmark 接口
+  rpc BookmarkTweet(BookmarkTweetRequest) returns (BookmarkTweetResponse);
+  rpc UnbookmarkTweet(UnbookmarkTweetRequest) returns (UnbookmarkTweetResponse);
+  rpc GetUserBookmarks(GetUserBookmarksRequest) returns (GetUserBookmarksResponse);
+
+  // Retweet 接口
+  rpc RetweetTweet(RetweetTweetRequest) returns (RetweetTweetResponse);
+  rpc UnretweetTweet(UnretweetTweetRequest) returns (UnretweetTweetResponse);
+
+  // 画像 Tabs 接口
+  rpc GetUserLikes(GetUserLikesRequest) returns (GetUserLikesResponse);
+  rpc GetUserReplies(GetUserRepliesRequest) returns (GetUserRepliesResponse);
+  rpc GetUserMedia(GetUserMediaRequest) returns (GetUserMediaResponse);
 }
 
 // ==================== 消息定义 ====================
@@ -73,6 +88,13 @@ message Tweet {
 
 	// 投票信息
 	Poll poll = 14;
+
+	// 新增交互状态字段
+	bool is_bookmarked = 15;
+	bool is_retweeted = 16;
+	bool is_retweeted_display = 17;
+	int64 retweeted_at = 18;
+	uint64 sort_id = 19;
 }
 
 // Poll 投票
@@ -177,6 +199,7 @@ message GetFeedsRequest {
 	uint64 user_id = 1;
 	uint64 cursor = 2;
 	int32 limit = 3;
+	uint64 requesting_user_id = 4; // 当前请求用户 ID
 }
 
 message GetFeedsResponse {
@@ -251,6 +274,7 @@ message SearchTweetsRequest {
 	string query = 1;
 	uint64 cursor = 2;
 	int32 limit = 3;
+	uint64 requesting_user_id = 4; // 当前请求用户 ID
 }
 
 message SearchTweetsResponse {
@@ -274,6 +298,7 @@ message GetTrendingTopicsResponse {
 message ListTweetsRequest {
 	uint64 cursor = 1;
 	int32 limit = 2;
+	uint64 requesting_user_id = 3; // 当前请求用户 ID
 }
 
 message ListTweetsResponse {
@@ -288,6 +313,7 @@ message GetTweetRepliesRequest {
 	uint64 tweet_id = 1;
 	uint64 cursor = 2;
 	int32 limit = 3;
+	uint64 requesting_user_id = 4; // 当前请求用户 ID
 }
 
 message GetTweetRepliesResponse {
@@ -307,4 +333,99 @@ message VotePollRequest {
 message VotePollResponse {
 	Poll poll = 1; // 返回最新的投票状态
 }
+
+// ==================== Bookmark ====================
+
+message BookmarkTweetRequest {
+	uint64 user_id = 1;
+	uint64 tweet_id = 2;
+}
+
+message BookmarkTweetResponse {
+	string message = 1;
+}
+
+message UnbookmarkTweetRequest {
+	uint64 user_id = 1;
+	uint64 tweet_id = 2;
+}
+
+message UnbookmarkTweetResponse {
+	string message = 1;
+}
+
+message GetUserBookmarksRequest {
+	uint64 user_id = 1;
+	uint64 cursor = 2;
+	int32 limit = 3;
+}
+
+message GetUserBookmarksResponse {
+	repeated Tweet tweets = 1;
+	uint64 next_cursor = 2;
+	bool has_more = 3;
+}
+
+// ==================== Retweet ====================
+
+message RetweetTweetRequest {
+	uint64 user_id = 1;
+	uint64 tweet_id = 2;
+}
+
+message RetweetTweetResponse {
+	int64 retweet_count = 1;
+}
+
+message UnretweetTweetRequest {
+	uint64 user_id = 1;
+	uint64 tweet_id = 2;
+}
+
+message UnretweetTweetResponse {
+	int64 retweet_count = 1;
+}
+
+// ==================== Tabs ====================
+
+message GetUserLikesRequest {
+	uint64 user_id = 1;
+	uint64 cursor = 2;
+	int32 limit = 3;
+	uint64 requesting_user_id = 4;
+}
+
+message GetUserLikesResponse {
+	repeated Tweet tweets = 1;
+	uint64 next_cursor = 2;
+	bool has_more = 3;
+}
+
+message GetUserRepliesRequest {
+	uint64 user_id = 1;
+	uint64 cursor = 2;
+	int32 limit = 3;
+	uint64 requesting_user_id = 4;
+}
+
+message GetUserRepliesResponse {
+	// 用特殊的回复结构或者直接用 Tweet
+	repeated Tweet replies = 1; 
+	uint64 next_cursor = 2;
+	bool has_more = 3;
+}
+
+message GetUserMediaRequest {
+	uint64 user_id = 1;
+	uint64 cursor = 2;
+	int32 limit = 3;
+	uint64 requesting_user_id = 4;
+}
+
+message GetUserMediaResponse {
+	repeated Tweet tweets = 1;
+	uint64 next_cursor = 2;
+	bool has_more = 3;
+}
+
 

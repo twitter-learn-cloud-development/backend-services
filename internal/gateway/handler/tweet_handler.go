@@ -8,13 +8,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
-
 	tweetv1 "twitter-clone/api/tweet/v1"
 	userv1 "twitter-clone/api/user/v1"
-	"twitter-clone/internal/domain"
 	"twitter-clone/internal/gateway/middleware"
-	"twitter-clone/pkg/pkg/snowflake"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -24,15 +20,13 @@ import (
 type TweetHandler struct {
 	tweetClient tweetv1.TweetServiceClient
 	userClient  userv1.UserServiceClient
-	db          *gorm.DB
 }
 
 // NewTweetHandler 创建推文处理器
-func NewTweetHandler(tweetClient tweetv1.TweetServiceClient, userClient userv1.UserServiceClient, db *gorm.DB) *TweetHandler {
+func NewTweetHandler(tweetClient tweetv1.TweetServiceClient, userClient userv1.UserServiceClient) *TweetHandler {
 	return &TweetHandler{
 		tweetClient: tweetClient,
 		userClient:  userClient,
-		db:          db,
 	}
 }
 
@@ -63,7 +57,7 @@ func (h *TweetHandler) CreateTweet(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	var parentID uint64
@@ -120,7 +114,7 @@ func (h *TweetHandler) GetTweet(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	// 获取当前登录用户 ID (可选)
@@ -171,7 +165,7 @@ func (h *TweetHandler) DeleteTweet(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	_, err = h.tweetClient.DeleteTweet(ctx, &tweetv1.DeleteTweetRequest{
@@ -186,9 +180,7 @@ func (h *TweetHandler) DeleteTweet(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "tweet deleted successfully",
-	})
+	c.JSON(http.StatusOK, gin.H{"message": "tweet deleted successfully"})
 }
 
 // GetUserTimeline 获取用户时间线
@@ -208,7 +200,7 @@ func (h *TweetHandler) GetUserTimeline(c *gin.Context) {
 	limitStr := c.DefaultQuery("limit", "20")
 	limit, _ := strconv.ParseInt(limitStr, 10, 32)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	// 获取当前登录用户 ID (可选)
@@ -217,7 +209,6 @@ func (h *TweetHandler) GetUserTimeline(c *gin.Context) {
 		requestingUserID = uid
 	}
 
-	// 1. 获取用户发布的推文 (来自 tweet-service)
 	resp, err := h.tweetClient.GetUserTimeline(ctx, &tweetv1.GetUserTimelineRequest{
 		UserId:           userID,
 		Cursor:           cursor,
@@ -232,165 +223,11 @@ func (h *TweetHandler) GetUserTimeline(c *gin.Context) {
 		return
 	}
 
-	var tweets []gin.H
-
-	// 2. 获取用户转发的推文 (来自 retweets 表)
-	// 注意：分页比较复杂，这里采用简单策略：分别获取，然后内存合并。
-	// 对于 MVP，如果 cursor 是时间戳(snowflake)，我们可以分别查询
-	// tweet-service 的 cursor 是 tweet ID。
-	// retweets 表的主键也是 snowflake ID。
-
-	// 如果 h.db 存在 (Gateway 直连 DB 模式)
-	if h.db != nil {
-		var retweets []domain.Retweet
-		rtQuery := h.db.Where("user_id = ?", userID)
-		if cursor > 0 {
-			rtQuery = rtQuery.Where("id < ?", cursor)
-		}
-		rtQuery.Order("id DESC").Limit(int(limit)).Find(&retweets)
-
-		// 收集原推文 ID
-		rtTweetIDs := make([]uint64, 0, len(retweets))
-		for _, rt := range retweets {
-			rtTweetIDs = append(rtTweetIDs, rt.TweetID)
-		}
-
-		// 批量获取原推文详情
-		// 可以调用 tweetClient.GetTweets(ids) 如果有这个接口，或者直接查 DB (如果直连)
-		// 这里假设直连 DB 查询 tweets 表
-		// 也可以循环调用 GetTweet (性能差)
-		// 我们假设 gateway 可以查 tweets 表
-		var rtOriginalTweets []domain.Tweet
-		if len(rtTweetIDs) > 0 {
-			h.db.Model(&domain.Tweet{}).Where("id IN ?", rtTweetIDs).Find(&rtOriginalTweets)
-		}
-		rtObMap := make(map[uint64]*domain.Tweet)
-		for i := range rtOriginalTweets {
-			rtObMap[rtOriginalTweets[i].ID] = &rtOriginalTweets[i]
-		}
-
-		// 转换 tweet-service 返回的 tweets 为 map 或 list
-		// tweet-service 返回的是 []*tweetv1.Tweet
-
-		// 合并策略：
-		// 将 retweets 转换为 tweetv1.Tweet 结构 (带有 is_retweeted=true, retweeted_at=?)
-		// 然后和 resp.Tweets 合并，按 ID (时间) 排序
-
-		// 为了简单，我们直接构造最终的 gin.H 列表
-
-		// A. 处理原生推文 (resp.Tweets)
-		// 先 enrich
-		enrichedTweets := h.enrichTweetsWithUserInfo(ctx, resp.Tweets, requestingUserID)
-
-		// B. 处理转发推文
-		var enrichedRetweets []gin.H
-
-		// 构造 Retweet 对应的 Tweet 对象
-		// 注意：我们需要用户信息（原推文作者）
-		// enrichTweetsWithUserInfo 需要 []*tweetv1.Tweet
-		var tweetsToEnrich []*tweetv1.Tweet
-		for _, rt := range retweets {
-			if original, ok := rtObMap[rt.TweetID]; ok {
-				// 转换为 RPC 对象
-				t := &tweetv1.Tweet{
-					Id:          original.ID,
-					UserId:      original.UserID,
-					Content:     original.Content,
-					MediaUrls:   []string(original.MediaURLs),
-					Type:        int32(original.Type),
-					VisibleType: int32(original.VisibleType),
-					CreatedAt:   original.CreatedAt,
-					UpdatedAt:   original.UpdatedAt,
-					// 计数可能不准，需要实时查? enrichTweetsWithUserInfo 会查
-				}
-				tweetsToEnrich = append(tweetsToEnrich, t)
-			}
-		}
-
-		if len(tweetsToEnrich) > 0 {
-			enrichedRetweets = h.enrichTweetsWithUserInfo(ctx, tweetsToEnrich, requestingUserID)
-			// 标记为转发
-			// 注意 enrichedRetweets 的顺序和 retweets 可能不一致 (因为 enrich 内部逻辑)
-			// 但 tweetsToEnrich 是按 retweets 顺序加的
-			// enrichTweetsWithUserInfo 返回顺序也是对应的吗？
-			// h.enrichTweetsWithUserInfo 内部是遍历输入的 tweets，所以顺序一致。
-
-			for i, rt := range retweets {
-				// 找到对应的 enrichedTweet
-				// tweetsToEnrich[i] 对应 retweets[i]
-				// enrichedRetweets[i] 对应 tweetsToEnrich[i]
-				if i < len(enrichedRetweets) {
-					// 覆盖 created_at 为转发时间 (用于排序显示) ??
-					// 不，通常显示 "Retweeted at xx"，内容还是原推文时间
-					// 但 Timeline 排序要用 转发时间 (rt.ID / rt.CreatedAt)
-
-					// 我们的 Timeline item 结构:
-					item := enrichedRetweets[i]
-					item["is_retweeted_display"] = true // 标记这是一条转发记录用于前端显示 "You Retweeted"
-					item["retweeted_at"] = rt.CreatedAt
-					item["sort_id"] = strconv.FormatUint(rt.ID, 10) // 排序用 ID (转发记录的 ID)
-
-					// 还需要把 ID 改成 Retweet ID 吗？
-					// 这里的 ID 是原推文 ID。
-					// 前端 key 需要唯一。如果同一个推文被转发和原发 (不可能同时，除非不同时间)
-					// 如果列表中既有 原推文 又有 转发推文 (比如我转发了自己?), ID 重复会报错。
-					// 这种情况下，可以使用 sort_id 作为 key。
-
-				}
-			}
-		}
-
-		// C. 合并
-		// 原生推文的 sort_id 就是其 ID
-		for _, t := range enrichedTweets {
-			t["sort_id"] = t["id"]
-			t["is_retweeted_display"] = false
-		}
-
-		// Merge enrichedTweets and enrichedRetweets
-		// Sort by sort_id desc
-		// Limit to limit
-
-		allItems := append(enrichedTweets, enrichedRetweets...)
-
-		// 排序
-		// 简单冒泡或 sort
-		// 数量少 (2 * limit)，直接排
-		// 需要定义排序函数
-
-		// 简单起见，我们假设 limit 是总数。
-		// 手动排序
-		for i := 0; i < len(allItems); i++ {
-			for j := i + 1; j < len(allItems); j++ {
-				id1, _ := strconv.ParseUint(allItems[i]["sort_id"].(string), 10, 64)
-				id2, _ := strconv.ParseUint(allItems[j]["sort_id"].(string), 10, 64)
-				if id1 < id2 {
-					allItems[i], allItems[j] = allItems[j], allItems[i]
-				}
-			}
-		}
-
-		if len(allItems) > int(limit) {
-			allItems = allItems[:limit]
-		}
-		tweets = allItems
-
-		// 更新 next_cursor
-		if len(tweets) > 0 {
-			lastItem := tweets[len(tweets)-1]
-			nextCursorStr := lastItem["sort_id"].(string)
-			resp.NextCursor, _ = strconv.ParseUint(nextCursorStr, 10, 64)
-		}
-		resp.HasMore = len(tweets) >= int(limit) // 粗略判断
-
-	} else {
-		// Fallback to original
-		tweets = h.enrichTweetsWithUserInfo(ctx, resp.Tweets, requestingUserID)
-	}
+	tweets := h.enrichTweetsWithUserInfo(ctx, resp.Tweets, requestingUserID)
 
 	c.JSON(http.StatusOK, gin.H{
 		"tweets":      tweets,
-		"next_cursor": resp.NextCursor,
+		"next_cursor": strconv.FormatUint(resp.NextCursor, 10),
 		"has_more":    resp.HasMore,
 	})
 }
@@ -411,7 +248,7 @@ func (h *TweetHandler) GetFeeds(c *gin.Context) {
 	limitStr := c.DefaultQuery("limit", "20")
 	limit, _ := strconv.ParseInt(limitStr, 10, 32)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	resp, err := h.tweetClient.GetFeeds(ctx, &tweetv1.GetFeedsRequest{
@@ -451,7 +288,7 @@ func (h *TweetHandler) LikeTweet(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	resp, err := h.tweetClient.LikeTweet(ctx, &tweetv1.LikeTweetRequest{
@@ -485,7 +322,7 @@ func (h *TweetHandler) UnlikeTweet(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	resp, err := h.tweetClient.UnlikeTweet(ctx, &tweetv1.UnlikeTweetRequest{
@@ -527,7 +364,7 @@ func (h *TweetHandler) VotePoll(c *gin.Context) {
 	pollID, _ := strconv.ParseUint(req.PollID, 10, 64)
 	optionID, _ := strconv.ParseUint(req.OptionID, 10, 64)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	resp, err := h.tweetClient.VotePoll(ctx, &tweetv1.VotePollRequest{
@@ -581,7 +418,7 @@ func (h *TweetHandler) CreateComment(c *gin.Context) {
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	resp, err := h.tweetClient.CreateComment(ctx, &tweetv1.CreateCommentRequest{
@@ -626,7 +463,7 @@ func (h *TweetHandler) DeleteComment(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	_, err = h.tweetClient.DeleteComment(ctx, &tweetv1.DeleteCommentRequest{
@@ -657,7 +494,7 @@ func (h *TweetHandler) GetTweetComments(c *gin.Context) {
 	limitStr := c.DefaultQuery("limit", "20")
 	limit, _ := strconv.ParseInt(limitStr, 10, 32)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	resp, err := h.tweetClient.GetTweetComments(ctx, &tweetv1.GetTweetCommentsRequest{
@@ -728,7 +565,7 @@ func (h *TweetHandler) GetTweetReplies(c *gin.Context) {
 		requestingUserID = uid
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	resp, err := h.tweetClient.GetTweetReplies(ctx, &tweetv1.GetTweetRepliesRequest{
@@ -772,7 +609,7 @@ func (h *TweetHandler) SearchTweets(c *gin.Context) {
 		requestingUserID = uid
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	resp, err := h.tweetClient.SearchTweets(ctx, &tweetv1.SearchTweetsRequest{
@@ -800,7 +637,7 @@ func (h *TweetHandler) GetTrendingTopics(c *gin.Context) {
 	limitStr := c.DefaultQuery("limit", "10")
 	limit, _ := strconv.ParseInt(limitStr, 10, 32)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	resp, err := h.tweetClient.GetTrendingTopics(ctx, &tweetv1.GetTrendingTopicsRequest{
@@ -855,8 +692,8 @@ func formatTweet(tweet *tweetv1.Tweet) gin.H {
 		"share_count":   tweet.ShareCount,
 		"retweet_count": tweet.ShareCount,
 		"is_liked":      tweet.IsLiked,
-		"is_retweeted":  false,
-		"is_bookmarked": false,
+		"is_retweeted":  tweet.IsRetweeted,
+		"is_bookmarked": tweet.IsBookmarked,
 		"created_at":    tweet.CreatedAt,
 		"updated_at":    tweet.UpdatedAt,
 		"poll":          formatPoll(tweet.Poll),
@@ -898,14 +735,12 @@ func formatTweetWithUser(tweet *tweetv1.Tweet, userInfo gin.H) gin.H {
 	return result
 }
 
-// enrichTweetsWithUserInfo 批量查询用户信息并注入到 tweets 中，同时注入 is_liked 和 is_bookmarked 状态
+// enrichTweetsWithUserInfo 批量查询用户信息并注入到 tweets 中
 func (h *TweetHandler) enrichTweetsWithUserInfo(ctx context.Context, tweets []*tweetv1.Tweet, requestingUserID uint64) []gin.H {
-	// 1. 收集所有 unique userIDs 和 tweetIDs
+	// 1. 收集所有 unique userIDs
 	userIDSet := make(map[uint64]bool)
-	tweetIDs := make([]uint64, 0, len(tweets))
 	for _, t := range tweets {
 		userIDSet[t.UserId] = true
-		tweetIDs = append(tweetIDs, t.Id)
 	}
 
 	// 2. 查询每个用户信息
@@ -920,92 +755,31 @@ func (h *TweetHandler) enrichTweetsWithUserInfo(ctx context.Context, tweets []*t
 		userInfoMap[uid] = formatUser(resp.User)
 	}
 
-	// 3. 批量查询 is_liked / is_bookmarked / is_retweeted 状态 + retweet_count
-	likedSet := make(map[uint64]bool)
-	bookmarkedSet := make(map[uint64]bool)
-	retweetedSet := make(map[uint64]bool)
-	retweetCountMap := make(map[uint64]int64)
-	votedOptionMap := make(map[uint64]uint64)
-
-	if h.db != nil && len(tweetIDs) > 0 {
-		// 查询 retweet_count（对所有用户都展示）
-		type RetweetCountResult struct {
-			TweetID uint64 `gorm:"column:tweet_id"`
-			Count   int64  `gorm:"column:count"`
-		}
-		var retweetCounts []RetweetCountResult
-		h.db.Model(&domain.Retweet{}).Select("tweet_id, COUNT(*) as count").
-			Where("tweet_id IN ?", tweetIDs).Group("tweet_id").Find(&retweetCounts)
-		for _, rc := range retweetCounts {
-			retweetCountMap[rc.TweetID] = rc.Count
-		}
-
-		if requestingUserID > 0 {
-			// 查询 likes 表
-			var likedIDs []uint64
-			h.db.Model(&domain.Like{}).Where("user_id = ? AND tweet_id IN ?", requestingUserID, tweetIDs).Pluck("tweet_id", &likedIDs)
-			for _, id := range likedIDs {
-				likedSet[id] = true
-			}
-			// 查询 bookmarks 表
-			var bookmarkedIDs []uint64
-			h.db.Model(&domain.Bookmark{}).Where("user_id = ? AND tweet_id IN ?", requestingUserID, tweetIDs).Pluck("tweet_id", &bookmarkedIDs)
-			for _, id := range bookmarkedIDs {
-				bookmarkedSet[id] = true
-			}
-			// 查询 retweets 表
-			var retweetedIDs []uint64
-			h.db.Model(&domain.Retweet{}).Where("user_id = ? AND tweet_id IN ?", requestingUserID, tweetIDs).Pluck("tweet_id", &retweetedIDs)
-			for _, id := range retweetedIDs {
-				retweetedSet[id] = true
-			}
-
-			// 查询 poll votes 表
-			var pollIDs []uint64
-			pollToTweetMap := make(map[uint64]uint64)
-			for _, t := range tweets {
-				if t.Poll != nil && t.Poll.Id > 0 {
-					pollIDs = append(pollIDs, t.Poll.Id)
-					pollToTweetMap[t.Poll.Id] = t.Id
-				}
-			}
-
-			if len(pollIDs) > 0 {
-				type PollVoteResult struct {
-					PollID   uint64 `gorm:"column:poll_id"`
-					OptionID uint64 `gorm:"column:option_id"`
-				}
-				var votes []PollVoteResult
-				h.db.Model(&domain.PollVote{}).Select("poll_id, option_id").Where("user_id = ? AND poll_id IN ?", requestingUserID, pollIDs).Find(&votes)
-
-				for _, v := range votes {
-					if tid, ok := pollToTweetMap[v.PollID]; ok {
-						votedOptionMap[tid] = v.OptionID
-					}
-				}
-			}
-		}
-	}
-
-	// 4. 组装结果
+	// 3. 组装结果
 	result := make([]gin.H, 0, len(tweets))
 	for _, t := range tweets {
 		tweetData := formatTweetWithUser(t, userInfoMap[t.UserId])
-		// 注入交互状态 (覆盖 proto 中可能不准确的值)
-		tweetData["is_liked"] = likedSet[t.Id]
-		tweetData["is_bookmarked"] = bookmarkedSet[t.Id]
-		tweetData["is_retweeted"] = retweetedSet[t.Id]
-		if rc, ok := retweetCountMap[t.Id]; ok {
-			tweetData["retweet_count"] = rc
+		
+		// 注入交互状态
+		tweetData["is_liked"] = t.IsLiked
+		tweetData["is_bookmarked"] = t.IsBookmarked
+		tweetData["is_retweeted"] = t.IsRetweeted
+		tweetData["retweet_count"] = int64(t.ShareCount)
+
+		// 注入转发排序与显示所需的字段
+		tweetData["is_retweeted_display"] = t.IsRetweetedDisplay
+		tweetData["retweeted_at"] = t.RetweetedAt
+		if t.SortId > 0 {
+			tweetData["sort_id"] = strconv.FormatUint(t.SortId, 10)
 		} else {
-			tweetData["retweet_count"] = 0
+			tweetData["sort_id"] = strconv.FormatUint(t.Id, 10)
 		}
 
 		if t.Poll != nil && t.Poll.Id > 0 {
-			if optID, ok := votedOptionMap[t.Id]; ok {
+			if t.Poll.IsVoted {
 				if pollData, ok := tweetData["poll"].(gin.H); ok && pollData != nil {
 					pollData["is_voted"] = true
-					pollData["voted_option_id"] = strconv.FormatUint(optID, 10)
+					pollData["voted_option_id"] = strconv.FormatUint(t.Poll.VotedOptionId, 10)
 					tweetData["poll"] = pollData
 				}
 			}
@@ -1031,26 +805,20 @@ func (h *TweetHandler) RetweetTweet(c *gin.Context) {
 		return
 	}
 
-	// 幂等创建
-	retweet := &domain.Retweet{
-		ID:        snowflake.GenerateID(),
-		UserID:    userID,
-		TweetID:   tweetID,
-		CreatedAt: time.Now().UnixMilli(),
-	}
-	result := h.db.Where("user_id = ? AND tweet_id = ?", userID, tweetID).FirstOrCreate(retweet)
-	if result.Error != nil {
-		log.Printf("[RetweetTweet] Failed to FirstOrCreate retweet: %v", result.Error)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retweet"})
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := h.tweetClient.RetweetTweet(ctx, &tweetv1.RetweetTweetRequest{
+		UserId:  userID,
+		TweetId: tweetID,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// 查询最新转发数
-	var count int64
-	h.db.Model(&domain.Retweet{}).Where("tweet_id = ?", tweetID).Count(&count)
-
 	c.JSON(http.StatusOK, gin.H{
-		"retweet_count": count,
+		"retweet_count": resp.RetweetCount,
 		"is_retweeted":  true,
 	})
 }
@@ -1070,14 +838,20 @@ func (h *TweetHandler) UnretweetTweet(c *gin.Context) {
 		return
 	}
 
-	h.db.Where("user_id = ? AND tweet_id = ?", userID, tweetID).Delete(&domain.Retweet{})
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	defer cancel()
 
-	// 查询最新转发数
-	var count int64
-	h.db.Model(&domain.Retweet{}).Where("tweet_id = ?", tweetID).Count(&count)
+	resp, err := h.tweetClient.UnretweetTweet(ctx, &tweetv1.UnretweetTweetRequest{
+		UserId:  userID,
+		TweetId: tweetID,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"retweet_count": count,
+		"retweet_count": resp.RetweetCount,
 		"is_retweeted":  false,
 	})
 }
@@ -1096,7 +870,7 @@ func (h *TweetHandler) ListTweets(c *gin.Context) {
 		requestingUserID = uid
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	resp, err := h.tweetClient.ListTweets(ctx, &tweetv1.ListTweetsRequest{
@@ -1137,68 +911,31 @@ func (h *TweetHandler) GetUserLikes(c *gin.Context) {
 		limit = 20
 	}
 
-	// 获取当前用户ID用于判断点赞/书签状态
 	var requestingUserID uint64
 	if uid, exists := middleware.GetUserID(c); exists {
 		requestingUserID = uid
 	}
 
-	// 1. 从 likes 表查询该用户点赞的 tweet_ids（游标分页）
-	var likes []domain.Like
-	query := h.db.Where("user_id = ?", userID)
-	if cursor > 0 {
-		query = query.Where("id < ?", cursor)
-	}
-	query.Order("id DESC").Limit(int(limit) + 1).Find(&likes)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	defer cancel()
 
-	hasMore := len(likes) > int(limit)
-	if hasMore {
-		likes = likes[:limit]
-	}
-
-	var nextCursor uint64
-	if len(likes) > 0 {
-		nextCursor = likes[len(likes)-1].ID
-	}
-
-	// 2. 批量获取推文
-	tweetIDs := make([]uint64, 0, len(likes))
-	for _, l := range likes {
-		tweetIDs = append(tweetIDs, l.TweetID)
-	}
-
-	if len(tweetIDs) == 0 {
-		c.JSON(http.StatusOK, gin.H{
-			"tweets":      []gin.H{},
-			"next_cursor": "0",
-			"has_more":    false,
-		})
+	resp, err := h.tweetClient.GetUserLikes(ctx, &tweetv1.GetUserLikesRequest{
+		UserId:           userID,
+		Cursor:           cursor,
+		Limit:            int32(limit),
+		RequestingUserId: requestingUserID,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	// 批量获取推文
-	var tweets []*tweetv1.Tweet
-	for _, tid := range tweetIDs {
-		tResp, err := h.tweetClient.GetTweet(ctx, &tweetv1.GetTweetRequest{
-			TweetId:          tid,
-			RequestingUserId: requestingUserID,
-		})
-		if err != nil {
-			log.Printf("Failed to get tweet %d: %v", tid, err)
-			continue
-		}
-		tweets = append(tweets, tResp.Tweet)
-	}
-
-	enriched := h.enrichTweetsWithUserInfo(ctx, tweets, requestingUserID)
+	enriched := h.enrichTweetsWithUserInfo(ctx, resp.Tweets, requestingUserID)
 
 	c.JSON(http.StatusOK, gin.H{
 		"tweets":      enriched,
-		"next_cursor": strconv.FormatUint(nextCursor, 10),
-		"has_more":    hasMore,
+		"next_cursor": strconv.FormatUint(resp.NextCursor, 10),
+		"has_more":    resp.HasMore,
 	})
 }
 
@@ -1219,108 +956,31 @@ func (h *TweetHandler) GetUserReplies(c *gin.Context) {
 		limit = 20
 	}
 
-	// 获取当前用户ID
 	var requestingUserID uint64
 	if uid, exists := middleware.GetUserID(c); exists {
 		requestingUserID = uid
 	}
 
-	// 1. 从 comments 表查询该用户的评论
-	var comments []domain.Comment
-	query := h.db.Where("user_id = ? AND deleted_at = 0", userID)
-	if cursor > 0 {
-		query = query.Where("id < ?", cursor)
-	}
-	query.Order("id DESC").Limit(int(limit) + 1).Find(&comments)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	defer cancel()
 
-	hasMore := len(comments) > int(limit)
-	if hasMore {
-		comments = comments[:limit]
-	}
-
-	var nextCursor uint64
-	if len(comments) > 0 {
-		nextCursor = comments[len(comments)-1].ID
-	}
-
-	if len(comments) == 0 {
-		c.JSON(http.StatusOK, gin.H{
-			"replies":     []gin.H{},
-			"next_cursor": "0",
-			"has_more":    false,
-		})
+	resp, err := h.tweetClient.GetUserReplies(ctx, &tweetv1.GetUserRepliesRequest{
+		UserId:           userID,
+		Cursor:           cursor,
+		Limit:            int32(limit),
+		RequestingUserId: requestingUserID,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	// 2. 查询评论者 + 原推文信息
-	// 收集 unique user IDs 和 tweet IDs
-	userIDSet := make(map[uint64]bool)
-	tweetIDSet := make(map[uint64]bool)
-	for _, c := range comments {
-		userIDSet[c.UserID] = true
-		tweetIDSet[c.TweetID] = true
-	}
-
-	// 批量查询用户
-	userInfoMap := make(map[uint64]gin.H)
-	for uid := range userIDSet {
-		resp, err := h.userClient.GetProfile(ctx, &userv1.GetProfileRequest{UserId: uid})
-		if err != nil {
-			userInfoMap[uid] = gin.H{"id": strconv.FormatUint(uid, 10), "username": "unknown", "avatar": ""}
-			continue
-		}
-		userInfoMap[uid] = formatUser(resp.User)
-	}
-
-	// 批量查询原推文（仅获取简要信息）
-	tweetSnippetMap := make(map[uint64]gin.H)
-	for tid := range tweetIDSet {
-		tResp, err := h.tweetClient.GetTweet(ctx, &tweetv1.GetTweetRequest{
-			TweetId:          tid,
-			RequestingUserId: requestingUserID,
-		})
-		if err != nil {
-			continue
-		}
-		t := tResp.Tweet
-		// 查询原推文作者
-		var tweetUser gin.H
-		uResp, err := h.userClient.GetProfile(ctx, &userv1.GetProfileRequest{UserId: t.UserId})
-		if err == nil {
-			tweetUser = formatUser(uResp.User)
-		} else {
-			tweetUser = gin.H{"id": strconv.FormatUint(t.UserId, 10), "username": "unknown", "avatar": ""}
-		}
-
-		tweetSnippetMap[tid] = gin.H{
-			"id":      strconv.FormatUint(t.Id, 10),
-			"content": t.Content,
-			"user":    tweetUser,
-		}
-	}
-
-	// 3. 组装结果
-	replies := make([]gin.H, 0, len(comments))
-	for _, c := range comments {
-		reply := gin.H{
-			"id":         strconv.FormatUint(c.ID, 10),
-			"user_id":    strconv.FormatUint(c.UserID, 10),
-			"tweet_id":   strconv.FormatUint(c.TweetID, 10),
-			"content":    c.Content,
-			"created_at": c.CreatedAt,
-			"user":       userInfoMap[c.UserID],
-			"tweet":      tweetSnippetMap[c.TweetID],
-		}
-		replies = append(replies, reply)
-	}
+	enriched := h.enrichTweetsWithUserInfo(ctx, resp.Replies, requestingUserID)
 
 	c.JSON(http.StatusOK, gin.H{
-		"replies":     replies,
-		"next_cursor": strconv.FormatUint(nextCursor, 10),
-		"has_more":    hasMore,
+		"replies":     enriched,
+		"next_cursor": strconv.FormatUint(resp.NextCursor, 10),
+		"has_more":    resp.HasMore,
 	})
 }
 
@@ -1341,63 +1001,30 @@ func (h *TweetHandler) GetUserMedia(c *gin.Context) {
 		limit = 20
 	}
 
-	// 获取当前用户ID
 	var requestingUserID uint64
 	if uid, exists := middleware.GetUserID(c); exists {
 		requestingUserID = uid
 	}
 
-	// 1. 从 tweets 表查询含媒体的推文
-	var tweets []domain.Tweet
-	query := h.db.Where("user_id = ? AND deleted_at = 0 AND media_urls IS NOT NULL AND media_urls != '[]' AND media_urls != ''", userID)
-	if cursor > 0 {
-		query = query.Where("id < ?", cursor)
-	}
-	query.Order("id DESC").Limit(int(limit) + 1).Find(&tweets)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	defer cancel()
 
-	hasMore := len(tweets) > int(limit)
-	if hasMore {
-		tweets = tweets[:limit]
-	}
-
-	var nextCursor uint64
-	if len(tweets) > 0 {
-		nextCursor = tweets[len(tweets)-1].ID
-	}
-
-	if len(tweets) == 0 {
-		c.JSON(http.StatusOK, gin.H{
-			"tweets":      []gin.H{},
-			"next_cursor": "0",
-			"has_more":    false,
-		})
+	resp, err := h.tweetClient.GetUserMedia(ctx, &tweetv1.GetUserMediaRequest{
+		UserId:           userID,
+		Cursor:           cursor,
+		Limit:            int32(limit),
+		RequestingUserId: requestingUserID,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	// 2. 转换为 proto 格式并 enrich
-	protoTweets := make([]*tweetv1.Tweet, 0, len(tweets))
-	for _, t := range tweets {
-		mediaURLs := []string(t.MediaURLs)
-		protoTweets = append(protoTweets, &tweetv1.Tweet{
-			Id:          t.ID,
-			UserId:      t.UserID,
-			Content:     t.Content,
-			MediaUrls:   mediaURLs,
-			Type:        int32(t.Type),
-			VisibleType: int32(t.VisibleType),
-			CreatedAt:   t.CreatedAt,
-			UpdatedAt:   t.UpdatedAt,
-		})
-	}
-
-	enriched := h.enrichTweetsWithUserInfo(ctx, protoTweets, requestingUserID)
+	enriched := h.enrichTweetsWithUserInfo(ctx, resp.Tweets, requestingUserID)
 
 	c.JSON(http.StatusOK, gin.H{
 		"tweets":      enriched,
-		"next_cursor": strconv.FormatUint(nextCursor, 10),
-		"has_more":    hasMore,
+		"next_cursor": strconv.FormatUint(resp.NextCursor, 10),
+		"has_more":    resp.HasMore,
 	})
 }

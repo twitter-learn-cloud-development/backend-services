@@ -281,6 +281,9 @@ func (c *Client) SearchTweetsByVector(ctx context.Context, queryVector []float32
 	numCandidates := size * 10
 	resp, err := c.Search().
 		Index(TweetIndex).
+		Source_(&types.SourceFilter{
+			Includes: []string{"id", "content", "user_id", "created_at", "like_count"},
+		}).
 		Knn(types.KnnSearch{ // 使用 types.KnnSearch 的值类型
 			Field:         "content_vector", // 指定向量字段
 			QueryVector:   queryVector,      // 传入从 Jina 模型获取的用户提问向量
@@ -312,6 +315,9 @@ func (c *Client) HybridSearchTweets(ctx context.Context, keyword string, queryVe
 	numCandidates := size * 10
 	resp, err := c.Search().
 		Index(TweetIndex).
+		Source_(&types.SourceFilter{
+			Includes: []string{"id", "content", "user_id", "created_at", "like_count"},
+		}).
 		// 1. 向量语义检索部分
 		Knn(types.KnnSearch{
 			Field:         "content_vector",

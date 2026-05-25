@@ -20,7 +20,7 @@ func TestTweetHandler_CreateTweet(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockClient := new(MockTweetServiceClient)
 	mockUserClient := new(MockUserServiceClient)
-	handler := NewTweetHandler(mockClient, mockUserClient, nil)
+	handler := NewTweetHandler(mockClient, mockUserClient)
 
 	r := gin.New()
 
@@ -84,7 +84,7 @@ func TestTweetHandler_CreateTweet_Unauthorized(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockClient := new(MockTweetServiceClient)
 	mockUserClient := new(MockUserServiceClient)
-	handler := NewTweetHandler(mockClient, mockUserClient, nil)
+	handler := NewTweetHandler(mockClient, mockUserClient)
 
 	r := gin.New()
 	// No Auth Middleware

@@ -7,24 +7,22 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 
+	notificationv1 "twitter-clone/api/notification/v1"
 	userv1 "twitter-clone/api/user/v1"
-	"twitter-clone/internal/domain"
 	"twitter-clone/internal/gateway/middleware"
-	notificationRepo "twitter-clone/internal/module/notification/repository"
 )
 
 // NotificationHandler 通知处理器
 type NotificationHandler struct {
-	repo       domain.NotificationRepository
+	client     notificationv1.NotificationServiceClient
 	userClient userv1.UserServiceClient
 }
 
 // NewNotificationHandler 创建通知处理器
-func NewNotificationHandler(db *gorm.DB, userClient userv1.UserServiceClient) *NotificationHandler {
+func NewNotificationHandler(client notificationv1.NotificationServiceClient, userClient userv1.UserServiceClient) *NotificationHandler {
 	return &NotificationHandler{
-		repo:       notificationRepo.NewNotificationRepository(db),
+		client:     client,
 		userClient: userClient,
 	}
 }
@@ -44,10 +42,14 @@ func (h *NotificationHandler) GetNotifications(c *gin.Context) {
 		limit = 20
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
-	notifications, err := h.repo.List(ctx, userID, cursor, limit)
+	resp, err := h.client.ListNotifications(ctx, &notificationv1.ListNotificationsRequest{
+		UserId: userID,
+		Cursor: cursor,
+		Limit:  int32(limit),
+	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get notifications"})
 		return
@@ -55,46 +57,38 @@ func (h *NotificationHandler) GetNotifications(c *gin.Context) {
 
 	// 批量查询用户信息 (actor)
 	actorIDs := make(map[uint64]bool)
-	for _, n := range notifications {
-		actorIDs[n.ActorID] = true
+	for _, n := range resp.Notifications {
+		actorIDs[n.ActorId] = true
 	}
 
 	actorMap := make(map[uint64]gin.H)
 	for uid := range actorIDs {
-		resp, err := h.userClient.GetProfile(ctx, &userv1.GetProfileRequest{UserId: uid})
+		profileResp, err := h.userClient.GetProfile(ctx, &userv1.GetProfileRequest{UserId: uid})
 		if err != nil {
 			actorMap[uid] = gin.H{"id": strconv.FormatUint(uid, 10), "username": "unknown", "avatar": ""}
 			continue
 		}
-		actorMap[uid] = formatUser(resp.User)
+		actorMap[uid] = formatUser(profileResp.User)
 	}
 
 	// 格式化结果
-	result := make([]gin.H, 0, len(notifications))
-	for _, n := range notifications {
+	result := make([]gin.H, 0, len(resp.Notifications))
+	for _, n := range resp.Notifications {
 		result = append(result, gin.H{
-			"id":         strconv.FormatUint(n.ID, 10),
+			"id":         strconv.FormatUint(n.Id, 10),
 			"type":       n.Type,
-			"target_id":  strconv.FormatUint(n.TargetID, 10),
+			"target_id":  strconv.FormatUint(n.TargetId, 10),
 			"content":    n.Content,
 			"is_read":    n.IsRead,
 			"created_at": n.CreatedAt,
-			"actor":      actorMap[n.ActorID],
+			"actor":      actorMap[n.ActorId],
 		})
-	}
-
-	// 计算 next_cursor
-	var nextCursor string = "0"
-	hasMore := false
-	if len(notifications) >= limit {
-		nextCursor = strconv.FormatUint(notifications[len(notifications)-1].ID, 10)
-		hasMore = true
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"notifications": result,
-		"next_cursor":   nextCursor,
-		"has_more":      hasMore,
+		"next_cursor":   strconv.FormatUint(resp.NextCursor, 10),
+		"has_more":      resp.HasMore,
 	})
 }
 
@@ -106,7 +100,6 @@ func (h *NotificationHandler) MarkAsRead(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-	_ = userID // 可以加验证通知归属
 
 	var req struct {
 		IDs []uint64 `json:"ids"`
@@ -116,10 +109,14 @@ func (h *NotificationHandler) MarkAsRead(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
-	if err := h.repo.MarkAsRead(ctx, req.IDs); err != nil {
+	_, err := h.client.MarkAsRead(ctx, &notificationv1.MarkAsReadRequest{
+		UserId: userID,
+		Ids:    req.IDs,
+	})
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to mark as read"})
 		return
 	}
@@ -136,16 +133,18 @@ func (h *NotificationHandler) GetUnreadCount(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
-	count, err := h.repo.UnreadCount(ctx, userID)
+	resp, err := h.client.GetUnreadCount(ctx, &notificationv1.GetUnreadCountRequest{
+		UserId: userID,
+	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get unread count"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"count": count})
+	c.JSON(http.StatusOK, gin.H{"count": resp.Count})
 }
 
 // MarkAllAsRead 标记所有通知为已读
@@ -157,10 +156,13 @@ func (h *NotificationHandler) MarkAllAsRead(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
-	if err := h.repo.MarkAllAsRead(ctx, userID); err != nil {
+	_, err := h.client.MarkAllAsRead(ctx, &notificationv1.MarkAllAsReadRequest{
+		UserId: userID,
+	})
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to mark all as read"})
 		return
 	}

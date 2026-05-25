@@ -6,13 +6,17 @@ metadata:
     {{- include "twitter.labels" . | nindent 4 }}
     app.kubernetes.io/component: consumer
 spec:
+  {{- if not .Values.keda.enabled }}
   replicas: {{ .Values.services.consumer.replicaCount }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "twitter.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: consumer
   template:
     metadata:
+      annotations:
+        proxy.istio.io/config: '{ "holdApplicationUntilProxyStarts": true }'
       labels:
         {{- include "twitter.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: consumer

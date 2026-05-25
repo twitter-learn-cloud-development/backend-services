@@ -284,3 +284,52 @@
 | **问题** | 在列表里看到的“关注者”或者“正在关注”的人，右侧的按钮清一色显示“关注”而不是“已关注”，无法正确进行取消关注操作。 |
 | **原因** | 有两个原因叠加：1. 原本网关层的 `GetBatchUsers` 与 `GetProfile` 接口仅仅是转发了获取档案 RPC，遗漏了判断关注状态 (`is_following`) 的业务逻辑。2. 就算代码里加了 `middleware.GetUserID(c)` 去获取当前登录账号，因为 `/users/:id` 和 `/users/batch` 被划分为 `公开接口`，它们路由本身压根没有挂载 JWT Token 解析中间件，所以 `GetUserID` 永远返回 0。 |
 | **解决** | 第一步：在 `user_handler.go` 中加入起协程并发调用 `followClient.IsFollowing` 去实时查状态并组装的逻辑。第二步：在 `router.go` 的公开路由组前加上 `users.Use(jwtMW.AuthOptional())` 可选鉴权中间件。这样当游客访问时不阻拦，但当登录用户访问时能够成功剥离出身份去查出准确的跟随、点赞状态。 |
+
+## 36. 微服务直连 IP 与 Istio Service Mesh 路由劫持失效冲突
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 金丝雀灰度分流与熔断策略不生效，流量 100% 仅能打在 v1 Pod 上，即使重启也无法分流到 v2 |
+| **原因** | gRPC 客户端默认使用 `consul://` 解析器，直接获取底层 Pod 物理 IP 发起长连接。这种直接绕过 Kubernetes ClusterIP 的 IP 直连方式，使 Envoy Sidecar 无法通过 DNS 域名匹配 VirtualService 和 DestinationRule 规则，再加上 gRPC HTTP/2 连接粘滞特性，导致规则失效 |
+| **解决** | 1. 引入 `USE_K8S_DNS` 环境变量，在网关 client 启动时若为 true 则将 Target 切换为 K8s 内置的 Service DNS（例如 `dns:///twitter-clone-tweet:9092`）。<br>2. 在 `tweet-service-vs.yaml` 中，将 Hosts 主机名修改为与实际调用的 ClusterIP DNS 相吻合（不带端口），包括 `twitter-clone-tweet` 及其全限定域名（FQDN），使得长连接流量能被 Envoy 成功代理劫持并实施分流 |
+
+## 37. K8s Service 缺少 instance 标签导致 v2 灰度副本失联 (Endpoint 绑定漏洞)
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 更改 VS 和 DR 配置为 `twitter-clone-tweet` 后，发送 100 次网关流量依然 100% 命中 v1 |
+| **原因** | Kubernetes `twitter-clone-tweet` Service 的 Selector 匹配了 `app.kubernetes.io/instance: twitter-clone`。而手工新增的 `tweet-deployment-v2.yaml` 仅仅加入了 `app.kubernetes.io/name` 与 `component` 标签，遗漏了 `instance` 标签。这导致 v2 Pod 压根没有被列入 Service 的 Endpoint（`kubectl get endpoints` 里只有一个 IP） |
+| **解决** | 修改 `tweet-deployment-v2.yaml`，在 Pod template labels 中通过 `{{- include "twitter.selectorLabels" . | nindent 8 }}` 模板宏进行自动渲染补齐，重新部署后 v2 副本成功被 Service 判定为 Endpoint 并绑定为上游 IP 之一 |
+
+## 38. Envoy Outlier Detection 无法通过直连 port-forward 触发 (熔断黑盒漏洞)
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 使用脚本直连本地转发的 `29092` 端口发送 5 次 gRPC 错误，无法触发 v2 服务的 Outlier Detection 隔离 |
+| **原因** | 1. `kubectl port-forward` 通过 K8s api-server 直接转发流量到容器端口，完全绕过了 Pod 的 Envoy Proxy Ingress 拦截端口（15006）。<br>2. 业务级普通错误（如 `NotFound` 错误码 5）在 Envoy 中不会被计为系统级 `consecutiveGatewayErrors` 触发条件 |
+| **解决** | 1. 在 VirtualService 顶层追加 `x-version: v2` header 染色匹配路由规则。<br>2. 将投毒程序编译为 Linux 二进制并用 `kubectl cp` 拷贝到带有 Envoy Sidecar 劫持的 `gateway` 容器内运行，使其调用 `twitter-clone-tweet:9092` DNS 域名，并在 gRPC元数据（Metadata）中注入 `x-version: v2` 进行染色路由，使流量通过 Envoy 并 100% 打在 v2 Pod 的 15006 端口上，从而完美触发了 v2 Envoy Outlier Detection 熔断（第 6 次调用返回 `Unavailable: no healthy upstream`） |
+
+## 39. Notification 服务 ImagePullBackOff (latest 镜像拉取策略死锁)
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 使用 `minikube image load` 成功载入了 `twitter-clone-notification-service:latest` 镜像，但 Pod 依然报 `ImagePullBackOff` 错误。 |
+| **原因** | 在 Kubernetes 中，当镜像 Tag 是 `latest` 时，默认的 `imagePullPolicy` 策略会被自动强转为 `Always`。这意味着即使本地有该缓存，K8s 也会强制尝试去公网拉取，导致失败。 |
+| **解决** | 在 `values.yaml` 的 `notificationService` 中显式硬编码声明 `pullPolicy: IfNotPresent`，强制 Kubernetes 优先读取本地 Minikube 缓存。 |
+
+## 40. Consul Connect Injector 与 Istio Sidecar 冲突崩溃
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 集群中的 `consul-connect-injector` Pod 持续 CrashLoopBackOff，且严重干扰其他 Pod 网络。 |
+| **原因** | 当在命名空间启用 Istio Sidecar 劫持后，Consul 的连接注入器（原本用于 Consul Connect 代理注入）在相同端口和 iptables 劫持链上与 Istio Envoy 产生了严重的资源和控制权冲突。 |
+| **解决** | 鉴于服务发现和治理已全部转由 Istio 处理，在 `values.yaml` 的 `consul` 节下显式配置 `connectInject.enabled: false` 禁用该功能，并手工删除残留的 `consul-connect-injector` deployment 释放资源。 |
+
+## 41. Jaeger 注入 Mesh 后由于健康探测改写（Prober Rewrite）导致无限重启
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 对 Jaeger 部署了 14269 管理端口健康探针补丁后，在 Istio 环境下 Jaeger 依然频繁崩溃。 |
+| **原因** | Istio Sidecar 默认开启了 `rewriteAppHTTPProbers` 机制，这会把 Pod 所有的探针重写为通过 Envoy 15021 端口中转代理。如果 Jaeger 本身对此拦截缺乏适配，Envoy 探测其原本在 sidecar 外定义的探测路径时会因二次改写而冲突返回 500，造成 K8s 误杀。 |
+| **解决** | 在 Jaeger Deployment 的 Pod 模板（`template.metadata.annotations`）中增加 `sidecar.istio.io/rewriteAppHTTPProbers: "false"` 注解，告知 Istio 控制面豁免对其健康检查的改写劫持。 |
+

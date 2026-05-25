@@ -129,3 +129,28 @@ func (r *retweetRepo) BatchIsRetweeted(ctx context.Context, userID uint64, tweet
 	}
 	return retweetedMap, nil
 }
+
+// ListByUserID 获取用户转发列表 (分页)
+func (r *retweetRepo) ListByUserID(ctx context.Context, userID uint64, cursor uint64, limit int) ([]*domain.Retweet, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	var retweets []*domain.Retweet
+	query := r.db.WithContext(ctx).
+		Where("user_id = ?", userID).
+		Order("id DESC").
+		Limit(limit)
+
+	if cursor > 0 {
+		query = query.Where("id < ?", cursor)
+	}
+
+	if err := query.Find(&retweets).Error; err != nil {
+		return nil, fmt.Errorf("failed to list retweets: %w", err)
+	}
+	return retweets, nil
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 	"twitter-clone/internal/domain"
 
@@ -19,16 +20,40 @@ const (
 
 	// TimelineExpiration Timeline 过期时间
 	TimelineExpiration = 7 * 24 * time.Hour
+
+	// GlobalCelebrityKey 全局大V集合Key
+	GlobalCelebrityKey = "global:celebrities"
+
+	// UserCelebrityKeyPrefix 用户关注大V集合Key前缀
+	UserCelebrityKeyPrefix = "user:celebrities:"
 )
+
+type localCacheItem struct {
+	val       bool
+	expiredAt time.Time
+}
+
+type celebrityLocalCache struct {
+	mu    sync.RWMutex
+	items map[uint64]localCacheItem
+	ttl   time.Duration
+}
 
 // TimelineCache Timeline 缓存
 type TimelineCache struct {
-	redis *redis.Client
+	redis      *redis.Client
+	localCache *celebrityLocalCache
 }
 
 // NewTimelineCache 创建 Timeline 缓存
 func NewTimelineCache(redis *redis.Client) *TimelineCache {
-	return &TimelineCache{redis: redis}
+	return &TimelineCache{
+		redis: redis,
+		localCache: &celebrityLocalCache{
+			items: make(map[uint64]localCacheItem),
+			ttl:   1 * time.Minute, // 默认大V本地一级缓存失效时间为 1 分钟
+		},
+	}
 }
 
 // GetTimeline 获取用户的 Timeline（返回推文 ID 列表）
@@ -213,4 +238,197 @@ func (c *TimelineCache) GetTrendingTopics(ctx context.Context, limit int) ([]*do
 		})
 	}
 	return topics, nil
+}
+
+// IsCelebrity 检查用户是否是大V
+func (c *TimelineCache) IsCelebrity(ctx context.Context, userID uint64) (bool, error) {
+	// 1. 优先从本地一级缓存读取
+	c.localCache.mu.RLock()
+	item, exists := c.localCache.items[userID]
+	c.localCache.mu.RUnlock()
+
+	if exists && time.Now().Before(item.expiredAt) {
+		return item.val, nil
+	}
+
+	// 2. 缓存未命中或已失效，从 Redis 读取
+	isCelebrity, err := c.redis.SIsMember(ctx, GlobalCelebrityKey, userID).Result()
+	if err != nil {
+		return false, fmt.Errorf("failed to check celebrity status: %w", err)
+	}
+
+	// 3. 回填本地缓存
+	c.localCache.mu.Lock()
+	c.localCache.items[userID] = localCacheItem{
+		val:       isCelebrity,
+		expiredAt: time.Now().Add(c.localCache.ttl),
+	}
+	c.localCache.mu.Unlock()
+
+	return isCelebrity, nil
+}
+
+// AddCelebrity 添加到全局大V集合
+func (c *TimelineCache) AddCelebrity(ctx context.Context, userID uint64) error {
+	err := c.redis.SAdd(ctx, GlobalCelebrityKey, userID).Err()
+	if err != nil {
+		return fmt.Errorf("failed to add celebrity: %w", err)
+	}
+
+	// 同步更新本地 L1 缓存
+	c.localCache.mu.Lock()
+	c.localCache.items[userID] = localCacheItem{
+		val:       true,
+		expiredAt: time.Now().Add(c.localCache.ttl),
+	}
+	c.localCache.mu.Unlock()
+
+	return nil
+}
+
+// RemoveCelebrity 从全局大V中移除
+func (c *TimelineCache) RemoveCelebrity(ctx context.Context, userID uint64) error {
+	err := c.redis.SRem(ctx, GlobalCelebrityKey, userID).Err()
+	if err != nil {
+		return fmt.Errorf("failed to remove celebrity: %w", err)
+	}
+
+	// 同步从本地 L1 缓存中置为 false
+	c.localCache.mu.Lock()
+	c.localCache.items[userID] = localCacheItem{
+		val:       false,
+		expiredAt: time.Now().Add(c.localCache.ttl),
+	}
+	c.localCache.mu.Unlock()
+
+	return nil
+}
+
+// GetCelebrityFollowees 获取用户关注的大V ID 列表
+func (c *TimelineCache) GetCelebrityFollowees(ctx context.Context, userID uint64) ([]uint64, error) {
+	key := c.getUserCelebrityKey(userID)
+	results, err := c.redis.SMembers(ctx, key).Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get celebrity followees from redis: %w", err)
+	}
+
+	followeeIDs := make([]uint64, 0, len(results))
+	for _, res := range results {
+		id, err := strconv.ParseUint(res, 10, 64)
+		if err != nil {
+			continue
+		}
+		followeeIDs = append(followeeIDs, id)
+	}
+	return followeeIDs, nil
+}
+
+// AddCelebrityFollowee 用户关注大V时添加至关联集合
+func (c *TimelineCache) AddCelebrityFollowee(ctx context.Context, userID uint64, celebrityID uint64) error {
+	key := c.getUserCelebrityKey(userID)
+	err := c.redis.SAdd(ctx, key, celebrityID).Err()
+	if err != nil {
+		return fmt.Errorf("failed to add celebrity followee: %w", err)
+	}
+	return nil
+}
+
+// RemoveCelebrityFollowee 用户取消关注大V时从关联集合中移除
+func (c *TimelineCache) RemoveCelebrityFollowee(ctx context.Context, userID uint64, celebrityID uint64) error {
+	key := c.getUserCelebrityKey(userID)
+	err := c.redis.SRem(ctx, key, celebrityID).Err()
+	if err != nil {
+		return fmt.Errorf("failed to remove celebrity followee: %w", err)
+	}
+	return nil
+}
+
+// getUserCelebrityKey 获取用户关注大V的 Key
+func (c *TimelineCache) getUserCelebrityKey(userID uint64) string {
+	return fmt.Sprintf("%s%d", UserCelebrityKeyPrefix, userID)
+}
+
+// BatchAddCelebrityFollowees 批量为多个用户添加关注的某个大V
+func (c *TimelineCache) BatchAddCelebrityFollowees(ctx context.Context, userIDs []uint64, celebrityID uint64) error {
+	if len(userIDs) == 0 {
+		return nil
+	}
+
+	pipe := c.redis.Pipeline()
+	for _, userID := range userIDs {
+		key := c.getUserCelebrityKey(userID)
+		pipe.SAdd(ctx, key, celebrityID)
+	}
+
+	_, err := pipe.Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to batch add celebrity followees: %w", err)
+	}
+	return nil
+}
+
+// BatchRemoveCelebrityFollowees 批量为多个用户移除关注的某个大V
+func (c *TimelineCache) BatchRemoveCelebrityFollowees(ctx context.Context, userIDs []uint64, celebrityID uint64) error {
+	if len(userIDs) == 0 {
+		return nil
+	}
+
+	pipe := c.redis.Pipeline()
+	for _, userID := range userIDs {
+		key := c.getUserCelebrityKey(userID)
+		pipe.SRem(ctx, key, celebrityID)
+	}
+
+	_, err := pipe.Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to batch remove celebrity followees: %w", err)
+	}
+	return nil
+}
+
+// SyncGlobalCelebrities 差分校准全局大V
+func (c *TimelineCache) SyncGlobalCelebrities(ctx context.Context, dbCelebrities []uint64) error {
+	// 1. 将 dbCelebrities 放入一个 map 方便 O(1) 查找
+	dbMap := make(map[uint64]bool, len(dbCelebrities))
+	for _, id := range dbCelebrities {
+		dbMap[id] = true
+	}
+
+	// 2. 获取 Redis 中的当前大V列表
+	results, err := c.redis.SMembers(ctx, GlobalCelebrityKey).Result()
+	if err != nil {
+		return fmt.Errorf("failed to get global celebrities: %w", err)
+	}
+
+	redisMap := make(map[uint64]bool, len(results))
+	for _, res := range results {
+		id, err := strconv.ParseUint(res, 10, 64)
+		if err != nil {
+			continue
+		}
+		redisMap[id] = true
+	}
+
+	// 3. 差分比对：
+	pipe := c.redis.Pipeline()
+
+	// - 在 DB 中但不在 Redis 中的，SADD
+	for id := range dbMap {
+		if !redisMap[id] {
+			pipe.SAdd(ctx, GlobalCelebrityKey, id)
+		}
+	}
+
+	// - 在 Redis 中但已不在 DB 中的，SREM
+	for id := range redisMap {
+		if !dbMap[id] {
+			pipe.SRem(ctx, GlobalCelebrityKey, id)
+		}
+	}
+
+	_, err = pipe.Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to sync global celebrities: %w", err)
+	}
+	return nil
 }

@@ -9,4 +9,5 @@ var ProviderRepoSet = wire.NewSet(
 	NewLikeRepository,    // Assuming these exist based on directory listing
 	NewCommentRepository, // Assuming these exist
 	NewRetweetRepository, // Assuming these exist
+	NewBookmarkRepository,
 )

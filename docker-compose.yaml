@@ -113,6 +113,23 @@ services:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     depends_on:
       - elasticsearch
+  loki:
+    image: grafana/loki:2.9.0
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki_data:/data
+
+  promtail:
+    image: grafana/promtail:2.9.0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./deploy/promtail/promtail-config.yaml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+
   grafana:
     image: grafana/grafana:10.0.0
     ports:
@@ -121,6 +138,10 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     depends_on:
       - prometheus
+      - loki
+    volumes:
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning
+
   user-service:
     build:
       context: .
@@ -278,10 +299,17 @@ services:
       - DASHSCOPE_API_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
       - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
       - LM_STUDIO_MODEL_CHAT=qwen3.6-plus
+      - MONGO_HOST=mongodb
+      - MONGO_PORT=27017
+      - MONGO_USER=root
+      - MONGO_PASSWORD=${MONGO_PASSWORD}
+      - MONGO_DB_NAME=twitter_agent
     restart: on-failure
     depends_on:
       elasticsearch:
         condition: service_healthy
+      mongodb:
+        condition: service_started
 
   # === 网关 ===
   gateway:
@@ -402,3 +430,4 @@ volumes:
   mongodb_data:
   es_data:
   prometheus_data:
+  loki_data:

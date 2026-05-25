@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	_ "github.com/mbobakov/grpc-consul-resolver" // Import Consul Resolver
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -13,6 +14,7 @@ import (
 	aiAgentv1 "twitter-clone/api/aiAgent/v1"
 	followv1 "twitter-clone/api/follow/v1"
 	messengerv1 "twitter-clone/api/messenger/v1"
+	notificationv1 "twitter-clone/api/notification/v1"
 	tweetv1 "twitter-clone/api/tweet/v1"
 	userv1 "twitter-clone/api/user/v1"
 
@@ -20,23 +22,36 @@ import (
 )
 
 type GRPCClients struct {
-	UserClient      userv1.UserServiceClient
-	TweetClient     tweetv1.TweetServiceClient
-	FollowClient    followv1.FollowServiceClient
-	MessengerClient messengerv1.MessengerServiceClient
-	AgentClient     aiAgentv1.AiAgentServiceClient
+	UserClient         userv1.UserServiceClient
+	TweetClient        tweetv1.TweetServiceClient
+	FollowClient       followv1.FollowServiceClient
+	MessengerClient    messengerv1.MessengerServiceClient
+	AgentClient        aiAgentv1.AiAgentServiceClient
+	NotificationClient notificationv1.NotificationServiceClient
 
-	userConn      *grpc.ClientConn
-	tweetConn     *grpc.ClientConn
-	followConn    *grpc.ClientConn
-	messengerConn *grpc.ClientConn
-	agentConn     *grpc.ClientConn
+	userConn         *grpc.ClientConn
+	tweetConn        *grpc.ClientConn
+	followConn       *grpc.ClientConn
+	messengerConn    *grpc.ClientConn
+	agentConn        *grpc.ClientConn
+	notificationConn *grpc.ClientConn
+}
+
+func getServiceTarget(consulAddr, serviceName, envKey, defaultAddr string) string {
+	if os.Getenv("USE_K8S_DNS") == "true" {
+		addr := os.Getenv(envKey)
+		if addr == "" {
+			addr = defaultAddr
+		}
+		return fmt.Sprintf("dns:///%s", addr)
+	}
+	return fmt.Sprintf("consul://%s/%s?healthy=true", consulAddr, serviceName)
 }
 
 func NewGRPCClients(consulAddr string) (*GRPCClients, error) {
 	clients := &GRPCClients{}
 
-	// 定义服务发现解析器 Scheme (consul://<consulAddr>/<serviceName>)
+	// 定义服务发现解析器 Scheme
 	// 使用 round_robin 负载均衡策略
 	serviceConfig := `{"loadBalancingPolicy": "round_robin"}`
 
@@ -44,7 +59,7 @@ func NewGRPCClients(consulAddr string) (*GRPCClients, error) {
 	otelInterceptor := grpc.WithStatsHandler(otelgrpc.NewClientHandler())
 
 	// 1. 连接 User Service
-	userTarget := fmt.Sprintf("consul://%s/user-service?healthy=true", consulAddr)
+	userTarget := getServiceTarget(consulAddr, "user-service", "USER_SERVICE_ADDR", "twitter-clone-user:9091")
 	userConn, err := grpc.NewClient(userTarget,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultServiceConfig(serviceConfig),
@@ -60,7 +75,7 @@ func NewGRPCClients(consulAddr string) (*GRPCClients, error) {
 	log.Printf("✅ Gateway connected to User Service info (Target: %s)", userTarget)
 
 	// 2. 连接 Tweet Service
-	tweetTarget := fmt.Sprintf("consul://%s/tweet-service?healthy=true", consulAddr)
+	tweetTarget := getServiceTarget(consulAddr, "tweet-service", "TWEET_SERVICE_ADDR", "twitter-clone-tweet:9092")
 	tweetConn, err := grpc.NewClient(tweetTarget,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultServiceConfig(serviceConfig),
@@ -77,7 +92,7 @@ func NewGRPCClients(consulAddr string) (*GRPCClients, error) {
 	log.Printf("✅ Gateway connected to Tweet Service info (Target: %s)", tweetTarget)
 
 	// 3. 连接 Follow Service
-	followTarget := fmt.Sprintf("consul://%s/follow-service?healthy=true", consulAddr)
+	followTarget := getServiceTarget(consulAddr, "follow-service", "FOLLOW_SERVICE_ADDR", "twitter-clone-follow:9093")
 	followConn, err := grpc.NewClient(followTarget,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultServiceConfig(serviceConfig),
@@ -93,7 +108,7 @@ func NewGRPCClients(consulAddr string) (*GRPCClients, error) {
 	log.Printf("✅ Gateway connected to Follow Service info (Target: %s)", followTarget)
 
 	// 4. 连接 Messenger Service
-	messengerTarget := fmt.Sprintf("consul://%s/messenger-service?healthy=true", consulAddr)
+	messengerTarget := getServiceTarget(consulAddr, "messenger-service", "MESSENGER_SERVICE_ADDR", "twitter-clone-messenger:9094")
 	messengerConn, err := grpc.NewClient(messengerTarget,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultServiceConfig(serviceConfig),
@@ -110,7 +125,7 @@ func NewGRPCClients(consulAddr string) (*GRPCClients, error) {
 	log.Printf("✅ Gateway connected to Messenger Service info (Target: %s)", messengerTarget)
 
 	// 5. 连接 Agent Service
-	agentTarget := fmt.Sprintf("consul://%s/agent-service?healthy=true", consulAddr)
+	agentTarget := getServiceTarget(consulAddr, "agent-service", "AGENT_SERVICE_ADDR", "twitter-clone-agent:9095")
 	agentConn, err := grpc.NewClient(agentTarget,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultServiceConfig(serviceConfig),
@@ -126,6 +141,25 @@ func NewGRPCClients(consulAddr string) (*GRPCClients, error) {
 	clients.agentConn = agentConn
 	clients.AgentClient = aiAgentv1.NewAiAgentServiceClient(agentConn)
 	log.Printf("✅ Gateway connected to Agent Service (Target: %s)", agentTarget)
+
+	// 6. 连接 Notification Service
+	notificationTarget := getServiceTarget(consulAddr, "notification-service", "NOTIFICATION_SERVICE_ADDR", "twitter-clone-notification:9096")
+	notificationConn, err := grpc.NewClient(notificationTarget,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultServiceConfig(serviceConfig),
+		otelInterceptor,
+	)
+	if err != nil {
+		userConn.Close()
+		tweetConn.Close()
+		followConn.Close()
+		messengerConn.Close()
+		agentConn.Close()
+		return nil, fmt.Errorf("failed to create notification service client: %v", err)
+	}
+	clients.notificationConn = notificationConn
+	clients.NotificationClient = notificationv1.NewNotificationServiceClient(notificationConn)
+	log.Printf("✅ Gateway connected to Notification Service (Target: %s)", notificationTarget)
 
 	return clients, nil
 }
@@ -145,6 +179,9 @@ func (c *GRPCClients) Close() {
 	}
 	if c.agentConn != nil {
 		c.agentConn.Close()
+	}
+	if c.notificationConn != nil {
+		c.notificationConn.Close()
 	}
 }
 

@@ -136,6 +136,27 @@ npm run dev
 6. **AI Agent**：`internal/module/agent/service/agent_service.go`
 7. **MCP Tools**：`internal/module/agent/mcp/server.go`
 
+模式四：多 Agent 协作写推文
+前端传参
+json{
+  "domain": "云原生技术",
+  "author_user_id": 123456,
+  "style_ratio": 0.7,
+  "reference_tweet_ids": [111, 222, 333],
+  "content": "我想写一篇关于Go协程的推文，要求通俗易懂"
+}
+三个 Agent 职责
+Agent 1: Search Agent（查阅）
+  → 根据 domain 从 ES 语义搜索相关推文作为素材
+
+Agent 2: Style Agent（分析风格）
+  → 根据 author_user_id + style_ratio 读取该作者历史推文
+  → 分析写作风格、语言习惯、常用句式
+
+Agent 3: Writer Agent（书写）
+  → 综合 Agent1 的素材 + Agent2 的风格分析 + 用户的 content 要求
+  → 生成最终推文草稿
+
 ## 🗺 未来规划
 
 - **多 Agent 协作写推文**：Style Agent 分析用户历史推文风格 → Search Agent 召回同类热门内容 → Writer Agent 综合生成高度契合用户风格的草稿，三个 Agent 通过 MCP 协议串联。

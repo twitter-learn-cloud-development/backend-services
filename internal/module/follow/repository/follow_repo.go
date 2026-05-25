@@ -209,3 +209,19 @@ func (r *followRepo) GetActiveFollowers(ctx context.Context, userID uint64, limi
 
 	return followerIDs, nil
 }
+
+// GetCelebrities 查询数据库中粉丝数 >= threshold 的大V ID 列表 (用于对账任务)
+func (r *followRepo) GetCelebrities(ctx context.Context, threshold int64) ([]uint64, error) {
+	var celebrityIDs []uint64
+	err := r.db.WithContext(ctx).
+		Model(&domain.Follow{}).
+		Select("followee_id").
+		Where("deleted_at = 0").
+		Group("followee_id").
+		Having("COUNT(*) >= ?", threshold).
+		Find(&celebrityIDs).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to get celebrities from DB: %w", err)
+	}
+	return celebrityIDs, nil
+}

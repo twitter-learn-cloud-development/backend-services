@@ -195,3 +195,67 @@ func (m *MockTweetServiceClient) ListTweets(ctx context.Context, in *tweetv1.Lis
 	}
 	return args.Get(0).(*tweetv1.ListTweetsResponse), args.Error(1)
 }
+
+func (m *MockTweetServiceClient) BookmarkTweet(ctx context.Context, in *tweetv1.BookmarkTweetRequest, opts ...grpc.CallOption) (*tweetv1.BookmarkTweetResponse, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*tweetv1.BookmarkTweetResponse), args.Error(1)
+}
+
+func (m *MockTweetServiceClient) UnbookmarkTweet(ctx context.Context, in *tweetv1.UnbookmarkTweetRequest, opts ...grpc.CallOption) (*tweetv1.UnbookmarkTweetResponse, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*tweetv1.UnbookmarkTweetResponse), args.Error(1)
+}
+
+func (m *MockTweetServiceClient) GetUserBookmarks(ctx context.Context, in *tweetv1.GetUserBookmarksRequest, opts ...grpc.CallOption) (*tweetv1.GetUserBookmarksResponse, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*tweetv1.GetUserBookmarksResponse), args.Error(1)
+}
+
+func (m *MockTweetServiceClient) RetweetTweet(ctx context.Context, in *tweetv1.RetweetTweetRequest, opts ...grpc.CallOption) (*tweetv1.RetweetTweetResponse, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*tweetv1.RetweetTweetResponse), args.Error(1)
+}
+
+func (m *MockTweetServiceClient) UnretweetTweet(ctx context.Context, in *tweetv1.UnretweetTweetRequest, opts ...grpc.CallOption) (*tweetv1.UnretweetTweetResponse, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*tweetv1.UnretweetTweetResponse), args.Error(1)
+}
+
+func (m *MockTweetServiceClient) GetUserLikes(ctx context.Context, in *tweetv1.GetUserLikesRequest, opts ...grpc.CallOption) (*tweetv1.GetUserLikesResponse, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*tweetv1.GetUserLikesResponse), args.Error(1)
+}
+
+func (m *MockTweetServiceClient) GetUserReplies(ctx context.Context, in *tweetv1.GetUserRepliesRequest, opts ...grpc.CallOption) (*tweetv1.GetUserRepliesResponse, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*tweetv1.GetUserRepliesResponse), args.Error(1)
+}
+
+func (m *MockTweetServiceClient) GetUserMedia(ctx context.Context, in *tweetv1.GetUserMediaRequest, opts ...grpc.CallOption) (*tweetv1.GetUserMediaResponse, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*tweetv1.GetUserMediaResponse), args.Error(1)
+}

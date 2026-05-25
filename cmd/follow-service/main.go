@@ -28,6 +28,7 @@ import (
 	"twitter-clone/pkg/pkg/snowflake"
 	"twitter-clone/pkg/registry"
 	"twitter-clone/pkg/trace"
+	"twitter-clone/pkg/logger"
 
 	"twitter-clone/pkg/metric"
 
@@ -47,6 +48,9 @@ func main() {
 	// 🔍 初始化链路追踪
 	jaegerHost := getEnv("JAEGER_AGENT_HOST", "localhost")
 	trace.InitTracer("follow-service", jaegerHost)
+
+	// 📝 初始化结构化日志
+	logger.InitLogger()
 
 	// 1. 初始化 Snowflake
 	if err := snowflake.Init(1); err != nil {

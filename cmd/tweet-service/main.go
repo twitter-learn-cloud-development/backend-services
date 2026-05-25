@@ -91,7 +91,7 @@ func main() {
 	log.Println("✅ Database connected")
 
 	// 3. 自动迁移
-	if err := db.AutoMigrate(&domain.Tweet{}, &domain.Follow{}, &domain.Like{}, &domain.Comment{}, &domain.Retweet{}, &domain.Poll{}, &domain.PollOption{}, &domain.PollVote{}); err != nil {
+	if err := db.AutoMigrate(&domain.Tweet{}, &domain.Follow{}, &domain.Like{}, &domain.Comment{}, &domain.Retweet{}, &domain.Poll{}, &domain.PollOption{}, &domain.PollVote{}, &domain.Bookmark{}, &domain.OutboxTask{}); err != nil {
 		log.Fatalf("❌ Failed to migrate database: %v", err)
 	}
 	log.Println("✅ Database migrated")
@@ -131,6 +131,8 @@ func main() {
 	likeRepo := tweetRepository.NewLikeRepository(db)       // 点赞仓储
 	commentRepo := tweetRepository.NewCommentRepository(db) // 🆕 评论仓储
 	pollRepo := tweetRepository.NewPollRepository(db)       // 🆕 投票仓储
+	bookmarkRepo := tweetRepository.NewBookmarkRepository(db) // 🆕 书签仓储
+	retweetRepo := tweetRepository.NewRetweetRepository(db)   // 🆕 转发仓储
 	timelineCache := tweetCache.NewTimelineCache(redisClient)
 	eventProducer, err := producer.NewEventProducer(mqClient)
 	if err != nil {
@@ -144,6 +146,8 @@ func main() {
 		likeRepo,
 		commentRepo, // 🆕 注入评论仓储
 		pollRepo,    // 🆕 注入投票仓储
+		bookmarkRepo, // 🆕 注入书签仓储
+		retweetRepo,  // 🆕 注入转发仓储
 		timelineCache,
 		eventProducer,
 	)

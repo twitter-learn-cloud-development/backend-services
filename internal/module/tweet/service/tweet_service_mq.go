@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -40,6 +41,8 @@ type TweetService struct {
 	likeRepo      domain.LikeRepository
 	commentRepo   domain.CommentRepository
 	pollRepo      domain.PollRepository
+	bookmarkRepo  domain.BookmarkRepository
+	retweetRepo   domain.RetweetRepository
 	timelineCache *cache.TimelineCache
 	eventProducer EventProducer
 }
@@ -51,6 +54,8 @@ func NewTweetService(
 	likeRepo domain.LikeRepository,
 	commentRepo domain.CommentRepository,
 	pollRepo domain.PollRepository,
+	bookmarkRepo domain.BookmarkRepository,
+	retweetRepo domain.RetweetRepository,
 	timelineCache *cache.TimelineCache,
 	eventProducer EventProducer,
 ) *TweetService {
@@ -60,6 +65,8 @@ func NewTweetService(
 		likeRepo:      likeRepo,
 		commentRepo:   commentRepo,
 		pollRepo:      pollRepo,
+		bookmarkRepo:  bookmarkRepo,
+		retweetRepo:   retweetRepo,
 		timelineCache: timelineCache,
 		eventProducer: eventProducer,
 	}
@@ -227,8 +234,13 @@ func (s *TweetService) GetTweet(ctx context.Context, tweetID uint64, requestingU
 	return tweet, nil
 }
 
-// GetUserTimeline 获取用户时间线（拉模式）
+// GetUserTimeline 获取用户时间线（拉模式：合并原生与转发推文）
 func (s *TweetService) GetUserTimeline(ctx context.Context, userID uint64, cursor uint64, limit int, requestingUserID uint64) ([]*domain.Tweet, uint64, bool, error) {
+	// 🔍 启动 Span
+	tr := otel.Tracer("tweet-service")
+	ctx, span := tr.Start(ctx, "TweetService.GetUserTimeline")
+	defer span.End()
+
 	// 1. 参数验证
 	if limit <= 0 {
 		limit = 20
@@ -237,28 +249,78 @@ func (s *TweetService) GetUserTimeline(ctx context.Context, userID uint64, curso
 		limit = 100
 	}
 
-	// 2. 从数据库拉取
+	// 2. 分别获取用户发布的推文和转发记录（多获取 1 条用于 HasMore 判断）
 	tweets, err := s.repo.ListByUserID(ctx, userID, cursor, limit+1)
 	if err != nil {
 		return nil, 0, false, fmt.Errorf("failed to get user timeline: %w", err)
 	}
 
-	// 3. 判断是否还有更多
-	hasMore := len(tweets) > limit
+	retweets, err := s.retweetRepo.ListByUserID(ctx, userID, cursor, limit+1)
+	if err != nil {
+		return nil, 0, false, fmt.Errorf("failed to get user retweets: %w", err)
+	}
+
+	// 收集转发推文的原推文 IDs
+	rtTweetIDs := make([]uint64, 0, len(retweets))
+	for _, rt := range retweets {
+		rtTweetIDs = append(rtTweetIDs, rt.TweetID)
+	}
+
+	// 批量查询原推文详情
+	var originalTweets []*domain.Tweet
+	if len(rtTweetIDs) > 0 {
+		originalTweets, err = s.repo.GetByIDs(ctx, rtTweetIDs)
+		if err != nil {
+			return nil, 0, false, fmt.Errorf("failed to batch get retweet original tweets: %w", err)
+		}
+	}
+
+	originalMap := make(map[uint64]*domain.Tweet)
+	for _, t := range originalTweets {
+		originalMap[t.ID] = t
+	}
+
+	// 3. 合并与深拷贝
+	var allItems []*domain.Tweet
+
+	for _, t := range tweets {
+		tc := *t
+		tc.IsRetweetedDisplay = false
+		tc.SortID = tc.ID
+		allItems = append(allItems, &tc)
+	}
+
+	for _, rt := range retweets {
+		if orig, ok := originalMap[rt.TweetID]; ok {
+			tc := *orig
+			tc.IsRetweetedDisplay = true
+			tc.RetweetedAt = rt.CreatedAt
+			tc.SortID = rt.ID
+			allItems = append(allItems, &tc)
+		}
+	}
+
+	// 4. 按 SortID 降序排序
+	sort.Slice(allItems, func(i, j int) bool {
+		return allItems[i].SortID > allItems[j].SortID
+	})
+
+	// 5. 截取并判断是否还有更多
+	hasMore := len(allItems) > limit
 	if hasMore {
-		tweets = tweets[:limit]
+		allItems = allItems[:limit]
 	}
 
-	// 4. 计算下一页游标
+	// 6. 计算下一页游标 (用最后一个元素的 SortID)
 	var nextCursor uint64
-	if hasMore && len(tweets) > 0 {
-		nextCursor = tweets[len(tweets)-1].ID
+	if len(allItems) > 0 {
+		nextCursor = allItems[len(allItems)-1].SortID
 	}
 
-	// 5. 填充统计数据 (点赞数、是否点赞)
-	s.populateTweetStats(ctx, tweets, requestingUserID)
+	// 7. 填充统计数据 (点赞数、是否点赞、转发数、是否转发、是否收藏)
+	s.populateTweetStats(ctx, allItems, requestingUserID)
 
-	return tweets, nextCursor, hasMore, nil
+	return allItems, nextCursor, hasMore, nil
 }
 
 // GetFeeds 获取关注流（推拉结合 + 消息队列）
@@ -274,57 +336,94 @@ func (s *TweetService) GetFeeds(ctx context.Context, userID uint64, cursor uint6
 		limit = 100
 	}
 
-	// 2. 从 Redis 获取 Timeline（推文 ID 列表）
-	tweetIDs, err := s.timelineCache.GetTimeline(ctx, userID, cursor, limit+1)
+	// 2. 从 Redis 获取当前用户关注的大V ID 集合 (读扩散源)
+	celebrityIDs, err := s.timelineCache.GetCelebrityFollowees(ctx, userID)
+	if err != nil {
+		logger.Warn(ctx, "⚠️  Failed to get celebrity followees from redis", zap.Error(err))
+		// 降级：不包含大V过滤，让后续流自动以普通流处理
+		celebrityIDs = nil
+	}
+
+	// 3. 读扩散拉取大V推文 (最多拉取 limit 条，以 cursor 过滤)
+	var celebrityTweets []*domain.Tweet
+	if len(celebrityIDs) > 0 {
+		celebrityTweets, err = s.repo.GetFeeds(ctx, celebrityIDs, cursor, limit)
+		if err != nil {
+			logger.Warn(ctx, "⚠️  Failed to pull celebrity tweets from DB", zap.Error(err))
+			celebrityTweets = nil
+		}
+	}
+
+	// 4. 从 Redis 获取写扩散的普通 Timeline（推文 ID 列表）
+	tweetIDs, err := s.timelineCache.GetTimeline(ctx, userID, cursor, limit)
 	if err != nil {
 		logger.Warn(ctx, "⚠️  Failed to get timeline from redis", zap.Error(err))
 		// 降级：使用拉模式
 		return s.getFeedsByPull(ctx, userID, cursor, limit, requestingUserID)
 	}
 
-	// 3. Redis 缓存为空，使用拉模式
+	// 5. Redis 缓存为空，说明 Timeline 需要从 DB 重建或属于冷用户，降级使用拉模式
 	if len(tweetIDs) == 0 {
-		logger.Info(ctx, "ℹ️  Timeline cache empty, using pull mode", zap.Uint64("user_id", userID))
+		logger.Info(ctx, "ℹ ... Timeline cache empty or cold user, fallback to pull mode", zap.Uint64("user_id", userID))
 		return s.getFeedsByPull(ctx, userID, cursor, limit, requestingUserID)
 	}
 
-	// 4. 判断是否还有更多
-	hasMore := len(tweetIDs) > limit
-	if hasMore {
-		tweetIDs = tweetIDs[:limit]
-	}
-
-	// 5. 批量查询推文详情
-	tweets, err := s.repo.GetByIDs(ctx, tweetIDs)
+	// 6. 批量查询普通用户推文详情
+	normalTweets, err := s.repo.GetByIDs(ctx, tweetIDs)
 	if err != nil {
-		return nil, 0, false, fmt.Errorf("failed to get tweets by ids: %w", err)
+		return nil, 0, false, fmt.Errorf("failed to get normal tweets by ids: %w", err)
 	}
 
-	// 6. 按照 tweetIDs 的顺序排序
-	tweetMap := make(map[uint64]*domain.Tweet, len(tweets))
-	for _, tweet := range tweets {
-		tweetMap[tweet.ID] = tweet
+	// 7. 按照 tweetIDs 的顺序重新排序普通推文
+	normalMap := make(map[uint64]*domain.Tweet, len(normalTweets))
+	for _, tweet := range normalTweets {
+		normalMap[tweet.ID] = tweet
 	}
 
-	sortedTweets := make([]*domain.Tweet, 0, len(tweetIDs))
+	sortedNormalTweets := make([]*domain.Tweet, 0, len(tweetIDs))
 	for _, tweetID := range tweetIDs {
-		if tweet, ok := tweetMap[tweetID]; ok {
-			sortedTweets = append(sortedTweets, tweet)
+		if tweet, ok := normalMap[tweetID]; ok {
+			sortedNormalTweets = append(sortedNormalTweets, tweet)
 		}
 	}
 
-	// 7. 计算下一页游标
-	var nextCursor uint64
-	if hasMore && len(sortedTweets) > 0 {
-		nextCursor = sortedTweets[len(sortedTweets)-1].ID
+	// 8. 融合大V推文与普通推文
+	var combined []*domain.Tweet
+	combined = append(combined, sortedNormalTweets...)
+	combined = append(combined, celebrityTweets...)
+
+	// 去重并按 ID 降序排序 (Snowflake ID 趋势递增，ID 降序即时间降序)
+	uniqueMap := make(map[uint64]bool)
+	finalTweets := make([]*domain.Tweet, 0, len(combined))
+	for _, t := range combined {
+		if !uniqueMap[t.ID] {
+			uniqueMap[t.ID] = true
+			finalTweets = append(finalTweets, t)
+		}
 	}
 
-	// 8. 填充统计数据
-	s.populateTweetStats(ctx, sortedTweets, requestingUserID)
+	sort.Slice(finalTweets, func(i, j int) bool {
+		return finalTweets[i].ID > finalTweets[j].ID
+	})
 
-	logger.Info(ctx, "✅ Feeds loaded from redis", zap.Uint64("user_id", userID), zap.Int("count", len(sortedTweets)))
+	// 9. 判断是否还有更多 (因为我们普通拉了 limit 条，大V拉了 limit 条，混合后可能超过 limit 条)
+	hasMore := len(finalTweets) > limit
+	if hasMore {
+		finalTweets = finalTweets[:limit]
+	}
 
-	return sortedTweets, nextCursor, hasMore, nil
+	// 10. 计算下一页游标
+	var nextCursor uint64
+	if len(finalTweets) > 0 {
+		nextCursor = finalTweets[len(finalTweets)-1].ID
+	}
+
+	// 11. 填充统计数据 (点赞、书签、转发交互状态)
+	s.populateTweetStats(ctx, finalTweets, requestingUserID)
+
+	logger.Info(ctx, "✅ Feeds loaded by hybrid mode", zap.Uint64("user_id", userID), zap.Int("count", len(finalTweets)))
+
+	return finalTweets, nextCursor, hasMore, nil
 }
 
 // getFeedsByPull 拉模式获取 Feeds（降级方案）
@@ -421,7 +520,7 @@ func (s *TweetService) determineTweetType(mediaURLs []string) int {
 	return domain.TweetTypeImage
 }
 
-// populateTweetStats 批量填充推文统计数据 (点赞数、是否点赞)
+// populateTweetStats 批量填充推文统计数据 (点赞数、是否点赞、转发数、是否转发、是否收藏)
 func (s *TweetService) populateTweetStats(ctx context.Context, tweets []*domain.Tweet, requestingUserID uint64) {
 	if len(tweets) == 0 {
 		return
@@ -444,8 +543,21 @@ func (s *TweetService) populateTweetStats(ctx context.Context, tweets []*domain.
 		}
 	}
 
-	// 2. 批量检查是否点赞 (仅当 requestingUserID > 0)
+	// 2. 批量获取转发数
+	retweetCounts, err := s.retweetRepo.BatchGetRetweetCounts(ctx, tweetIDs)
+	if err != nil {
+		logger.Warn(ctx, "failed to batch get retweet counts", zap.Error(err))
+	} else {
+		for _, tweet := range tweets {
+			if count, ok := retweetCounts[tweet.ID]; ok {
+				tweet.ShareCount = int(count)
+			}
+		}
+	}
+
+	// 3. 批量检查是否点赞、转发、收藏 (仅当 requestingUserID > 0)
 	if requestingUserID > 0 {
+		// 点赞状态
 		likedMap, err := s.likeRepo.BatchIsLiked(ctx, requestingUserID, tweetIDs)
 		if err != nil {
 			logger.Warn(ctx, "failed to batch check like status", zap.Error(err))
@@ -456,9 +568,33 @@ func (s *TweetService) populateTweetStats(ctx context.Context, tweets []*domain.
 				}
 			}
 		}
+
+		// 转发状态
+		retweetedMap, err := s.retweetRepo.BatchIsRetweeted(ctx, requestingUserID, tweetIDs)
+		if err != nil {
+			logger.Warn(ctx, "failed to batch check retweet status", zap.Error(err))
+		} else {
+			for _, tweet := range tweets {
+				if isRetweeted, ok := retweetedMap[tweet.ID]; ok {
+					tweet.IsRetweeted = isRetweeted
+				}
+			}
+		}
+
+		// 收藏（书签）状态
+		bookmarkedMap, err := s.bookmarkRepo.BatchIsBookmarked(ctx, requestingUserID, tweetIDs)
+		if err != nil {
+			logger.Warn(ctx, "failed to batch check bookmark status", zap.Error(err))
+		} else {
+			for _, tweet := range tweets {
+				if isBookmarked, ok := bookmarkedMap[tweet.ID]; ok {
+					tweet.IsBookmarked = isBookmarked
+				}
+			}
+		}
 	}
 
-	// 3. 批量获取评论数
+	// 4. 批量获取评论数
 	commentCounts, err := s.commentRepo.BatchGetCommentCounts(ctx, tweetIDs)
 	if err != nil {
 		logger.Warn(ctx, "failed to batch get comment counts", zap.Error(err))
@@ -469,7 +605,8 @@ func (s *TweetService) populateTweetStats(ctx context.Context, tweets []*domain.
 			}
 		}
 	}
-	// 4. 批量获取投票信息
+
+	// 5. 批量获取投票信息
 	pollMap, err := s.pollRepo.GetByTweetIDs(ctx, tweetIDs)
 	if err != nil {
 		logger.Warn(ctx, "failed to batch get polls", zap.Error(err))
@@ -808,4 +945,255 @@ func (s *TweetService) GetTweetReplies(ctx context.Context, tweetID uint64, curs
 	s.populateTweetStats(ctx, tweets, 0)
 
 	return tweets, nextCursor, nextCursor > 0, nil
+}
+
+// BookmarkTweet 添加书签
+func (s *TweetService) BookmarkTweet(ctx context.Context, userID, tweetID uint64) error {
+	tr := otel.Tracer("tweet-service")
+	ctx, span := tr.Start(ctx, "TweetService.BookmarkTweet")
+	defer span.End()
+
+	_, err := s.repo.GetByID(ctx, tweetID)
+	if err != nil {
+		return fmt.Errorf("tweet not found: %w", err)
+	}
+
+	bookmark := &domain.Bookmark{
+		UserID:  userID,
+		TweetID: tweetID,
+	}
+	return s.bookmarkRepo.Create(ctx, bookmark)
+}
+
+// UnbookmarkTweet 取消书签
+func (s *TweetService) UnbookmarkTweet(ctx context.Context, userID, tweetID uint64) error {
+	tr := otel.Tracer("tweet-service")
+	ctx, span := tr.Start(ctx, "TweetService.UnbookmarkTweet")
+	defer span.End()
+
+	return s.bookmarkRepo.Delete(ctx, userID, tweetID)
+}
+
+// GetUserBookmarks 获取用户收藏列表 (分页)
+func (s *TweetService) GetUserBookmarks(ctx context.Context, userID uint64, cursor uint64, limit int) ([]*domain.Tweet, uint64, bool, error) {
+	tr := otel.Tracer("tweet-service")
+	ctx, span := tr.Start(ctx, "TweetService.GetUserBookmarks")
+	defer span.End()
+
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	bookmarks, err := s.bookmarkRepo.List(ctx, userID, cursor, limit+1)
+	if err != nil {
+		return nil, 0, false, fmt.Errorf("failed to list bookmarks: %w", err)
+	}
+
+	hasMore := len(bookmarks) > limit
+	if hasMore {
+		bookmarks = bookmarks[:limit]
+	}
+
+	var tweetIDs []uint64
+	for _, b := range bookmarks {
+		tweetIDs = append(tweetIDs, b.TweetID)
+	}
+
+	var tweets []*domain.Tweet
+	if len(tweetIDs) > 0 {
+		tweets, err = s.repo.GetByIDs(ctx, tweetIDs)
+		if err != nil {
+			return nil, 0, false, fmt.Errorf("failed to get bookmarked tweets: %w", err)
+		}
+	}
+
+	tweetMap := make(map[uint64]*domain.Tweet)
+	for _, t := range tweets {
+		tweetMap[t.ID] = t
+	}
+
+	var sortedTweets []*domain.Tweet
+	for _, b := range bookmarks {
+		if t, ok := tweetMap[b.TweetID]; ok {
+			tc := *t
+			tc.IsBookmarked = true
+			sortedTweets = append(sortedTweets, &tc)
+		}
+	}
+
+	s.populateTweetStats(ctx, sortedTweets, userID)
+
+	var nextCursor uint64
+	if len(bookmarks) > 0 {
+		nextCursor = bookmarks[len(bookmarks)-1].ID
+	}
+
+	return sortedTweets, nextCursor, hasMore, nil
+}
+
+// RetweetTweet 转发推文
+func (s *TweetService) RetweetTweet(ctx context.Context, userID, tweetID uint64) (int64, error) {
+	tr := otel.Tracer("tweet-service")
+	ctx, span := tr.Start(ctx, "TweetService.RetweetTweet")
+	defer span.End()
+
+	_, err := s.repo.GetByID(ctx, tweetID)
+	if err != nil {
+		return 0, fmt.Errorf("tweet not found: %w", err)
+	}
+
+	if err := s.retweetRepo.Create(ctx, userID, tweetID); err != nil {
+		return 0, err
+	}
+
+	count, err := s.retweetRepo.GetRetweetCount(ctx, tweetID)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// UnretweetTweet 取消转发
+func (s *TweetService) UnretweetTweet(ctx context.Context, userID, tweetID uint64) (int64, error) {
+	tr := otel.Tracer("tweet-service")
+	ctx, span := tr.Start(ctx, "TweetService.UnretweetTweet")
+	defer span.End()
+
+	if err := s.retweetRepo.Delete(ctx, userID, tweetID); err != nil {
+		return 0, err
+	}
+
+	count, err := s.retweetRepo.GetRetweetCount(ctx, tweetID)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// GetUserLikes 获取用户点赞的推文列表
+func (s *TweetService) GetUserLikes(ctx context.Context, userID uint64, cursor uint64, limit int, requestingUserID uint64) ([]*domain.Tweet, uint64, bool, error) {
+	tr := otel.Tracer("tweet-service")
+	ctx, span := tr.Start(ctx, "TweetService.GetUserLikes")
+	defer span.End()
+
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	likes, err := s.likeRepo.ListByUserID(ctx, userID, cursor, limit+1)
+	if err != nil {
+		return nil, 0, false, fmt.Errorf("failed to list user likes: %w", err)
+	}
+
+	hasMore := len(likes) > limit
+	if hasMore {
+		likes = likes[:limit]
+	}
+
+	var tweetIDs []uint64
+	for _, l := range likes {
+		tweetIDs = append(tweetIDs, l.TweetID)
+	}
+
+	var tweets []*domain.Tweet
+	if len(tweetIDs) > 0 {
+		tweets, err = s.repo.GetByIDs(ctx, tweetIDs)
+		if err != nil {
+			return nil, 0, false, fmt.Errorf("failed to get liked tweets: %w", err)
+		}
+	}
+
+	tweetMap := make(map[uint64]*domain.Tweet)
+	for _, t := range tweets {
+		tweetMap[t.ID] = t
+	}
+
+	var sortedTweets []*domain.Tweet
+	for _, l := range likes {
+		if t, ok := tweetMap[l.TweetID]; ok {
+			tc := *t
+			sortedTweets = append(sortedTweets, &tc)
+		}
+	}
+
+	s.populateTweetStats(ctx, sortedTweets, requestingUserID)
+
+	var nextCursor uint64
+	if len(likes) > 0 {
+		nextCursor = likes[len(likes)-1].ID
+	}
+
+	return sortedTweets, nextCursor, hasMore, nil
+}
+
+// GetUserReplies 获取用户回复的推文列表
+func (s *TweetService) GetUserReplies(ctx context.Context, userID uint64, cursor uint64, limit int, requestingUserID uint64) ([]*domain.Tweet, uint64, bool, error) {
+	tr := otel.Tracer("tweet-service")
+	ctx, span := tr.Start(ctx, "TweetService.GetUserReplies")
+	defer span.End()
+
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	tweets, err := s.repo.ListRepliesByUserID(ctx, userID, cursor, limit+1)
+	if err != nil {
+		return nil, 0, false, fmt.Errorf("failed to list user replies: %w", err)
+	}
+
+	hasMore := len(tweets) > limit
+	if hasMore {
+		tweets = tweets[:limit]
+	}
+
+	s.populateTweetStats(ctx, tweets, requestingUserID)
+
+	var nextCursor uint64
+	if len(tweets) > 0 {
+		nextCursor = tweets[len(tweets)-1].ID
+	}
+
+	return tweets, nextCursor, hasMore, nil
+}
+
+// GetUserMedia 获取用户媒体推文列表
+func (s *TweetService) GetUserMedia(ctx context.Context, userID uint64, cursor uint64, limit int, requestingUserID uint64) ([]*domain.Tweet, uint64, bool, error) {
+	tr := otel.Tracer("tweet-service")
+	ctx, span := tr.Start(ctx, "TweetService.GetUserMedia")
+	defer span.End()
+
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	tweets, err := s.repo.ListMediaByUserID(ctx, userID, cursor, limit+1)
+	if err != nil {
+		return nil, 0, false, fmt.Errorf("failed to list user media: %w", err)
+	}
+
+	hasMore := len(tweets) > limit
+	if hasMore {
+		tweets = tweets[:limit]
+	}
+
+	s.populateTweetStats(ctx, tweets, requestingUserID)
+
+	var nextCursor uint64
+	if len(tweets) > 0 {
+		nextCursor = tweets[len(tweets)-1].ID
+	}
+
+	return tweets, nextCursor, hasMore, nil
 }

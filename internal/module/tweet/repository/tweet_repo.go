@@ -239,3 +239,54 @@ func (r *tweetRepo) ListAll(ctx context.Context, cursor uint64, limit int) ([]*d
 
 	return tweets, nil
 }
+
+// ListRepliesByUserID 获取用户回复的推文列表
+func (r *tweetRepo) ListRepliesByUserID(ctx context.Context, userID uint64, cursor uint64, limit int) ([]*domain.Tweet, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	var tweets []*domain.Tweet
+	query := r.db.WithContext(ctx).
+		Where("user_id = ? AND parent_id > 0 AND deleted_at = 0", userID).
+		Order("id DESC").
+		Limit(limit)
+
+	if cursor > 0 {
+		query = query.Where("id < ?", cursor)
+	}
+
+	if err := query.Find(&tweets).Error; err != nil {
+		return nil, fmt.Errorf("failed to list user replies: %w", err)
+	}
+	return tweets, nil
+}
+
+// ListMediaByUserID 获取用户带媒体的推文列表
+func (r *tweetRepo) ListMediaByUserID(ctx context.Context, userID uint64, cursor uint64, limit int) ([]*domain.Tweet, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	var tweets []*domain.Tweet
+	// type > 0 代表有媒体（0文1图2视）
+	query := r.db.WithContext(ctx).
+		Where("user_id = ? AND type > 0 AND deleted_at = 0", userID).
+		Order("id DESC").
+		Limit(limit)
+
+	if cursor > 0 {
+		query = query.Where("id < ?", cursor)
+	}
+
+	if err := query.Find(&tweets).Error; err != nil {
+		return nil, fmt.Errorf("failed to list user media: %w", err)
+	}
+	return tweets, nil
+}

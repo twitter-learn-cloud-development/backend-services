@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package notification.v1;
+
+option go_package = "twitter-clone/api/notification/v1;notificationv1";
+
+service NotificationService {
+  rpc ListNotifications(ListNotificationsRequest) returns (ListNotificationsResponse);
+  rpc MarkAsRead(MarkAsReadRequest) returns (MarkAsReadResponse);
+  rpc MarkAllAsRead(MarkAllAsReadRequest) returns (MarkAllAsReadResponse);
+  rpc GetUnreadCount(GetUnreadCountRequest) returns (GetUnreadCountResponse);
+}
+
+message Notification {
+  uint64 id = 1;
+  string type = 2; // "like", "comment", "follow"
+  uint64 actor_id = 3;
+  uint64 target_id = 4;
+  string content = 5;
+  bool is_read = 6;
+  int64 created_at = 7;
+}
+
+message ListNotificationsRequest {
+  uint64 user_id = 1;
+  uint64 cursor = 2;
+  int32 limit = 3;
+}
+
+message ListNotificationsResponse {
+  repeated Notification notifications = 1;
+  uint64 next_cursor = 2;
+  bool has_more = 3;
+}
+
+message MarkAsReadRequest {
+  uint64 user_id = 1;
+  repeated uint64 ids = 2;
+}
+
+message MarkAsReadResponse {
+  string message = 1;
+}
+
+message MarkAllAsReadRequest {
+  uint64 user_id = 1;
+}
+
+message MarkAllAsReadResponse {
+  string message = 1;
+}
+
+message GetUnreadCountRequest {
+  uint64 user_id = 1;
+}
+
+message GetUnreadCountResponse {
+  int64 count = 1;
+}

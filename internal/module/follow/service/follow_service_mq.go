@@ -4,12 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+
+	"go.opentelemetry.io/otel/trace"
+	"go.uber.org/zap"
 
 	"twitter-clone/internal/domain"
 	"twitter-clone/internal/events"
 	"twitter-clone/internal/module/tweet/cache"
 	"twitter-clone/internal/mq/producer"
+	"twitter-clone/pkg/logger"
 )
 
 var (
@@ -21,6 +24,14 @@ var (
 
 	// ErrNotFollowing 没有关注
 	ErrNotFollowing = errors.New("not following")
+)
+
+const (
+	// CelebrityPromoThreshold 晋升大V粉丝数阈值
+	CelebrityPromoThreshold = 5000
+
+	// CelebrityDemoteThreshold 降级为普通博主粉丝数阈值
+	CelebrityDemoteThreshold = 4500
 )
 
 // FollowService 关注服务（带消息队列）
@@ -68,11 +79,16 @@ func (s *FollowService) Follow(ctx context.Context, followerID, followeeID uint6
 	}
 
 	if err := s.eventProducer.PublishUserFollowed(ctx, event); err != nil {
-		log.Printf("⚠️  Failed to publish user followed event: %v", err)
+		logger.Warn(ctx, "⚠️ Failed to publish user followed event", zap.Error(err))
 	}
 
-	// 4. 🔥 立即拉取被关注者最近的推文（不阻塞主流程）
-	go s.pullRecentTweetsToTimeline(context.Background(), followerID, followeeID)
+	// 4. 维护大V状态与双阈值防抖晋升
+	go s.handleFollowCelebrityStatus(context.Background(), followerID, followeeID)
+
+	// 5. 🔥 立即拉取被关注者最近的推文（不阻塞主流程），传递带有 Span 的 async 上下文
+	span := trace.SpanFromContext(ctx)
+	asyncCtx := trace.ContextWithSpan(context.Background(), span)
+	go s.pullRecentTweetsToTimeline(asyncCtx, followerID, followeeID)
 
 	return nil
 }
@@ -82,7 +98,7 @@ func (s *FollowService) pullRecentTweetsToTimeline(ctx context.Context, follower
 	// 获取被关注者最近的 50 条推文
 	tweets, err := s.tweetRepo.ListByUserID(ctx, followeeID, 0, 50)
 	if err != nil {
-		log.Printf("⚠️  Failed to get recent tweets: %v", err)
+		logger.Warn(ctx, "⚠️ Failed to get recent tweets", zap.Error(err), zap.Uint64("followee_id", followeeID))
 		return
 	}
 
@@ -90,16 +106,16 @@ func (s *FollowService) pullRecentTweetsToTimeline(ctx context.Context, follower
 		return
 	}
 
-	log.Printf("📥 Pulling %d recent tweets to timeline for user %d", len(tweets), followerID)
+	logger.Info(ctx, "📥 Pulling recent tweets to timeline", zap.Int("count", len(tweets)), zap.Uint64("follower_id", followerID), zap.Uint64("followee_id", followeeID))
 
 	// 批量添加到关注者的 Timeline
 	for _, tweet := range tweets {
 		if err := s.timelineCache.AddToTimeline(ctx, followerID, tweet.ID); err != nil {
-			log.Printf("⚠️  Failed to add tweet %d to timeline: %v", tweet.ID, err)
+			logger.Warn(ctx, "⚠️ Failed to add tweet to timeline", zap.Uint64("tweet_id", tweet.ID), zap.Error(err))
 		}
 	}
 
-	log.Printf("✅ Pulled %d tweets to timeline for user %d", len(tweets), followerID)
+	logger.Info(ctx, "✅ Pulled tweets to timeline", zap.Int("count", len(tweets)), zap.Uint64("follower_id", followerID))
 }
 
 // Unfollow 取消关注
@@ -119,11 +135,16 @@ func (s *FollowService) Unfollow(ctx context.Context, followerID, followeeID uin
 	}
 
 	if err := s.eventProducer.PublishUserUnfollowed(ctx, event); err != nil {
-		log.Printf("⚠️  Failed to publish user unfollowed event: %v", err)
+		logger.Warn(ctx, "⚠️ Failed to publish user unfollowed event", zap.Error(err))
 	}
 
-	// 3. 立即从 Timeline 中删除被取关者的推文（不阻塞主流程）
-	go s.removeTweetsFromTimeline(context.Background(), followerID, followeeID)
+	// 3. 维护大V状态与双阈值防抖降级
+	go s.handleUnfollowCelebrityStatus(context.Background(), followerID, followeeID)
+
+	// 4. 立即从 Timeline 中删除被取关者的推文（不阻塞主流程），传递带有 Span 的 async 上下文
+	span := trace.SpanFromContext(ctx)
+	asyncCtx := trace.ContextWithSpan(context.Background(), span)
+	go s.removeTweetsFromTimeline(asyncCtx, followerID, followeeID)
 
 	return nil
 }
@@ -133,20 +154,20 @@ func (s *FollowService) removeTweetsFromTimeline(ctx context.Context, followerID
 	// 获取被取关者的推文
 	tweets, err := s.tweetRepo.ListByUserID(ctx, followeeID, 0, 100)
 	if err != nil {
-		log.Printf("⚠️  Failed to get tweets for removal: %v", err)
+		logger.Warn(ctx, "⚠️ Failed to get tweets for removal", zap.Error(err), zap.Uint64("followee_id", followeeID))
 		return
 	}
 
-	log.Printf("🗑️  Removing %d tweets from timeline for user %d", len(tweets), followerID)
+	logger.Info(ctx, "🗑️ Removing tweets from timeline", zap.Int("count", len(tweets)), zap.Uint64("follower_id", followerID), zap.Uint64("followee_id", followeeID))
 
 	// 批量删除
 	for _, tweet := range tweets {
 		if err := s.timelineCache.RemoveFromTimeline(ctx, followerID, tweet.ID); err != nil {
-			log.Printf("⚠️  Failed to remove tweet %d from timeline: %v", tweet.ID, err)
+			logger.Warn(ctx, "⚠️ Failed to remove tweet from timeline", zap.Uint64("tweet_id", tweet.ID), zap.Error(err))
 		}
 	}
 
-	log.Printf("✅ Removed %d tweets from timeline for user %d", len(tweets), followerID)
+	logger.Info(ctx, "✅ Removed tweets from timeline", zap.Int("count", len(tweets)), zap.Uint64("follower_id", followerID))
 }
 
 // IsFollowing 检查是否关注
@@ -222,3 +243,100 @@ func (s *FollowService) GetFollowStats(ctx context.Context, userID uint64) (foll
 
 	return followerCount, followeeCount, nil
 }
+
+// handleFollowCelebrityStatus 处理关注后的大V状态及晋升
+func (s *FollowService) handleFollowCelebrityStatus(ctx context.Context, followerID, followeeID uint64) {
+	followersCount, err := s.repo.GetFollowerCount(ctx, followeeID)
+	if err != nil {
+		logger.Warn(ctx, "⚠️ Failed to get follower count on follow", zap.Error(err), zap.Uint64("user_id", followeeID))
+		return
+	}
+
+	isCelebrity, err := s.timelineCache.IsCelebrity(ctx, followeeID)
+	if err != nil {
+		logger.Warn(ctx, "⚠️ Failed to check celebrity status on follow", zap.Error(err), zap.Uint64("user_id", followeeID))
+		return
+	}
+
+	if !isCelebrity && followersCount >= CelebrityPromoThreshold {
+		// 🚀 晋升为大V
+		logger.Info(ctx, "👑 User promoted to celebrity!", zap.Uint64("user_id", followeeID), zap.Int64("followers", followersCount))
+		if err := s.timelineCache.AddCelebrity(ctx, followeeID); err != nil {
+			logger.Warn(ctx, "⚠️ Failed to add celebrity to global set", zap.Error(err))
+		}
+		// 广播晋升给老粉丝
+		go s.broadcastCelebrityPromotion(context.Background(), followeeID)
+	} else if isCelebrity {
+		// 已是大V，将被关注者加入当前关注者的大V列表
+		if err := s.timelineCache.AddCelebrityFollowee(ctx, followerID, followeeID); err != nil {
+			logger.Warn(ctx, "⚠️ Failed to add celebrity followee cache", zap.Error(err), zap.Uint64("follower", followerID))
+		}
+	}
+}
+
+// broadcastCelebrityPromotion 异步广播大V晋升，拉取其粉丝并批量写入其粉丝的 user:celebrities 缓存
+func (s *FollowService) broadcastCelebrityPromotion(ctx context.Context, celebrityID uint64) {
+	// 获取该大V的全部粉丝 (设置较大的 limit 以拉取全量)
+	followerIDs, err := s.repo.GetFollowers(ctx, celebrityID, 0, CelebrityPromoThreshold+1000)
+	if err != nil {
+		logger.Warn(ctx, "⚠️ Failed to get followers for promotion broadcast", zap.Error(err))
+		return
+	}
+
+	logger.Info(ctx, "📢 Broadcasting celebrity promotion to followers...", zap.Uint64("celebrity_id", celebrityID), zap.Int("followers_count", len(followerIDs)))
+
+	// 批量写入粉丝的关注大V列表缓存
+	if err := s.timelineCache.BatchAddCelebrityFollowees(ctx, followerIDs, celebrityID); err != nil {
+		logger.Warn(ctx, "⚠️ Failed to batch add celebrity followees cache", zap.Error(err), zap.Uint64("celebrity_id", celebrityID))
+	}
+	logger.Info(ctx, "✅ Broadcast celebrity promotion completed", zap.Uint64("celebrity_id", celebrityID))
+}
+
+// handleUnfollowCelebrityStatus 处理取消关注后的大V状态及降级
+func (s *FollowService) handleUnfollowCelebrityStatus(ctx context.Context, followerID, followeeID uint64) {
+	// 无论是否触发降级，当前关注者取消关注此人，需要从其关注大V缓存中移除
+	if err := s.timelineCache.RemoveCelebrityFollowee(ctx, followerID, followeeID); err != nil {
+		logger.Warn(ctx, "⚠️ Failed to remove celebrity followee cache", zap.Error(err), zap.Uint64("follower", followerID))
+	}
+
+	followersCount, err := s.repo.GetFollowerCount(ctx, followeeID)
+	if err != nil {
+		logger.Warn(ctx, "⚠️ Failed to get follower count on unfollow", zap.Error(err), zap.Uint64("user_id", followeeID))
+		return
+	}
+
+	isCelebrity, err := s.timelineCache.IsCelebrity(ctx, followeeID)
+	if err != nil {
+		logger.Warn(ctx, "⚠️ Failed to check celebrity status on unfollow", zap.Error(err), zap.Uint64("user_id", followeeID))
+		return
+	}
+
+	if isCelebrity && followersCount < CelebrityDemoteThreshold {
+		// 📉 降级为普通博主
+		logger.Info(ctx, "📉 User demoted to normal blogger!", zap.Uint64("user_id", followeeID), zap.Int64("followers", followersCount))
+		if err := s.timelineCache.RemoveCelebrity(ctx, followeeID); err != nil {
+			logger.Warn(ctx, "⚠️ Failed to remove celebrity from global set", zap.Error(err))
+		}
+		// 广播降级给粉丝，清理粉丝的 user:celebrities 缓存
+		go s.broadcastCelebrityDemotion(context.Background(), followeeID)
+	}
+}
+
+// broadcastCelebrityDemotion 异步广播大V降级，批量从粉丝的 user:celebrities 缓存中移除
+func (s *FollowService) broadcastCelebrityDemotion(ctx context.Context, celebrityID uint64) {
+	// 获取被降级博主的所有粉丝 (设置较大的 limit 以拉取全量)
+	followerIDs, err := s.repo.GetFollowers(ctx, celebrityID, 0, CelebrityDemoteThreshold+1000)
+	if err != nil {
+		logger.Warn(ctx, "⚠️ Failed to get followers for demotion broadcast", zap.Error(err))
+		return
+	}
+
+	logger.Info(ctx, "📢 Broadcasting celebrity demotion to followers...", zap.Uint64("celebrity_id", celebrityID), zap.Int("followers_count", len(followerIDs)))
+
+	// 批量从粉丝的关注大V缓存中移除
+	if err := s.timelineCache.BatchRemoveCelebrityFollowees(ctx, followerIDs, celebrityID); err != nil {
+		logger.Warn(ctx, "⚠️ Failed to batch remove celebrity followees cache", zap.Error(err), zap.Uint64("celebrity_id", celebrityID))
+	}
+	logger.Info(ctx, "✅ Broadcast celebrity demotion completed", zap.Uint64("celebrity_id", celebrityID))
+}
+

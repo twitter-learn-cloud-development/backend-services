@@ -63,6 +63,11 @@ const router = createRouter({
             path: '/tweets/:id',
             name: 'tweet-detail',
             component: () => import('../views/TweetDetail.vue')
+        },
+        {
+            path: '/agent',
+            name: 'agent',
+            component: () => import('../views/Agent.vue')
         }
     ]
 })

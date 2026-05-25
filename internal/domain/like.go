@@ -34,4 +34,7 @@ type LikeRepository interface {
 
 	// BatchIsLiked 批量检查用户是否已点赞
 	BatchIsLiked(ctx context.Context, userID uint64, tweetIDs []uint64) (map[uint64]bool, error)
+
+	// ListByUserID 获取用户点赞的记录列表 (分页)
+	ListByUserID(ctx context.Context, userID uint64, cursor uint64, limit int) ([]*Like, error)
 }

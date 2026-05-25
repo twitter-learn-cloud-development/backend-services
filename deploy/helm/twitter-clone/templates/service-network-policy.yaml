@@ -1,0 +1,39 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: service-network-policy
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: In
+        values: [user-service, tweet-service, follow-service, notification-service]
+  policyTypes:
+    - Ingress
+  ingress:
+    # 1. 允许来自网关的外部业务流量
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: gateway
+    # 2. 允许微服务之间以及消费者的内部 gRPC 相互调用白名单
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/component
+                operator: In
+                values: [user-service, tweet-service, follow-service, notification-service, consumer]
+    # 3. 允许 Istio 控制面（istio-system 命名空间）通信
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+      ports:
+        - protocol: TCP
+          port: 15012 # Istio XDS over TLS
+    # 4. 放行 Envoy mTLS 数据拦截端口与健康检查端口
+    - ports:
+        - protocol: TCP
+          port: 15006 # Envoy inbound port
+        - protocol: TCP
+          port: 15021 # Envoy health check port

@@ -81,6 +81,13 @@ type Tweet struct {
 	// 额外信息 (用于前端渲染，比如是否已点赞)
 	IsLiked bool `gorm:"-" test_data:"is_liked"`
 
+	// 新增交互状态与转发显示字段
+	IsBookmarked       bool  `gorm:"-"`
+	IsRetweeted        bool  `gorm:"-"`
+	IsRetweetedDisplay bool  `gorm:"-"`
+	RetweetedAt        int64 `gorm:"-"`
+	SortID             uint64 `gorm:"-"`
+
 	// 投票信息 (聚合)
 	Poll *Poll `gorm:"-"`
 }
@@ -118,6 +125,12 @@ type TweetRepository interface {
 	// ListAll 查询所有推文（全站最新）
 	ListAll(ctx context.Context, cursor uint64, limit int) ([]*Tweet, error)
 	GetReplies(ctx context.Context, parentID uint64, cursor uint64, limit int) ([]*Tweet, uint64, error)
+
+	// ListRepliesByUserID 获取用户回复的推文列表
+	ListRepliesByUserID(ctx context.Context, userID uint64, cursor uint64, limit int) ([]*Tweet, error)
+
+	// ListMediaByUserID 获取用户带媒体的推文列表
+	ListMediaByUserID(ctx context.Context, userID uint64, cursor uint64, limit int) ([]*Tweet, error)
 }
 
 // TrendingTopic 热门话题实体

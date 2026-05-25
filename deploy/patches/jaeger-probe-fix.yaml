@@ -5,6 +5,9 @@ metadata:
   namespace: default
 spec:
   template:
+    metadata:
+      annotations:
+        sidecar.istio.io/rewriteAppHTTPProbers: "false"
     spec:
       containers:
         - name: jaeger

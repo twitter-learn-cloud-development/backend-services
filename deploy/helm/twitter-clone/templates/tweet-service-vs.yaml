@@ -1,0 +1,30 @@
+{{- if .Values.istio.enabled }}
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: tweet-service-vs
+spec:
+  hosts:
+    - {{ include "twitter.fullname" . }}-tweet
+    - {{ include "twitter.fullname" . }}-tweet.default
+    - {{ include "twitter.fullname" . }}-tweet.default.svc
+    - {{ include "twitter.fullname" . }}-tweet.default.svc.cluster.local
+  http:
+    - match:
+        - headers:
+            x-version:
+              exact: v2
+      route:
+        - destination:
+            host: {{ include "twitter.fullname" . }}-tweet
+            subset: v2
+    - route:
+        - destination:
+            host: {{ include "twitter.fullname" . }}-tweet
+            subset: v1
+          weight: 90
+        - destination:
+            host: {{ include "twitter.fullname" . }}-tweet
+            subset: v2
+          weight: 10
+{{- end }}

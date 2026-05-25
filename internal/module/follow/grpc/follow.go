@@ -2,13 +2,14 @@ package grpc
 
 import (
 	"context"
-	"log"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"go.uber.org/zap"
 
 	followv1 "twitter-clone/api/follow/v1"
 	"twitter-clone/internal/module/follow/service"
+	"twitter-clone/pkg/logger"
 )
 
 // FollowServer gRPC 服务器
@@ -24,11 +25,11 @@ func NewFollowServer(svc *service.FollowService) *FollowServer {
 
 // Follow 关注用户
 func (s *FollowServer) Follow(ctx context.Context, req *followv1.FollowRequest) (*followv1.FollowResponse, error) {
-	log.Printf("gRPC: Follow - follower_id=%d, followee_id=%d", req.FollowerId, req.FolloweeId)
+	logger.Info(ctx, "gRPC: Follow", zap.Uint64("follower_id", req.FollowerId), zap.Uint64("followee_id", req.FolloweeId))
 
 	err := s.svc.Follow(ctx, req.FollowerId, req.FolloweeId)
 	if err != nil {
-		log.Printf("❌ Follow error: %v", err)
+		logger.Error(ctx, "❌ Follow error", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "failed to follow: %v", err)
 	}
 
@@ -39,11 +40,11 @@ func (s *FollowServer) Follow(ctx context.Context, req *followv1.FollowRequest) 
 
 // Unfollow 取消关注
 func (s *FollowServer) Unfollow(ctx context.Context, req *followv1.UnfollowRequest) (*followv1.UnfollowResponse, error) {
-	log.Printf("gRPC: Unfollow - follower_id=%d, followee_id=%d", req.FollowerId, req.FolloweeId)
+	logger.Info(ctx, "gRPC: Unfollow", zap.Uint64("follower_id", req.FollowerId), zap.Uint64("followee_id", req.FolloweeId))
 
 	err := s.svc.Unfollow(ctx, req.FollowerId, req.FolloweeId)
 	if err != nil {
-		log.Printf("❌ Unfollow error: %v", err)
+		logger.Error(ctx, "❌ Unfollow error", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "failed to unfollow: %v", err)
 	}
 
@@ -54,11 +55,11 @@ func (s *FollowServer) Unfollow(ctx context.Context, req *followv1.UnfollowReque
 
 // IsFollowing 检查是否关注
 func (s *FollowServer) IsFollowing(ctx context.Context, req *followv1.IsFollowingRequest) (*followv1.IsFollowingResponse, error) {
-	log.Printf("gRPC: IsFollowing - follower_id=%d, followee_id=%d", req.FollowerId, req.FolloweeId)
+	logger.Info(ctx, "gRPC: IsFollowing", zap.Uint64("follower_id", req.FollowerId), zap.Uint64("followee_id", req.FolloweeId))
 
 	isFollowing, err := s.svc.IsFollowing(ctx, req.FollowerId, req.FolloweeId)
 	if err != nil {
-		log.Printf("❌ IsFollowing error: %v", err)
+		logger.Error(ctx, "❌ IsFollowing error", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "failed to check following status: %v", err)
 	}
 
@@ -69,11 +70,11 @@ func (s *FollowServer) IsFollowing(ctx context.Context, req *followv1.IsFollowin
 
 // GetFollowers 获取粉丝列表
 func (s *FollowServer) GetFollowers(ctx context.Context, req *followv1.GetFollowersRequest) (*followv1.GetFollowersResponse, error) {
-	log.Printf("gRPC: GetFollowers - user_id=%d, cursor=%d, limit=%d", req.UserId, req.Cursor, req.Limit)
+	logger.Info(ctx, "gRPC: GetFollowers", zap.Uint64("user_id", req.UserId), zap.Uint64("cursor", req.Cursor), zap.Int32("limit", req.Limit))
 
 	followerIDs, nextCursor, hasMore, err := s.svc.GetFollowers(ctx, req.UserId, req.Cursor, int(req.Limit))
 	if err != nil {
-		log.Printf("❌ GetFollowers error: %v", err)
+		logger.Error(ctx, "❌ GetFollowers error", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "failed to get followers: %v", err)
 	}
 
@@ -86,11 +87,11 @@ func (s *FollowServer) GetFollowers(ctx context.Context, req *followv1.GetFollow
 
 // GetFollowees 获取关注列表
 func (s *FollowServer) GetFollowees(ctx context.Context, req *followv1.GetFolloweesRequest) (*followv1.GetFolloweesResponse, error) {
-	log.Printf("gRPC: GetFollowees - user_id=%d, cursor=%d, limit=%d", req.UserId, req.Cursor, req.Limit)
+	logger.Info(ctx, "gRPC: GetFollowees", zap.Uint64("user_id", req.UserId), zap.Uint64("cursor", req.Cursor), zap.Int32("limit", req.Limit))
 
 	followeeIDs, nextCursor, hasMore, err := s.svc.GetFollowees(ctx, req.UserId, req.Cursor, int(req.Limit))
 	if err != nil {
-		log.Printf("❌ GetFollowees error: %v", err)
+		logger.Error(ctx, "❌ GetFollowees error", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "failed to get followees: %v", err)
 	}
 
@@ -103,11 +104,11 @@ func (s *FollowServer) GetFollowees(ctx context.Context, req *followv1.GetFollow
 
 // GetFollowStats 获取关注统计
 func (s *FollowServer) GetFollowStats(ctx context.Context, req *followv1.GetFollowStatsRequest) (*followv1.GetFollowStatsResponse, error) {
-	log.Printf("gRPC: GetFollowStats - user_id=%d", req.UserId)
+	logger.Info(ctx, "gRPC: GetFollowStats", zap.Uint64("user_id", req.UserId))
 
 	followerCount, followeeCount, err := s.svc.GetFollowStats(ctx, req.UserId)
 	if err != nil {
-		log.Printf("❌ GetFollowStats error: %v", err)
+		logger.Error(ctx, "❌ GetFollowStats error", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "failed to get follow stats: %v", err)
 	}
 

@@ -19,6 +19,10 @@ service AiAgentService {
     rpc consultContent (consultContentRequest) returns (consultContentResponse);
     // 模式三：通过提供写作信息协助构建推文
     rpc assistPublishTwitter (assistPublishTwitterRequest) returns (assistPublishTwitterResponse);
+    // 模式三第二阶段：用户确认后发布推文
+    rpc confirmPublishTwitter (ConfirmPublishTwitterRequest) returns (ConfirmPublishTwitterResponse);
+    // 模式四：Search Agent、Style Agent、Write Agent三智能体协同推文书写（深度研究模式）
+    rpc multiAgentPublishTwitter (MultiAgentPublishTwitterRequest) returns (MultiAgentPublishTwitterResponse);
 }
 
 
@@ -185,4 +189,31 @@ message assistPublishTwitterResponse {
     string         msg        = 2;
     string         response   = 3; // AI 生成的推文草稿说明
     repeated Tweet tweet_list = 4; // 生成的推文候选列表
+}
+
+message ConfirmPublishTwitterRequest {
+    uint64 user_id       = 1;
+    string content       = 2; // 用户选定的推文内容
+}
+
+message ConfirmPublishTwitterResponse {
+    uint64 code     = 1;
+    string msg      = 2;
+    string response = 3; // 发布结果描述
+    uint64 tweet_id = 4; // 发布成功的推文 ID
+}
+
+message MultiAgentPublishTwitterRequest {
+    uint64 user_id                    = 1;
+    string domain                     = 2;
+    uint64 author_user_id             = 3;
+    float  style_ratio                = 4;
+    repeated uint64 reference_tweet_ids = 5;
+    string content                    = 6;
+}
+
+message MultiAgentPublishTwitterResponse {
+    uint64 code     = 1;
+    string msg      = 2;
+    string response = 3;
 }

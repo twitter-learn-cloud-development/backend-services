@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"google.golang.org/grpc/codes"
@@ -26,7 +27,7 @@ func NewAgentServer(svc *service.AgentService) *AgentServer {
 func (s *AgentServer) CallApiOfAi(ctx context.Context, req *aiAgentv1.CallApiOfAiRequest) (*aiAgentv1.CallApiOfAiResponse, error) {
 	log.Printf("gRPC: CallApiOfAi - user_id=%d, dialogue_id=%d", req.UserId, req.MainContent.DialogueId)
 
-	response, err := s.svc.CallApiOfAi(ctx, req.UserId, req.MainContent.DialogueId, req.MainContent.Content)
+	result, err := s.svc.CallApiOfAi(ctx, req.UserId, req.MainContent.DialogueId, req.MainContent.Content)
 	if err != nil {
 		log.Printf("❌ CallApiOfAi error: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to call ai: %v", err)
@@ -35,7 +36,7 @@ func (s *AgentServer) CallApiOfAi(ctx context.Context, req *aiAgentv1.CallApiOfA
 	return &aiAgentv1.CallApiOfAiResponse{
 		Code:     200,
 		Msg:      "success",
-		Response: response,
+		Response: result.Response,
 	}, nil
 }
 
@@ -43,14 +44,14 @@ func (s *AgentServer) CallApiOfAi(ctx context.Context, req *aiAgentv1.CallApiOfA
 func (s *AgentServer) ConsultContent(ctx context.Context, req *aiAgentv1.ConsultContentRequest) (*aiAgentv1.ConsultContentResponse, error) {
 	log.Printf("gRPC: ConsultContent - user_id=%d, dialogue_id=%d", req.UserId, req.MainContent.DialogueId)
 
-	response, tweetResults, err := s.svc.ConsultContent(ctx, req.UserId, req.MainContent.DialogueId, req.MainContent.Content)
+	result, err := s.svc.ConsultContent(ctx, req.UserId, req.MainContent.DialogueId, req.MainContent.Content)
 	if err != nil {
 		log.Printf("❌ ConsultContent error: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to consult content: %v", err)
 	}
 
-	protoTweetList := make([]*aiAgentv1.TweetResult, len(tweetResults))
-	for i, t := range tweetResults {
+	protoTweetList := make([]*aiAgentv1.TweetResult, len(result.Tweets))
+	for i, t := range result.Tweets {
 		protoTweetList[i] = &aiAgentv1.TweetResult{
 			TweetId: t.TweetID,
 			Url:     t.URL,
@@ -61,7 +62,7 @@ func (s *AgentServer) ConsultContent(ctx context.Context, req *aiAgentv1.Consult
 	return &aiAgentv1.ConsultContentResponse{
 		Code:      200,
 		Msg:       "success",
-		Response:  response,
+		Response:  result.Response,
 		TweetList: protoTweetList,
 	}, nil
 }
@@ -70,7 +71,7 @@ func (s *AgentServer) ConsultContent(ctx context.Context, req *aiAgentv1.Consult
 func (s *AgentServer) AssistPublishTwitter(ctx context.Context, req *aiAgentv1.AssistPublishTwitterRequest) (*aiAgentv1.AssistPublishTwitterResponse, error) {
 	log.Printf("gRPC: AssistPublishTwitter - user_id=%d, dialogue_id=%d", req.UserId, req.MainContent.DialogueId)
 
-	content, err := s.svc.AssistPublishTwitter(ctx, req.UserId, req.MainContent.DialogueId, req.MainContent.Content)
+	result, err := s.svc.AssistPublishTwitter(ctx, req.UserId, req.MainContent.DialogueId, req.MainContent.Content)
 	if err != nil {
 		log.Printf("❌ AssistPublishTwitter error: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to assist publish twitter: %v", err)
@@ -78,7 +79,24 @@ func (s *AgentServer) AssistPublishTwitter(ctx context.Context, req *aiAgentv1.A
 	return &aiAgentv1.AssistPublishTwitterResponse{
 		Code:     200,
 		Msg:      "success",
-		Response: content,
+		Response: result.Response,
+	}, nil
+}
+
+// ConfirmPublishTwitter 模式三第二阶段：确认发布推文
+func (s *AgentServer) ConfirmPublishTwitter(ctx context.Context, req *aiAgentv1.ConfirmPublishTwitterRequest) (*aiAgentv1.ConfirmPublishTwitterResponse, error) {
+	log.Printf("gRPC: ConfirmPublishTwitter - user_id=%d", req.UserId)
+
+	result, err := s.svc.ConfirmPublishTwitter(ctx, req.UserId, req.Content)
+	if err != nil {
+		log.Printf("❌ ConfirmPublishTwitter error: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to confirm publish twitter: %v", err)
+	}
+
+	return &aiAgentv1.ConfirmPublishTwitterResponse{
+		Code:     200,
+		Msg:      "success",
+		Response: result,
 	}, nil
 }
 
@@ -86,9 +104,25 @@ func (s *AgentServer) AssistPublishTwitter(ctx context.Context, req *aiAgentv1.A
 func (s *AgentServer) GetRepositoryDialogue(ctx context.Context, req *aiAgentv1.GetRepositoryDialogueRequest) (*aiAgentv1.GetRepositoryDialogueResponse, error) {
 	log.Printf("gRPC: GetRepositoryDialogue - user_id=%d", req.UserId)
 
+	dialogues, _, err := s.svc.ListDialogues(ctx, req.UserId, 1, 50)
+	if err != nil {
+		log.Printf("❌ GetRepositoryDialogue error: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to get dialogues: %v", err)
+	}
+
+	protoDialogues := make([]*aiAgentv1.RepositoryDialogue, len(dialogues))
+	for i, d := range dialogues {
+		protoDialogues[i] = &aiAgentv1.RepositoryDialogue{
+			Id:     dialogueObjectIDToUint64(d.ID),
+			UserId: d.UserID,
+			Title:  d.Title,
+		}
+	}
+
 	return &aiAgentv1.GetRepositoryDialogueResponse{
-		Code: 200,
-		Msg:  "coming soon",
+		Code:                 200,
+		Msg:                  "success",
+		RepositoryDialogueList: protoDialogues,
 	}, nil
 }
 
@@ -96,9 +130,38 @@ func (s *AgentServer) GetRepositoryDialogue(ctx context.Context, req *aiAgentv1.
 func (s *AgentServer) GetDialogueDetail(ctx context.Context, req *aiAgentv1.GetDialogueDetailRequest) (*aiAgentv1.GetDialogueDetailResponse, error) {
 	log.Printf("gRPC: GetDialogueDetail - user_id=%d, dialogue_id=%d", req.UserId, req.DialogueId)
 
+	// 将 uint64 dialogue_id 转回 hex 格式
+	dialogueIDHex := uint64ToObjectIDHex(req.DialogueId)
+
+	messages, err := s.svc.GetDialogueMessages(ctx, req.UserId, dialogueIDHex)
+	if err != nil {
+		log.Printf("❌ GetDialogueDetail error: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to get dialogue detail: %v", err)
+	}
+
+	protoMessages := make([]*aiAgentv1.RepositoryContentList, len(messages))
+	for i, m := range messages {
+		question := ""
+		response := ""
+		if m.Role == "user" {
+			question = m.Content
+		} else if m.Role == "assistant" {
+			response = m.Content
+		}
+
+		protoMessages[i] = &aiAgentv1.RepositoryContentList{
+			Id:         dialogueObjectIDToUint64(m.ID),
+			UserId:     m.UserID,
+			DialogueId: dialogueObjectIDToUint64(m.DialogueID),
+			Question:   question,
+			Response:   response,
+		}
+	}
+
 	return &aiAgentv1.GetDialogueDetailResponse{
-		Code: 200,
-		Msg:  "coming soon",
+		Code:     200,
+		Msg:      "success",
+		Messages: protoMessages,
 	}, nil
 }
 
@@ -106,18 +169,94 @@ func (s *AgentServer) GetDialogueDetail(ctx context.Context, req *aiAgentv1.GetD
 func (s *AgentServer) GetModelDetailedInformation(ctx context.Context, req *aiAgentv1.GetModelDetailedInformationRequest) (*aiAgentv1.GetModelDetailedInformationResponse, error) {
 	log.Printf("gRPC: GetModelDetailedInformation - user_id=%d", req.UserId)
 
+	models := s.svc.GetModelInfo()
+	protoModels := make([]*aiAgentv1.ModelKind, len(models))
+	for i, m := range models {
+		fileKinds := make([]*aiAgentv1.FileKind, len(m.FileKinds))
+		for j, fk := range m.FileKinds {
+			fileKinds[j] = &aiAgentv1.FileKind{
+				Id:   fk.ID,
+				Name: fk.Name,
+			}
+		}
+		protoModels[i] = &aiAgentv1.ModelKind{
+			Id:           m.ID,
+			Name:         m.Name,
+			Description:  m.Description,
+			MaxTokens:    m.MaxTokens,
+			FileKindList: fileKinds,
+		}
+	}
+
 	return &aiAgentv1.GetModelDetailedInformationResponse{
-		Code: 200,
-		Msg:  "coming soon",
+		Code:          200,
+		Msg:           "success",
+		ModelKindList: protoModels,
 	}, nil
 }
 
-// AnalysisFiles 解析前端文件
+// AnalysisFiles 解析前端文件（PDF/TXT/图片）
 func (s *AgentServer) AnalysisFiles(ctx context.Context, req *aiAgentv1.AnalysisFilesRequest) (*aiAgentv1.AnalysisFilesResponse, error) {
-	log.Printf("gRPC: AnalysisFiles - user_id=%d", req.UserId)
+	log.Printf("gRPC: AnalysisFiles - user_id=%d, file_kind_id=%d, file_size=%d", req.UserId, req.FileKindId, len(req.FileContent))
+
+	result, err := s.svc.AnalysisFile(ctx, req.UserId, req.FileKindId, req.FileContent)
+	if err != nil {
+		log.Printf("❌ AnalysisFiles error: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to analysis file: %v", err)
+	}
 
 	return &aiAgentv1.AnalysisFilesResponse{
-		Code: 200,
-		Msg:  "coming soon",
+		Code:          200,
+		Msg:           "success",
+		ParsedContent: result.ParsedContent,
+		FileKey:       result.FileKey,
 	}, nil
+}
+
+// MultiAgentPublishTwitter 模式四：多 Agent 协作写推文
+func (s *AgentServer) MultiAgentPublishTwitter(ctx context.Context, req *aiAgentv1.MultiAgentPublishTwitterRequest) (*aiAgentv1.MultiAgentPublishTwitterResponse, error) {
+	log.Printf("gRPC: MultiAgentPublishTwitter - user_id=%d, domain=%s", req.UserId, req.Domain)
+
+	result, err := s.svc.MultiAgentPublishTwitter(ctx, req.UserId, req.Domain, req.AuthorUserId, req.StyleRatio, req.ReferenceTweetIds, req.Content)
+	if err != nil {
+		log.Printf("❌ MultiAgentPublishTwitter error: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to multi agent publish twitter: %v", err)
+	}
+
+	return &aiAgentv1.MultiAgentPublishTwitterResponse{
+		Code:     200,
+		Msg:      "success",
+		Response: result.Response,
+	}, nil
+}
+
+// ========================== 辅助函数 ==========================
+
+// dialogueObjectIDToUint64 将 MongoDB ObjectID 转为 uint64
+// 由于 proto 中 dialogue_id 定义为 uint64，这里取 ObjectID 的后 8 字节作为 uint64
+// 注意：这是一个有损转换，仅用于 gRPC 层的兼容适配
+// 后续前端完善后建议改为直接传 string 类型的 hex ID
+func dialogueObjectIDToUint64(oid interface{ Hex() string }) uint64 {
+	hex := oid.Hex()
+	if len(hex) < 16 {
+		return 0
+	}
+	// 取 ObjectID hex 的后 16 位字符（8字节），转为 uint64
+	var result uint64
+	for _, c := range hex[len(hex)-16:] {
+		result <<= 4
+		switch {
+		case c >= '0' && c <= '9':
+			result |= uint64(c - '0')
+		case c >= 'a' && c <= 'f':
+			result |= uint64(c - 'a' + 10)
+		}
+	}
+	return result
+}
+
+// uint64ToObjectIDHex 将 uint64 dialogue_id 转回 ObjectID hex 格式
+// 这是 dialogueObjectIDToUint64 的逆操作（有损，前 8 字节补零）
+func uint64ToObjectIDHex(id uint64) string {
+	return fmt.Sprintf("%08x%016x", 0, id)
 }

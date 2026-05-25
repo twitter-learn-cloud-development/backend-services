@@ -1,0 +1,48 @@
+{{- if .Values.keda.enabled }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "twitter.fullname" . }}-rabbitmq-keda-secret
+  labels:
+    {{- include "twitter.labels" . | nindent 4 }}
+type: Opaque
+stringData:
+  host: "amqp://{{ .Values.rabbitmq.auth.username }}:{{ .Values.rabbitmq.auth.password }}@{{ include "twitter.rabbitmq.host" . }}:{{ .Values.rabbitmq.service.port }}/"
+---
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: {{ include "twitter.fullname" . }}-consumer-keda-auth
+  labels:
+    {{- include "twitter.labels" . | nindent 4 }}
+spec:
+  secretTargetRef:
+    - parameter: host
+      name: {{ include "twitter.fullname" . }}-rabbitmq-keda-secret
+      key: host
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ include "twitter.fullname" . }}-consumer
+  labels:
+    {{- include "twitter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: consumer
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "twitter.fullname" . }}-consumer
+  pollingInterval: {{ .Values.keda.pollingInterval | default 15 }}
+  cooldownPeriod: {{ .Values.keda.cooldownPeriod | default 300 }}
+  minReplicaCount: {{ .Values.keda.minReplicaCount | default 0 }}
+  maxReplicaCount: {{ .Values.keda.maxReplicaCount | default 5 }}
+  triggers:
+    - type: rabbitmq
+      metadata:
+        queueName: queue.tweet.fanout
+        value: {{ .Values.keda.queueLength | default 100 | quote }}
+        mode: QueueLength
+      authenticationRef:
+        name: {{ include "twitter.fullname" . }}-consumer-keda-auth
+{{- end }}

@@ -7,26 +7,21 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 
 	tweetv1 "twitter-clone/api/tweet/v1"
 	userv1 "twitter-clone/api/user/v1"
-	"twitter-clone/internal/domain"
 	"twitter-clone/internal/gateway/middleware"
-	bookmarkRepo "twitter-clone/internal/module/bookmark/repository"
 )
 
 // BookmarkHandler 书签处理器
 type BookmarkHandler struct {
-	repo        domain.BookmarkRepository
 	tweetClient tweetv1.TweetServiceClient
 	userClient  userv1.UserServiceClient
 }
 
 // NewBookmarkHandler 创建书签处理器
-func NewBookmarkHandler(db *gorm.DB, tweetClient tweetv1.TweetServiceClient, userClient userv1.UserServiceClient) *BookmarkHandler {
+func NewBookmarkHandler(tweetClient tweetv1.TweetServiceClient, userClient userv1.UserServiceClient) *BookmarkHandler {
 	return &BookmarkHandler{
-		repo:        bookmarkRepo.NewBookmarkRepository(db),
 		tweetClient: tweetClient,
 		userClient:  userClient,
 	}
@@ -47,31 +42,19 @@ func (h *BookmarkHandler) AddBookmark(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
-	// 检查是否已收藏
-	exists2, err := h.repo.IsBookmarked(ctx, userID, tweetID)
+	resp, err := h.tweetClient.BookmarkTweet(ctx, &tweetv1.BookmarkTweetRequest{
+		UserId:  userID,
+		TweetId: tweetID,
+	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check bookmark"})
-		return
-	}
-	if exists2 {
-		c.JSON(http.StatusOK, gin.H{"message": "already bookmarked"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	bookmark := &domain.Bookmark{
-		UserID:  userID,
-		TweetID: tweetID,
-	}
-
-	if err := h.repo.Create(ctx, bookmark); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to add bookmark"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "bookmarked"})
+	c.JSON(http.StatusOK, gin.H{"message": resp.Message})
 }
 
 // RemoveBookmark 取消书签
@@ -89,15 +72,19 @@ func (h *BookmarkHandler) RemoveBookmark(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
-	if err := h.repo.Delete(ctx, userID, tweetID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to remove bookmark"})
+	resp, err := h.tweetClient.UnbookmarkTweet(ctx, &tweetv1.UnbookmarkTweetRequest{
+		UserId:  userID,
+		TweetId: tweetID,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "bookmark removed"})
+	c.JSON(http.StatusOK, gin.H{"message": resp.Message})
 }
 
 // ListBookmarks 获取书签列表
@@ -115,48 +102,38 @@ func (h *BookmarkHandler) ListBookmarks(c *gin.Context) {
 		limit = 20
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
-	bookmarks, err := h.repo.List(ctx, userID, cursor, limit)
+	resp, err := h.tweetClient.GetUserBookmarks(ctx, &tweetv1.GetUserBookmarksRequest{
+		UserId: userID,
+		Cursor: cursor,
+		Limit:  int32(limit),
+	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list bookmarks"})
 		return
 	}
 
-	// 获取推文详情
-	tweets := make([]gin.H, 0, len(bookmarks))
-	for _, b := range bookmarks {
-		resp, err := h.tweetClient.GetTweet(ctx, &tweetv1.GetTweetRequest{
-			TweetId:          b.TweetID,
-			RequestingUserId: userID,
-		})
-		if err != nil {
-			continue // 推文可能已删除
-		}
+	// 格式化推文并聚合作者信息
+	formattedTweets := make([]gin.H, 0, len(resp.Tweets))
+	for _, t := range resp.Tweets {
+		tweetData := formatTweet(t)
 
-		tweetData := formatTweet(resp.Tweet)
-
-		// 获取推文作者信息
-		userResp, err := h.userClient.GetProfile(ctx, &userv1.GetProfileRequest{UserId: resp.Tweet.UserId})
+		// 获取作者信息
+		userResp, err := h.userClient.GetProfile(ctx, &userv1.GetProfileRequest{UserId: t.UserId})
 		if err == nil {
 			tweetData["user"] = formatUser(userResp.User)
+		} else {
+			tweetData["user"] = gin.H{"id": strconv.FormatUint(t.UserId, 10), "username": "unknown", "avatar": ""}
 		}
 
-		tweetData["bookmarked_at"] = b.CreatedAt
-		tweets = append(tweets, tweetData)
-	}
-
-	var nextCursor string = "0"
-	hasMore := false
-	if len(bookmarks) >= limit {
-		nextCursor = strconv.FormatUint(bookmarks[len(bookmarks)-1].ID, 10)
-		hasMore = true
+		formattedTweets = append(formattedTweets, tweetData)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"tweets":      tweets,
-		"next_cursor": nextCursor,
-		"has_more":    hasMore,
+		"tweets":      formattedTweets,
+		"next_cursor": strconv.FormatUint(resp.NextCursor, 10),
+		"has_more":    resp.HasMore,
 	})
 }

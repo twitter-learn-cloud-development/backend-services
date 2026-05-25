@@ -13,9 +13,15 @@ spec:
       app.kubernetes.io/component: tweet-service
   template:
     metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: {{ .Values.services.tweetService.metricsPort | quote }}
+        prometheus.io/path: "/metrics"
+        proxy.istio.io/config: '{ "holdApplicationUntilProxyStarts": true }'
       labels:
         {{- include "twitter.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: tweet-service
+        version: v1
     spec:
       containers:
         - name: tweet-service

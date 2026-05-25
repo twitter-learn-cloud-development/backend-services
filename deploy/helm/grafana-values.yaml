@@ -56,3 +56,11 @@ datasources:
         access: proxy
         url: http://twitter-clone-prometheus-server.default:80
         editable: true
+
+# Enable sidecar to search for dashboards in ConfigMaps
+sidecar:
+  dashboards:
+    enabled: true
+    searchNamespace: ALL
+    label: grafana_dashboard
+    labelValue: "1"

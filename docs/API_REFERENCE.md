@@ -656,6 +656,14 @@ GET /metrics
 | `DeleteTweet` | `{tweet_id, user_id}` | `{message}` |
 | `GetUserTimeline` | `{user_id, cursor, limit}` | `{tweets[], next_cursor, has_more}` |
 | `GetFeeds` | `{user_id, cursor, limit}` | `{tweets[], next_cursor, has_more}` |
+| `BookmarkTweet` | `{user_id, tweet_id}` | `{message}` |
+| `UnbookmarkTweet` | `{user_id, tweet_id}` | `{message}` |
+| `GetUserBookmarks` | `{user_id, cursor, limit}` | `{tweets[], next_cursor, has_more}` |
+| `RetweetTweet` | `{user_id, tweet_id}` | `{retweet_count, is_retweeted}` |
+| `UnretweetTweet` | `{user_id, tweet_id}` | `{retweet_count, is_retweeted}` |
+| `GetUserLikes` | `{user_id, cursor, limit, requesting_user_id}` | `{tweets[], next_cursor, has_more}` |
+| `GetUserReplies` | `{user_id, cursor, limit, requesting_user_id}` | `{tweets[], next_cursor, has_more}` |
+| `GetUserMedia` | `{user_id, cursor, limit, requesting_user_id}` | `{tweets[], next_cursor, has_more}` |
 
 ### 6.3 FollowService (端口 9093)
 
@@ -667,6 +675,15 @@ GET /metrics
 | `GetFollowers` | `{user_id, cursor, limit}` | `{follower_ids[], next_cursor, has_more}` |
 | `GetFollowees` | `{user_id, cursor, limit}` | `{followee_ids[], next_cursor, has_more}` |
 | `GetFollowStats` | `{user_id}` | `{follower_count, followee_count}` |
+
+### 6.4 NotificationService (端口 9095)
+
+| 方法 | 请求 | 响应 |
+|------|------|------|
+| `ListNotifications` | `{user_id, cursor, limit}` | `{notifications[], next_cursor, has_more}` |
+| `MarkAsRead` | `{user_id, ids[]}` | `{message}` |
+| `MarkAllAsRead` | `{user_id}` | `{message}` |
+| `GetUnreadCount` | `{user_id}` | `{count}` |
 
 ---
 
@@ -861,7 +878,54 @@ GET /api/v1/users/:id/media?cursor=0&limit=20
 
 ---
 
-## 12. 中间件
+## 12. 告警通知接收接口 (AlertManager Webhook)
+
+### 12.1 接收告警通知 🔒
+
+用于接收 Prometheus AlertManager 触发的告警回调。
+
+```
+POST /alerts
+```
+
+**Headers：**
+| 请求头 | 说明 | 必填 |
+|------|------|------|
+| `X-Alertmanager-Token` | 鉴权令牌，固定为 `twitter-clone-secret-alert-token` | 是 |
+
+**请求体 (JSON 示例)：**
+```json
+{
+  "receiver": "notification-webhook",
+  "status": "firing",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "TwitterQPSDrop",
+        "severity": "critical"
+      },
+      "annotations": {
+        "description": "Total QPS has dropped below 2 req/sec for more than 1m.",
+        "summary": "Twitter QPS Drop"
+      },
+      "startsAt": "2026-05-24T16:30:00Z",
+      "endsAt": "0001-01-01T00:00:00Z"
+    }
+  ]
+}
+```
+
+**成功响应 (200)：**
+```json
+{
+  "status": "success"
+}
+```
+
+---
+
+## 13. 中间件
 
 | 中间件 | 说明 |
 |--------|------|

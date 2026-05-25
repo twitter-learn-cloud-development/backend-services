@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: 'Twitter Clone Dashboards'
+    orgId: 1
+    folder: 'Twitter Clone'
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/provisioning/dashboards

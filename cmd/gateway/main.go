@@ -11,14 +11,12 @@ import (
 
 	"github.com/joho/godotenv"
 
-	"twitter-clone/internal/domain"
 	"twitter-clone/internal/gateway/client"
 	"twitter-clone/internal/gateway/config"
 	"twitter-clone/internal/gateway/handler"
 	"twitter-clone/internal/gateway/middleware"
 	"twitter-clone/internal/gateway/router"
 	"twitter-clone/internal/infrastructure/cache"
-	"twitter-clone/internal/infrastructure/persistence"
 	consulConfig "twitter-clone/pkg/config"
 	"twitter-clone/pkg/logger"
 	"twitter-clone/pkg/metric"
@@ -121,38 +119,18 @@ func main() {
 	snowflake.MustInit(1)
 	log.Println("✅ Snowflake ID generator initialized")
 
-	// 初始化数据库 (通知/书签等需要直接查询DB)
-	dbConfig := persistence.DefaultDBConfig()
-	if consulClient != nil {
-		if host, err := consulClient.GetConfig("config/gateway/db_host"); err == nil {
-			dbConfig.Host = host
-		}
-	}
-	db, err := persistence.NewDB(dbConfig)
-	if err != nil {
-		log.Printf("⚠️ Failed to connect to DB for notifications: %v", err)
-	} else {
-		// 自动迁移通知/书签表
-		db.AutoMigrate(&domain.Notification{}, &domain.Bookmark{}, &domain.Like{}, &domain.Retweet{})
-		log.Println("✅ Database connected (Notifications/Bookmarks)")
-	}
-
 	// 创建处理器
 	// The instruction provided a snippet that seems to redefine clients,
 	// but we already have grpcClients. Let's adapt it to use existing clients.
 	// The instruction also had a typo in uploadHandler, fixing it.
 	userHandler := handler.NewUserHandler(grpcClients.UserClient, grpcClients.FollowClient, grpcClients.TweetClient)
-	tweetHandler := handler.NewTweetHandler(grpcClients.TweetClient, grpcClients.UserClient, db)
+	tweetHandler := handler.NewTweetHandler(grpcClients.TweetClient, grpcClients.UserClient)
 	followHandler := handler.NewFollowHandler(grpcClients.FollowClient)
 	uploadHandler := handler.NewUploadHandler("./uploads", "http://localhost:"+cfg.Port) // MVP: Local upload
 
-	// 通知/书签处理器 (需要 DB)
-	var notificationHandler *handler.NotificationHandler
-	var bookmarkHandler *handler.BookmarkHandler
-	if db != nil {
-		notificationHandler = handler.NewNotificationHandler(db, grpcClients.UserClient)
-		bookmarkHandler = handler.NewBookmarkHandler(db, grpcClients.TweetClient, grpcClients.UserClient)
-	}
+	// 通知/书签处理器
+	notificationHandler := handler.NewNotificationHandler(grpcClients.NotificationClient, grpcClients.UserClient)
+	bookmarkHandler := handler.NewBookmarkHandler(grpcClients.TweetClient, grpcClients.UserClient)
 
 	// 私信处理器 (gRPC)
 	messengerHandler := handler.NewMessengerHandler(grpcClients.MessengerClient, grpcClients.UserClient)

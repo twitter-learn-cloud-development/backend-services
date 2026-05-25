@@ -13,6 +13,11 @@ spec:
       app.kubernetes.io/component: follow-service
   template:
     metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: {{ .Values.services.followService.metricsPort | quote }}
+        prometheus.io/path: "/metrics"
+        proxy.istio.io/config: '{ "holdApplicationUntilProxyStarts": true }'
       labels:
         {{- include "twitter.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: follow-service

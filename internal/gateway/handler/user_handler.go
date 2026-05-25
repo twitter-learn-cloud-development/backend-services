@@ -48,7 +48,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	resp, err := h.userClient.Register(ctx, &userv1.RegisterRequest{
@@ -82,7 +82,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	resp, err := h.userClient.Login(ctx, &userv1.LoginRequest{
@@ -112,7 +112,7 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	resp, err := h.userClient.GetProfile(ctx, &userv1.GetProfileRequest{
@@ -128,7 +128,7 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 	uDict["is_following"] = false
 
 	if currentUserID, exists := middleware.GetUserID(c); exists && currentUserID != userID {
-		fCtx, fCancel := context.WithTimeout(context.Background(), 2*time.Second)
+		fCtx, fCancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
 		defer fCancel()
 		followResp, err := h.followClient.IsFollowing(fCtx, &followv1.IsFollowingRequest{
 			FollowerId: currentUserID,
@@ -168,7 +168,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	resp, err := h.userClient.UpdateProfile(ctx, &userv1.UpdateProfileRequest{
@@ -199,7 +199,7 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	resp, err := h.userClient.GetProfile(ctx, &userv1.GetProfileRequest{
@@ -243,7 +243,7 @@ func (h *UserHandler) GetBatchUsers(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	resp, err := h.userClient.GetBatchUsers(ctx, &userv1.GetBatchUsersRequest{
@@ -274,7 +274,7 @@ func (h *UserHandler) GetBatchUsers(c *gin.Context) {
 			wg.Add(1)
 			go func(idx int, targetID uint64) {
 				defer wg.Done()
-				fCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				fCtx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
 				defer cancel()
 				followResp, err := h.followClient.IsFollowing(fCtx, &followv1.IsFollowingRequest{
 					FollowerId: currentUserID,
@@ -305,7 +305,7 @@ func (h *UserHandler) SearchUsers(c *gin.Context) {
 	cursor, _ := strconv.ParseUint(cursorStr, 10, 64)
 	limit, _ := strconv.Atoi(limitStr)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	resp, err := h.userClient.SearchUsers(ctx, &userv1.SearchUsersRequest{
@@ -338,7 +338,7 @@ func (h *UserHandler) SearchUsers(c *gin.Context) {
 			wg.Add(1)
 			go func(idx int, targetID uint64) {
 				defer wg.Done()
-				fCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				fCtx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
 				defer cancel()
 				followResp, err := h.followClient.IsFollowing(fCtx, &followv1.IsFollowingRequest{
 					FollowerId: currentUserID,

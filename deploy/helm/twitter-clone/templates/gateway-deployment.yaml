@@ -13,6 +13,11 @@ spec:
       app.kubernetes.io/component: gateway
   template:
     metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: {{ .Values.services.gateway.service.port | quote }}
+        prometheus.io/path: "/metrics"
+        proxy.istio.io/config: '{ "holdApplicationUntilProxyStarts": true }'
       labels:
         {{- include "twitter.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: gateway
@@ -26,6 +31,8 @@ spec:
               containerPort: {{ .Values.services.gateway.service.port }}
               protocol: TCP
           env:
+            - name: USE_K8S_DNS
+              value: "true"
             - name: GATEWAY_PORT
               value: {{ .Values.services.gateway.env.GATEWAY_PORT | quote }}
               # Note: In K8s, we use DNS for service discovery, but if the app reads from Consul,

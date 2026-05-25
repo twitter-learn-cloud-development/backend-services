@@ -300,19 +300,24 @@ func domainCommentToProto(comment *domain.Comment) *tweetv1.Comment {
 // domainTweetToProto 将 Domain Tweet 转换为 Protobuf Tweet
 func domainTweetToProto(tweet *domain.Tweet) *tweetv1.Tweet {
 	return &tweetv1.Tweet{
-		Id:           tweet.ID,
-		UserId:       tweet.UserID,
-		Content:      tweet.Content,
-		MediaUrls:    tweet.MediaURLs,
-		Type:         int32(tweet.Type),
-		VisibleType:  int32(tweet.VisibleType),
-		CreatedAt:    tweet.CreatedAt,
-		UpdatedAt:    tweet.UpdatedAt,
-		LikeCount:    int32(tweet.LikeCount),
-		CommentCount: int32(tweet.CommentCount),
-		ShareCount:   int32(tweet.ShareCount),
-		IsLiked:      tweet.IsLiked,
-		Poll:         domainPollToProto(tweet.Poll),
+		Id:                 tweet.ID,
+		UserId:             tweet.UserID,
+		Content:            tweet.Content,
+		MediaUrls:          tweet.MediaURLs,
+		Type:               int32(tweet.Type),
+		VisibleType:        int32(tweet.VisibleType),
+		CreatedAt:          tweet.CreatedAt,
+		UpdatedAt:          tweet.UpdatedAt,
+		LikeCount:          int32(tweet.LikeCount),
+		CommentCount:       int32(tweet.CommentCount),
+		ShareCount:         int32(tweet.ShareCount),
+		IsLiked:            tweet.IsLiked,
+		Poll:               domainPollToProto(tweet.Poll),
+		IsBookmarked:       tweet.IsBookmarked,
+		IsRetweeted:        tweet.IsRetweeted,
+		IsRetweetedDisplay: tweet.IsRetweetedDisplay,
+		RetweetedAt:        tweet.RetweetedAt,
+		SortId:             tweet.SortID,
 	}
 }
 
@@ -361,6 +366,154 @@ func (s *TweetServer) GetTweetReplies(ctx context.Context, req *tweetv1.GetTweet
 
 	return &tweetv1.GetTweetRepliesResponse{
 		Replies:    protoTweets,
+		NextCursor: nextCursor,
+		HasMore:    hasMore,
+	}, nil
+}
+
+// BookmarkTweet 收藏推文
+func (s *TweetServer) BookmarkTweet(ctx context.Context, req *tweetv1.BookmarkTweetRequest) (*tweetv1.BookmarkTweetResponse, error) {
+	log.Printf("gRPC: BookmarkTweet - user_id=%d, tweet_id=%d", req.UserId, req.TweetId)
+
+	err := s.svc.BookmarkTweet(ctx, req.UserId, req.TweetId)
+	if err != nil {
+		log.Printf("❌ BookmarkTweet error: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to bookmark tweet: %v", err)
+	}
+
+	return &tweetv1.BookmarkTweetResponse{
+		Message: "bookmarked successfully",
+	}, nil
+}
+
+// UnbookmarkTweet 取消收藏
+func (s *TweetServer) UnbookmarkTweet(ctx context.Context, req *tweetv1.UnbookmarkTweetRequest) (*tweetv1.UnbookmarkTweetResponse, error) {
+	log.Printf("gRPC: UnbookmarkTweet - user_id=%d, tweet_id=%d", req.UserId, req.TweetId)
+
+	err := s.svc.UnbookmarkTweet(ctx, req.UserId, req.TweetId)
+	if err != nil {
+		log.Printf("❌ UnbookmarkTweet error: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to unbookmark tweet: %v", err)
+	}
+
+	return &tweetv1.UnbookmarkTweetResponse{
+		Message: "unbookmarked successfully",
+	}, nil
+}
+
+// GetUserBookmarks 获取用户收藏列表
+func (s *TweetServer) GetUserBookmarks(ctx context.Context, req *tweetv1.GetUserBookmarksRequest) (*tweetv1.GetUserBookmarksResponse, error) {
+	log.Printf("gRPC: GetUserBookmarks - user_id=%d, cursor=%d, limit=%d", req.UserId, req.Cursor, req.Limit)
+
+	tweets, nextCursor, hasMore, err := s.svc.GetUserBookmarks(ctx, req.UserId, req.Cursor, int(req.Limit))
+	if err != nil {
+		log.Printf("❌ GetUserBookmarks error: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to get bookmarks: %v", err)
+	}
+
+	protoTweets := make([]*tweetv1.Tweet, len(tweets))
+	for i, tweet := range tweets {
+		protoTweets[i] = domainTweetToProto(tweet)
+	}
+
+	return &tweetv1.GetUserBookmarksResponse{
+		Tweets:     protoTweets,
+		NextCursor: nextCursor,
+		HasMore:    hasMore,
+	}, nil
+}
+
+// RetweetTweet 转发推文
+func (s *TweetServer) RetweetTweet(ctx context.Context, req *tweetv1.RetweetTweetRequest) (*tweetv1.RetweetTweetResponse, error) {
+	log.Printf("gRPC: RetweetTweet - user_id=%d, tweet_id=%d", req.UserId, req.TweetId)
+
+	count, err := s.svc.RetweetTweet(ctx, req.UserId, req.TweetId)
+	if err != nil {
+		log.Printf("❌ RetweetTweet error: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to retweet: %v", err)
+	}
+
+	return &tweetv1.RetweetTweetResponse{
+		RetweetCount: count,
+	}, nil
+}
+
+// UnretweetTweet 取消转发
+func (s *TweetServer) UnretweetTweet(ctx context.Context, req *tweetv1.UnretweetTweetRequest) (*tweetv1.UnretweetTweetResponse, error) {
+	log.Printf("gRPC: UnretweetTweet - user_id=%d, tweet_id=%d", req.UserId, req.TweetId)
+
+	count, err := s.svc.UnretweetTweet(ctx, req.UserId, req.TweetId)
+	if err != nil {
+		log.Printf("❌ UnretweetTweet error: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to unretweet: %v", err)
+	}
+
+	return &tweetv1.UnretweetTweetResponse{
+		RetweetCount: count,
+	}, nil
+}
+
+// GetUserLikes 获取用户点赞推文列表
+func (s *TweetServer) GetUserLikes(ctx context.Context, req *tweetv1.GetUserLikesRequest) (*tweetv1.GetUserLikesResponse, error) {
+	log.Printf("gRPC: GetUserLikes - user_id=%d, cursor=%d, limit=%d", req.UserId, req.Cursor, req.Limit)
+
+	tweets, nextCursor, hasMore, err := s.svc.GetUserLikes(ctx, req.UserId, req.Cursor, int(req.Limit), req.RequestingUserId)
+	if err != nil {
+		log.Printf("❌ GetUserLikes error: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to get user likes: %v", err)
+	}
+
+	protoTweets := make([]*tweetv1.Tweet, len(tweets))
+	for i, tweet := range tweets {
+		protoTweets[i] = domainTweetToProto(tweet)
+	}
+
+	return &tweetv1.GetUserLikesResponse{
+		Tweets:     protoTweets,
+		NextCursor: nextCursor,
+		HasMore:    hasMore,
+	}, nil
+}
+
+// GetUserReplies 获取用户回复推文列表
+func (s *TweetServer) GetUserReplies(ctx context.Context, req *tweetv1.GetUserRepliesRequest) (*tweetv1.GetUserRepliesResponse, error) {
+	log.Printf("gRPC: GetUserReplies - user_id=%d, cursor=%d, limit=%d", req.UserId, req.Cursor, req.Limit)
+
+	tweets, nextCursor, hasMore, err := s.svc.GetUserReplies(ctx, req.UserId, req.Cursor, int(req.Limit), req.RequestingUserId)
+	if err != nil {
+		log.Printf("❌ GetUserReplies error: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to get user replies: %v", err)
+	}
+
+	protoTweets := make([]*tweetv1.Tweet, len(tweets))
+	for i, tweet := range tweets {
+		protoTweets[i] = domainTweetToProto(tweet)
+	}
+
+	return &tweetv1.GetUserRepliesResponse{
+		Replies:    protoTweets,
+		NextCursor: nextCursor,
+		HasMore:    hasMore,
+	}, nil
+}
+
+// GetUserMedia 获取用户媒体推文列表
+func (s *TweetServer) GetUserMedia(ctx context.Context, req *tweetv1.GetUserMediaRequest) (*tweetv1.GetUserMediaResponse, error) {
+	log.Printf("gRPC: GetUserMedia - user_id=%d, cursor=%d, limit=%d", req.UserId, req.Cursor, req.Limit)
+
+	tweets, nextCursor, hasMore, err := s.svc.GetUserMedia(ctx, req.UserId, req.Cursor, int(req.Limit), req.RequestingUserId)
+	if err != nil {
+		log.Printf("❌ GetUserMedia error: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to get user media: %v", err)
+	}
+
+	protoTweets := make([]*tweetv1.Tweet, len(tweets))
+	for i, tweet := range tweets {
+		protoTweets[i] = domainTweetToProto(tweet)
+	}
+
+	return &tweetv1.GetUserMediaResponse{
+		Tweets:     protoTweets,
 		NextCursor: nextCursor,
 		HasMore:    hasMore,
 	}, nil

@@ -64,7 +64,7 @@ func (h *FollowHandler) Follow(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	resp, err := h.followClient.Follow(ctx, &followv1.FollowRequest{
@@ -103,7 +103,7 @@ func (h *FollowHandler) Unfollow(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	resp, err := h.followClient.Unfollow(ctx, &followv1.UnfollowRequest{
@@ -142,7 +142,7 @@ func (h *FollowHandler) IsFollowing(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	resp, err := h.followClient.IsFollowing(ctx, &followv1.IsFollowingRequest{
@@ -179,7 +179,7 @@ func (h *FollowHandler) GetFollowers(c *gin.Context) {
 	limitStr := c.DefaultQuery("limit", "20")
 	limit, _ := strconv.ParseInt(limitStr, 10, 32)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	resp, err := h.followClient.GetFollowers(ctx, &followv1.GetFollowersRequest{
@@ -224,7 +224,7 @@ func (h *FollowHandler) GetFollowees(c *gin.Context) {
 	limitStr := c.DefaultQuery("limit", "20")
 	limit, _ := strconv.ParseInt(limitStr, 10, 32)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	resp, err := h.followClient.GetFollowees(ctx, &followv1.GetFolloweesRequest{
@@ -263,7 +263,7 @@ func (h *FollowHandler) GetFollowStats(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	resp, err := h.followClient.GetFollowStats(ctx, &followv1.GetFollowStatsRequest{

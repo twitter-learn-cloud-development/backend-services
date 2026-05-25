@@ -80,6 +80,22 @@ func (m *MockTweetRepository) GetReplies(ctx context.Context, parentID uint64, c
 	return args.Get(0).([]*domain.Tweet), args.Get(1).(uint64), args.Error(2)
 }
 
+func (m *MockTweetRepository) ListRepliesByUserID(ctx context.Context, userID uint64, cursor uint64, limit int) ([]*domain.Tweet, error) {
+	args := m.Called(ctx, userID, cursor, limit)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.Tweet), args.Error(1)
+}
+
+func (m *MockTweetRepository) ListMediaByUserID(ctx context.Context, userID uint64, cursor uint64, limit int) ([]*domain.Tweet, error) {
+	args := m.Called(ctx, userID, cursor, limit)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.Tweet), args.Error(1)
+}
+
 // MockEventProducer 模拟 EventProducer
 type MockEventProducer struct {
 	mock.Mock

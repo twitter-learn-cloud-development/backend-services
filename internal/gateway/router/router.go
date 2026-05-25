@@ -1,15 +1,16 @@
 package router
 
 import (
+	"log"
+	"time"
+
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 
-	"time"
 	"twitter-clone/internal/gateway/handler"
 	"twitter-clone/internal/gateway/middleware"
-
-	"github.com/go-redis/redis/v8"
 )
 
 // SetupRouter 设置路由
@@ -59,6 +60,23 @@ func SetupRouter(
 
 	// 📊 Prometheus Metrics Endpoint
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
+	// 🔔 AlertManager Webhook 接收端
+	r.POST("/alerts", func(c *gin.Context) {
+		token := c.GetHeader("X-Alertmanager-Token")
+		if token != "twitter-clone-secret-alert-token" {
+			c.JSON(401, gin.H{"error": "unauthorized"})
+			return
+		}
+
+		var alertPayload map[string]interface{}
+		if err := c.ShouldBindJSON(&alertPayload); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+		log.Printf("🔔 [AlertManager Webhook] Received Alert Notification: %+v", alertPayload)
+		c.JSON(200, gin.H{"status": "success"})
+	})
 
 	// API v1
 	v1 := r.Group("/api/v1")
@@ -192,6 +210,12 @@ func SetupRouter(
 			agent.POST("/chat", agentHandler.CallApiOfAi)
 			agent.POST("/consult", agentHandler.ConsultContent)
 			agent.POST("/assist", agentHandler.AssistPublishTwitter)
+			agent.POST("/confirm", agentHandler.ConfirmPublishTwitter)
+			agent.POST("/multi", agentHandler.MultiAgentPublishTwitter)
+			agent.GET("/dialogues", agentHandler.GetRepositoryDialogue)
+			agent.GET("/dialogues/:id/messages", agentHandler.GetDialogueDetail)
+			agent.GET("/models", agentHandler.GetModelDetailedInformation)
+			agent.POST("/files/analysis", agentHandler.AnalysisFiles)
 		}
 		// WebSocket
 		v1.GET("/ws", wsHandler.HandleConnection)

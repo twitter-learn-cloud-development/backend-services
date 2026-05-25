@@ -134,3 +134,28 @@ func (r *likeRepo) BatchIsLiked(ctx context.Context, userID uint64, tweetIDs []u
 	}
 	return likedMap, nil
 }
+
+// ListByUserID 获取用户点赞的记录列表 (分页)
+func (r *likeRepo) ListByUserID(ctx context.Context, userID uint64, cursor uint64, limit int) ([]*domain.Like, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	var likes []*domain.Like
+	query := r.db.WithContext(ctx).
+		Where("user_id = ?", userID).
+		Order("id DESC").
+		Limit(limit)
+
+	if cursor > 0 {
+		query = query.Where("id < ?", cursor)
+	}
+
+	if err := query.Find(&likes).Error; err != nil {
+		return nil, fmt.Errorf("failed to list user likes: %w", err)
+	}
+	return likes, nil
+}
