@@ -79,15 +79,15 @@ prometheus:
         repeat_interval: 1h
         receiver: 'notification-webhook'
       receivers:
-      - name: 'notification-webhook'
-        webhook_configs:
-        - url: 'http://twitter-clone-gateway.default.svc.cluster.local:9638/alerts'
-          send_resolved: true
-          http_config:
-            http_headers:
-              X-Alertmanager-Token:
-                values:
-                - "twitter-clone-secret-alert-token"
+        - name: 'notification-webhook'
+          webhook_configs:
+            - url: 'http://twitter-clone-gateway.default.svc.cluster.local:9638/alerts'
+              send_resolved: true
+              http_config:
+                http_headers:
+                  X-Alertmanager-Token:
+                    values:
+                      - "twitter-clone-secret-alert-token"
   server:
     global:
       scrape_interval: 15s
@@ -167,7 +167,7 @@ services:
     name: user-service
     image:
       repository: daguozhai/user-service
-      tag: "8f00b76f25a34764056587f734a2e252559e6939"
+      tag: "b962359dc783d2ed87a6d1ae65ec39698a083481"
       pullPolicy: IfNotPresent
     replicaCount: 1
     containerPort: 9091
@@ -185,7 +185,7 @@ services:
     name: tweet-service
     image:
       repository: daguozhai/tweet-service
-      tag: "8f00b76f25a34764056587f734a2e252559e6939"
+      tag: "b962359dc783d2ed87a6d1ae65ec39698a083481"
       pullPolicy: IfNotPresent
     replicaCount: 1
     containerPort: 9092
@@ -197,7 +197,7 @@ services:
     name: follow-service
     image:
       repository: daguozhai/follow-service
-      tag: 8f00b76f25a34764056587f734a2e252559e6939
+      tag: b962359dc783d2ed87a6d1ae65ec39698a083481
       pullPolicy: IfNotPresent
     replicaCount: 1
     containerPort: 9093
@@ -207,7 +207,7 @@ services:
     name: gateway
     image:
       repository: daguozhai/gateway
-      tag: "v1.0.1-alerts"
+      tag: "b962359dc783d2ed87a6d1ae65ec39698a083481"
       pullPolicy: IfNotPresent
     replicaCount: 1
     service:
@@ -227,7 +227,7 @@ services:
     name: consumer
     image:
       repository: daguozhai/consumer
-      tag: "v1.0.1-batching"
+      tag: "b962359dc783d2ed87a6d1ae65ec39698a083481"
       pullPolicy: IfNotPresent
     replicaCount: 1
     resources: {}
@@ -239,7 +239,6 @@ services:
       pullPolicy: IfNotPresent
     replicaCount: 1
     resources: {}
-
 # KEDA configuration
 keda:
   enabled: false
@@ -248,11 +247,9 @@ keda:
   minReplicaCount: 0
   maxReplicaCount: 5
   queueLength: 100
-
 # Istio configuration
 istio:
   enabled: true
-
 # Qdrant vector database configuration
 qdrant:
   enabled: true
@@ -260,7 +257,6 @@ qdrant:
     repository: qdrant/qdrant
     tag: "v1.12.0"
     pullPolicy: IfNotPresent
-
 # Pyroscope profiling configuration
 pyroscope:
   enabled: true
@@ -268,5 +264,3 @@ pyroscope:
     repository: grafana/pyroscope
     tag: "latest"
     pullPolicy: IfNotPresent
-
-
