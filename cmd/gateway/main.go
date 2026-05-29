@@ -22,11 +22,15 @@ import (
 	"twitter-clone/pkg/metric"
 	"twitter-clone/pkg/pkg/snowflake"
 	"twitter-clone/pkg/trace"
+	"twitter-clone/pkg/profiler"
 
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
+	// 启动 Profiler 持续性能监控
+	profiler.Init("api-gateway")
+
 	log.Println("========================================")
 	log.Println("🚀 Twitter Clone - API Gateway")
 	log.Println("========================================")
@@ -79,6 +83,8 @@ func main() {
 		log.Printf("⚠️ Failed to connect to Redis for Rate Limiting: %v", err)
 	} else {
 		log.Println("✅ Redis connected (Rate Limiting)")
+		// 🎯 [Hot Reload] 启动自举报拉取与 PubSub 动态监听器，解决配置脑裂
+		cache.StartConfigListener(context.Background(), redisClient)
 	}
 
 	// 🛡️ 初始化 Sentinel (熔断降级)

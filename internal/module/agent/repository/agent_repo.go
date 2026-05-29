@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"time"
 
@@ -76,7 +77,20 @@ func NewMongoAgentRepository(db *mongo.Database) *MongoAgentRepository {
 
 func (r *MongoAgentRepository) CreateDialogue(ctx context.Context, userID uint64, title string, mode DialogueMode) (*Dialogue, error) {
 	now := time.Now()
+	
+	// 为了兼容 gRPC 层的 uint64 传输（有损转换取后8字节），
+	// 我们显式构造一个前 4 字节为 0，后 8 字节为随机 uint64 的 ObjectID。
+	// 这能保证在双向转换时实现 100% 无损。
+	var oid primitive.ObjectID
+	var randBytes [8]byte
+	if _, err := rand.Read(randBytes[:]); err != nil {
+		return nil, fmt.Errorf("generate random bytes for ObjectID failed: %w", err)
+	}
+	// 填充后 8 字节
+	copy(oid[4:], randBytes[:])
+
 	dialogue := &Dialogue{
+		ID:        oid,
 		UserID:    userID,
 		Title:     title,
 		Mode:      mode,
@@ -84,12 +98,11 @@ func (r *MongoAgentRepository) CreateDialogue(ctx context.Context, userID uint64
 		UpdatedAt: now,
 	}
 
-	result, err := r.dialogueColl.InsertOne(ctx, dialogue)
+	_, err := r.dialogueColl.InsertOne(ctx, dialogue)
 	if err != nil {
 		return nil, fmt.Errorf("insert dialogue failed: %w", err)
 	}
 
-	dialogue.ID = result.InsertedID.(primitive.ObjectID)
 	return dialogue, nil
 }
 
@@ -128,6 +141,36 @@ func (r *MongoAgentRepository) GetDialogue(ctx context.Context, dialogueID primi
 	err := r.dialogueColl.FindOne(ctx, bson.M{"_id": dialogueID}).Decode(&dialogue)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
+			// 🎯 降级兼容：如果是前 4 字节为零的有损 ID，尝试在内存中按后 8 字节匹配旧的历史会话
+			isZeroPrefix := true
+			for i := 0; i < 4; i++ {
+				if dialogueID[i] != 0 {
+					isZeroPrefix = false
+					break
+				}
+			}
+			if isZeroPrefix {
+				cursor, findErr := r.dialogueColl.Find(ctx, bson.M{})
+				if findErr == nil {
+					defer cursor.Close(ctx)
+					var list []*Dialogue
+					if cursor.All(ctx, &list) == nil {
+						for _, d := range list {
+							// 比较后 8 字节是否一致
+							matched := true
+							for i := 4; i < 12; i++ {
+								if d.ID[i] != dialogueID[i] {
+									matched = false
+									break
+								}
+							}
+							if matched {
+								return d, nil
+							}
+						}
+					}
+				}
+			}
 			return nil, fmt.Errorf("dialogue not found: %s", dialogueID.Hex())
 		}
 		return nil, fmt.Errorf("find dialogue failed: %w", err)

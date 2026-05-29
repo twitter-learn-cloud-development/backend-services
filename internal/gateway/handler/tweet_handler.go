@@ -14,6 +14,8 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	sentinel "github.com/alibaba/sentinel-golang/api"
 )
 
 // TweetHandler 推文处理器
@@ -242,6 +244,17 @@ func (h *TweetHandler) GetFeeds(c *gin.Context) {
 		return
 	}
 
+	// 🚦 Sentinel Entry 保护，提供自愈动态熔断拦截
+	entry, blockErr := sentinel.Entry("GET:/api/v1/feeds")
+	if blockErr != nil {
+		log.Printf("🔥 [Sentinel CB] GET:/api/v1/feeds blocked: %v", blockErr)
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": "service temporary unavailable (circuit broken)",
+		})
+		return
+	}
+	defer entry.Exit()
+
 	cursorStr := c.DefaultQuery("cursor", "0")
 	cursor, _ := strconv.ParseUint(cursorStr, 10, 64)
 
@@ -258,6 +271,7 @@ func (h *TweetHandler) GetFeeds(c *gin.Context) {
 	})
 
 	if err != nil {
+		sentinel.TraceError(entry, err) // 🎯 追踪错误以使得 Sentinel 统计错误比率触发自适应熔断
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})

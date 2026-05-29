@@ -1,0 +1,72 @@
+{{- if .Values.qdrant.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "twitter.fullname" . }}-qdrant
+  labels:
+    {{- include "twitter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: qdrant
+spec:
+  serviceName: {{ include "twitter.fullname" . }}-qdrant-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      {{- include "twitter.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: qdrant
+  template:
+    metadata:
+      labels:
+        {{- include "twitter.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: qdrant
+    spec:
+      containers:
+        - name: qdrant
+          image: "{{ .Values.qdrant.image.repository }}:{{ .Values.qdrant.image.tag }}"
+          imagePullPolicy: {{ .Values.qdrant.image.pullPolicy | default "IfNotPresent" }}
+          ports:
+            - name: http
+              containerPort: 6333
+              protocol: TCP
+            - name: grpc
+              containerPort: 6334
+              protocol: TCP
+            - name: cluster
+              containerPort: 6335
+              protocol: TCP
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          # 🎯 核心防坑：使用条件分支命令阻断 qdrant-0 的冷启动引导死锁幽灵
+          command:
+            - "/bin/bash"
+            - "-c"
+            - |
+              if [ "$POD_NAME" = "{{ include "twitter.fullname" . }}-qdrant-0" ]; then
+                echo "🚀 Starting Qdrant Cluster Leader Node (qdrant-0)..."
+                exec ./qdrant --uri "http://{{ include "twitter.fullname" . }}-qdrant-0.{{ include "twitter.fullname" . }}-qdrant-headless.{{ .Release.Namespace }}.svc.cluster.local:6335"
+              else
+                echo "🚀 Starting Qdrant Follower Node ($POD_NAME), bootstrapping from qdrant-0..."
+                exec ./qdrant --uri "http://$POD_NAME.{{ include "twitter.fullname" . }}-qdrant-headless.{{ .Release.Namespace }}.svc.cluster.local:6335" --bootstrap "http://{{ include "twitter.fullname" . }}-qdrant-0.{{ include "twitter.fullname" . }}-qdrant-headless.{{ .Release.Namespace }}.svc.cluster.local:6335"
+              fi
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+          volumeMounts:
+            - name: qdrant-storage
+              mountPath: /qdrant/storage
+  volumeClaimTemplates:
+    - metadata:
+        name: qdrant-storage
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: "standard"
+        resources:
+          requests:
+            storage: 2Gi
+{{- end }}

@@ -124,8 +124,8 @@ const sendMessage = async () => {
     try {
         const reqData = {
             content,
-            dialogue_id: activeDialogueId.value ? Number(activeDialogueId.value) : 0,
-            model_kind_id: activeModelId.value ? Number(activeModelId.value) : 0
+            dialogue_id: activeDialogueId.value || '0',
+            model_kind_id: activeModelId.value || '0'
         }
         
         let res

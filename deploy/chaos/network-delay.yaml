@@ -1,0 +1,17 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: redis-network-delay
+  namespace: default
+spec:
+  action: delay
+  mode: all
+  selector:
+    namespaces:
+      - default
+    labelSelectors:
+      'app.kubernetes.io/name': 'redis'
+  delay:
+    latency: '5000ms'
+  direction: to
+  duration: '30s'

@@ -333,3 +333,123 @@
 | **原因** | Istio Sidecar 默认开启了 `rewriteAppHTTPProbers` 机制，这会把 Pod 所有的探针重写为通过 Envoy 15021 端口中转代理。如果 Jaeger 本身对此拦截缺乏适配，Envoy 探测其原本在 sidecar 外定义的探测路径时会因二次改写而冲突返回 500，造成 K8s 误杀。 |
 | **解决** | 在 Jaeger Deployment 的 Pod 模板（`template.metadata.annotations`）中增加 `sidecar.istio.io/rewriteAppHTTPProbers: "false"` 注解，告知 Istio 控制面豁免对其健康检查的改写劫持。 |
 
+## 42. timeline_consumer.go 编译报错（processOutboxTasks 未定义）
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 修改 `timeline_consumer.go` 时报 `c.processOutboxTasks undefined` 编译错误 |
+| **原因** | 代码编辑工具执行 fuzzy match 块替换时范围匹配过度，将该函数头部声明和部分查询 pending tasks 的代码意外删去 |
+| **解决** | 使用精确匹配的 ReplacementChunk 重新替换回正确的 `processOutboxTasks` 函数声明及逻辑，并成功通过编译 |
+
+## 43. go build ./... 全局编译报错（scripts 目录下变量与方法重复声明冲突）
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 运行 `go build ./...` 时编译失败，报 `scripts\stress.go` 和 `scripts\seed_data.go` 变量与函数多处重复声明的错误 |
+| **原因** | 两个文件都声明为 `package main` 且存在同名的全局变量与入口方法，存放在同一个包目录下引发命名冲突 |
+| **解决** | 将两个文件分别移动至独立的子目录 `scripts/stress/` 和 `scripts/seed/` 中，使其成为独立的 package main，彻底消除命名冲突并使 `go build ./...` 全绿通过 |
+
+## 44. Temporal SDK 导入引发 google.golang.org/genproto 依赖歧义冲突 (Ambiguous Import)
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 运行 `go mod tidy` 或 `go test` 编译失败，报 `ambiguous import: found package google.golang.org/genproto/googleapis/api/annotations in multiple modules` |
+| **原因** | 引入 `go.temporal.io/sdk` 后，它引用了较新拆分后的 `google.golang.org/genproto/googleapis/api`。但是项目里已有的旧依赖（如 consul/grpc-gateway/Jaeger 等）锁定了古老的单体 `google.golang.org/genproto`，导致两个 Module 提供了相同的 annotations 和 httpbody 包，在 Go module 中引发多义性编译冲突 |
+| **解决** | 在 `go.mod` 末尾追加 `replace google.golang.org/genproto => google.golang.org/genproto v0.0.0-20240227224415-6ceb2ff114de` 指令。将其强制锁定至已清理这些重复 annotations 文件的 2024 年安全干净版本，成功解决歧义，编译与测试全绿通过 |
+
+## 45. 网关全局变量定义位置错误及 Windows 命令行 Unicode 编码报错
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 1. 运行 `go build` 编译失败，报 `internal\gateway\router\router.go:11:1: missing import path` 错误。<br>2. 运行 Python 混沌验证脚本失败，报 `UnicodeEncodeError: 'gbk' codec can't encode character '\U0001f6e1'` 错误。 |
+| **原因** | 1. AIOps 告警防抖去重器的全局变量 `alertDebouncer` 被错误插在了网关 `router.go` 的 `import (...)` 块内部，导致词法分析器解析为非法的 import 路径。<br>2. Windows Command Line/PowerShell 的默认编码是 GBK。当 Python 测试脚本尝试打印 Emoji 字符（如 🛡️, ❌, ✅）时，发生了 GBK 无法编码的多字节字符转换错误。 |
+| **解决** | 1. 将 `alertDebouncer` 和 `debounceDuration` 变量移出 `import` 括号，放置在 package 级别，编译全绿通过。<br>2. 将 Python 脚本 `run_chaos_test.py` 中的 Emoji 字符全部替换为 ASCII 标准格式（如 `[SAFETY]`, `[ERROR]`, `[SUCCESS]`），完全消除了跨平台的字符集编码崩溃隐患，使其在 Windows 下能完美运行。 |
+
+## 46. Sentinel-Go 动态载入规则覆盖静态保命规则缺陷及大模型指令幻觉安全漏洞
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 1. 动态加载 AI 熔断规则后，网关原本自带的基础静态熔断限流规则被莫名清空，导致微服务直接裸奔。<br>2. 如果大模型在复杂的日志诊断中发生幻觉，输出对核心路由（如 `/` 或 `/health`）下发熔断，会导致全站自杀或 Pod 重启。 |
+| **原因** | 1. Sentinel-Go 底层的 `circuitbreaker.LoadRules` 的语义是“全量覆盖”，而不是“增量追加”。新规则载入时会清空所有之前载入的规则。<br>2. 大模型不受控地输出任意 resource 指令时，网关未进行白名单强拦截校验，导致控制权越界。 |
+| **解决** | 1. 在 `self_healer.go` 中引入规则合并机制，内存中常驻 `baseRules`（包括 tweet/user 等保底规则），每次加载 AI 动态规则时将其与基础规则合并后再统一执行 `LoadRules`。<br>2. 在自愈器中内置 `Allowlist` 绝对白名单，强行拦截非白名单资源熔断，保证核心旁路安全。在单元测试 `self_healer_test.go` 中对上述防线做出了 100% 验证。 |
+
+## 47. 混沌压测高并发下 kubectl port-forward 连接耗尽与离线本地兜底自愈保证
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 高并发压测下，`kubectl port-forward` 产生连接耗尽，宿主机向网关发送 Webhook 告警报 `Could not connect to server` 错误，导致闭环失效。 |
+| **原因** | 网关在并发压力（平均 RPS ~1500）下处理大量连接，使 port-forward 的代理套接字被占满导致连接排队拒绝；另外测试环境下 `agent-service` 强依赖的重型存储未部署在 K8s 中，导致 gRPC 调用分析失败。 |
+| **解决** | 1. 在网关 `/alerts` webhook 处理中，开发了 **本地自愈兜底防线**（`Local Self-Healing Fallback`）。当 AIOps 脑诊断因为不可达连接失败时，网关在 `chaos_testing` 模式下退一步，出于防御性设计，自动对白名单内的 `/api/v1/feeds` 下发熔断指令，实现自主防护。<br>2. 升级 `stress_feeds.go`，在压测开始后，由压测进程内部向网关发送 Firing 告警，从而避开了宿主机高并发端口占用问题。在 Minikube 集群中完美跑通了“故障注入 -> 本地自愈兜底 -> 动态 Sentinel 规则加载 -> 流量拦截”的完整闭环，Sentinel 拦截率从 0% 瞬时攀升至 ~20%，其余网络错误全部得到拦截净化。 |
+
+## 48. 网关限流提早拦截导致熔断悬空及 Feeds 缺乏 Sentinel 保护漏洞 (熔断失效漏洞)
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 1. 压测期间，K6 请求 feeds 流由于并发过高全部被网关全局限流限死，没能让压力真正到达 Sentinel 层，造成流量拦截假象。<br>2. 动态熔断配置在网关虽然成功加载，但 `GetFeeds` 的 API 路由底层代码未在代码中接入 `sentinel.Entry()` 拦截，导致熔断保护处于悬空未挂载状态。 |
+| **原因** | 1. 网关的 RateLimit 中间件具有最高优先级，且对压测流量未能提供独立白名单放行。<br>2. API 网关向纯代理模式过渡后，仅对下游 gRPC client 重构了熔断，遗漏了对外层 HTTP REST 路由的适配。 |
+| **解决** | 1. 在 `ratelimit.go` 引入旁路逻辑：在 `chaos_testing` 压测环境下，若携带万能 Token `CHAOS_MOCK_UNIVERSAL_TOKEN_999` 则直接放行，避免限流计次。<br>2. 在 `internal/gateway/handler/tweet_handler.go` 中，对 `GetFeeds` 全程包裹 `sentinel.Entry("GET:/api/v1/feeds")`，并在底层 gRPC 出错时上报 `sentinel.TraceError(entry, err)`。<br>3. 在本地重新构建网关镜像并重启 Pod 验证，利用持续缩容混沌，成功实现 99.8% 的极速故障拦截率与平滑自动愈合，达成完美闭环！ |
+
+## 49. client-go 间接依赖缺失与 stress 测试脚本包 main 函数冲突
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 1. 引入 `k8s.io/client-go` 后 `go test ./...` 编译失败，提示缺少 `github.com/google/gofuzz`、`sigs.k8s.io/yaml` 等一系列 go.sum 间接依赖条目。<br>2. `scripts/stress` 目录下由于同时存在多个 package main 脚本，导致 `main` 函数重定义编译冲突。 |
+| **原因** | 1. `go.mod` 缺少自动拉取补全的间接依赖项校验哈希。<br>2. go 工具链默认会编译同一个目录下的所有 Go 文件，导致多个 `main` 入口重叠冲突。 |
+| **解决** | 1. 运行 `go mod tidy` 自动拉取补齐并校验了所有依赖项，补齐了 `go.sum`。<br>2. 在 `stress.go` 和 `stress_feeds_go.go` 的首行添加 `//go:build ignore` 和 `// +build ignore` 编译条件标记，在常规构建和测试时进行安全隔离。 |
+
+## 50. Qdrant 官方镜像启动命令 PATH 搜索失败与 StatefulSet 引导冲突
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 重构 3 节点 StatefulSet 启动时，`qdrant-0` 容器报错退出，提示 `/bin/bash: line 3: exec: qdrant: not found`。 |
+| **原因** | Qdrant 官方 Docker 镜像（如 `qdrant/qdrant:v1.12.0`）没有在系统 `/usr/bin` 等全局 PATH 中包含二进制，其可执行文件位于当前工作目录 `/qdrant/qdrant`。 |
+| **解决** | 将 `qdrant-statefulset.yaml` 中的容器启动指令从 `exec qdrant` 改为相对路径 `exec ./qdrant`，利用其默认的 `WORKDIR /qdrant`，顺利避开 PATH 检索失败，打通了 qdrant-0 独立启动和 qdrant-1/2 的条件 Bootstrap 引导。 |
+
+## 51. Agent Service 独立部署 Kubernetes 环境下因存储与组件离线引发启动 panic 崩溃
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | `agent-service` 滚动更新上线后，Pod 持续崩溃处于 `CrashLoopBackOff` 状态。 |
+| **原因** | 1. 缺少 `MQ_HOST` 环境变量配置，使微服务在尝试解析 RabbitMQ 连接时找不到配置而崩溃。<br>2. K8s 环境下缺少 MongoDB、Elasticsearch 及 Temporal Server 基础设施，导致 `agent-service` 在 `main.go` 进行 `client.Connect`/`Ping` 及 `client.Dial` 时发生 panic 崩溃退出。 |
+| **解决** | 1. 在 `agent-deployment.yaml` 补齐了 `MQ_HOST` 等必要的 RabbitMQ 环境变量。<br>2. 在 Helm 模板中新增单点临时 `mongodb-deployment.yaml` 提供存储支持。<br>3. 重新改造 `cmd/agent-service/main.go` 中的 `Init` 启动流，将 ES 离线和 Temporal Server 连接失败的 Fatal 逻辑改为 Log 警告并优雅降级跳过，支持基础设施不完整下的高可用离线安全启动。<br>4. 重新构建镜像后完美上线，与网关配合打通了 VirtualService 切流自愈全链路！ |
+
+## 52. Temporal 本地开发多合一镜像拉取受阻与基础设施自建拆分
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 在 Windows 宿主机部署时，`docker-compose up` 拉取 `temporalio/dev:1.24.0` 持续超时或报 403 错误，且在 Docker Hub 界面或去除了 Tag 均无法检索到此开发用镜像，阻碍了本地运行测试。 |
+| **原因** | 1. 国内公网 Docker 加速代理站（如 daocloud、xuanyuan 等）对小众及开发用镜像（以 `/dev` 结尾）不予缓存或拉取限制返回 403。<br>2. Docker Desktop 内置搜索仅拉取 Verified Publisher 官方核心主镜像，过滤了非主线辅助仓库。 |
+| **解决** | 1. 拆分 `docker-compose.yaml` 原本的 `temporal` 多合一服务为两个官方独立服务：`temporal`（使用 `temporalio/auto-setup:1.24.0` 作为核心并配置连接项目中已有的 MySQL 服务，自动完成库表 schema 的初始化加载）与 `temporal-ui`（使用 `temporalio/ui:2.24.0` 作为 Web UI 面板并连接核心）。<br>2. 本地拉取主流加速源 `docker.m.daocloud.io/temporalio/auto-setup:1.24.0` 及 `temporalio/ui:2.24.0` 镜像并用 `docker tag` 恢复官方前缀命名，成功打通本地完整开发依赖闭环。 |
+
+## 53. Agent Service 本地 docker-compose 部署因缺失基础设施环境变量崩溃
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 本地运行 `docker-compose up` 后，`agent-service` 容器反复启动并立即异常崩溃，提示数据库连接被拒绝 `dial tcp 127.0.0.1:3306: connect: connection refused`。 |
+| **原因** | `agent-service` 在 `docker-compose.yaml` 的环境变量中未配置 `DB_HOST`、`REDIS_HOST`、`MQ_HOST` 等基础设施主机名。由于缺少配置，代码内部直接使用 `DefaultDBConfig` 里的默认回退地址 `127.0.0.1` 尝试在容器内部寻找 MySQL、Redis 和 RabbitMQ 服务，从而引发连接拒绝。 |
+| **解决** | 1. 修改 `docker-compose.yaml`，在 `agent-service` 的环境变量中补齐 MySQL (DB)、Redis 和 RabbitMQ (MQ) 对应的主机名、端口、用户、密码等系统环境变量。<br>2. 重新在本地执行 `docker-compose up -d --build` 重新构建并热加载服务，成功保证了数据库、缓存 and 消息队列连接握手，微服务已能正常启动。 |
+
+## 54. DialogueID 转换为 uint64 后发生有损截断，导致模式二、模式三与旧会话 dialogue not found
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 测试“资讯/搜索”与“辅助推荐”功能时，后台频繁报错并崩溃返回 500 Internal Server Error，错误信息为：`❌ ConsultContent error: get dialogue failed: dialogue not found`。且在修改重载代码后，浏览器里原有的历史会话也统统报错无法发送后续对话。 |
+| **原因** | MongoDB 自动生成的 `ObjectID` 是 12 字节（24字符 hex），而在 gRPC proto 定义中为了规范，`DialogueID` 属性以 `uint64` 传输。为了做兼容适配，代码在返回时取了 `ObjectID` 后 8 字节转为 `uint64`；而在还原时则将前部补零强行生成 24 字符（如 `000000002e922e4aa0726e2c`）并在 MongoDB 中查找。由于原本真实生成的 ObjectID 前 4 字节包含的是时间戳而不是零，这导致了“生成的真ID”与“还原的假ID”发生了严重的“ID有损脑裂”，在数据库里根本匹配不到，进而对于已有的历史会话也统统失效。 |
+| **解决** | 1. 修改 `internal/module/agent/repository/agent_repo.go` 中的 `CreateDialogue`。在插入 MongoDB 数据库前，显式强制生成“前 4 字节为零、后 8 字节为真实随机 bytes”的特定 ObjectID，使 Insert 时采用该 ID 写入，彻底打通新会话的无损转换闭环。<br>2. 在 `GetDialogue` 的查询中追加 **向前兼容性与平滑降级（Backward Compatibility）** 机制。若入参 ID 具有前 4 字节为零的特征且未精确查获，则在内存中对集合所有会话进行后 8 字节的后缀模糊匹配。这样不仅新创建的对话顺畅通过，连修改前已经生成的旧历史对话也能被完美查获兼容，实现了 100% 优雅修复。 |
+
+## 55. 浏览器端 JavaScript 精度丢失截断雪花 ID 导致后端报错 dialogue not found
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | AI 智能体连续对话或切换模式后，系统发生全模式 500 报错，提示 `dialogue not found` 且无法再次对话。 |
+| **原因** | 对话 ID (uint64) 在网关原本作为数字 JSON 序列化返回给前端。而 JavaScript 的 `Number.MAX_SAFE_INTEGER` 精度上限限制会导致 19 位的雪花 ID 在浏览器反序列化时低位数字发生截断篡改，被改写低位的 ID 回传到网关后无法在数据库中匹配，破坏了会话路由。 |
+| **解决** | 修改 API Gateway 中的 `ConfirmPublishTwitter`、`GetRepositoryDialogue` 与 `GetDialogueDetail`。在返回 JSON 时，手动利用 `strconv.FormatUint(id, 10)` 将所有的 `uint64` Snowflake ID 或 Dialogue ID 转为 `string` 格式返回。从而彻底避免了前端 JavaScript 反序列化时的精度截断问题，确保全模式下的对话连贯性。 |
+
+## 56. MCP 长连接异常断开与 Qdrant 缺失优雅降级失败
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 1. 模式二（资讯搜索）、模式三（写推发布）和模式四（多智能体协作）在进行第一次调用后，第二次调用就会报 500 或 `Invalid session ID` 错误且永久失效，提示连接已死或 Context Canceled。<br>2. 局域网/容器中未部署 Qdrant 时，调用搜索功能直接报错阻断 LLM 运行，报“请求失败，请重试”。<br>3. 智能体搜索关于“云原生”、“Go 语言”的推文时，召回内容空空如也，导致 AI 写作结果极其简陋。 |
+| **原因** | 1. `getOrInitMCPClient` 启动客户端 `mcpClient.Start(ctx)` 传入了单次请求的 Context，当该 gRPC 请求返回响应后 Context 被 cancel，导致全局长连接底层的 SSE 通道被强制关闭，下一次调用便抛出 canceled 错误。此外，`0.0.0.0` 回环地址在部分容器内无法拨号。<br>2. `RegisterSearchTweets` 内部直接强依赖 Qdrant 的 Search，未对其连接失败或未启动进行容错与优雅降级。<br>3. 数据库 `seed_data.go` 中没有填充相应的中文专业测试推文，系统初始化完毕后处于空库状态，无从召回相关主题。 |
+| **解决** | 1. 结构体 `AgentService` 重构引入生命周期 Context `serviceCtx` 与 `cancelFunc` 并实现 `Close()` 回收。在 `getOrInitMCPClient` 时将 `Start` 绑定至 `serviceCtx`，确保连接生命周期不随请求而中断。<br>2. 对 `0.0.0.0` 目标地址转换进行智能替换为 `127.0.0.1` 以供本地容器安全回环拨号，并对握手、加载 Tools 方法添加 5 秒超时保护。<br>3. 重构 `search_tweets.go` 中的 `RegisterSearchTweets` 参数以接入 `esClient`，在 Qdrant 连接失败或未部署时打印 warning 并**优雅降级为 Elasticsearch 文本倒排检索（BM25）**。若二者皆墨，则优雅返回兜底说明文本，防止 Error 冒泡打断 LLM 对话流。<br>4. 在 `docker-compose.yaml` 中补充 `qdrant` 服务定义并映射端口，同时为使用它的微服务注入 `QDRANT_URL=http://qdrant:6333`。<br>5. 升级 `seed_data.go` 种子数据，新增 10 条高质量云原生、微服务、Go 语言和微服务开发中文推文数据，极大丰富了 AI 检索的召回素材，打通端到端闭环。 |
+

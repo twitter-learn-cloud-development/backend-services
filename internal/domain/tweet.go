@@ -16,9 +16,10 @@ const (
 
 // VisibleType可见性枚举
 const (
-	VisiblePublic  = 0 //公开
-	VisibleFollows = 1 //仅粉丝可见
-	VisiblePrivate = 2 //仅自己可见
+	VisiblePublic    = 0 //公开
+	VisibleFollows   = 1 //仅粉丝可见
+	VisiblePrivate   = 2 //仅自己可见
+	VisibleShadowban = 4 //影子封禁
 )
 
 // MediaURLs 自定义类型，用于 GORM 处理 JSON 字段

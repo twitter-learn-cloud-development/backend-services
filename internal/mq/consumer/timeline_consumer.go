@@ -11,6 +11,7 @@ import (
 
 	"twitter-clone/pkg/es"
 	"twitter-clone/pkg/logger"
+	"twitter-clone/pkg/qdrant"
 
 	"twitter-clone/pkg/ai"
 
@@ -53,11 +54,17 @@ const (
 	// QueueTweetDeleteDLQ 推文删除死信队列
 	QueueTweetDeleteDLQ = "queue.tweet.delete.dlq"
 
+	// QueueTweetRisk 🆕 推文风控旁路队列
+	QueueTweetRisk = "queue.tweet.risk"
+
 	// RoutingKeyTweetCreated 正常发推路由键
 	RoutingKeyTweetCreated = "tweet.created"
 
 	// RoutingKeyTweetDeleted 正常删推路由键
 	RoutingKeyTweetDeleted = "tweet.deleted"
+
+	// RoutingKeyTweetRisk 🆕 推文风控旁路路由键
+	RoutingKeyTweetRisk = "risk.checking"
 
 	// CelebrityMinFollowers 大V粉丝数判定阈值
 	CelebrityMinFollowers = 5000
@@ -79,6 +86,7 @@ type TimelineConsumer struct {
 	timelineCache  *tweetCache.TimelineCache
 	redisClient    *redis.Client
 	esClient       *es.Client
+	qdrantClient   *qdrant.Client // 🆕 注入 Qdrant 客户端
 	aiClient       *ai.Client
 	outboxRepo     domain.OutboxRepository // 🆕 注入 Outbox 仓储
 	hashtagBatcher *HashtagBatcher         // 🆕 注入 Hashtag 批量计数缓冲器
@@ -91,6 +99,7 @@ func NewTimelineConsumer(
 	timelineCache *tweetCache.TimelineCache,
 	redisClient *redis.Client,
 	esClient *es.Client,
+	qdrantClient *qdrant.Client, // 🆕 注入 Qdrant 客户端
 	aiClient *ai.Client,
 	outboxRepo domain.OutboxRepository, // 🆕 注入 Outbox 仓储
 ) (*TimelineConsumer, error) {
@@ -112,6 +121,9 @@ func NewTimelineConsumer(
 	}
 	if _, err := mqClient.DeclareQueue(QueueTweetDelete, true); err != nil {
 		return nil, fmt.Errorf("failed to declare delete queue: %w", err)
+	}
+	if _, err := mqClient.DeclareQueue(QueueTweetRisk, true); err != nil {
+		return nil, fmt.Errorf("failed to declare risk queue: %w", err)
 	}
 
 	// 3. 声明重试队列（配置 Dead Letter 参数以在 TTL 到期时重新发回到业务队列）
@@ -138,7 +150,7 @@ func NewTimelineConsumer(
 	if _, err := mqClient.DeclareQueue(QueueTweetDeleteDLQ, true); err != nil {
 		return nil, fmt.Errorf("failed to declare delete dlq: %w", err)
 	}
-	log.Println("✅ Queues declared: business, retry, dlq")
+	log.Println("✅ Queues declared: business, retry, dlq, risk")
 
 	// 5. 绑定正常业务队列
 	if err := mqClient.BindQueue(QueueTweetFanout, RoutingKeyTweetCreated, ExchangeEvents); err != nil {
@@ -146,6 +158,9 @@ func NewTimelineConsumer(
 	}
 	if err := mqClient.BindQueue(QueueTweetDelete, RoutingKeyTweetDeleted, ExchangeEvents); err != nil {
 		return nil, fmt.Errorf("failed to bind delete queue: %w", err)
+	}
+	if err := mqClient.BindQueue(QueueTweetRisk, RoutingKeyTweetRisk, ExchangeEvents); err != nil {
+		return nil, fmt.Errorf("failed to bind risk queue: %w", err)
 	}
 
 	// 6. 绑定重试队列
@@ -180,6 +195,7 @@ func NewTimelineConsumer(
 		timelineCache:  timelineCache,
 		redisClient:    redisClient,
 		esClient:       esClient,
+		qdrantClient:   qdrantClient, // 🆕 注入 Qdrant
 		aiClient:       aiClient,
 		outboxRepo:     outboxRepo, // 🆕 注入 Outbox 仓储
 		hashtagBatcher: hashtagBatcher,
@@ -292,6 +308,17 @@ func (c *TimelineConsumer) handleFanoutMessage(msg amqp.Delivery) {
 		}
 	}
 
+	// 🆕 异步广播发帖到风控旁路检测队列
+	go func() {
+		riskCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		if err := c.mq.Publish(riskCtx, ExchangeEvents, RoutingKeyTweetRisk, msg.Body); err != nil {
+			log.Printf("❌ Failed to broadcast to risk queue: %v", err)
+		} else {
+			log.Printf("⚡ Broadcasted to risk queue for tweet_id=%d", event.TweetID)
+		}
+	}()
+
 	log.Printf("✅ Fanout completed: tweet_id=%d", event.TweetID)
 }
 
@@ -326,6 +353,10 @@ func (c *TimelineConsumer) fanoutToFollowers(authorID uint64, tweetID uint64) er
 		// 如果 Redis 出错，降级走普通写扩散流程，不影响正常发布
 	} else if isCelebrity {
 		log.Printf("📢 [Celebrity Push Avoided] Author %d is a celebrity. Skipping write-diffusion fanout.", authorID)
+		// 🆕 将推文写入大V个人时间线缓存，以供粉丝拉取使用 (L2 Pull 缓存)
+		if cacheErr := c.timelineCache.AddToUserTimeline(ctx, authorID, tweetID); cacheErr != nil {
+			log.Printf("⚠️  Failed to add to celebrity timeline cache for user %d: %v", authorID, cacheErr)
+		}
 		return nil // 略过写扩散，大V通过拉模式（读扩散）提供数据
 	}
 
@@ -433,9 +464,19 @@ func (c *TimelineConsumer) handleDeleteMessage(msg amqp.Delivery) {
 	log.Printf("✅ Remove completed: tweet_id=%d", event.TweetID)
 }
 
-// removeFromFollowersTimeline 从粉丝 Timeline 删除
+// removeFromFollowersTimeline 从粉丝 Timeline 删除，并失效 L1/L2 缓存
 func (c *TimelineConsumer) removeFromFollowersTimeline(authorID uint64, tweetID uint64) error {
 	ctx := context.Background()
+
+	// 🆕 异步广播失效该推文的 L1/L2 缓存，以及大V的个人时间线
+	go func() {
+		invalidCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		if err := c.timelineCache.InvalidateBaseTweet(invalidCtx, tweetID); err != nil {
+			log.Printf("⚠️  Failed to globally invalidate tweet cache: %v", err)
+		}
+		_ = c.timelineCache.RemoveFromUserTimeline(invalidCtx, authorID, tweetID)
+	}()
 
 	// 1. 检查是否为大V
 	isCelebrity, err := c.timelineCache.IsCelebrity(ctx, authorID)
@@ -568,10 +609,9 @@ func (c *TimelineConsumer) StartOutboxWorker(ctx context.Context) {
 	}
 }
 
-// processOutboxTasks 执行差分提取并处理 ES 同步任务
+// processOutboxTasks 批量处理待同步的发件箱任务
 func (c *TimelineConsumer) processOutboxTasks(ctx context.Context) {
-	// 批量拉取满足指数退避时间的 Pending/Failed 记录
-	tasks, err := c.outboxRepo.GetPendingTasks(ctx, 20)
+	tasks, err := c.outboxRepo.GetPendingTasks(ctx, 10)
 	if err != nil {
 		log.Printf("⚠️  Outbox worker: failed to query pending tasks: %v", err)
 		return
@@ -635,7 +675,7 @@ func (c *TimelineConsumer) executeESIndex(ctx context.Context, event *events.Twe
 		UserID:        fmt.Sprintf("%d", event.AuthorID),
 		ParentID:      fmt.Sprintf("%d", event.ParentID),
 		Content:       "Document: " + event.Content,
-		ContentVector: embeddingData,
+		ContentVector: nil, // 🎯 设为 nil，释放 ES 堆内存与 HNSW 索引压力
 		Type:          event.Type,
 		VisibleType:   event.VisibleType,
 		CreatedAt:     event.CreatedAt,
@@ -650,5 +690,22 @@ func (c *TimelineConsumer) executeESIndex(ctx context.Context, event *events.Twe
 	if err := c.esClient.IndexTweet(ctx, doc); err != nil {
 		return fmt.Errorf("failed to index tweet in ES: %w", err)
 	}
+
+	// 🎯 写入 Qdrant (HNSW)
+	if c.qdrantClient != nil {
+		payload := map[string]interface{}{
+			"user_id":      fmt.Sprintf("%d", event.AuthorID),
+			"parent_id":    fmt.Sprintf("%d", event.ParentID),
+			"content":      "Document: " + event.Content,
+			"type":         event.Type,
+			"visible_type": event.VisibleType,
+			"created_at":   event.CreatedAt,
+		}
+		if err := c.qdrantClient.UpsertPoint(ctx, "tweets", event.TweetID, embeddingData, payload); err != nil {
+			return fmt.Errorf("failed to upsert point to Qdrant: %w", err)
+		}
+		log.Printf("✅ Synced vector to Qdrant successfully: tweet_id=%d", event.TweetID)
+	}
+
 	return nil
 }

@@ -76,7 +76,7 @@ message Tweet {
 	string content = 3;
 	repeated string media_urls = 4;
 	int32 type = 5;
-	int32 visible_type = 6;
+	int32 visible_type = 6; // 0: 公开, 1: 粉丝, 2: 私密, 4: 影子封禁
 	int64 created_at = 7;
 	int64 updated_at = 8;
 	

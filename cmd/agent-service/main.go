@@ -10,8 +10,12 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/joho/godotenv"
+	"go.temporal.io/sdk/client"
+	"go.temporal.io/sdk/temporal"
+	"go.temporal.io/sdk/worker"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
@@ -23,16 +27,25 @@ import (
 	"twitter-clone/internal/module/agent/repository"
 	agentService "twitter-clone/internal/module/agent/service"
 	mongoInfra "twitter-clone/internal/infrastructure/mongo"
+	"twitter-clone/internal/infrastructure/persistence"
+	"twitter-clone/internal/infrastructure/cache"
+	"twitter-clone/internal/infrastructure/mq"
+	followRepository "twitter-clone/internal/module/follow/repository"
 	"twitter-clone/pkg/ai"
 	"twitter-clone/pkg/es"
 	"twitter-clone/pkg/logger"
+	"twitter-clone/pkg/qdrant"
 	"twitter-clone/pkg/registry"
+	"twitter-clone/pkg/profiler"
 
 	_ "github.com/mbobakov/grpc-consul-resolver"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
+	// 启动 Profiler 持续性能监控
+	profiler.Init("agent-service")
+
 	log.Println("========================================")
 	log.Println("🤖 Agent Service (gRPC + MCP + MongoDB)")
 	log.Println("========================================")
@@ -59,12 +72,25 @@ func main() {
 		log.Println("✅ MongoDB indexes ensured")
 	}
 
-	// 2. 初始化 ES 客户端
+	// 2. 初始化 ES 客户端 (高可用降级：允许 ES 离线启动)
+	var esClient *es.Client
 	if err := es.Init(); err != nil {
-		log.Fatalf("❌ Failed to init elasticsearch: %v", err)
+		log.Printf("⚠️ Warning: Failed to init elasticsearch: %v. Search features might be limited.", err)
+	} else {
+		log.Println("✅ Elasticsearch connected")
+		esClient = es.GetClient()
 	}
-	log.Println("✅ Elasticsearch connected")
-	esClient := es.GetClient()
+	_ = esClient
+
+	// 2.1 Qdrant 向量库初始化
+	var qdrantClient *qdrant.Client
+	qdrantURL := getEnv("QDRANT_URL", "http://localhost:6333")
+	qdrantClient = qdrant.NewClient(qdrantURL)
+	log.Println("✅ Qdrant client initialized")
+	// 预建 collection (1024 维 cosine 相似度)
+	if err := qdrantClient.CreateCollection(context.Background(), "tweets", 1024); err != nil {
+		log.Printf("⚠️ Failed to create qdrant collection: %v. Search features might be limited.", err)
+	}
 
 	// 3. 初始化 AI Embedding 客户端
 	aiClient := ai.NewClient(getEnv("LM_STUDIO_API_URL", "http://localhost:1234/v1"))
@@ -114,7 +140,7 @@ func main() {
 	// 5. 启动 MCP Server（后台 goroutine）
 	mcpAddr := getEnv("MCP_SERVER_ADDR", "0.0.0.0:9200")
 	embeddingModel := getEnv("LM_STUDIO_MODEL_EMBEDDING", "text-embedding-bge-m3")
-	mcpServer := agentMcp.NewMCPServer(esClient, aiClient, reranker, tweetClient, userClient, embeddingModel)
+	mcpServer := agentMcp.NewMCPServer(esClient, qdrantClient, aiClient, reranker, tweetClient, userClient, embeddingModel)
 	go func() {
 		log.Printf("🔧 MCP Server starting on %s", mcpAddr)
 		if err := mcpServer.Start(mcpAddr); err != nil {
@@ -123,15 +149,113 @@ func main() {
 	}()
 	log.Println("✅ MCP Server started")
 
-	// 6. 初始化 AgentService（注入 Repository）
+	// 🆕 初始化 MySQL/Redis/RabbitMQ (用于影子风控与舆情播报双轨并行)
+	dbConfig := persistence.DefaultDBConfig()
+	db, err := persistence.NewDB(dbConfig)
+	if err != nil {
+		log.Fatalf("❌ Failed to connect database: %v", err)
+	}
+	log.Println("✅ Database connected for Agent Service bypass")
+
+	redisConfig := cache.DefaultRedisConfig()
+	redisClient, err := cache.NewRedis(redisConfig)
+	if err != nil {
+		log.Fatalf("❌ Failed to connect redis: %v", err)
+	}
+	log.Println("✅ Redis connected for Agent Service bypass")
+
+	// 6. 初始化 AgentService（注入 Repository, aiClient 和 redisClient）
 	svc := agentService.NewAgentService(
 		getEnv("DASHSCOPE_API_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
 		getEnv("DASHSCOPE_API_KEY", ""),
 		getEnv("LM_STUDIO_MODEL_CHAT", "qwen3.6-plus"),
 		mcpAddr,
 		repo,
+		aiClient,
+		redisClient,
 	)
 	log.Println("✅ Agent Service initialized (with MongoDB persistence)")
+
+	mqConfig := mq.DefaultRabbitMQConfig()
+	mqClient, err := mq.NewRabbitMQ(mqConfig)
+	if err != nil {
+		log.Fatalf("❌ Failed to connect rabbitmq: %v", err)
+	}
+	log.Println("✅ RabbitMQ connected for Agent Service bypass")
+
+	followRepo := followRepository.NewFollowRepository(db)
+
+	backgroundCtx, backgroundCancel := context.WithCancel(context.Background())
+	_ = backgroundCancel // 保持引用
+
+	// 🆕 初始化 Temporal 客户端 (高可用降级：支持 Temporal 离线启动)
+	temporalHost := getEnv("TEMPORAL_HOST", "localhost:7233")
+	temporalClient, err := client.Dial(client.Options{
+		HostPort: temporalHost,
+	})
+	if err != nil {
+		log.Printf("⚠️ Warning: Failed to connect Temporal Server at %s: %v. Temporal features will be disabled.", temporalHost, err)
+	} else {
+		log.Printf("✅ Connected to Temporal Server at %s", temporalHost)
+		defer temporalClient.Close()
+
+		// 🆕 初始化 Temporal Activities
+		chatModelCheap := getEnv("LM_STUDIO_MODEL_CHAT", "qwen3.6-plus")
+		chatModelPremium := getEnv("PREMIUM_AI_MODEL_CHAT", "qwen-max")
+		botUserIDStr := getEnv("TRENDING_BOT_USER_ID", "100")
+		botUserID, _ := strconv.ParseUint(botUserIDStr, 10, 64)
+		if botUserID == 0 {
+			botUserID = 100
+		}
+		embeddingModel = getEnv("LM_STUDIO_MODEL_EMBEDDING", "text-embedding-bge-m3")
+
+		activities := agentService.NewAgentActivities(
+			db,
+			redisClient,
+			esClient,
+			qdrantClient,
+			aiClient,
+			tweetClient,
+			followRepo,
+			embeddingModel,
+			chatModelCheap,
+			chatModelPremium,
+			botUserID,
+		)
+
+		// 🆕 注册 Worker 并运行
+		temporalWorker := worker.New(temporalClient, "AGENT_TASK_QUEUE", worker.Options{})
+		temporalWorker.RegisterWorkflow(agentService.TweetRiskControlWorkflow)
+		temporalWorker.RegisterWorkflow(agentService.TrendingReporterWorkflow)
+		temporalWorker.RegisterActivity(activities)
+
+		go func() {
+			log.Println("👷 Temporal Worker starting to process queues...")
+			if err := temporalWorker.Run(worker.InterruptCh()); err != nil {
+				log.Fatalf("❌ Temporal Worker failed: %v", err)
+			}
+		}()
+
+		// 🆕 启动反作弊影子风控 MQ 监听器（其底层会向 Temporal 发起风控工作流）
+		riskControl := agentService.NewRiskControl(mqClient, temporalClient)
+		go riskControl.Start(backgroundCtx)
+
+		// 🆕 启动常驻的周期性舆情监控自愈工作流
+		reporterOptions := client.StartWorkflowOptions{
+			ID:        "TrendingReporter-Sentinel",
+			TaskQueue: "AGENT_TASK_QUEUE",
+		}
+		_, err = temporalClient.ExecuteWorkflow(backgroundCtx, reporterOptions, agentService.TrendingReporterWorkflow, 1*time.Minute)
+		if err != nil {
+			if !temporal.IsWorkflowExecutionAlreadyStartedError(err) {
+				log.Printf("⚠️ Failed to trigger TrendingReporter workflow: %v", err)
+			} else {
+				log.Println("ℹ️ TrendingReporter workflow is already running")
+			}
+		} else {
+			log.Println("🚀 Handoff TrendingReporter to Temporal Workflow Engine successfully!")
+		}
+	}
 
 	// 7. 注册 Consul
 	consulAddr := getEnv("CONSUL_HOST", "localhost") + ":" + getEnv("CONSUL_PORT", "8500")
@@ -155,6 +279,28 @@ func main() {
 			defer svcRegistry.DeregisterService(serviceID)
 		}
 	}
+
+	// 🆕 实例化并启动热点播报姬后台定时任务 (发总结的 AI 助手)
+	chatModelCheap := getEnv("LM_STUDIO_MODEL_CHAT", "qwen3.6-plus")
+	botUserIDStr := getEnv("TRENDING_BOT_USER_ID", "100")
+	botUserID, _ := strconv.ParseUint(botUserIDStr, 10, 64)
+	if botUserID == 0 {
+		botUserID = 100
+	}
+	embeddingModel = getEnv("LM_STUDIO_MODEL_EMBEDDING", "text-embedding-bge-m3")
+
+	reporter := agentService.NewTrendingReporter(
+		redisClient,
+		esClient,
+		qdrantClient,
+		aiClient,
+		tweetClient,
+		embeddingModel,
+		chatModelCheap,
+		botUserID,
+	)
+	go reporter.Start(backgroundCtx, 5*time.Minute)
+	log.Println("✅ Trending Reporter (AI summary assistant) background task spawned successfully")
 
 	// 8. 启动 gRPC Server
 	grpcServer := grpc.NewServer()
@@ -192,7 +338,14 @@ func main() {
 	<-quit
 
 	log.Println("🛑 Shutting down server...")
+	backgroundCancel() // 停止影子风控与舆情播报姬后台 Worker
 	grpcServer.GracefulStop()
+	if svc != nil {
+		svc.Close() // 🆕 关闭 AgentService 关联的 MCP 长连接及生命周期 Context
+	}
+	if mqClient != nil {
+		mqClient.Close()
+	}
 	log.Println("✅ Server exited")
 }
 

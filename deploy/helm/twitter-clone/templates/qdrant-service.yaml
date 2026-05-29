@@ -1,0 +1,23 @@
+{{- if .Values.qdrant.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "twitter.fullname" . }}-qdrant
+  labels:
+    {{- include "twitter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: qdrant
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6333
+      targetPort: 6333
+      protocol: TCP
+      name: http
+    - port: 6334
+      targetPort: 6334
+      protocol: TCP
+      name: grpc
+  selector:
+    {{- include "twitter.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: qdrant
+{{- end }}

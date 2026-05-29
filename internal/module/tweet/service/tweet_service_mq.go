@@ -2,10 +2,12 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"twitter-clone/internal/domain"
@@ -16,6 +18,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.uber.org/zap"
+	"golang.org/x/sync/singleflight"
 )
 
 const (
@@ -45,6 +48,8 @@ type TweetService struct {
 	retweetRepo   domain.RetweetRepository
 	timelineCache *cache.TimelineCache
 	eventProducer EventProducer
+	l1Cache       *cache.L1Cache
+	requestGroup  singleflight.Group
 }
 
 // NewTweetService 创建推文服务
@@ -58,6 +63,7 @@ func NewTweetService(
 	retweetRepo domain.RetweetRepository,
 	timelineCache *cache.TimelineCache,
 	eventProducer EventProducer,
+	l1Cache *cache.L1Cache,
 ) *TweetService {
 	return &TweetService{
 		repo:          repo,
@@ -69,6 +75,7 @@ func NewTweetService(
 		retweetRepo:   retweetRepo,
 		timelineCache: timelineCache,
 		eventProducer: eventProducer,
+		l1Cache:       l1Cache,
 	}
 }
 
@@ -94,7 +101,7 @@ func (s *TweetService) CreateTweet(ctx context.Context, userID uint64, content s
 
 	// 1.5 验证父推文是否存在 (如果是回复)
 	if parentID > 0 {
-		_, err := s.repo.GetByID(ctx, parentID)
+		_, err := s.GetBaseTweetWithCache(ctx, parentID)
 		if err != nil {
 			return nil, ErrTweetNotFound
 		}
@@ -170,7 +177,7 @@ func (s *TweetService) CreateTweet(ctx context.Context, userID uint64, content s
 	return tweet, nil
 }
 
-// DeleteTweet 删除推文（使用消息队列）
+// DeleteTweet 删除推文（使用消息队列）并失效多级缓存
 func (s *TweetService) DeleteTweet(ctx context.Context, tweetID uint64, userID uint64) error {
 	// 1. 查询推文
 	tweet, err := s.repo.GetByID(ctx, tweetID)
@@ -183,12 +190,15 @@ func (s *TweetService) DeleteTweet(ctx context.Context, tweetID uint64, userID u
 		return ErrUnauthorized
 	}
 
-	// 3. 执行删除
+	// 3. 执行数据库删除
 	if err := s.repo.Delete(ctx, tweetID); err != nil {
 		return fmt.Errorf("failed to delete tweet: %w", err)
 	}
 
-	// 4. 🆕 发送删除事件到 MQ
+	// 4. 失效本地与全局 L1/L2 缓存
+	s.InvalidateTweetCache(ctx, tweetID)
+
+	// 5. 发送删除事件到 MQ
 	event := &events.TweetDeletedEvent{
 		TweetID:  tweetID,
 		AuthorID: userID,
@@ -201,20 +211,30 @@ func (s *TweetService) DeleteTweet(ctx context.Context, tweetID uint64, userID u
 	return nil
 }
 
-// GetTweet 获取推文详情
+// GetTweet 获取推文详情 (带多级缓存与 singleflight 并发穿透防御)
 func (s *TweetService) GetTweet(ctx context.Context, tweetID uint64, requestingUserID uint64) (*domain.Tweet, error) {
-	tweet, err := s.repo.GetByID(ctx, tweetID)
+	// 1. 获取基础推文信息 (多级缓存 + singleflight)
+	baseTweet, err := s.GetBaseTweetWithCache(ctx, tweetID)
 	if err != nil {
 		return nil, ErrTweetNotFound
 	}
 
-	// 1. 获取点赞数
+	// 2. 影子封禁过滤：如果是影子封禁的推文，且请求者不是作者本人，则返回推文不存在
+	if baseTweet.VisibleType == domain.VisibleShadowban && baseTweet.UserID != requestingUserID {
+		return nil, ErrTweetNotFound
+	}
+
+	// 3. 克隆一份以防止并发修改导致缓存数据污染
+	tweet := &domain.Tweet{}
+	*tweet = *baseTweet
+
+	// 4. 获取点赞数
 	likeCount, err := s.likeRepo.GetLikeCount(ctx, tweetID)
 	if err == nil {
 		tweet.LikeCount = int(likeCount)
 	}
 
-	// 2. 检查是否已点赞
+	// 5. 检查是否已点赞
 	if requestingUserID > 0 {
 		isLiked, err := s.likeRepo.IsLiked(ctx, requestingUserID, tweetID)
 		if err == nil {
@@ -222,16 +242,181 @@ func (s *TweetService) GetTweet(ctx context.Context, tweetID uint64, requestingU
 		}
 	}
 
-	// 3. 获取评论数
+	// 6. 获取评论数
 	commentCount, err := s.commentRepo.GetCommentCount(ctx, tweetID)
 	if err == nil {
 		tweet.CommentCount = int(commentCount)
 	}
 
-	// 4. 填充其他统计数据 (包括 Poll)
+	// 7. 填充其他统计数据 (包括 Poll)
 	s.populateTweetStats(ctx, []*domain.Tweet{tweet}, requestingUserID)
 
 	return tweet, nil
+}
+
+// GetBaseTweetWithCache 带 L1/L2 缓存与 singleflight 并发穿透防御的基础推文获取
+func (s *TweetService) GetBaseTweetWithCache(ctx context.Context, tweetID uint64) (*domain.Tweet, error) {
+	key := fmt.Sprintf("tweet:base:%d", tweetID)
+
+	// 1. 尝试 L1 本地内存缓存
+	if s.l1Cache != nil {
+		if data, err := s.l1Cache.Get(key); err == nil {
+			var tweet domain.Tweet
+			if json.Unmarshal(data, &tweet) == nil {
+				return &tweet, nil
+			}
+		}
+	}
+
+	// 2. L1 击穿，使用 singleflight 拦截瞬间并发
+	// DoChan 结合 select 做整体超时控制，防止协程永久阻塞导致假死
+	ch := s.requestGroup.DoChan(key, func() (interface{}, error) {
+		// 限制去底层（Redis L2 或 MySQL）查询的绝对超时时间
+		fetchCtx, cancel := context.WithTimeout(context.Background(), 800*time.Millisecond)
+		defer cancel()
+
+		// 3. 尝试从 Redis L2 缓存获取
+		tweet, err := s.timelineCache.GetBaseTweet(fetchCtx, tweetID)
+		if err == nil && tweet != nil {
+			// 回写 L1 缓存
+			if s.l1Cache != nil {
+				if data, err := json.Marshal(tweet); err == nil {
+					_ = s.l1Cache.Set(key, data)
+				}
+			}
+			return tweet, nil
+		}
+
+		// 4. Redis 也未命中，回源到 MySQL
+		tweet, err = s.repo.GetByID(fetchCtx, tweetID)
+		if err != nil {
+			return nil, err
+		}
+
+		// 回写 Redis L2 缓存 (带防雪崩随机 TTL)
+		_ = s.timelineCache.SetBaseTweet(fetchCtx, tweet)
+
+		// 回写 L1 缓存
+		if s.l1Cache != nil {
+			if data, err := json.Marshal(tweet); err == nil {
+				_ = s.l1Cache.Set(key, data)
+			}
+		}
+
+		return tweet, nil
+	})
+
+	select {
+	case res := <-ch:
+		if res.Err != nil {
+			return nil, res.Err
+		}
+		if val, ok := res.Val.(*domain.Tweet); ok {
+			return val, nil
+		}
+		return nil, fmt.Errorf("unexpected type from singleflight: %T", res.Val)
+	case <-ctx.Done(): // 上游客户端放弃，或者全局超时
+		return nil, fmt.Errorf("singleflight timed out or cancelled: %w", ctx.Err())
+	}
+}
+
+// GetBaseTweetsWithCache 批量获取基础推文信息 (多级缓存设计)
+func (s *TweetService) GetBaseTweetsWithCache(ctx context.Context, tweetIDs []uint64) ([]*domain.Tweet, error) {
+	if len(tweetIDs) == 0 {
+		return []*domain.Tweet{}, nil
+	}
+
+	resultMap := make(map[uint64]*domain.Tweet, len(tweetIDs))
+	var remainingIDs []uint64
+
+	// 1. 尝试从 L1 缓存获取
+	for _, id := range tweetIDs {
+		key := fmt.Sprintf("tweet:base:%d", id)
+		hit := false
+		if s.l1Cache != nil {
+			if data, err := s.l1Cache.Get(key); err == nil {
+				var tweet domain.Tweet
+				if json.Unmarshal(data, &tweet) == nil {
+					resultMap[id] = &tweet
+					hit = true
+				}
+			}
+		}
+		if !hit {
+			remainingIDs = append(remainingIDs, id)
+		}
+	}
+
+	// 2. 尝试从 L2 缓存 (Redis) 获取
+	if len(remainingIDs) > 0 {
+		l2Ctx, cancel := context.WithTimeout(context.Background(), 800*time.Millisecond)
+		l2Map, err := s.timelineCache.MGetBaseTweets(l2Ctx, remainingIDs)
+		cancel()
+		if err == nil {
+			for _, id := range remainingIDs {
+				if tweet, ok := l2Map[id]; ok {
+					resultMap[id] = tweet
+					// 回写 L1
+					if s.l1Cache != nil {
+						if data, err := json.Marshal(tweet); err == nil {
+							_ = s.l1Cache.Set(fmt.Sprintf("tweet:base:%d", id), data)
+						}
+					}
+				}
+			}
+		}
+
+		// 重新统计依然缺失的 IDs
+		var stillMissingIDs []uint64
+		for _, id := range remainingIDs {
+			if _, ok := resultMap[id]; !ok {
+				stillMissingIDs = append(stillMissingIDs, id)
+			}
+		}
+		remainingIDs = stillMissingIDs
+	}
+
+	// 3. 回源到 MySQL
+	if len(remainingIDs) > 0 {
+		dbCtx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
+		dbTweets, err := s.repo.GetByIDs(dbCtx, remainingIDs)
+		cancel()
+		if err != nil {
+			return nil, fmt.Errorf("failed to batch get tweets from db: %w", err)
+		}
+
+		for _, tweet := range dbTweets {
+			resultMap[tweet.ID] = tweet
+			// 异步回写 L2 和 L1 缓存，不阻塞当前读请求
+			go func(t *domain.Tweet) {
+				writeCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+				defer cancel()
+				_ = s.timelineCache.SetBaseTweet(writeCtx, t)
+				if s.l1Cache != nil {
+					if data, err := json.Marshal(t); err == nil {
+						_ = s.l1Cache.Set(fmt.Sprintf("tweet:base:%d", t.ID), data)
+					}
+				}
+			}(tweet)
+		}
+	}
+
+	// 4. 组装结果，克隆防污染
+	tweets := make([]*domain.Tweet, 0, len(tweetIDs))
+	for _, id := range tweetIDs {
+		if t, ok := resultMap[id]; ok {
+			tc := *t
+			tweets = append(tweets, &tc)
+		}
+	}
+
+	return tweets, nil
+}
+
+// InvalidateTweetCache 全局失效并清除推文的 L1/L2 缓存
+func (s *TweetService) InvalidateTweetCache(ctx context.Context, tweetID uint64) {
+	// 调用 timelineCache 的广播删除接口
+	_ = s.timelineCache.InvalidateBaseTweet(ctx, tweetID)
 }
 
 // GetUserTimeline 获取用户时间线（拉模式：合并原生与转发推文）
@@ -269,7 +454,7 @@ func (s *TweetService) GetUserTimeline(ctx context.Context, userID uint64, curso
 	// 批量查询原推文详情
 	var originalTweets []*domain.Tweet
 	if len(rtTweetIDs) > 0 {
-		originalTweets, err = s.repo.GetByIDs(ctx, rtTweetIDs)
+		originalTweets, err = s.GetBaseTweetsWithCache(ctx, rtTweetIDs)
 		if err != nil {
 			return nil, 0, false, fmt.Errorf("failed to batch get retweet original tweets: %w", err)
 		}
@@ -280,10 +465,14 @@ func (s *TweetService) GetUserTimeline(ctx context.Context, userID uint64, curso
 		originalMap[t.ID] = t
 	}
 
-	// 3. 合并与深拷贝
+	// 3. 合并与深拷贝，并进行影子封禁过滤
 	var allItems []*domain.Tweet
 
 	for _, t := range tweets {
+		// 影子封禁过滤：如果是影子封禁的推文，且请求者不是作者本人，则忽略
+		if t.VisibleType == domain.VisibleShadowban && t.UserID != requestingUserID {
+			continue
+		}
 		tc := *t
 		tc.IsRetweetedDisplay = false
 		tc.SortID = tc.ID
@@ -292,6 +481,10 @@ func (s *TweetService) GetUserTimeline(ctx context.Context, userID uint64, curso
 
 	for _, rt := range retweets {
 		if orig, ok := originalMap[rt.TweetID]; ok {
+			// 影子封禁过滤：如果是影子封禁的推文，且请求者不是作者本人，则忽略该转发显示
+			if orig.VisibleType == domain.VisibleShadowban && orig.UserID != requestingUserID {
+				continue
+			}
 			tc := *orig
 			tc.IsRetweetedDisplay = true
 			tc.RetweetedAt = rt.CreatedAt
@@ -323,12 +516,9 @@ func (s *TweetService) GetUserTimeline(ctx context.Context, userID uint64, curso
 	return allItems, nextCursor, hasMore, nil
 }
 
-// GetFeeds 获取关注流（推拉结合 + 消息队列）
+// GetFeeds 获取关注流 (带推拉结合纯缓存优化与并发合并)
 func (s *TweetService) GetFeeds(ctx context.Context, userID uint64, cursor uint64, limit int) ([]*domain.Tweet, uint64, bool, error) {
-	// 注意：GetFeeds 的 userID 就是 requestingUserID，因为查看的是自己的关注流
-	requestingUserID := userID
-
-	// 1. 参数验证
+	// 参数验证
 	if limit <= 0 {
 		limit = 20
 	}
@@ -336,94 +526,256 @@ func (s *TweetService) GetFeeds(ctx context.Context, userID uint64, cursor uint6
 		limit = 100
 	}
 
-	// 2. 从 Redis 获取当前用户关注的大V ID 集合 (读扩散源)
+	// 1. 获取当前用户关注的大V ID 集合
 	celebrityIDs, err := s.timelineCache.GetCelebrityFollowees(ctx, userID)
 	if err != nil {
 		logger.Warn(ctx, "⚠️  Failed to get celebrity followees from redis", zap.Error(err))
-		// 降级：不包含大V过滤，让后续流自动以普通流处理
 		celebrityIDs = nil
 	}
 
-	// 3. 读扩散拉取大V推文 (最多拉取 limit 条，以 cursor 过滤)
-	var celebrityTweets []*domain.Tweet
-	if len(celebrityIDs) > 0 {
-		celebrityTweets, err = s.repo.GetFeeds(ctx, celebrityIDs, cursor, limit)
-		if err != nil {
-			logger.Warn(ctx, "⚠️  Failed to pull celebrity tweets from DB", zap.Error(err))
-			celebrityTweets = nil
+	var wg sync.WaitGroup
+	var normalIDs []uint64
+	var celebIDs []uint64
+	var errNormal error
+	var errCeleb error
+
+	// 2. 并发拉取大V和普通用户的时间线
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		// 普通时间线：直接走写扩散的 Redis ZSet
+		normalIDs, errNormal = s.timelineCache.GetTimeline(ctx, userID, cursor, limit)
+	}()
+
+	go func() {
+		defer wg.Done()
+		// 大V时间线：走 Pipeline 并发拉取各大V的专属 ZSet (含自动重建机制)
+		celebIDs, errCeleb = s.getCelebrityTimelineWithRebuild(ctx, celebrityIDs, cursor, limit)
+	}()
+	wg.Wait()
+
+	// 降级判断：如果普通时间线读取失败，降级走拉模式
+	if errNormal != nil {
+		logger.Warn(ctx, "⚠️  Failed to get normal timeline from redis, falling back to pull mode", zap.Error(errNormal))
+		return s.getFeedsByPull(ctx, userID, cursor, limit, userID)
+	}
+	if errCeleb != nil {
+		logger.Warn(ctx, "⚠️  Failed to fetch celebrity timelines, proceeding without them", zap.Error(errCeleb))
+	}
+
+	// 3. 内存聚合与全局排序
+	// 合并推文 ID
+	mergedIDs := make([]uint64, 0, len(normalIDs)+len(celebIDs))
+	uniqueMap := make(map[uint64]bool)
+
+	for _, id := range normalIDs {
+		if !uniqueMap[id] {
+			uniqueMap[id] = true
+			mergedIDs = append(mergedIDs, id)
+		}
+	}
+	for _, id := range celebIDs {
+		if !uniqueMap[id] {
+			uniqueMap[id] = true
+			mergedIDs = append(mergedIDs, id)
 		}
 	}
 
-	// 4. 从 Redis 获取写扩散的普通 Timeline（推文 ID 列表）
-	tweetIDs, err := s.timelineCache.GetTimeline(ctx, userID, cursor, limit)
+	// 按 ID 降序排列 (时间降序)
+	sort.Slice(mergedIDs, func(i, j int) bool {
+		return mergedIDs[i] > mergedIDs[j]
+	})
+
+	// 4. 判断是否还有更多，并裁切
+	hasMore := len(mergedIDs) > limit
+	if hasMore {
+		mergedIDs = mergedIDs[:limit]
+	}
+
+	// 5. 批量拉取推文详情 (完全利用多级缓存，避免穿透 DB)
+	tweets, err := s.GetBaseTweetsWithCache(ctx, mergedIDs)
 	if err != nil {
-		logger.Warn(ctx, "⚠️  Failed to get timeline from redis", zap.Error(err))
-		// 降级：使用拉模式
-		return s.getFeedsByPull(ctx, userID, cursor, limit, requestingUserID)
+		return nil, 0, false, fmt.Errorf("failed to get feeds tweets: %w", err)
 	}
 
-	// 5. Redis 缓存为空，说明 Timeline 需要从 DB 重建或属于冷用户，降级使用拉模式
-	if len(tweetIDs) == 0 {
-		logger.Info(ctx, "ℹ ... Timeline cache empty or cold user, fallback to pull mode", zap.Uint64("user_id", userID))
-		return s.getFeedsByPull(ctx, userID, cursor, limit, requestingUserID)
-	}
-
-	// 6. 批量查询普通用户推文详情
-	normalTweets, err := s.repo.GetByIDs(ctx, tweetIDs)
-	if err != nil {
-		return nil, 0, false, fmt.Errorf("failed to get normal tweets by ids: %w", err)
-	}
-
-	// 7. 按照 tweetIDs 的顺序重新排序普通推文
-	normalMap := make(map[uint64]*domain.Tweet, len(normalTweets))
-	for _, tweet := range normalTweets {
+	// 6. 按照已排序的 mergedIDs 重新对 tweets 排序并影子过滤
+	normalMap := make(map[uint64]*domain.Tweet, len(tweets))
+	for _, tweet := range tweets {
+		// 影子封禁过滤
+		if tweet.VisibleType == domain.VisibleShadowban && tweet.UserID != userID {
+			continue
+		}
 		normalMap[tweet.ID] = tweet
 	}
 
-	sortedNormalTweets := make([]*domain.Tweet, 0, len(tweetIDs))
-	for _, tweetID := range tweetIDs {
+	finalTweets := make([]*domain.Tweet, 0, len(mergedIDs))
+	for _, tweetID := range mergedIDs {
 		if tweet, ok := normalMap[tweetID]; ok {
-			sortedNormalTweets = append(sortedNormalTweets, tweet)
+			finalTweets = append(finalTweets, tweet)
 		}
 	}
 
-	// 8. 融合大V推文与普通推文
-	var combined []*domain.Tweet
-	combined = append(combined, sortedNormalTweets...)
-	combined = append(combined, celebrityTweets...)
-
-	// 去重并按 ID 降序排序 (Snowflake ID 趋势递增，ID 降序即时间降序)
-	uniqueMap := make(map[uint64]bool)
-	finalTweets := make([]*domain.Tweet, 0, len(combined))
-	for _, t := range combined {
-		if !uniqueMap[t.ID] {
-			uniqueMap[t.ID] = true
-			finalTweets = append(finalTweets, t)
-		}
-	}
-
-	sort.Slice(finalTweets, func(i, j int) bool {
-		return finalTweets[i].ID > finalTweets[j].ID
-	})
-
-	// 9. 判断是否还有更多 (因为我们普通拉了 limit 条，大V拉了 limit 条，混合后可能超过 limit 条)
-	hasMore := len(finalTweets) > limit
-	if hasMore {
-		finalTweets = finalTweets[:limit]
-	}
-
-	// 10. 计算下一页游标
+	// 7. 计算下一页游标
 	var nextCursor uint64
 	if len(finalTweets) > 0 {
 		nextCursor = finalTweets[len(finalTweets)-1].ID
 	}
 
-	// 11. 填充统计数据 (点赞、书签、转发交互状态)
-	s.populateTweetStats(ctx, finalTweets, requestingUserID)
+	// 8. 填充统计数据 (点赞、收藏等)
+	s.populateTweetStats(ctx, finalTweets, userID)
 
-	logger.Info(ctx, "✅ Feeds loaded by hybrid mode", zap.Uint64("user_id", userID), zap.Int("count", len(finalTweets)))
+	// 9. 【分页预热】异步启动预拉取下一页
+	if hasMore && nextCursor > 0 {
+		prewarmCtx := context.Background() // 使用独立的脱离主线程生命周期的 Context
+		go s.prewarmNextPage(prewarmCtx, userID, nextCursor, limit, celebrityIDs)
+	}
 
+	logger.Info(ctx, "✅ Feeds loaded by cache hybrid mode", zap.Uint64("user_id", userID), zap.Int("count", len(finalTweets)))
 	return finalTweets, nextCursor, hasMore, nil
+}
+
+// getCelebrityTimelineWithRebuild 获取大V的时间线推文 ID，包含防击穿的 ZSet 自动重建
+func (s *TweetService) getCelebrityTimelineWithRebuild(ctx context.Context, celebrityIDs []uint64, cursor uint64, limit int) ([]uint64, error) {
+	if len(celebrityIDs) == 0 {
+		return []uint64{}, nil
+	}
+
+	results, missingIDs, err := s.timelineCache.PipelineGetCelebrityTweets(ctx, celebrityIDs, cursor, limit)
+	if err != nil {
+		logger.Warn(ctx, "⚠️  Failed to pipeline get celebrity tweets", zap.Error(err))
+		// 降级，全部视作需要重建或走 DB
+		missingIDs = celebrityIDs
+		results = make(map[uint64][]uint64)
+	}
+
+	// 如果有大V缺失缓存，使用 singleflight 拦截，防止高并发打穿 DB
+	if len(missingIDs) > 0 {
+		var wg sync.WaitGroup
+		var mu sync.Mutex
+		for _, id := range missingIDs {
+			wg.Add(1)
+			go func(celebID uint64) {
+				defer wg.Done()
+				key := fmt.Sprintf("rebuild:celeb:%d", celebID)
+
+				// DoChan 结合 select 加上超时防御，防止协程饥饿
+				ch := s.requestGroup.DoChan(key, func() (interface{}, error) {
+					rebuildCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+					defer cancel()
+
+					// 查 DB 获取该大V最新的 1000 条推文 (符合拍板建议)
+					tweets, err := s.repo.ListByUserID(rebuildCtx, celebID, 0, 1000)
+					if err != nil {
+						return nil, fmt.Errorf("failed to fetch celebrity tweets from DB: %w", err)
+					}
+
+					tweetIDs := make([]uint64, len(tweets))
+					for i, t := range tweets {
+						tweetIDs[i] = t.ID
+					}
+
+					// 重建 ZSet 缓存
+					err = s.timelineCache.RebuildUserTimeline(rebuildCtx, celebID, tweetIDs)
+					if err != nil {
+						logger.Warn(rebuildCtx, "⚠️  Failed to rebuild celebrity timeline cache", zap.Uint64("celeb_id", celebID), zap.Error(err))
+					}
+					return tweetIDs, nil
+				})
+
+				select {
+				case res := <-ch:
+					if res.Err == nil && res.Val != nil {
+						if ids, ok := res.Val.([]uint64); ok {
+							// 根据当前游标过滤出符合分页条件的部分
+							var filteredIDs []uint64
+							for _, tweetID := range ids {
+								// cursor > 0 时只拉取比 cursor 小的
+								if cursor > 0 && tweetID >= cursor {
+									continue
+								}
+								filteredIDs = append(filteredIDs, tweetID)
+								if len(filteredIDs) >= limit {
+									break
+								}
+							}
+							mu.Lock()
+							results[celebID] = filteredIDs
+							mu.Unlock()
+						}
+					}
+				case <-ctx.Done():
+					// 上游取消或超时
+					return
+				}
+			}(id)
+		}
+		wg.Wait()
+	}
+
+	// 将所有大V的推文 ID 聚合并扁平化
+	var allCelebTweetIDs []uint64
+	for _, ids := range results {
+		allCelebTweetIDs = append(allCelebTweetIDs, ids...)
+	}
+
+	return allCelebTweetIDs, nil
+}
+
+// prewarmNextPage 异步预热下一页推文详情 (L1/L2 缓存热身)
+func (s *TweetService) prewarmNextPage(ctx context.Context, userID uint64, nextCursor uint64, limit int, celebrityIDs []uint64) {
+	// 加上最大 2 秒的超时限制，防止预热逻辑挂死
+	prewarmCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+
+	var wg sync.WaitGroup
+	var normalIDs []uint64
+	var celebIDs []uint64
+
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		// 获取下一页写扩散推文 ID
+		normalIDs, _ = s.timelineCache.GetTimeline(prewarmCtx, userID, nextCursor, limit)
+	}()
+
+	go func() {
+		defer wg.Done()
+		// 获取下一页大V推文 ID (不带 rebuild，仅取当前 L2，预热无需强一致)
+		if len(celebrityIDs) > 0 {
+			results, _, _ := s.timelineCache.PipelineGetCelebrityTweets(prewarmCtx, celebrityIDs, nextCursor, limit)
+			for _, ids := range results {
+				celebIDs = append(celebIDs, ids...)
+			}
+		}
+	}()
+	wg.Wait()
+
+	// 合并去重并截取
+	mergedIDs := make([]uint64, 0, len(normalIDs)+len(celebIDs))
+	uniqueMap := make(map[uint64]bool)
+	for _, id := range normalIDs {
+		if !uniqueMap[id] {
+			uniqueMap[id] = true
+			mergedIDs = append(mergedIDs, id)
+		}
+	}
+	for _, id := range celebIDs {
+		if !uniqueMap[id] {
+			uniqueMap[id] = true
+			mergedIDs = append(mergedIDs, id)
+		}
+	}
+
+	if len(mergedIDs) > limit {
+		mergedIDs = mergedIDs[:limit]
+	}
+
+	if len(mergedIDs) == 0 {
+		return
+	}
+
+	logger.Info(prewarmCtx, "🔥 Pre-warming next page feeds", zap.Uint64("user_id", userID), zap.Int("count", len(mergedIDs)))
+	_, _ = s.GetBaseTweetsWithCache(prewarmCtx, mergedIDs)
 }
 
 // getFeedsByPull 拉模式获取 Feeds（降级方案）
@@ -709,7 +1061,7 @@ func (s *TweetService) VotePoll(ctx context.Context, userID, pollID, optionID ui
 // LikeTweet 点赞推文
 func (s *TweetService) LikeTweet(ctx context.Context, userID, tweetID uint64) (int64, error) {
 	// 1. 检查推文是否存在
-	tweet, err := s.repo.GetByID(ctx, tweetID)
+	tweet, err := s.GetBaseTweetWithCache(ctx, tweetID)
 	if err != nil {
 		return 0, ErrTweetNotFound
 	}
@@ -764,7 +1116,7 @@ func (s *TweetService) UnlikeTweet(ctx context.Context, userID, tweetID uint64) 
 // CreateComment 发布评论
 func (s *TweetService) CreateComment(ctx context.Context, userID, tweetID uint64, content string, parentID uint64) (*domain.Comment, error) {
 	// 1. 验证推文是否存在
-	tweet, err := s.repo.GetByID(ctx, tweetID)
+	tweet, err := s.GetBaseTweetWithCache(ctx, tweetID)
 	if err != nil {
 		return nil, ErrTweetNotFound
 	}
@@ -953,7 +1305,7 @@ func (s *TweetService) BookmarkTweet(ctx context.Context, userID, tweetID uint64
 	ctx, span := tr.Start(ctx, "TweetService.BookmarkTweet")
 	defer span.End()
 
-	_, err := s.repo.GetByID(ctx, tweetID)
+	_, err := s.GetBaseTweetWithCache(ctx, tweetID)
 	if err != nil {
 		return fmt.Errorf("tweet not found: %w", err)
 	}
@@ -1004,7 +1356,7 @@ func (s *TweetService) GetUserBookmarks(ctx context.Context, userID uint64, curs
 
 	var tweets []*domain.Tweet
 	if len(tweetIDs) > 0 {
-		tweets, err = s.repo.GetByIDs(ctx, tweetIDs)
+		tweets, err = s.GetBaseTweetsWithCache(ctx, tweetIDs)
 		if err != nil {
 			return nil, 0, false, fmt.Errorf("failed to get bookmarked tweets: %w", err)
 		}
@@ -1040,7 +1392,7 @@ func (s *TweetService) RetweetTweet(ctx context.Context, userID, tweetID uint64)
 	ctx, span := tr.Start(ctx, "TweetService.RetweetTweet")
 	defer span.End()
 
-	_, err := s.repo.GetByID(ctx, tweetID)
+	_, err := s.GetBaseTweetWithCache(ctx, tweetID)
 	if err != nil {
 		return 0, fmt.Errorf("tweet not found: %w", err)
 	}
@@ -1103,7 +1455,7 @@ func (s *TweetService) GetUserLikes(ctx context.Context, userID uint64, cursor u
 
 	var tweets []*domain.Tweet
 	if len(tweetIDs) > 0 {
-		tweets, err = s.repo.GetByIDs(ctx, tweetIDs)
+		tweets, err = s.GetBaseTweetsWithCache(ctx, tweetIDs)
 		if err != nil {
 			return nil, 0, false, fmt.Errorf("failed to get liked tweets: %w", err)
 		}

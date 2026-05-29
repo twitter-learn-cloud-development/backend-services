@@ -22,6 +22,7 @@ spec:
         {{- include "twitter.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: gateway
     spec:
+      serviceAccountName: {{ include "twitter.fullname" . }}-gateway
       containers:
         - name: gateway
           image: "{{ .Values.services.gateway.image.repository }}:{{ .Values.services.gateway.image.tag }}"

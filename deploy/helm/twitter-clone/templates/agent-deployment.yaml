@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "twitter.fullname" . }}-agent
+  labels:
+    {{- include "twitter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: agent-service
+spec:
+  replicas: {{ .Values.services.agentService.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "twitter.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: agent-service
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: {{ .Values.services.agentService.metricsPort | quote }}
+        prometheus.io/path: "/metrics"
+        proxy.istio.io/config: '{ "holdApplicationUntilProxyStarts": true }'
+      labels:
+        {{- include "twitter.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: agent-service
+    spec:
+      containers:
+        - name: agent-service
+          image: "{{ .Values.services.agentService.image.repository }}:{{ .Values.services.agentService.image.tag }}"
+          imagePullPolicy: {{ .Values.services.agentService.image.pullPolicy }}
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.services.agentService.containerPort }}
+              protocol: TCP
+          env:
+            - name: DB_HOST
+              value: {{ include "twitter.mysql.host" . }}
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_USER
+              value: "root"
+            - name: DB_PASSWORD
+              value: {{ .Values.mysql.auth.rootPassword | quote }}
+            - name: DB_NAME
+              value: {{ .Values.mysql.auth.database | quote }}
+            - name: REDIS_HOST
+              value: {{ include "twitter.redis.host" . }}
+            - name: REDIS_PORT
+              value: "6379"
+            - name: CONSUL_HOST
+              value: {{ include "twitter.consul.host" . }}
+            - name: CONSUL_PORT
+              value: "8500"
+            - name: MONGO_HOST
+              value: "{{ include "twitter.fullname" . }}-mongodb"
+            - name: MONGO_PORT
+              value: "27017"
+            - name: MONGO_USER
+              value: "root"
+            - name: MONGO_PASSWORD
+              value: "31415927"
+            - name: MONGO_DB_NAME
+              value: "twitter_agent"
+            - name: MQ_HOST
+              value: {{ include "twitter.rabbitmq.host" . }}
+            - name: MQ_PORT
+              value: "5672"
+            - name: MQ_USER
+              value: {{ .Values.rabbitmq.auth.username | quote }}
+            - name: MQ_PASSWORD
+              value: {{ .Values.rabbitmq.auth.password | quote }}
+            - name: QDRANT_URL
+              value: "http://{{ include "twitter.fullname" . }}-qdrant:6333"
+            - name: SERVICE_NAME
+              value: "agent-service"
+            - name: SERVICE_ADDR
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: SERVICE_PORT
+              value: {{ .Values.services.agentService.containerPort | quote }}
+            - name: JAEGER_AGENT_HOST
+              value: {{ include "twitter.jaeger.host" . }}
+            - name: JAEGER_SAMPLER_TYPE
+              value: "const"
+            - name: JAEGER_SAMPLER_PARAM
+              value: "1"
+            - name: MOCK_EMBEDDING
+              value: "true"
+          resources:
+            {{- toYaml .Values.services.agentService.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "twitter.fullname" . }}-agent
+  labels:
+    {{- include "twitter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: agent-service
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.services.agentService.containerPort }}
+      targetPort: grpc
+      protocol: TCP
+      name: grpc
+  selector:
+    {{- include "twitter.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: agent-service

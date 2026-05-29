@@ -21,6 +21,7 @@ import (
 	"twitter-clone/pkg/es"
 	"twitter-clone/pkg/logger"
 	"twitter-clone/pkg/pkg/snowflake"
+	"twitter-clone/pkg/qdrant"
 )
 
 func main() {
@@ -91,6 +92,19 @@ func main() {
 		}
 	}
 
+	// 6.1 Qdrant 向量库初始化
+	var qdrantClient *qdrant.Client
+	qdrantURL := os.Getenv("QDRANT_URL")
+	if qdrantURL == "" {
+		qdrantURL = "http://localhost:6333"
+	}
+	qdrantClient = qdrant.NewClient(qdrantURL)
+	log.Println("✅ Qdrant client initialized")
+	// 预建 collection (1024 维 cosine 相似度)
+	if err := qdrantClient.CreateCollection(context.Background(), "tweets", 1024); err != nil {
+		log.Printf("⚠️  Failed to create qdrant collection: %v. Search features might be limited.", err)
+	}
+
 	// 7. 创建依赖
 	followRepo := followRepository.NewFollowRepository(db)
 	timelineCache := tweetCache.NewTimelineCache(redisClient)
@@ -99,7 +113,7 @@ func main() {
 	aiClient := ai.NewClient(os.Getenv("LM_STUDIO_API_URL"))
 
 	// 8. 创建 Consumer
-	timelineConsumer, err := consumer.NewTimelineConsumer(mqClient, followRepo, timelineCache, redisClient, esClient, aiClient, outboxRepo)
+	timelineConsumer, err := consumer.NewTimelineConsumer(mqClient, followRepo, timelineCache, redisClient, esClient, qdrantClient, aiClient, outboxRepo)
 	if err != nil {
 		log.Fatalf("❌ Failed to create consumer: %v", err)
 	}

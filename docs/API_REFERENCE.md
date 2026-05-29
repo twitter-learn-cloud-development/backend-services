@@ -882,7 +882,7 @@ GET /api/v1/users/:id/media?cursor=0&limit=20
 
 ### 12.1 接收告警通知 🔒
 
-用于接收 Prometheus AlertManager 触发的告警回调。
+用于接收 Prometheus AlertManager 触发的告警回调。包含 firing 过滤与 groupKey 5分钟防抖去重机制，防止告警风暴 DDoS 攻击大模型 API。
 
 ```
 POST /alerts
@@ -896,30 +896,34 @@ POST /alerts
 **请求体 (JSON 示例)：**
 ```json
 {
-  "receiver": "notification-webhook",
   "status": "firing",
-  "alerts": [
-    {
-      "status": "firing",
-      "labels": {
-        "alertname": "TwitterQPSDrop",
-        "severity": "critical"
-      },
-      "annotations": {
-        "description": "Total QPS has dropped below 2 req/sec for more than 1m.",
-        "summary": "Twitter QPS Drop"
-      },
-      "startsAt": "2026-05-24T16:30:00Z",
-      "endsAt": "0001-01-01T00:00:00Z"
-    }
-  ]
+  "groupKey": "redis-error-group"
 }
 ```
 
-**成功响应 (200)：**
+**成功响应 (200 OK)：**
+
+1. **正常接收并启动大模型诊断**（首次触发 firing）：
 ```json
 {
-  "status": "success"
+  "status": "accepted",
+  "msg": "alert accepted, diagnosing root cause..."
+}
+```
+
+2. **触发防抖去重拦截**（同一个 groupKey 在 5分钟内重复发送）：
+```json
+{
+  "status": "debounced",
+  "msg": "alert storm debounced, skip LLM call"
+}
+```
+
+3. **忽略恢复告警**（status 为 resolved）：
+```json
+{
+  "status": "ignored",
+  "msg": "resolved alert ignored"
 }
 ```
 
@@ -938,3 +942,261 @@ POST /alerts
 | **Error Handler** | 统一错误处理 |
 | **JWT Auth** | 🔒 标记的接口需要认证 |
 | **JWT AuthOptional** | 可选认证：有 token 就解析 user_id，没有则跳过 |
+
+---
+
+## 14. AI 智能体接口 (AI Agent) 🔒
+
+所有智能体接口都需要 JWT 认证。由于 JavaScript 对 19 位超大 Snowflake ID 的精度截断限制，响应和请求中的 `dialogue_id`、`id`、`tweet_id` 等字段全部统一采用 **String 字符串** 类型传输。
+
+### 14.1 直接 AI 对话 (模式一)
+
+```
+POST /api/v1/agent/chat
+```
+
+**请求体：**
+```json
+{
+  "content": "你好",
+  "dialogue_id": "3553550178352795156",
+  "model_kind_id": 1
+}
+```
+*注：首次发起新对话时 `dialogue_id` 可传空字符串 `""` 或 `"0"`，后续追加对话需携带首轮返回的 dialogue_id*
+
+**成功响应 (200 OK)：**
+```json
+{
+  "response": "你好！我是你的 AI 助手，有什么可以帮你的吗？"
+}
+```
+
+---
+
+### 14.2 语义搜索推文和作者 (模式二)
+
+```
+POST /api/v1/agent/consult
+```
+
+**请求体：**
+```json
+{
+  "content": "帮我搜搜关于 Go 1.25 的推文",
+  "dialogue_id": "3553550178352795156",
+  "model_kind_id": 1
+}
+```
+
+**成功响应 (200 OK)：**
+```json
+{
+  "response": "为您找到了以下关于 Go 1.25 的推文：",
+  "tweet_list": [
+    {
+      "tweet_id": "2024791560905822208",
+      "url": "/tweet/2024791560905822208",
+      "summary": "作者讨论了 Go 1.25 编译器在性能上的提升以及新的 GC 优化。"
+    }
+  ]
+}
+```
+
+---
+
+### 14.3 协作构建推文 (模式三 - 阶段一)
+
+```
+POST /api/v1/agent/assist
+```
+
+**请求体：**
+```json
+{
+  "content": "写一篇关于 K8s Ingress 的推文",
+  "dialogue_id": "3553550178352795156",
+  "model_kind_id": 1
+}
+```
+
+**成功响应 (200 OK)：**
+```json
+{
+  "response": "这是为您生成的推文草稿选项：",
+  "tweet_list": [
+    {
+      "id": "2024791560905822210",
+      "user_id": "123",
+      "content": "K8s Ingress 是管理外部访问的利器，看看怎么配置...",
+      "media_urls": null,
+      "type": 0,
+      "visible_type": 0,
+      "created_at": 1708000000,
+      "updated_at": 1708000000,
+      "like_count": 0,
+      "comment_count": 0,
+      "share_count": 0,
+      "is_liked": false,
+      "parent_id": "0"
+    }
+  ]
+}
+```
+
+---
+
+### 14.4 确认发布推文 (模式三 - 阶段二)
+
+```
+POST /api/v1/agent/confirm
+```
+
+**请求体：**
+```json
+{
+  "content": "确认发布的推文内容"
+}
+```
+
+**成功响应 (200 OK)：**
+```json
+{
+  "response": "推文发布成功！",
+  "tweet_id": "2024791560905822209"
+}
+```
+
+---
+
+### 14.5 多 Agent 协同深度创作 (模式四)
+
+```
+POST /api/v1/agent/multi
+```
+
+**请求体：**
+```json
+{
+  "domain": "技术分享",
+  "author_user_id": "123",
+  "style_ratio": 0.8,
+  "reference_tweet_ids": ["2024791560905822208"],
+  "content": "补充的主题信息"
+}
+```
+
+**成功响应 (200 OK)：**
+```json
+{
+  "response": "Markdown 格式的深度研究推文推荐及舆情审查意见"
+}
+```
+
+---
+
+### 14.6 获取历史对话列表
+
+```
+GET /api/v1/agent/dialogues
+```
+
+**成功响应 (200 OK)：**
+```json
+{
+  "code": 200,
+  "msg": "success",
+  "repository_dialogue_list": [
+    {
+      "id": "3553550178352795156",
+      "user_id": "123",
+      "title": "关于 K8s Ingress 的讨论"
+    }
+  ]
+}
+```
+
+---
+
+### 14.7 获取特定对话消息历史
+
+```
+GET /api/v1/agent/dialogues/:id/messages
+```
+
+**路径参数：**
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `id` | string | 对话会话 ID |
+
+**成功响应 (200 OK)：**
+```json
+{
+  "code": 200,
+  "msg": "success",
+  "messages": [
+    {
+      "id": "3553550178352795157",
+      "user_id": "123",
+      "dialogue_id": "3553550178352795156",
+      "question": "你好",
+      "response": "你好！我是你的 AI 助手..."
+    }
+  ]
+}
+```
+
+---
+
+### 14.8 获取可用模型信息
+
+```
+GET /api/v1/agent/models
+```
+
+**成功响应 (200 OK)：**
+```json
+{
+  "code": 200,
+  "msg": "success",
+  "model_kind_list": [
+    {
+      "id": 1,
+      "name": "GPT-4o",
+      "description": "高性能语言模型",
+      "max_tokens": 4096,
+      "file_kind_list": [
+        {
+          "id": 1,
+          "name": "pdf"
+        }
+      ]
+    }
+  ]
+}
+```
+
+---
+
+### 14.9 智能解析上传文件
+
+```
+POST /api/v1/agent/files/analysis
+```
+
+**Content-Type**: `multipart/form-data`
+
+**Form Data:**
+- `file`: 文件二进制
+- `file_kind_id`: 文件类型 ID
+
+**成功响应 (200 OK)：**
+```json
+{
+  "code": 200,
+  "msg": "success",
+  "parsed_content": "文件解析后的纯文本内容...",
+  "file_key": "user_uploads/123/xxx.pdf"
+}
+```
+

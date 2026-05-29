@@ -5,22 +5,26 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"sync"
+	"time"
 
 	tweetv1 "twitter-clone/api/tweet/v1"
 	"twitter-clone/pkg/ai"
 	"twitter-clone/pkg/es"
+	"twitter-clone/pkg/qdrant"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+	"golang.org/x/sync/errgroup"
 )
 
 // RegisterSearchTweets 注册语义搜索推文工具 (升级加固版，包含 Reranker 精排与回表延迟加载)
-func RegisterSearchTweets(srv *server.MCPServer, aiClient *ai.Client, esClient *es.Client, reranker ai.Reranker, tweetClient tweetv1.TweetServiceClient, model string) {
+func RegisterSearchTweets(srv *server.MCPServer, aiClient *ai.Client, esClient *es.Client, qdrantClient *qdrant.Client, reranker ai.Reranker, tweetClient tweetv1.TweetServiceClient, model string) {
 	tool := mcp.NewTool("search_tweets_by_semantic",
 		mcp.WithDescription("根据用户输入的语义描述，搜索最相关的推文列表"),
 		mcp.WithString("query",
 			mcp.Required(),
-			mcp.Description("用户的搜索描述，例如：最近很火的健身博主、关于 AI 的推文"),
+			mcp.Description("用户的搜索描述，例如：最近很火 of 健身博主、关于 AI 的推文"),
 		),
 		mcp.WithNumber("size",
 			mcp.Description("返回结果数量，默认 5，最大 20"),
@@ -55,14 +59,57 @@ func RegisterSearchTweets(srv *server.MCPServer, aiClient *ai.Client, esClient *
 		// 🎯 优化：初筛漏斗数量放大 3 倍，避免内存和网络 I/O 暴涨
 		initialSize := size * 3
 
-		// 2. kNN 向量检索粗筛 (ES 已加固，只返回 id, content 等重排必需字段)
-		tweets, err := esClient.SearchTweetsByVector(ctx, vector, initialSize)
-		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("search failed: %v", err)), nil
+		var tweets []es.TweetDocument
+		var searchErr error
+
+		// 2. Qdrant 向量检索粗筛 (首选的高级向量检索)
+		if qdrantClient != nil {
+			var qdrantResults []qdrant.SearchResult
+			qdrantResults, searchErr = qdrantClient.Search(ctx, "tweets", vector, initialSize)
+			if searchErr == nil {
+				for _, r := range qdrantResults {
+					content := ""
+					if c, ok := r.Payload["content"].(string); ok {
+						content = c
+					}
+					userID := ""
+					if uid, ok := r.Payload["user_id"].(string); ok {
+						userID = uid
+					}
+					createdAt := int64(0)
+					if ca, ok := r.Payload["created_at"].(float64); ok {
+						createdAt = int64(ca)
+					}
+					tweets = append(tweets, es.TweetDocument{
+						ID:        r.ID,
+						UserID:    userID,
+						Content:   content,
+						CreatedAt: createdAt,
+					})
+				}
+			} else {
+				log.Printf("⚠️ [RAG Degradation] Qdrant search failed: %v. Trying ES fallback.", searchErr)
+			}
+		} else {
+			log.Println("⚠️ [RAG Degradation] Qdrant client is nil. Trying ES fallback.")
 		}
 
+		// 3. 触发优雅降级：回退至传统的 Elasticsearch 关键词召回 (BM25)
+		if len(tweets) == 0 && esClient != nil {
+			esDocs, err := esClient.SearchTweets(ctx, query, 1, initialSize)
+			if err == nil {
+				for _, doc := range esDocs {
+					tweets = append(tweets, doc)
+				}
+				log.Printf("🛡️ [RAG Fallback] ES successfully retrieved fallback data for '%s', count: %d", query, len(tweets))
+			} else {
+				log.Printf("⚠️ [RAG Degradation] ES fallback also failed for '%s': %v", query, err)
+			}
+		}
+
+		// 4. 终极防御：返回文本而非 Error，防止 LLM 对话树崩溃
 		if len(tweets) == 0 {
-			return mcp.NewToolResultText("没有找到相关推文"), nil
+			return mcp.NewToolResultText("系统知识库中目前没有找到与该主题相关的推文，请尝试更换关键词搜索，或结合已有知识进行回答。"), nil
 		}
 
 		// 🎯 优化：精排重排序阶段
@@ -137,7 +184,7 @@ func RegisterSearchTweets(srv *server.MCPServer, aiClient *ai.Client, esClient *
 }
 
 // RegisterHybridSearchTweets 注册混合搜索推文工具 (升级加固版)
-func RegisterHybridSearchTweets(srv *server.MCPServer, aiClient *ai.Client, esClient *es.Client, reranker ai.Reranker, tweetClient tweetv1.TweetServiceClient, model string) {
+func RegisterHybridSearchTweets(srv *server.MCPServer, aiClient *ai.Client, esClient *es.Client, qdrantClient *qdrant.Client, reranker ai.Reranker, tweetClient tweetv1.TweetServiceClient, model string) {
 	tool := mcp.NewTool("hybrid_search_tweets",
 		mcp.WithDescription("混合搜索：同时基于关键词和语义向量搜索推文，结果更精准"),
 		mcp.WithString("query",
@@ -177,11 +224,81 @@ func RegisterHybridSearchTweets(srv *server.MCPServer, aiClient *ai.Client, esCl
 		// 🎯 优化：初筛漏斗数量放大 3 倍
 		initialSize := size * 3
 
-		// 2. 混合搜索粗筛 (包含向量与倒排，且利用 SourceFilter 过滤)
-		tweets, err := esClient.HybridSearchTweets(ctx, query, vector, initialSize)
-		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("hybrid search failed: %v", err)), nil
+		// 2. 混合搜索双路并发召回 (ES 文本倒排 + Qdrant 向量检索)
+		// 为整个 RAG 初筛链路设置强制短超时，防止下游拖垮上游
+		searchCtx, cancel := context.WithTimeout(ctx, 1500*time.Millisecond)
+		defer cancel()
+
+		g, gCtx := errgroup.WithContext(searchCtx)
+
+		var mu sync.Mutex
+		candidateMap := make(map[string]es.TweetDocument)
+
+		// 🚀 路径一：并发调用 Elasticsearch 进行传统文本倒排召回 (BM25)
+		g.Go(func() error {
+			if esClient == nil {
+				log.Println("⚠️  Elasticsearch client is nil, skip ES path")
+				return nil
+			}
+			esDocs, err := esClient.SearchTweets(gCtx, query, 1, initialSize)
+			if err != nil {
+				log.Printf("⚠️ [Hybrid Search] ES Path failed: %v", err)
+				return nil // 降级容错
+			}
+			mu.Lock()
+			for _, doc := range esDocs {
+				candidateMap[doc.ID] = doc
+			}
+			mu.Unlock()
+			return nil
+		})
+
+		// 🚀 路径二：并发调用 Qdrant 进行高维稠密向量语义召回 (HNSW)
+		g.Go(func() error {
+			if qdrantClient == nil {
+				log.Println("⚠️  Qdrant client is nil, skip Qdrant path")
+				return nil
+			}
+			qdrantDocs, err := qdrantClient.Search(gCtx, "tweets", vector, initialSize)
+			if err != nil {
+				log.Printf("⚠️ [Hybrid Search] Qdrant Path failed: %v", err)
+				return nil // 降级容错
+			}
+			mu.Lock()
+			for _, r := range qdrantDocs {
+				userID := ""
+				if uid, ok := r.Payload["user_id"].(string); ok {
+					userID = uid
+				}
+				content := ""
+				if c, ok := r.Payload["content"].(string); ok {
+					content = c
+				}
+				createdAt := int64(0)
+				if ca, ok := r.Payload["created_at"].(float64); ok {
+					createdAt = int64(ca)
+				}
+				candidateMap[r.ID] = es.TweetDocument{
+					ID:        r.ID,
+					UserID:    userID,
+					Content:   content,
+					CreatedAt: createdAt,
+				}
+			}
+			mu.Unlock()
+			return nil
+		})
+
+		// 等待两路召回协同完毕（或触发超时）
+		_ = g.Wait()
+
+		// 转换为线性切片，准备送入 Reranker
+		mu.Lock()
+		tweets := make([]es.TweetDocument, 0, len(candidateMap))
+		for _, doc := range candidateMap {
+			tweets = append(tweets, doc)
 		}
+		mu.Unlock()
 
 		if len(tweets) == 0 {
 			return mcp.NewToolResultText("没有找到相关推文"), nil

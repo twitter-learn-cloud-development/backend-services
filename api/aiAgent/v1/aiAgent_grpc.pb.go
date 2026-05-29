@@ -28,6 +28,7 @@ const (
 	AiAgentService_AssistPublishTwitter_FullMethodName        = "/aiAgent.v1.AiAgentService/assistPublishTwitter"
 	AiAgentService_ConfirmPublishTwitter_FullMethodName       = "/aiAgent.v1.AiAgentService/confirmPublishTwitter"
 	AiAgentService_MultiAgentPublishTwitter_FullMethodName    = "/aiAgent.v1.AiAgentService/multiAgentPublishTwitter"
+	AiAgentService_AnalyzeAlert_FullMethodName                = "/aiAgent.v1.AiAgentService/analyzeAlert"
 )
 
 // AiAgentServiceClient is the client API for AiAgentService service.
@@ -54,6 +55,8 @@ type AiAgentServiceClient interface {
 	ConfirmPublishTwitter(ctx context.Context, in *ConfirmPublishTwitterRequest, opts ...grpc.CallOption) (*ConfirmPublishTwitterResponse, error)
 	// 模式四：Search Agent、Style Agent、Write Agent三智能体协同推文书写（深度研究模式）
 	MultiAgentPublishTwitter(ctx context.Context, in *MultiAgentPublishTwitterRequest, opts ...grpc.CallOption) (*MultiAgentPublishTwitterResponse, error)
+	// 告警分析与根因诊断 (AIOps)
+	AnalyzeAlert(ctx context.Context, in *AnalyzeAlertRequest, opts ...grpc.CallOption) (*AnalyzeAlertResponse, error)
 }
 
 type aiAgentServiceClient struct {
@@ -154,6 +157,16 @@ func (c *aiAgentServiceClient) MultiAgentPublishTwitter(ctx context.Context, in 
 	return out, nil
 }
 
+func (c *aiAgentServiceClient) AnalyzeAlert(ctx context.Context, in *AnalyzeAlertRequest, opts ...grpc.CallOption) (*AnalyzeAlertResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AnalyzeAlertResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_AnalyzeAlert_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AiAgentServiceServer is the server API for AiAgentService service.
 // All implementations must embed UnimplementedAiAgentServiceServer
 // for forward compatibility.
@@ -178,6 +191,8 @@ type AiAgentServiceServer interface {
 	ConfirmPublishTwitter(context.Context, *ConfirmPublishTwitterRequest) (*ConfirmPublishTwitterResponse, error)
 	// 模式四：Search Agent、Style Agent、Write Agent三智能体协同推文书写（深度研究模式）
 	MultiAgentPublishTwitter(context.Context, *MultiAgentPublishTwitterRequest) (*MultiAgentPublishTwitterResponse, error)
+	// 告警分析与根因诊断 (AIOps)
+	AnalyzeAlert(context.Context, *AnalyzeAlertRequest) (*AnalyzeAlertResponse, error)
 	mustEmbedUnimplementedAiAgentServiceServer()
 }
 
@@ -214,6 +229,9 @@ func (UnimplementedAiAgentServiceServer) ConfirmPublishTwitter(context.Context, 
 }
 func (UnimplementedAiAgentServiceServer) MultiAgentPublishTwitter(context.Context, *MultiAgentPublishTwitterRequest) (*MultiAgentPublishTwitterResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method MultiAgentPublishTwitter not implemented")
+}
+func (UnimplementedAiAgentServiceServer) AnalyzeAlert(context.Context, *AnalyzeAlertRequest) (*AnalyzeAlertResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method AnalyzeAlert not implemented")
 }
 func (UnimplementedAiAgentServiceServer) mustEmbedUnimplementedAiAgentServiceServer() {}
 func (UnimplementedAiAgentServiceServer) testEmbeddedByValue()                        {}
@@ -398,6 +416,24 @@ func _AiAgentService_MultiAgentPublishTwitter_Handler(srv interface{}, ctx conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AiAgentService_AnalyzeAlert_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AnalyzeAlertRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).AnalyzeAlert(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_AnalyzeAlert_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).AnalyzeAlert(ctx, req.(*AnalyzeAlertRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AiAgentService_ServiceDesc is the grpc.ServiceDesc for AiAgentService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -440,6 +476,10 @@ var AiAgentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "multiAgentPublishTwitter",
 			Handler:    _AiAgentService_MultiAgentPublishTwitter_Handler,
+		},
+		{
+			MethodName: "analyzeAlert",
+			Handler:    _AiAgentService_AnalyzeAlert_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

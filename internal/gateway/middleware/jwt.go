@@ -3,6 +3,7 @@ package middleware
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -77,6 +78,13 @@ func (m *JWTMiddleware) AuthRequired() gin.HandlerFunc {
 			return
 		}
 
+		// 🎯 隔离防护：万能 Token 只在明确的混沌测试环境变量下生效
+		if os.Getenv("APP_ENV") == "chaos_testing" && authHeader == "Bearer CHAOS_MOCK_UNIVERSAL_TOKEN_999" {
+			c.Set("user_id", uint64(999999)) // 注入虚拟压测用户 ID
+			c.Next()
+			return
+		}
+
 		// 检查格式：Bearer <token>
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || parts[0] != "Bearer" {
@@ -110,6 +118,13 @@ func (m *JWTMiddleware) AuthOptional() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
+			c.Next()
+			return
+		}
+
+		// 🎯 隔离防护：万能 Token 只在明确的混沌测试环境变量下生效
+		if os.Getenv("APP_ENV") == "chaos_testing" && authHeader == "Bearer CHAOS_MOCK_UNIVERSAL_TOKEN_999" {
+			c.Set("user_id", uint64(999999)) // 注入虚拟压测用户 ID
 			c.Next()
 			return
 		}

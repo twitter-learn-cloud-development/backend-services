@@ -23,6 +23,8 @@ service AiAgentService {
     rpc confirmPublishTwitter (ConfirmPublishTwitterRequest) returns (ConfirmPublishTwitterResponse);
     // 模式四：Search Agent、Style Agent、Write Agent三智能体协同推文书写（深度研究模式）
     rpc multiAgentPublishTwitter (MultiAgentPublishTwitterRequest) returns (MultiAgentPublishTwitterResponse);
+    // 告警分析与根因诊断 (AIOps)
+    rpc analyzeAlert (AnalyzeAlertRequest) returns (AnalyzeAlertResponse);
 }
 
 
@@ -216,4 +218,16 @@ message MultiAgentPublishTwitterResponse {
     uint64 code     = 1;
     string msg      = 2;
     string response = 3;
+}
+
+message AnalyzeAlertRequest {
+    string alert_payload = 1;
+    repeated string error_logs = 2;
+}
+
+message AnalyzeAlertResponse {
+    uint64 code = 1;
+    string msg = 2;
+    string analysis_report = 3;
+    string structured_rca = 4; // JSON 格式的故障自愈结构化元数据
 }

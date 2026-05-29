@@ -30,7 +30,7 @@ type Tweet struct {
 	Content     string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
 	MediaUrls   []string               `protobuf:"bytes,4,rep,name=media_urls,json=mediaUrls,proto3" json:"media_urls,omitempty"`
 	Type        int32                  `protobuf:"varint,5,opt,name=type,proto3" json:"type,omitempty"`
-	VisibleType int32                  `protobuf:"varint,6,opt,name=visible_type,json=visibleType,proto3" json:"visible_type,omitempty"`
+	VisibleType int32                  `protobuf:"varint,6,opt,name=visible_type,json=visibleType,proto3" json:"visible_type,omitempty"` // 0: 公开, 1: 粉丝, 2: 私密, 4: 影子封禁
 	CreatedAt   int64                  `protobuf:"varint,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt   int64                  `protobuf:"varint,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	// 统计数据

@@ -61,6 +61,20 @@ if %errorlevel% neq 0 (
 )
 echo ✅ Messenger Service generated
 
+REM 生成 AiAgent Service
+echo.
+echo Generating AiAgent Service...
+if not exist "api\aiAgent\v1" mkdir "api\aiAgent\v1"
+protoc --go_out=. --go_opt=paths=source_relative ^
+       --go-grpc_out=. --go-grpc_opt=paths=source_relative ^
+       api/aiAgent/v1/aiAgent.proto
+
+if %errorlevel% neq 0 (
+    echo ERROR: Failed to generate AiAgent Service
+    exit /b 1
+)
+echo ✅ AiAgent Service generated
+
 echo.
 echo ========================================
 echo ✅ All gRPC code generated successfully!

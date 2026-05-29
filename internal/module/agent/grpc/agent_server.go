@@ -230,6 +230,24 @@ func (s *AgentServer) MultiAgentPublishTwitter(ctx context.Context, req *aiAgent
 	}, nil
 }
 
+// AnalyzeAlert 告警分析根因诊断
+func (s *AgentServer) AnalyzeAlert(ctx context.Context, req *aiAgentv1.AnalyzeAlertRequest) (*aiAgentv1.AnalyzeAlertResponse, error) {
+	log.Printf("gRPC: AnalyzeAlert received")
+
+	report, structuredRca, err := s.svc.AnalyzeAlert(ctx, req.AlertPayload, req.ErrorLogs)
+	if err != nil {
+		log.Printf("❌ AnalyzeAlert error: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to analyze alert: %v", err)
+	}
+
+	return &aiAgentv1.AnalyzeAlertResponse{
+		Code:           200,
+		Msg:            "success",
+		AnalysisReport: report,
+		StructuredRca:  structuredRca,
+	}, nil
+}
+
 // ========================== 辅助函数 ==========================
 
 // dialogueObjectIDToUint64 将 MongoDB ObjectID 转为 uint64

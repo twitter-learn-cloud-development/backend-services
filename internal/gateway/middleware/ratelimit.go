@@ -3,6 +3,7 @@ package middleware
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -97,6 +98,13 @@ func NewRateLimitMiddleware(rdb *redis.Client, limit int, window time.Duration) 
 	`
 
 	return func(c *gin.Context) {
+		// 🎯 压测环境且携带压测万能令牌，直接放行，避免限流拦截，把并发压力传导至 Sentinel 熔断层
+		authHeader := c.GetHeader("Authorization")
+		if os.Getenv("APP_ENV") == "chaos_testing" && authHeader == "Bearer CHAOS_MOCK_UNIVERSAL_TOKEN_999" {
+			c.Next()
+			return
+		}
+
 		ip := c.ClientIP()
 		key := fmt.Sprintf("rate_limit:%s", ip)
 

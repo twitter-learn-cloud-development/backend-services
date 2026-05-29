@@ -1842,6 +1842,126 @@ func (x *MultiAgentPublishTwitterResponse) GetResponse() string {
 	return ""
 }
 
+type AnalyzeAlertRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AlertPayload  string                 `protobuf:"bytes,1,opt,name=alert_payload,json=alertPayload,proto3" json:"alert_payload,omitempty"`
+	ErrorLogs     []string               `protobuf:"bytes,2,rep,name=error_logs,json=errorLogs,proto3" json:"error_logs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AnalyzeAlertRequest) Reset() {
+	*x = AnalyzeAlertRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnalyzeAlertRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnalyzeAlertRequest) ProtoMessage() {}
+
+func (x *AnalyzeAlertRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnalyzeAlertRequest.ProtoReflect.Descriptor instead.
+func (*AnalyzeAlertRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *AnalyzeAlertRequest) GetAlertPayload() string {
+	if x != nil {
+		return x.AlertPayload
+	}
+	return ""
+}
+
+func (x *AnalyzeAlertRequest) GetErrorLogs() []string {
+	if x != nil {
+		return x.ErrorLogs
+	}
+	return nil
+}
+
+type AnalyzeAlertResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Code           uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg            string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	AnalysisReport string                 `protobuf:"bytes,3,opt,name=analysis_report,json=analysisReport,proto3" json:"analysis_report,omitempty"`
+	StructuredRca  string                 `protobuf:"bytes,4,opt,name=structured_rca,json=structuredRca,proto3" json:"structured_rca,omitempty"` // JSON 格式的故障自愈结构化元数据
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *AnalyzeAlertResponse) Reset() {
+	*x = AnalyzeAlertResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnalyzeAlertResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnalyzeAlertResponse) ProtoMessage() {}
+
+func (x *AnalyzeAlertResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnalyzeAlertResponse.ProtoReflect.Descriptor instead.
+func (*AnalyzeAlertResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *AnalyzeAlertResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *AnalyzeAlertResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *AnalyzeAlertResponse) GetAnalysisReport() string {
+	if x != nil {
+		return x.AnalysisReport
+	}
+	return ""
+}
+
+func (x *AnalyzeAlertResponse) GetStructuredRca() string {
+	if x != nil {
+		return x.StructuredRca
+	}
+	return ""
+}
+
 var File_api_aiAgent_v1_aiAgent_proto protoreflect.FileDescriptor
 
 const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
@@ -1999,7 +2119,16 @@ const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
 	" MultiAgentPublishTwitterResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
 	"\x03msg\x18\x02 \x01(\tR\x03msg\x12\x1a\n" +
-	"\bresponse\x18\x03 \x01(\tR\bresponse2\xaf\a\n" +
+	"\bresponse\x18\x03 \x01(\tR\bresponse\"Y\n" +
+	"\x13AnalyzeAlertRequest\x12#\n" +
+	"\ralert_payload\x18\x01 \x01(\tR\falertPayload\x12\x1d\n" +
+	"\n" +
+	"error_logs\x18\x02 \x03(\tR\terrorLogs\"\x8c\x01\n" +
+	"\x14AnalyzeAlertResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12'\n" +
+	"\x0fanalysis_report\x18\x03 \x01(\tR\x0eanalysisReport\x12%\n" +
+	"\x0estructured_rca\x18\x04 \x01(\tR\rstructuredRca2\x82\b\n" +
 	"\x0eAiAgentService\x12~\n" +
 	"\x1bgetModelDetailedInformation\x12..aiAgent.v1.getModelDetailedInformationRequest\x1a/.aiAgent.v1.getModelDetailedInformationResponse\x12l\n" +
 	"\x15getRepositoryDialogue\x12(.aiAgent.v1.getRepositoryDialogueRequest\x1a).aiAgent.v1.getRepositoryDialogueResponse\x12`\n" +
@@ -2009,7 +2138,8 @@ const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
 	"\x0econsultContent\x12!.aiAgent.v1.consultContentRequest\x1a\".aiAgent.v1.consultContentResponse\x12i\n" +
 	"\x14assistPublishTwitter\x12'.aiAgent.v1.assistPublishTwitterRequest\x1a(.aiAgent.v1.assistPublishTwitterResponse\x12l\n" +
 	"\x15confirmPublishTwitter\x12(.aiAgent.v1.ConfirmPublishTwitterRequest\x1a).aiAgent.v1.ConfirmPublishTwitterResponse\x12u\n" +
-	"\x18multiAgentPublishTwitter\x12+.aiAgent.v1.MultiAgentPublishTwitterRequest\x1a,.aiAgent.v1.MultiAgentPublishTwitterResponseB(Z&twitter-clone/api/aiAgent/v1;aiAgentv1b\x06proto3"
+	"\x18multiAgentPublishTwitter\x12+.aiAgent.v1.MultiAgentPublishTwitterRequest\x1a,.aiAgent.v1.MultiAgentPublishTwitterResponse\x12Q\n" +
+	"\fanalyzeAlert\x12\x1f.aiAgent.v1.AnalyzeAlertRequest\x1a .aiAgent.v1.AnalyzeAlertResponseB(Z&twitter-clone/api/aiAgent/v1;aiAgentv1b\x06proto3"
 
 var (
 	file_api_aiAgent_v1_aiAgent_proto_rawDescOnce sync.Once
@@ -2023,7 +2153,7 @@ func file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP() []byte {
 	return file_api_aiAgent_v1_aiAgent_proto_rawDescData
 }
 
-var file_api_aiAgent_v1_aiAgent_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
+var file_api_aiAgent_v1_aiAgent_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
 var file_api_aiAgent_v1_aiAgent_proto_goTypes = []any{
 	(*MainContent)(nil),                         // 0: aiAgent.v1.MainContent
 	(*RepositoryContentList)(nil),               // 1: aiAgent.v1.RepositoryContentList
@@ -2052,6 +2182,8 @@ var file_api_aiAgent_v1_aiAgent_proto_goTypes = []any{
 	(*ConfirmPublishTwitterResponse)(nil),       // 24: aiAgent.v1.ConfirmPublishTwitterResponse
 	(*MultiAgentPublishTwitterRequest)(nil),     // 25: aiAgent.v1.MultiAgentPublishTwitterRequest
 	(*MultiAgentPublishTwitterResponse)(nil),    // 26: aiAgent.v1.MultiAgentPublishTwitterResponse
+	(*AnalyzeAlertRequest)(nil),                 // 27: aiAgent.v1.AnalyzeAlertRequest
+	(*AnalyzeAlertResponse)(nil),                // 28: aiAgent.v1.AnalyzeAlertResponse
 }
 var file_api_aiAgent_v1_aiAgent_proto_depIdxs = []int32{
 	3,  // 0: aiAgent.v1.ModelKind.file_kind_list:type_name -> aiAgent.v1.FileKind
@@ -2074,17 +2206,19 @@ var file_api_aiAgent_v1_aiAgent_proto_depIdxs = []int32{
 	21, // 17: aiAgent.v1.AiAgentService.assistPublishTwitter:input_type -> aiAgent.v1.assistPublishTwitterRequest
 	23, // 18: aiAgent.v1.AiAgentService.confirmPublishTwitter:input_type -> aiAgent.v1.ConfirmPublishTwitterRequest
 	25, // 19: aiAgent.v1.AiAgentService.multiAgentPublishTwitter:input_type -> aiAgent.v1.MultiAgentPublishTwitterRequest
-	10, // 20: aiAgent.v1.AiAgentService.getModelDetailedInformation:output_type -> aiAgent.v1.getModelDetailedInformationResponse
-	12, // 21: aiAgent.v1.AiAgentService.getRepositoryDialogue:output_type -> aiAgent.v1.getRepositoryDialogueResponse
-	14, // 22: aiAgent.v1.AiAgentService.getDialogueDetail:output_type -> aiAgent.v1.getDialogueDetailResponse
-	16, // 23: aiAgent.v1.AiAgentService.analysisFiles:output_type -> aiAgent.v1.analysisFilesResponse
-	18, // 24: aiAgent.v1.AiAgentService.callApiOfAi:output_type -> aiAgent.v1.callApiOfAiResponse
-	20, // 25: aiAgent.v1.AiAgentService.consultContent:output_type -> aiAgent.v1.consultContentResponse
-	22, // 26: aiAgent.v1.AiAgentService.assistPublishTwitter:output_type -> aiAgent.v1.assistPublishTwitterResponse
-	24, // 27: aiAgent.v1.AiAgentService.confirmPublishTwitter:output_type -> aiAgent.v1.ConfirmPublishTwitterResponse
-	26, // 28: aiAgent.v1.AiAgentService.multiAgentPublishTwitter:output_type -> aiAgent.v1.MultiAgentPublishTwitterResponse
-	20, // [20:29] is the sub-list for method output_type
-	11, // [11:20] is the sub-list for method input_type
+	27, // 20: aiAgent.v1.AiAgentService.analyzeAlert:input_type -> aiAgent.v1.AnalyzeAlertRequest
+	10, // 21: aiAgent.v1.AiAgentService.getModelDetailedInformation:output_type -> aiAgent.v1.getModelDetailedInformationResponse
+	12, // 22: aiAgent.v1.AiAgentService.getRepositoryDialogue:output_type -> aiAgent.v1.getRepositoryDialogueResponse
+	14, // 23: aiAgent.v1.AiAgentService.getDialogueDetail:output_type -> aiAgent.v1.getDialogueDetailResponse
+	16, // 24: aiAgent.v1.AiAgentService.analysisFiles:output_type -> aiAgent.v1.analysisFilesResponse
+	18, // 25: aiAgent.v1.AiAgentService.callApiOfAi:output_type -> aiAgent.v1.callApiOfAiResponse
+	20, // 26: aiAgent.v1.AiAgentService.consultContent:output_type -> aiAgent.v1.consultContentResponse
+	22, // 27: aiAgent.v1.AiAgentService.assistPublishTwitter:output_type -> aiAgent.v1.assistPublishTwitterResponse
+	24, // 28: aiAgent.v1.AiAgentService.confirmPublishTwitter:output_type -> aiAgent.v1.ConfirmPublishTwitterResponse
+	26, // 29: aiAgent.v1.AiAgentService.multiAgentPublishTwitter:output_type -> aiAgent.v1.MultiAgentPublishTwitterResponse
+	28, // 30: aiAgent.v1.AiAgentService.analyzeAlert:output_type -> aiAgent.v1.AnalyzeAlertResponse
+	21, // [21:31] is the sub-list for method output_type
+	11, // [11:21] is the sub-list for method input_type
 	11, // [11:11] is the sub-list for extension type_name
 	11, // [11:11] is the sub-list for extension extendee
 	0,  // [0:11] is the sub-list for field type_name
@@ -2101,7 +2235,7 @@ func file_api_aiAgent_v1_aiAgent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_aiAgent_v1_aiAgent_proto_rawDesc), len(file_api_aiAgent_v1_aiAgent_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   27,
+			NumMessages:   29,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -2,11 +2,14 @@ package cache
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"math/rand"
 	"strconv"
 	"sync"
 	"time"
 	"twitter-clone/internal/domain"
+	"twitter-clone/pkg/config"
 
 	"github.com/go-redis/redis/v8"
 )
@@ -258,10 +261,11 @@ func (c *TimelineCache) IsCelebrity(ctx context.Context, userID uint64) (bool, e
 	}
 
 	// 3. 回填本地缓存
+	l1TTL := time.Duration(config.GetCurrentConfig().L1CacheTTLSeconds) * time.Second
 	c.localCache.mu.Lock()
 	c.localCache.items[userID] = localCacheItem{
 		val:       isCelebrity,
-		expiredAt: time.Now().Add(c.localCache.ttl),
+		expiredAt: time.Now().Add(l1TTL),
 	}
 	c.localCache.mu.Unlock()
 
@@ -276,10 +280,11 @@ func (c *TimelineCache) AddCelebrity(ctx context.Context, userID uint64) error {
 	}
 
 	// 同步更新本地 L1 缓存
+	l1TTL := time.Duration(config.GetCurrentConfig().L1CacheTTLSeconds) * time.Second
 	c.localCache.mu.Lock()
 	c.localCache.items[userID] = localCacheItem{
 		val:       true,
-		expiredAt: time.Now().Add(c.localCache.ttl),
+		expiredAt: time.Now().Add(l1TTL),
 	}
 	c.localCache.mu.Unlock()
 
@@ -294,10 +299,11 @@ func (c *TimelineCache) RemoveCelebrity(ctx context.Context, userID uint64) erro
 	}
 
 	// 同步从本地 L1 缓存中置为 false
+	l1TTL := time.Duration(config.GetCurrentConfig().L1CacheTTLSeconds) * time.Second
 	c.localCache.mu.Lock()
 	c.localCache.items[userID] = localCacheItem{
 		val:       false,
-		expiredAt: time.Now().Add(c.localCache.ttl),
+		expiredAt: time.Now().Add(l1TTL),
 	}
 	c.localCache.mu.Unlock()
 
@@ -432,3 +438,220 @@ func (c *TimelineCache) SyncGlobalCelebrities(ctx context.Context, dbCelebrities
 	}
 	return nil
 }
+
+// GetBaseTweet 从 Redis 获取推文基本信息 (L2 缓存)
+func (c *TimelineCache) GetBaseTweet(ctx context.Context, tweetID uint64) (*domain.Tweet, error) {
+	key := fmt.Sprintf("tweet:base:%d", tweetID)
+	val, err := c.redis.Get(ctx, key).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	var tweet domain.Tweet
+	if err := json.Unmarshal([]byte(val), &tweet); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal tweet: %w", err)
+	}
+
+	return &tweet, nil
+}
+
+// SetBaseTweet 写入推文基本信息到 Redis，带防雪崩随机 TTL
+func (c *TimelineCache) SetBaseTweet(ctx context.Context, tweet *domain.Tweet) error {
+	key := fmt.Sprintf("tweet:base:%d", tweet.ID)
+	data, err := json.Marshal(tweet)
+	if err != nil {
+		return fmt.Errorf("failed to marshal tweet: %w", err)
+	}
+
+	// 🎯 动态配置：优先从 dynamic_config 获取 L2 TTL，并带防雪崩随机 jitter
+	l2TTLSec := config.GetCurrentConfig().L2CacheTTLSeconds
+	jitter := time.Duration(rand.Intn(1800)) * time.Second
+	ttl := time.Duration(l2TTLSec)*time.Second + jitter
+
+	return c.redis.Set(ctx, key, data, ttl).Err()
+}
+
+// DeleteBaseTweet 从 Redis 删除推文基本信息
+func (c *TimelineCache) DeleteBaseTweet(ctx context.Context, tweetID uint64) error {
+	key := fmt.Sprintf("tweet:base:%d", tweetID)
+	return c.redis.Del(ctx, key).Err()
+}
+
+// MGetBaseTweets 批量从 Redis 获取推文基本信息 (L2 缓存)
+func (c *TimelineCache) MGetBaseTweets(ctx context.Context, tweetIDs []uint64) (map[uint64]*domain.Tweet, error) {
+	if len(tweetIDs) == 0 {
+		return make(map[uint64]*domain.Tweet), nil
+	}
+
+	keys := make([]string, len(tweetIDs))
+	for i, id := range tweetIDs {
+		keys[i] = fmt.Sprintf("tweet:base:%d", id)
+	}
+
+	results, err := c.redis.MGet(ctx, keys...).Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to mget tweets from redis: %w", err)
+	}
+
+	tweetMap := make(map[uint64]*domain.Tweet)
+	for i, res := range results {
+		if res == nil {
+			continue
+		}
+		str, ok := res.(string)
+		if !ok {
+			continue
+		}
+		var tweet domain.Tweet
+		if err := json.Unmarshal([]byte(str), &tweet); err == nil {
+			tweetMap[tweetIDs[i]] = &tweet
+		}
+	}
+
+	return tweetMap, nil
+}
+
+// InvalidateBaseTweet 广播删除 L1/L2 缓存
+func (c *TimelineCache) InvalidateBaseTweet(ctx context.Context, tweetID uint64) error {
+	_ = c.DeleteBaseTweet(ctx, tweetID)
+	key := fmt.Sprintf("tweet:base:%d", tweetID)
+	return c.redis.Publish(ctx, "tweet_invalidations", key).Err()
+}
+
+// UserTimelineExpiration 大V时间线缓存过期时间为 7 天
+const UserTimelineExpiration = 7 * 24 * time.Hour
+
+func (c *TimelineCache) getUserTimelineKey(userID uint64) string {
+	return fmt.Sprintf("user_timeline:%d", userID)
+}
+
+func (c *TimelineCache) getUserTimelineInitKey(userID uint64) string {
+	return fmt.Sprintf("user_timeline:%d:initialized", userID)
+}
+
+// AddToUserTimeline 添加推文到用户自己的时间线 (针对大V缓存)
+func (c *TimelineCache) AddToUserTimeline(ctx context.Context, userID uint64, tweetID uint64) error {
+	key := c.getUserTimelineKey(userID)
+	initKey := c.getUserTimelineInitKey(userID)
+
+	pipe := c.redis.Pipeline()
+	pipe.ZAdd(ctx, key, &redis.Z{
+		Score:  float64(tweetID),
+		Member: tweetID,
+	})
+	// 只保留最新的 1000 条
+	pipe.ZRemRangeByRank(ctx, key, 0, -1001)
+	pipe.Expire(ctx, key, UserTimelineExpiration)
+	pipe.Set(ctx, initKey, "1", UserTimelineExpiration)
+
+	_, err := pipe.Exec(ctx)
+	return err
+}
+
+// RemoveFromUserTimeline 从用户自己的时间线删除推文
+func (c *TimelineCache) RemoveFromUserTimeline(ctx context.Context, userID uint64, tweetID uint64) error {
+	key := c.getUserTimelineKey(userID)
+	return c.redis.ZRem(ctx, key, tweetID).Err()
+}
+
+// RebuildUserTimeline 重建用户时间线 ZSet 并设置初始化标志
+func (c *TimelineCache) RebuildUserTimeline(ctx context.Context, userID uint64, tweetIDs []uint64) error {
+	key := c.getUserTimelineKey(userID)
+	initKey := c.getUserTimelineInitKey(userID)
+
+	pipe := c.redis.Pipeline()
+	pipe.Del(ctx, key)
+
+	if len(tweetIDs) > 0 {
+		members := make([]*redis.Z, len(tweetIDs))
+		for i, id := range tweetIDs {
+			members[i] = &redis.Z{
+				Score:  float64(id),
+				Member: id,
+			}
+		}
+		pipe.ZAdd(ctx, key, members...)
+		pipe.ZRemRangeByRank(ctx, key, 0, -1001)
+	}
+	pipe.Expire(ctx, key, UserTimelineExpiration)
+	pipe.Set(ctx, initKey, "1", UserTimelineExpiration)
+
+	_, err := pipe.Exec(ctx)
+	return err
+}
+
+// PipelineGetCelebrityTweets 批量使用 Pipeline 获取多个大V的推文 ID (L2 Pull 缓存聚合)
+func (c *TimelineCache) PipelineGetCelebrityTweets(ctx context.Context, celebrityIDs []uint64, cursor uint64, limit int) (map[uint64][]uint64, []uint64, error) {
+	if len(celebrityIDs) == 0 {
+		return make(map[uint64][]uint64), nil, nil
+	}
+
+	pipe := c.redis.Pipeline()
+
+	var maxScore string
+	if cursor > 0 {
+		maxScore = fmt.Sprintf("(%d", cursor)
+	} else {
+		maxScore = "+inf"
+	}
+
+	type cmdGroup struct {
+		existsCmd *redis.IntCmd
+		zrangeCmd *redis.StringSliceCmd
+	}
+	cmds := make(map[uint64]cmdGroup)
+
+	for _, id := range celebrityIDs {
+		key := c.getUserTimelineKey(id)
+		initKey := c.getUserTimelineInitKey(id)
+
+		existsCmd := pipe.Exists(ctx, initKey)
+		zrangeCmd := pipe.ZRevRangeByScore(ctx, key, &redis.ZRangeBy{
+			Min:    "-inf",
+			Max:    maxScore,
+			Offset: 0,
+			Count:  int64(limit),
+		})
+
+		cmds[id] = cmdGroup{
+			existsCmd: existsCmd,
+			zrangeCmd: zrangeCmd,
+		}
+	}
+
+	_, err := pipe.Exec(ctx)
+	if err != nil && err != redis.Nil {
+		return nil, nil, fmt.Errorf("pipeline exec failed: %w", err)
+	}
+
+	results := make(map[uint64][]uint64)
+	var missingIDs []uint64
+
+	for id, g := range cmds {
+		exists, err := g.existsCmd.Result()
+		if err != nil || exists == 0 {
+			missingIDs = append(missingIDs, id)
+			continue
+		}
+
+		members, err := g.zrangeCmd.Result()
+		if err != nil {
+			continue
+		}
+
+		ids := make([]uint64, 0, len(members))
+		for _, m := range members {
+			tweetID, err := strconv.ParseUint(m, 10, 64)
+			if err == nil {
+				ids = append(ids, tweetID)
+			}
+		}
+		results[id] = ids
+	}
+
+	return results, missingIDs, nil
+}
+
+
+
+

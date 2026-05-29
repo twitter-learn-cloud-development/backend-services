@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -30,6 +31,7 @@ import (
 	"twitter-clone/pkg/pkg/snowflake"
 	"twitter-clone/pkg/registry"
 	"twitter-clone/pkg/trace"
+	"twitter-clone/pkg/profiler"
 
 	"twitter-clone/pkg/metric"
 
@@ -37,6 +39,9 @@ import (
 )
 
 func main() {
+	// 启动 Profiler 持续性能监控
+	profiler.Init("tweet-service")
+
 	log.Println("========================================")
 	log.Println("🚀 Tweet Service (gRPC)")
 	log.Println("========================================")
@@ -109,6 +114,8 @@ func main() {
 		log.Fatalf("❌ Failed to connect redis: %v", err)
 	}
 	log.Println("✅ Redis connected")
+	// 🎯 [Hot Reload] 启动自举报拉取与 PubSub 动态监听器，解决配置脑裂
+	cache.StartConfigListener(context.Background(), redisClient)
 
 	// 5. 初始化 RabbitMQ
 	mqConfig := mq.DefaultRabbitMQConfig()
@@ -134,6 +141,13 @@ func main() {
 	bookmarkRepo := tweetRepository.NewBookmarkRepository(db) // 🆕 书签仓储
 	retweetRepo := tweetRepository.NewRetweetRepository(db)   // 🆕 转发仓储
 	timelineCache := tweetCache.NewTimelineCache(redisClient)
+	l1Cache, err := tweetCache.NewL1Cache(redisClient, 256) // 256MB 分配给 L1 缓存
+	if err != nil {
+		log.Fatalf("❌ Failed to create L1 cache: %v", err)
+	}
+	defer l1Cache.Close()
+	log.Println("✅ L1 Cache (BigCache) initialized")
+
 	eventProducer, err := producer.NewEventProducer(mqClient)
 	if err != nil {
 		log.Fatalf("❌ Failed to create event producer: %v", err)
@@ -150,6 +164,7 @@ func main() {
 		retweetRepo,  // 🆕 注入转发仓储
 		timelineCache,
 		eventProducer,
+		l1Cache,
 	)
 
 	// 8. 初始化 Consul 注册中心

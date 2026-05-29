@@ -12,6 +12,24 @@ import (
 	"twitter-clone/internal/gateway/middleware"
 )
 
+// parseInterfaceToUint64 辅助函数：将 interface{} 兼容转换为 uint64
+func parseInterfaceToUint64(val interface{}) (uint64, error) {
+	if val == nil {
+		return 0, nil
+	}
+	switch v := val.(type) {
+	case float64:
+		return uint64(v), nil
+	case string:
+		if v == "" || v == "0" {
+			return 0, nil
+		}
+		return strconv.ParseUint(v, 10, 64)
+	default:
+		return 0, strconv.ErrSyntax
+	}
+}
+
 // AgentHandler AI Agent 处理器
 type AgentHandler struct {
 	agentClient aiAgentv1.AiAgentServiceClient
@@ -24,9 +42,9 @@ func NewAgentHandler(agentClient aiAgentv1.AiAgentServiceClient) *AgentHandler {
 
 // CallApiOfAiRequest 直接对话请求
 type CallApiOfAiRequest struct {
-	Content     string `json:"content" binding:"required"`
-	DialogueID  uint64 `json:"dialogue_id"`
-	ModelKindID uint64 `json:"model_kind_id"`
+	Content     string      `json:"content" binding:"required"`
+	DialogueID  interface{} `json:"dialogue_id"`
+	ModelKindID interface{} `json:"model_kind_id"`
 }
 
 // ConfirmPublishRequest 确认发布请求
@@ -37,9 +55,9 @@ type ConfirmPublishRequest struct {
 // MultiAgentPublishRequest 多 Agent 写推文请求
 type MultiAgentPublishRequest struct {
 	Domain            string   `json:"domain" binding:"required"`
-	AuthorUserID      uint64   `json:"author_user_id" binding:"required"`
+	AuthorUserID      string   `json:"author_user_id" binding:"required"`
 	StyleRatio        float32  `json:"style_ratio" binding:"required"`
-	ReferenceTweetIDs []uint64 `json:"reference_tweet_ids"`
+	ReferenceTweetIDs []string `json:"reference_tweet_ids"`
 	Content           string   `json:"content" binding:"required"`
 }
 
@@ -58,15 +76,35 @@ func (h *AgentHandler) CallApiOfAi(c *gin.Context) {
 		return
 	}
 
+	var dialogueID uint64
+	if req.DialogueID != nil {
+		var err error
+		dialogueID, err = parseInterfaceToUint64(req.DialogueID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid dialogue_id format"})
+			return
+		}
+	}
+
+	var modelKindID uint64
+	if req.ModelKindID != nil {
+		var err error
+		modelKindID, err = parseInterfaceToUint64(req.ModelKindID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid model_kind_id format"})
+			return
+		}
+	}
+
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 60*time.Second)
 	defer cancel()
 
 	resp, err := h.agentClient.CallApiOfAi(ctx, &aiAgentv1.CallApiOfAiRequest{
 		UserId:      userID,
-		ModelKindId: req.ModelKindID,
+		ModelKindId: modelKindID,
 		MainContent: &aiAgentv1.MainContent{
 			UserId:     userID,
-			DialogueId: req.DialogueID,
+			DialogueId: dialogueID,
 			Content:    req.Content,
 		},
 	})
@@ -82,9 +120,9 @@ func (h *AgentHandler) CallApiOfAi(c *gin.Context) {
 
 // ConsultContentRequest 推文查询请求
 type ConsultContentRequest struct {
-	Content     string `json:"content" binding:"required"`
-	DialogueID  uint64 `json:"dialogue_id"`
-	ModelKindID uint64 `json:"model_kind_id"`
+	Content     string      `json:"content" binding:"required"`
+	DialogueID  interface{} `json:"dialogue_id"`
+	ModelKindID interface{} `json:"model_kind_id"`
 }
 
 // ConsultContent 模式二：语义搜索推文和作者
@@ -102,15 +140,35 @@ func (h *AgentHandler) ConsultContent(c *gin.Context) {
 		return
 	}
 
+	var dialogueID uint64
+	if req.DialogueID != nil {
+		var err error
+		dialogueID, err = parseInterfaceToUint64(req.DialogueID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid dialogue_id format"})
+			return
+		}
+	}
+
+	var modelKindID uint64
+	if req.ModelKindID != nil {
+		var err error
+		modelKindID, err = parseInterfaceToUint64(req.ModelKindID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid model_kind_id format"})
+			return
+		}
+	}
+
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 60*time.Second)
 	defer cancel()
 
 	resp, err := h.agentClient.ConsultContent(ctx, &aiAgentv1.ConsultContentRequest{
 		UserId:      userID,
-		ModelKindId: req.ModelKindID,
+		ModelKindId: modelKindID,
 		MainContent: &aiAgentv1.MainContent{
 			UserId:     userID,
-			DialogueId: req.DialogueID,
+			DialogueId: dialogueID,
 			Content:    req.Content,
 		},
 	})
@@ -122,7 +180,7 @@ func (h *AgentHandler) ConsultContent(c *gin.Context) {
 	tweetList := make([]gin.H, len(resp.TweetList))
 	for i, t := range resp.TweetList {
 		tweetList[i] = gin.H{
-			"tweet_id": t.TweetId,
+			"tweet_id": strconv.FormatUint(t.TweetId, 10), // 👈 无损转换为字符串输出
 			"url":      t.Url,
 			"summary":  t.Summary,
 		}
@@ -136,9 +194,9 @@ func (h *AgentHandler) ConsultContent(c *gin.Context) {
 
 // AssistPublishRequest 协作写推文请求
 type AssistPublishRequest struct {
-	Content     string `json:"content" binding:"required"`
-	DialogueID  uint64 `json:"dialogue_id"`
-	ModelKindID uint64 `json:"model_kind_id"`
+	Content     string      `json:"content" binding:"required"`
+	DialogueID  interface{} `json:"dialogue_id"`
+	ModelKindID interface{} `json:"model_kind_id"`
 }
 
 // AssistPublishTwitter 模式三：协助构建推文
@@ -156,15 +214,35 @@ func (h *AgentHandler) AssistPublishTwitter(c *gin.Context) {
 		return
 	}
 
+	var dialogueID uint64
+	if req.DialogueID != nil {
+		var err error
+		dialogueID, err = parseInterfaceToUint64(req.DialogueID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid dialogue_id format"})
+			return
+		}
+	}
+
+	var modelKindID uint64
+	if req.ModelKindID != nil {
+		var err error
+		modelKindID, err = parseInterfaceToUint64(req.ModelKindID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid model_kind_id format"})
+			return
+		}
+	}
+
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 60*time.Second)
 	defer cancel()
 
 	resp, err := h.agentClient.AssistPublishTwitter(ctx, &aiAgentv1.AssistPublishTwitterRequest{
 		UserId:      userID,
-		ModelKindId: req.ModelKindID,
+		ModelKindId: modelKindID,
 		MainContent: &aiAgentv1.MainContent{
 			UserId:     userID,
-			DialogueId: req.DialogueID,
+			DialogueId: dialogueID,
 			Content:    req.Content,
 		},
 	})
@@ -173,9 +251,29 @@ func (h *AgentHandler) AssistPublishTwitter(c *gin.Context) {
 		return
 	}
 
+	// 🎯 转换 Tweet 内的 ID 避免 JS 精度截断
+	tweetList := make([]gin.H, len(resp.TweetList))
+	for i, t := range resp.TweetList {
+		tweetList[i] = gin.H{
+			"id":            strconv.FormatUint(t.Id, 10),
+			"user_id":       strconv.FormatUint(t.UserId, 10),
+			"content":       t.Content,
+			"media_urls":    t.MediaUrls,
+			"type":          t.Type,
+			"visible_type":  t.VisibleType,
+			"created_at":    t.CreatedAt,
+			"updated_at":    t.UpdatedAt,
+			"like_count":    t.LikeCount,
+			"comment_count": t.CommentCount,
+			"share_count":   t.ShareCount,
+			"is_liked":      t.IsLiked,
+			"parent_id":     strconv.FormatUint(t.ParentId, 10),
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"response":   resp.Response,
-		"tweet_list": resp.TweetList,
+		"tweet_list": tweetList,
 	})
 }
 
@@ -208,7 +306,7 @@ func (h *AgentHandler) ConfirmPublishTwitter(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"response": resp.Response,
-		"tweet_id": resp.TweetId,
+		"tweet_id": strconv.FormatUint(resp.TweetId, 10),
 	})
 }
 
@@ -227,15 +325,36 @@ func (h *AgentHandler) MultiAgentPublishTwitter(c *gin.Context) {
 		return
 	}
 
+	// 解析 author_user_id 字符串为 uint64
+	authorUserID, err := strconv.ParseUint(req.AuthorUserID, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid author_user_id format"})
+		return
+	}
+
+	// 解析 reference_tweet_ids 字符串数组为 uint64 数组
+	var refTweetIDs []uint64
+	if len(req.ReferenceTweetIDs) > 0 {
+		refTweetIDs = make([]uint64, len(req.ReferenceTweetIDs))
+		for i, idStr := range req.ReferenceTweetIDs {
+			id, err := strconv.ParseUint(idStr, 10, 64)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid reference_tweet_id format"})
+				return
+			}
+			refTweetIDs[i] = id
+		}
+	}
+
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 120*time.Second)
 	defer cancel()
 
 	resp, err := h.agentClient.MultiAgentPublishTwitter(ctx, &aiAgentv1.MultiAgentPublishTwitterRequest{
 		UserId:            userID,
 		Domain:            req.Domain,
-		AuthorUserId:      req.AuthorUserID,
+		AuthorUserId:      authorUserID,
 		StyleRatio:        req.StyleRatio,
-		ReferenceTweetIds: req.ReferenceTweetIDs,
+		ReferenceTweetIds: refTweetIDs,
 		Content:           req.Content,
 	})
 	if err != nil {
@@ -270,7 +389,20 @@ func (h *AgentHandler) GetRepositoryDialogue(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, resp)
+	dialogues := make([]gin.H, len(resp.RepositoryDialogueList))
+	for i, d := range resp.RepositoryDialogueList {
+		dialogues[i] = gin.H{
+			"id":      strconv.FormatUint(d.Id, 10),
+			"user_id": strconv.FormatUint(d.UserId, 10),
+			"title":   d.Title,
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":                     resp.Code,
+		"msg":                      resp.Msg,
+		"repository_dialogue_list": dialogues,
+	})
 }
 
 // GetDialogueDetail 获取特定对话的消息记录
@@ -283,15 +415,8 @@ func (h *AgentHandler) GetDialogueDetail(c *gin.Context) {
 	}
 
 	dialogueIDStr := c.Param("id")
-	// 注意这里前端可能会传 hex 字符串，但由于 pb 定义是 uint64，我们在 service 层做了兼容
 	dialogueID, err := strconv.ParseUint(dialogueIDStr, 10, 64)
 	if err != nil {
-		// 如果前端传的是 mongo 的 hex string，尝试兼容传递
-		// 暂时为了 pb 兼容，如果解析失败传 0，后端在 GetDialogueDetail 中处理
-		// 实际上由于我们之前的修改，gRPC proto 中的 dialogue_id 是 uint64，但我们其实也可以把 hex string 传给 proto 里的其他字段。
-		// 这里的处理：我们将 dialogue_id 作为 uint64 传输，如果是 hex string 无法解析，这里会报错。
-		// 因为我们现在采用的是后 8 bytes 截取的伪 ObjectID 方案，所以前端可以传 uint64。
-		// 在这里强行解析为 uint64 即可。
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid dialogue_id format"})
 		return
 	}
@@ -308,7 +433,22 @@ func (h *AgentHandler) GetDialogueDetail(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, resp)
+	messages := make([]gin.H, len(resp.Messages))
+	for i, m := range resp.Messages {
+		messages[i] = gin.H{
+			"id":          strconv.FormatUint(m.Id, 10),
+			"user_id":     strconv.FormatUint(m.UserId, 10),
+			"dialogue_id": strconv.FormatUint(m.DialogueId, 10),
+			"question":    m.Question,
+			"response":    m.Response,
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":     resp.Code,
+		"msg":      resp.Msg,
+		"messages": messages,
+	})
 }
 
 // ========================== 模型与文件 ==========================
@@ -385,4 +525,9 @@ func (h *AgentHandler) AnalysisFiles(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, resp)
+}
+
+// AnalyzeAlert 告警根因分析透传
+func (h *AgentHandler) AnalyzeAlert(ctx context.Context, req *aiAgentv1.AnalyzeAlertRequest) (*aiAgentv1.AnalyzeAlertResponse, error) {
+	return h.agentClient.AnalyzeAlert(ctx, req)
 }

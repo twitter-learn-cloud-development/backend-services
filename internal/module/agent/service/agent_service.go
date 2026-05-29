@@ -4,16 +4,26 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
+	"os"
 	"strings"
 	"sync"
+	"time"
 	"twitter-clone/internal/module/agent/repository"
+	"twitter-clone/pkg/ai"
+	"twitter-clone/pkg/config"
 	"twitter-clone/pkg/logger"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/sashabaranov/go-openai"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // ========================== 常量 ==========================
@@ -47,6 +57,12 @@ type AgentService struct {
 	repo      repository.AgentRepository   // 对话持久化仓储
 	chatModel string                        // 对话模型名称
 	mcpAddr   string                        // MCP Server 地址
+	aiClient  *ai.Client                    // 降级路由 AI 客户端
+	rdb       *redis.Client                 // 🎯 注入 Redis 客户端支持调优配置写入、广播和冷却锁
+
+	// 🆕 生命周期控制，防止 background context 导致的协程泄漏
+	serviceCtx context.Context
+	cancelFunc context.CancelFunc
 
 	// 长连接与连接池复用
 	mcpClient *client.Client
@@ -61,17 +77,34 @@ func NewAgentService(
 	chatModel string,
 	mcpAddr string,
 	repo repository.AgentRepository,
+	aiClient *ai.Client,
+	rdb *redis.Client,
 ) *AgentService {
 	config := openai.DefaultConfig(llmAPIKey)
 	config.BaseURL = llmBaseURL
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	return &AgentService{
-		llmClient: openai.NewClientWithConfig(config),
-		chatModel: chatModel,
-		mcpAddr:   mcpAddr,
-		repo:      repo,
+		llmClient:  openai.NewClientWithConfig(config),
+		chatModel:  chatModel,
+		mcpAddr:    mcpAddr,
+		repo:       repo,
+		aiClient:   aiClient,
+		rdb:        rdb,
+		serviceCtx: ctx,
+		cancelFunc: cancel,
 	}
 }
+
+// Close 优雅关闭方法，通知所有绑定的长连接和协程安全退出
+func (s *AgentService) Close() {
+	if s.cancelFunc != nil {
+		s.cancelFunc()
+	}
+	s.resetMCPClient()
+}
+
 
 // ========================== 对话上下文辅助方法 ==========================
 
@@ -743,24 +776,36 @@ func (s *AgentService) getOrInitMCPClient(ctx context.Context) (*client.Client, 
 		return s.mcpClient, s.mcpTools, nil
 	}
 
-	logger.Info(ctx, "initializing MCP long-connection client", zap.String("addr", s.mcpAddr))
-	mcpClient, err := client.NewSSEMCPClient(fmt.Sprintf("http://%s/sse", s.mcpAddr))
+	addr := s.mcpAddr
+	// ⚠️ 本地进程内以 goroutine 形式启动 MCP Server 并监听 0.0.0.0。
+	// 在容器内部回环连接时，必须转换为 127.0.0.1 拨号，规避容器环境路由解析问题。
+	if strings.HasPrefix(addr, "0.0.0.0:") {
+		addr = "127.0.0.1:" + strings.TrimPrefix(addr, "0.0.0.0:")
+	}
+
+	logger.Info(ctx, "initializing MCP long-connection client", zap.String("addr", addr))
+	mcpClient, err := client.NewSSEMCPClient(fmt.Sprintf("http://%s/sse", addr))
 	if err != nil {
 		return nil, nil, fmt.Errorf("create mcp client failed: %w", err)
 	}
 
-	if err := mcpClient.Start(ctx); err != nil {
+	// 🎯 核心防坑：使用绑定了服务生命周期的 Context，既防止短路断连，又防止内存泄露
+	if err := mcpClient.Start(s.serviceCtx); err != nil {
 		return nil, nil, fmt.Errorf("mcp client start failed: %w", err)
 	}
 
-	// 初始化握手
-	if _, err := mcpClient.Initialize(ctx, mcp.InitializeRequest{}); err != nil {
+	// 初始化握手，附加超时控制以避免挂起
+	initCtx, initCancel := context.WithTimeout(ctx, 5*time.Second)
+	defer initCancel()
+	if _, err := mcpClient.Initialize(initCtx, mcp.InitializeRequest{}); err != nil {
 		mcpClient.Close()
 		return nil, nil, fmt.Errorf("mcp initialize failed: %w", err)
 	}
 
 	// 获取所有可用 Tools 并缓存
-	toolsResp, err := mcpClient.ListTools(ctx, mcp.ListToolsRequest{})
+	listCtx, listCancel := context.WithTimeout(ctx, 5*time.Second)
+	defer listCancel()
+	toolsResp, err := mcpClient.ListTools(listCtx, mcp.ListToolsRequest{})
 	if err != nil {
 		mcpClient.Close()
 		return nil, nil, fmt.Errorf("list tools failed: %w", err)
@@ -828,4 +873,258 @@ func extractTextFromToolResult(result *mcp.CallToolResult) string {
 		}
 	}
 	return text
+}
+
+// AnalyzeAlert 引入持续性能剖析火焰图简报并触发自愈调优闭环
+func (s *AgentService) AnalyzeAlert(ctx context.Context, alertPayload string, errorLogs []string) (string, string, error) {
+	log.Printf("🔔 [AIOps] Analyzing alert with LLM...")
+
+	// 1. 启动 OTel Root Cause Analysis 主 Span
+	tracer := otel.Tracer("agent-service")
+	ctx, span := tracer.Start(ctx, "AIOps: Root Cause Analysis", trace.WithSpanKind(trace.SpanKindInternal))
+	defer span.End()
+
+	// 🆕 获取持续性能剖析火焰图简报并送入 AI 诊断上下文
+	analyzer := NewProfilingAnalyzer()
+	gatewayProfile, _ := analyzer.GetFlamegraphSummary(ctx, "api-gateway")
+	tweetProfile, _ := analyzer.GetFlamegraphSummary(ctx, "tweet-service")
+
+	// 1. 组装输入上下文
+	systemPrompt := `你是一个世界顶级的 AIOps 智能诊断专家。你的职责是根据微服务系统的告警详情、报错日志以及最新的 CPU 剖析火焰图简报，进行深度分析，找出根本原因（Root Cause），并提供自愈配置调优。请以专业的 Markdown 格式回复。
+
+[CRITICAL INSTRUCTION]
+在你的报告的最末尾，你必须输出且仅输出一段由 [STRUCT_START] 和 [STRUCT_END] 包裹的 JSON 格式的自愈指令，指定推荐的自愈调优措施。不要包含任何多余文本。例如：
+1. 本地熔断隔离：
+[STRUCT_START]
+{
+  "root_cause": "RedisDown",
+  "action": "TriggerCircuitBreaker",
+  "resource": "GET:/api/v1/feeds"
+}
+[STRUCT_END]
+
+2. 灰度切流自愈：
+[STRUCT_START]
+{
+  "root_cause": "TweetV2Bug",
+  "action": "UpdateGrayTraffic",
+  "resource": "tweet-service-vs",
+  "weights": {
+    "v1": 100,
+    "v2": 0
+  }
+}
+[STRUCT_END]
+
+3. 缓存自适应参数调优：若通过 CPU 火焰图判定 CPU 负载高或排序函数分配开销高，可微调 L1/L2 缓存的 TTL 阻挡并发流量，并调整预热深度 (Preload Depth)：
+[STRUCT_START]
+{
+  "root_cause": "TimelineCacheCPUOverload",
+  "action": "TuneCacheConfig",
+  "resource": "tweet-service",
+  "l1_cache_ttl_seconds": 30,
+  "l2_cache_ttl_seconds": 600,
+  "preload_depth": 5
+}
+[STRUCT_END]
+(注意：L1 TTL 限制为 [1, 3600]，PreloadDepth 限制为 [0, 10])`
+
+	var sb strings.Builder
+	sb.WriteString("### 1. Alert Details\n```json\n")
+	sb.WriteString(alertPayload)
+	sb.WriteString("\n```\n\n")
+
+	sb.WriteString("### 2. Context Error Logs (From API Gateway Blackbox)\n")
+	if len(errorLogs) == 0 {
+		sb.WriteString("*No error logs captured near the alert timeframe.*\n")
+	} else {
+		sb.WriteString("```log\n")
+		for _, l := range errorLogs {
+			sb.WriteString(l)
+			sb.WriteString("\n")
+		}
+		sb.WriteString("```\n")
+	}
+
+	// 注入 CPU 性能简报
+	sb.WriteString("\n### 3. Continuous Profiling CPU Flamegraph Hotspots\n")
+	sb.WriteString("#### API Gateway CPU Hotspots:\n```\n")
+	sb.WriteString(gatewayProfile)
+	sb.WriteString("\n```\n")
+	sb.WriteString("#### Tweet Service CPU Hotspots:\n```\n")
+	sb.WriteString(tweetProfile)
+	sb.WriteString("\n```\n\n")
+
+	sb.WriteString("\n请基于上述信息，进行关联根因分析 (RCA)，并按照以下格式输出 Markdown 报告：\n" +
+		"- **告警现状与影响评估**\n" +
+		"- **疑似根本原因 (Root Cause)**\n" +
+		"- **推荐紧急止血与根治措施**\n")
+
+	// 2. 调用支持容灾降级的大模型路由客户端 (开启 OTel 子 Span 记录推理开销)
+	cheapModel := os.Getenv("LM_STUDIO_MODEL_CHAT")
+	if cheapModel == "" {
+		cheapModel = "qwen3.6-plus"
+	}
+	premiumModel := os.Getenv("PREMIUM_AI_MODEL_CHAT")
+	if premiumModel == "" {
+		premiumModel = "qwen-max"
+	}
+
+	if s.aiClient == nil {
+		span.RecordError(fmt.Errorf("ai client is nil"))
+		return "", "", fmt.Errorf("ai client is nil")
+	}
+
+	llmCtx, llmSpan := tracer.Start(ctx, "AIOps: LLM Inference")
+	report, err := s.aiClient.GetChatCompletionWithRouting(
+		llmCtx,
+		systemPrompt,
+		sb.String(),
+		cheapModel,
+		premiumModel,
+		"high",
+		nil,
+	)
+	llmSpan.End()
+
+	if err != nil {
+		span.RecordError(err)
+		return "", "", fmt.Errorf("failed to generate RCA report via LLM: %w", err)
+	}
+
+	// 3. 提取结构化自愈元数据
+	var structuredRCA string
+	startIdx := strings.Index(report, "[STRUCT_START]")
+	endIdx := strings.Index(report, "[STRUCT_END]")
+	if startIdx != -1 && endIdx != -1 && endIdx > startIdx {
+		jsonStr := report[startIdx+len("[STRUCT_START]") : endIdx]
+		structuredRCA = strings.TrimSpace(jsonStr)
+		// 从 report 中裁剪掉结构化标记部分，保持人读报告的纯净
+		report = report[:startIdx] + report[endIdx+len("[STRUCT_END]"):]
+		report = strings.TrimSpace(report)
+	} else {
+		structuredRCA = "{}"
+	}
+
+	// 4. 持久化输出到 scratch 目录以供审计 (开启 OTel 子 Span 记录持久化耗时)
+	persistCtx, persistSpan := tracer.Start(ctx, "AIOps: Persist Report")
+	_ = persistCtx
+	defer persistSpan.End()
+
+	scratchDir := "C:/Users/郭丰硕/.gemini/antigravity-ide/brain/63d49437-9d83-40a2-a7d2-33758c3e0a03/scratch"
+	_ = os.MkdirAll(scratchDir, 0755)
+
+	reportPath := fmt.Sprintf("%s/alert_rca_reports.md", scratchDir)
+
+	f, fileErr := os.OpenFile(reportPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if fileErr == nil {
+		defer f.Close()
+		timestamp := time.Now().Format("2006-01-02 15:04:05")
+		header := fmt.Sprintf("\n\n# ========================================\n# 🚨 AIOps RCA REPORT - [%s]\n# ========================================\n", timestamp)
+		_, _ = f.WriteString(header)
+		_, _ = f.WriteString(report)
+		if structuredRCA != "{}" {
+			_, _ = f.WriteString(fmt.Sprintf("\n\n🤖 Structured Self-Healing Directive:\n```json\n%s\n```\n", structuredRCA))
+		}
+		log.Printf("💾 [AIOps] Successfully persisted RCA report to: %s", reportPath)
+	} else {
+		log.Printf("⚠️ [AIOps] Failed to write report file: %v", fileErr)
+		persistSpan.RecordError(fileErr)
+	}
+
+	// 🆕 5. 自动执行缓存自适应调优闭环 (AI 决策反馈回路)
+	if structuredRCA != "" && structuredRCA != "{}" {
+		var directive struct {
+			Action            string `json:"action"`
+			L1CacheTTLSeconds int    `json:"l1_cache_ttl_seconds"`
+			L2CacheTTLSeconds int    `json:"l2_cache_ttl_seconds"`
+			PreloadDepth      int    `json:"preload_depth"`
+		}
+		if jsonErr := json.Unmarshal([]byte(structuredRCA), &directive); jsonErr == nil {
+			if directive.Action == "TuneCacheConfig" {
+				log.Printf("🛡️ [AIOps] Auto-tuning Cache detected. Instantiating TuneCacheConfig...")
+				res, tuneErr := s.TuneCacheConfig(ctx, directive.L1CacheTTLSeconds, directive.L2CacheTTLSeconds, directive.PreloadDepth)
+				if tuneErr != nil {
+					log.Printf("🚨 [AIOps] TuneCacheConfig failed: %v", tuneErr)
+				} else {
+					log.Printf("🛡️ [AIOps] TuneCacheConfig executed: %s", res)
+				}
+			}
+		}
+	}
+
+	return report, structuredRCA, nil
+}
+
+// TuneCacheConfig 大模型调优 L1/L2 缓存配置的工具，包含防 Flapping 冷却锁和 Guardrails
+func (s *AgentService) TuneCacheConfig(ctx context.Context, l1TTL int, l2TTL int, preloadDepth int) (string, error) {
+	// 🆕 启动 OTel 子 Span 记录配置调优细节
+	tracer := otel.Tracer("agent-service")
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "AIOps: Apply TuneCacheConfig")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.Int("tuning.l1_ttl_seconds", l1TTL),
+		attribute.Int("tuning.l2_ttl_seconds", l2TTL),
+		attribute.Int("tuning.preload_depth", preloadDepth),
+	)
+
+	// 🎯 核心防坑：防止 AI 调优震荡的防 Flapping 冷却机制 (3分钟内同一调优行为限制)
+	cooldownKey := "aiops:cooldown:tune_cache"
+	locked, err := s.rdb.SetNX(ctx, cooldownKey, "locked", 3*time.Minute).Result()
+	if err != nil {
+		span.RecordError(err)
+		return "", fmt.Errorf("failed to acquire cooldown lock: %w", err)
+	}
+	if !locked {
+		span.SetAttributes(attribute.Bool("tuning.bypassed_cooldown", true))
+		return "Optimization bypassed: System is currently in a 3-minute cooldown observation period.", nil
+	}
+
+	// 1. 构造新配置
+	newCfg := config.DynamicCacheConfig{
+		L1CacheTTLSeconds: l1TTL,
+		L2CacheTTLSeconds: l2TTL,
+		PreloadDepth:      preloadDepth,
+	}
+	
+	payload, err := json.Marshal(newCfg)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal cache config: %w", err)
+	}
+
+	// 🎯 严格的安全护栏 (Guardrails) - 防止大模型传入极端数值“自残”
+	if err := config.ReloadConfig(payload); err != nil {
+		// 校验失败，提前释放冷却锁以允许重试
+		s.rdb.Del(ctx, cooldownKey)
+		return fmt.Sprintf("Rejected by guardrail: %v", err), nil
+	}
+
+	// 2. 先持久化 (写入 Redis KV 供新建 Pod 或重启 Pod 初始化拉取自举)
+	configKey := "system:cache:dynamic_config"
+	if err := s.rdb.Set(ctx, configKey, payload, 0).Err(); err != nil {
+		s.rdb.Del(ctx, cooldownKey)
+		return "", fmt.Errorf("failed to persist dynamic config in Redis: %w", err)
+	}
+
+	// 3. 后广播 (发布 Redis PubSub 广播给现有微服务节点执行热重载)
+	pubsubChannel := "channel:dynamic-cache-config"
+	if err := s.rdb.Publish(ctx, pubsubChannel, payload).Err(); err != nil {
+		return fmt.Sprintf("Config persisted but failed to broadcast: %v", err), nil
+	}
+
+	log.Printf("🛡️ [Agent Healer] Dynamically tuned cache config: L1 TTL=%ds, L2 TTL=%ds, PreloadDepth=%d", l1TTL, l2TTL, preloadDepth)
+	return fmt.Sprintf("Cache configuration successfully updated and broadcasted. Current L1 TTL: %ds, L2 TTL: %ds, Preload Depth: %d", l1TTL, l2TTL, preloadDepth), nil
+}
+
+// sanitizeMarkdownTable 格式清洗，确保 Markdown 表格边界严丝合缝，前后端契约绝不崩塌
+func (s *AgentService) sanitizeMarkdownTable(rawReport string) string {
+	if !strings.Contains(rawReport, "|") {
+		return "" // 非合法表格，宁可不要，触发降级
+	}
+	// 清洗掉大模型偶尔自带的 ```markdown ... ``` 标签包围圈
+	cleaned := strings.ReplaceAll(rawReport, "```markdown", "")
+	cleaned = strings.ReplaceAll(cleaned, "```", "")
+	return strings.TrimSpace(cleaned)
 }
