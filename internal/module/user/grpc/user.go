@@ -45,15 +45,14 @@ func (s *UserServer) Login(ctx context.Context, req *userv1.LoginRequest) (*user
 	log.Printf("gRPC: Login - email=%s", req.Email)
 
 	// 调用 Service 层
-	token, user, err := s.svc.Login(ctx, req.Email, req.Password)
+	user, err := s.svc.Login(ctx, req.Email, req.Password)
 	if err != nil {
 		log.Printf("❌ Login error: %v", err)
 		return nil, status.Errorf(codes.Unauthenticated, "login failed: %v", err)
 	}
 
 	return &userv1.LoginResponse{
-		Token: token,
-		User:  domainUserToProto(user),
+		User: domainUserToProto(user),
 	}, nil
 }
 

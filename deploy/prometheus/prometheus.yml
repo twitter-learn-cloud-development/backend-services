@@ -9,7 +9,7 @@ scrape_configs:
   - job_name: 'gateway'
     metrics_path: '/metrics'
     static_configs:
-      - targets: ['gateway:9638']
+      - targets: ['gateway:2110']
 
   - job_name: 'user-service'
     metrics_path: '/metrics'
@@ -25,3 +25,13 @@ scrape_configs:
     metrics_path: '/metrics'
     static_configs:
       - targets: ['follow-service:2113']
+
+  - job_name: 'auth-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['auth-service:2114']
+
+  - job_name: 'messenger-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['messenger-service:2115']

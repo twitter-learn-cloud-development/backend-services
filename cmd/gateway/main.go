@@ -21,10 +21,8 @@ import (
 	"twitter-clone/pkg/logger"
 	"twitter-clone/pkg/metric"
 	"twitter-clone/pkg/pkg/snowflake"
-	"twitter-clone/pkg/trace"
 	"twitter-clone/pkg/profiler"
-
-	"github.com/gin-gonic/gin"
+	"twitter-clone/pkg/trace"
 )
 
 func main() {
@@ -49,6 +47,7 @@ func main() {
 
 	// 📊 初始化 Prometheus 指标
 	metric.InitMetrics()
+	metric.StartMetricsServer(2110)
 	log.Println("✅ Prometheus metrics initialized")
 
 	// 🆕 初始化 Consul 配置客户端
@@ -98,28 +97,25 @@ func main() {
 	}
 	defer grpcClients.Close()
 
-	// 创建 JWT 中间件
-	jwtMW := middleware.NewJWTMiddleware(cfg.JWTSecret, cfg.JWTExpire)
-	log.Println("✅ JWT middleware initialized")
+	//初始化auth认证中间件
 
-	// 📊 注册 Prometheus 中间件
-	r := gin.New()
-	r.Use(middleware.MetricsMiddleware())
-	// 注意：router.SetupRouter 内部创建了 gin.New()，我们需要调整方式。
-	// 这里最好传入 r 给 SetupRouter，或者修改 SetupRouter。
-	// 鉴于 router.SetupRouter 是现成的，我们修改 SetupRouter 参数或者在 main 中包装。
-	// 简单起见，修改 router.go 更好，但为了不改 router.go 签名，我们可以把 SetupRouter 返回的 r 再包装？
-	// 最好是先把 SetupRouter 也是用 r.Use。
-	// 哎呀，router.SetupRouter 内部 new 了一个 gin。
-	// 让我们看看 router.go。
-
-	// 🆕 启动配置监听 (Hot Reload)
-	if consulClient != nil {
-		consulClient.WatchConfig("config/global/jwt_secret", func(newSecret string) {
-			log.Println("🔄 Hot Reload: JWT Secret updated")
-			jwtMW.SetSecret(newSecret)
-		})
+	authServiceJWKSUrl := getEnv("AUTH_SERVICE_JWKS_URL", "http://localhost:8081/.well-known/jwks.json")
+	authMW, err := middleware.NewGatewayAuthMiddleware(authServiceJWKSUrl)
+	if err != nil {
+		log.Fatalf("Init gateway jwks middleware failed: %v", err)
 	}
+
+	// // 创建 JWT 中间件
+	// jwtMW := middleware.NewJWTMiddleware(cfg.JWTSecret, cfg.JWTExpire)
+	// log.Println("✅ JWT middleware initialized")
+
+	// // 🆕 启动配置监听 (Hot Reload)
+	// if consulClient != nil {
+	// 	consulClient.WatchConfig("config/global/jwt_secret", func(newSecret string) {
+	// 		log.Println("🔄 Hot Reload: JWT Secret updated")
+	// 		jwtMW.SetSecret(newSecret)
+	// 	})
+	// }
 
 	// 初始化 Snowflake ID 生成器 (书签等功能需要)
 	snowflake.MustInit(1)
@@ -129,7 +125,7 @@ func main() {
 	// The instruction provided a snippet that seems to redefine clients,
 	// but we already have grpcClients. Let's adapt it to use existing clients.
 	// The instruction also had a typo in uploadHandler, fixing it.
-	userHandler := handler.NewUserHandler(grpcClients.UserClient, grpcClients.FollowClient, grpcClients.TweetClient)
+	userHandler := handler.NewUserHandler(grpcClients.UserClient, grpcClients.FollowClient, grpcClients.TweetClient, grpcClients.AuthClient)
 	tweetHandler := handler.NewTweetHandler(grpcClients.TweetClient, grpcClients.UserClient)
 	followHandler := handler.NewFollowHandler(grpcClients.FollowClient)
 	uploadHandler := handler.NewUploadHandler("./uploads", "http://localhost:"+cfg.Port) // MVP: Local upload
@@ -144,13 +140,13 @@ func main() {
 	agentHandler := handler.NewAgentHandler(grpcClients.AgentClient)
 
 	// 创建 WebSocket 处理器
-	wsHandler := handler.NewWebSocketHandler(redisClient, jwtMW)
+	wsHandler := handler.NewWebSocketHandler(redisClient, authMW)
 
 	log.Println("✅ Handlers initialized")
 
 	// 设置路由
 	// 传入 Redis Client 用于限流
-	r = router.SetupRouter(tweetHandler, followHandler, userHandler, uploadHandler, notificationHandler, bookmarkHandler, messengerHandler, wsHandler, agentHandler, jwtMW, redisClient)
+	r := router.SetupRouter(tweetHandler, followHandler, userHandler, uploadHandler, notificationHandler, bookmarkHandler, messengerHandler, wsHandler, agentHandler, authMW, redisClient)
 
 	log.Println("✅ Router configured")
 

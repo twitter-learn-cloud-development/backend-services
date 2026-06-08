@@ -76,3 +76,14 @@ func (c *ConsulConfigClient) WatchConfig(key string, onChange func(string)) {
 		}
 	}()
 }
+
+// PutConfig sets a configuration value in Consul KV store
+func (c *ConsulConfigClient) PutConfig(key string, value string) error {
+	kv := c.client.KV()
+	pair := &api.KVPair{
+		Key:   key,
+		Value: []byte(value),
+	}
+	_, err := kv.Put(pair, nil)
+	return err
+}

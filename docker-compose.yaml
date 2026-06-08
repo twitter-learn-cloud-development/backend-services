@@ -152,6 +152,31 @@ services:
     volumes:
       - ./deploy/grafana/provisioning:/etc/grafana/provisioning
 
+  auth-service:
+    build:
+      context: .
+      dockerfile: deploy/docker/auth.dockerfile
+    environment:
+      - CONSUL_HOST=consul
+      - CONSUL_PORT=8500
+      - SERVICE_NAME=auth-service
+      - SERVICE_ADDR=auth-service
+      - SERVICE_PORT=9097
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_SAMPLER_TYPE=const
+      - JAEGER_SAMPLER_PARAM=1
+      - JAEGER_COLLECTOR_ENDPOINT=http://jaeger:14268/api/traces
+      - USER_SERVICE_ADDR=user-service:9091
+    ports:
+      - "9097:9097"
+      - "8081:8081"
+    restart: on-failure
+    depends_on:
+      consul:
+        condition: service_started
+      user-service:
+        condition: service_started
+
   user-service:
     build:
       context: .
@@ -368,12 +393,17 @@ services:
       - JAEGER_SAMPLER_TYPE=const
       - JAEGER_SAMPLER_PARAM=1
       - JAEGER_COLLECTOR_ENDPOINT=http://jaeger:14268/api/traces
-      - JWT_SECRET=twitter_clone_secret_key_2023
+      - AUTH_SERVICE_JWKS_URL=http://auth-service:8081/.well-known/jwks.json
       - PYROSCOPE_SERVER_ADDRESS=http://pyroscope:4040
+      - SENTINEL_DASHBOARD_ADDR=sentinel:9124
+      - SENTINEL_TRANSPORT_PORT=8719
+      - SENTINEL_APP_NAME=gateway
+      - SENTINEL_LOG_DIR=/tmp/sentinel/logs
     ports:
       - "9638:9638"
     restart: on-failure
     depends_on:
+      - auth-service
       - user-service
       - tweet-service
       - follow-service
@@ -481,6 +511,8 @@ services:
     ports:
       - "4040:4040"
     restart: always
+    volumes:
+      - pyroscope-data:/var/lib/pyroscope
 
 
   frontend:
@@ -500,3 +532,4 @@ volumes:
   prometheus_data:
   loki_data:
   temporal_db:
+  pyroscope-data:

@@ -29,3 +29,10 @@ datasources:
     access: proxy
     url: http://prometheus:9090
     editable: true
+
+  # 4. Pyroscope 持续分析数据源配置
+  - name: Pyroscope
+    type: grafana-pyroscope-datasource
+    access: proxy
+    url: http://pyroscope:4040
+    editable: true

@@ -73,9 +73,15 @@ func (h *UserHandler) Login(c *gin.Context) {
 	}
 
 	//2.调用service层
-	token, user, err := h.svc.Login(c.Request.Context(), req.Email, req.Password)
+	user, err := h.svc.Login(c.Request.Context(), req.Email, req.Password)
 	if err != nil {
 		h.handleServiceError(c, err)
+		return
+	}
+
+	token, err := h.svc.GenerateToken(user.ID, user.Username, user.Email)
+	if err != nil {
+		InternalServerErrorResponse(c, "failed to generate token")
 		return
 	}
 

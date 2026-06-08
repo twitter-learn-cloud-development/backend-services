@@ -164,14 +164,14 @@ func (m *JWTMiddleware) ParseToken(tokenString string) (*JWTClaims, error) {
 	return nil, fmt.Errorf("invalid token claims")
 }
 
-// GetUserID 从上下文获取 UserID
-func GetUserID(c *gin.Context) (uint64, bool) {
-	userID, exists := c.Get("user_id")
-	if !exists {
-		return 0, false
-	}
-	if id, ok := userID.(uint64); ok {
-		return id, true
-	}
-	return 0, false
-}
+// // GetUserID 从上下文获取 UserID
+// func GetUserID(c *gin.Context) (uint64, bool) {
+// 	userID, exists := c.Get("user_id")
+// 	if !exists {
+// 		return 0, false
+// 	}
+// 	if id, ok := userID.(uint64); ok {
+// 		return id, true
+// 	}
+// 	return 0, false
+// }

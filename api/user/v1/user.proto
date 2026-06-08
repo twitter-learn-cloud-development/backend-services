@@ -64,8 +64,7 @@ message LoginRequest {
 }
 
 message LoginResponse {
-  string token = 1;
-  User user = 2;
+  User user = 1;
 }
 
 // ==================== GetProfile ====================

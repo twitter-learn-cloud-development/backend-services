@@ -26,6 +26,7 @@ import (
 
 // 使用 sync.Map 作为告警去重器，防范告警风暴 DDoS 攻击大模型
 var alertDebouncer sync.Map
+
 const debounceDuration = 5 * time.Minute
 
 // SetupRouter 设置路由
@@ -39,7 +40,7 @@ func SetupRouter(
 	messengerHandler *handler.MessengerHandler,
 	wsHandler *handler.WebSocketHandler,
 	agentHandler *handler.AgentHandler,
-	jwtMW *middleware.JWTMiddleware,
+	authMW *middleware.GatewayAuthMiddleware,
 	redisClient *redis.Client,
 ) *gin.Engine {
 	// 设置为 Release 模式
@@ -55,9 +56,8 @@ func SetupRouter(
 	r.Use(middleware.MetricsMiddleware())
 
 	// 🚦 Rate Limiting (Global: 1000 req/minute per IP)
-	// 🚦 Rate Limiting (Global: 1000 req/minute per IP)
 	if redisClient != nil {
-		r.Use(middleware.NewRateLimitMiddleware(redisClient, 1000, 60*time.Second))
+		r.Use(middleware.RateLimitMiddlewareFixedWindow(redisClient, 1000, 60*time.Second))
 	}
 
 	// 全局中间件
@@ -217,7 +217,7 @@ func SetupRouter(
 		users := v1.Group("/users")
 		{
 			// 公开接口 (允许可选认证以提取 currentUserID)
-			users.Use(jwtMW.AuthOptional())
+			users.Use(authMW.AuthOptional())
 			users.GET("/search", userHandler.SearchUsers) // P3 新增
 			users.POST("/batch", userHandler.GetBatchUsers)
 			users.GET("/:id", userHandler.GetProfile)
@@ -231,7 +231,7 @@ func SetupRouter(
 			users.GET("/:id/media", tweetHandler.GetUserMedia)
 
 			// 需要认证的接口
-			users.Use(jwtMW.AuthRequired())
+			users.Use(authMW.AuthRequired())
 			{
 				users.GET("/me", userHandler.GetMe)
 				users.PUT("/me", userHandler.UpdateProfile)
@@ -239,21 +239,21 @@ func SetupRouter(
 		}
 
 		// 公共搜索接口 (推文搜索)
-		v1.GET("/search", jwtMW.AuthOptional(), tweetHandler.SearchTweets)
+		v1.GET("/search", authMW.AuthOptional(), tweetHandler.SearchTweets)
 		v1.GET("/trends", tweetHandler.GetTrendingTopics)
 
 		// 推文相关
 		tweets := v1.Group("/tweets")
 		{
 			// 公开接口 (允许可选认证以提取 currentUserID)
-			tweets.Use(jwtMW.AuthOptional())
+			tweets.Use(authMW.AuthOptional())
 			tweets.GET("/public", tweetHandler.ListTweets) // 映射到 ListTweets
 			tweets.GET("/:id", tweetHandler.GetTweet)
 			tweets.GET("/:id/comments", tweetHandler.GetTweetComments)
 			tweets.GET("/:id/replies", tweetHandler.GetTweetReplies)
 
 			// 需要认证的接口
-			tweets.Use(jwtMW.AuthRequired())
+			tweets.Use(authMW.AuthRequired())
 			{
 				tweets.POST("", tweetHandler.CreateTweet)
 				tweets.DELETE("/:id", tweetHandler.DeleteTweet)
@@ -270,14 +270,14 @@ func SetupRouter(
 		// ---------- 其他服务 (已存在) ----------
 		// Feeds（需要认证）
 		feeds := v1.Group("/feeds")
-		feeds.Use(jwtMW.AuthRequired())
+		feeds.Use(authMW.AuthRequired())
 		{
 			feeds.GET("", tweetHandler.GetFeeds)
 		}
 
 		// 关注相关（需要认证）
 		follows := v1.Group("/follows")
-		follows.Use(jwtMW.AuthRequired())
+		follows.Use(authMW.AuthRequired())
 		{
 			follows.POST("", followHandler.Follow)
 			follows.DELETE("/:id", followHandler.Unfollow)
@@ -287,32 +287,32 @@ func SetupRouter(
 		// ---------- 恢复之前被覆盖的路由 ----------
 
 		// 媒体上传
-		v1.POST("/upload", jwtMW.AuthRequired(), uploadHandler.UploadFile) // UploadFile, not UploadMedia
+		v1.POST("/upload", authMW.AuthRequired(), uploadHandler.UploadFile) // UploadFile, not UploadMedia
 
 		// 收藏系统
 		bookmarks := v1.Group("/bookmarks")
-		bookmarks.Use(jwtMW.AuthRequired())
+		bookmarks.Use(authMW.AuthRequired())
 		{
 			bookmarks.GET("", bookmarkHandler.ListBookmarks)
 		}
 
 		// 评论相关
 		comments := v1.Group("/comments")
-		comments.Use(jwtMW.AuthRequired())
+		comments.Use(authMW.AuthRequired())
 		{
 			comments.DELETE("/:id", tweetHandler.DeleteComment)
 		}
 
 		// 投票相关
 		polls := v1.Group("/polls")
-		polls.Use(jwtMW.AuthRequired())
+		polls.Use(authMW.AuthRequired())
 		{
 			polls.POST("/vote", tweetHandler.VotePoll)
 		}
 
 		// 通知系统
 		notifications := v1.Group("/notifications")
-		notifications.Use(jwtMW.AuthRequired())
+		notifications.Use(authMW.AuthRequired())
 		{
 			notifications.GET("", notificationHandler.GetNotifications)
 			notifications.GET("/unread-count", notificationHandler.GetUnreadCount)
@@ -322,7 +322,7 @@ func SetupRouter(
 
 		// 私信系统 (Messenger)
 		messenger := v1.Group("/messenger")
-		messenger.Use(jwtMW.AuthRequired())
+		messenger.Use(authMW.AuthRequired())
 		{
 			messenger.POST("/messages", messengerHandler.SendMessage)
 			messenger.GET("/conversations", messengerHandler.GetConversations)
@@ -330,7 +330,7 @@ func SetupRouter(
 		}
 		// AI Agent
 		agent := v1.Group("/agent")
-		agent.Use(jwtMW.AuthRequired())
+		agent.Use(authMW.AuthRequired())
 		{
 			agent.POST("/chat", agentHandler.CallApiOfAi)
 			agent.POST("/consult", agentHandler.ConsultContent)

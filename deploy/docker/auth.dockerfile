@@ -1,16 +1,26 @@
 # 1. Build Stage
 FROM golang:1.25-alpine AS builder
+
 WORKDIR /app
+
 ENV GOPROXY=https://goproxy.cn,https://mirrors.aliyun.com/goproxy/,direct
+
 COPY go.mod go.sum ./
 RUN go mod download
+
 COPY . .
-RUN go build -o agent-service ./cmd/agent-service/main.go
+
+RUN go build -o auth-service ./cmd/auth-service/main.go
+
 # 2. Run Stage
 FROM alpine:latest
+
 WORKDIR /app
-COPY --from=builder /app/agent-service .
+
+COPY --from=builder /app/auth-service .
 COPY --from=builder /app/configs ./configs
-EXPOSE 9100
-EXPOSE 9200
-CMD ["./agent-service"]
+
+EXPOSE 9097
+EXPOSE 8081
+
+CMD ["./auth-service"]

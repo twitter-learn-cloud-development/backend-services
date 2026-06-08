@@ -296,8 +296,7 @@ func (x *LoginRequest) GetPassword() string {
 
 type LoginResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
-	User          *User                  `protobuf:"bytes,2,opt,name=user,proto3" json:"user,omitempty"`
+	User          *User                  `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -330,13 +329,6 @@ func (x *LoginResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use LoginResponse.ProtoReflect.Descriptor instead.
 func (*LoginResponse) Descriptor() ([]byte, []int) {
 	return file_api_user_v1_user_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *LoginResponse) GetToken() string {
-	if x != nil {
-		return x.Token
-	}
-	return ""
 }
 
 func (x *LoginResponse) GetUser() *User {
@@ -901,10 +893,9 @@ const file_api_user_v1_user_proto_rawDesc = "" +
 	"\x04user\x18\x01 \x01(\v2\r.user.v1.UserR\x04user\"@\n" +
 	"\fLoginRequest\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\x12\x1a\n" +
-	"\bpassword\x18\x02 \x01(\tR\bpassword\"H\n" +
-	"\rLoginResponse\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\tR\x05token\x12!\n" +
-	"\x04user\x18\x02 \x01(\v2\r.user.v1.UserR\x04user\",\n" +
+	"\bpassword\x18\x02 \x01(\tR\bpassword\"2\n" +
+	"\rLoginResponse\x12!\n" +
+	"\x04user\x18\x01 \x01(\v2\r.user.v1.UserR\x04user\",\n" +
 	"\x11GetProfileRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x04R\x06userId\"7\n" +
 	"\x12GetProfileResponse\x12!\n" +

@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/alibaba/sentinel-golang/core/circuitbreaker"
+	"twitter-clone/internal/gateway/internal/consts"
 	"twitter-clone/pkg/k8s"
 )
 
@@ -76,7 +77,7 @@ func (s *SelfHealer) InjectCircuitBreaker(resource string) {
 func GetDefaultBaseRules() []*circuitbreaker.Rule {
 	return []*circuitbreaker.Rule{
 		{
-			Resource:         "grpc:tweet-service",
+			Resource:         consts.ResourceTweetService,
 			Strategy:         circuitbreaker.ErrorRatio,
 			RetryTimeoutMs:   3000,
 			MinRequestAmount: 10,
@@ -84,7 +85,7 @@ func GetDefaultBaseRules() []*circuitbreaker.Rule {
 			Threshold:        0.5,
 		},
 		{
-			Resource:         "grpc:user-service",
+			Resource:         consts.ResourceUserService,
 			Strategy:         circuitbreaker.SlowRequestRatio,
 			RetryTimeoutMs:   3000,
 			MinRequestAmount: 10,

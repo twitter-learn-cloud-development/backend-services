@@ -25,14 +25,14 @@ var upgrader = websocket.Upgrader{
 // WebSocketHandler WebSocket 处理器
 type WebSocketHandler struct {
 	redisClient *redis.Client
-	jwtMW       *middleware.JWTMiddleware
+	authMW      *middleware.GatewayAuthMiddleware
 }
 
 // NewWebSocketHandler 创建 WebSocket 处理器
-func NewWebSocketHandler(redisClient *redis.Client, jwtMW *middleware.JWTMiddleware) *WebSocketHandler {
+func NewWebSocketHandler(redisClient *redis.Client, authMW *middleware.GatewayAuthMiddleware) *WebSocketHandler {
 	return &WebSocketHandler{
 		redisClient: redisClient,
-		jwtMW:       jwtMW,
+		authMW:      authMW,
 	}
 }
 
@@ -45,7 +45,7 @@ func (h *WebSocketHandler) HandleConnection(c *gin.Context) {
 
 	if token != "" {
 		// 手动验证 Token
-		claims, err := h.jwtMW.ParseToken(token)
+		claims, err := h.authMW.ParseTokenViaJWKS(token)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
 			return

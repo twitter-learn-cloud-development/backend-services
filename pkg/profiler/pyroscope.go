@@ -9,6 +9,7 @@ import (
 
 // Init 自适应启动 Pyroscope 持续 Profiling
 func Init(appName string) {
+	//注意：该服务应用于docker生产环境，所以不进行godotenv.Load()操作
 	serverAddr := os.Getenv("PYROSCOPE_SERVER_ADDRESS")
 	if serverAddr == "" {
 		log.Printf("ℹ️ [Profiler] PYROSCOPE_SERVER_ADDRESS env is empty, profiling disabled for: %s", appName)

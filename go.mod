@@ -3,6 +3,7 @@ module twitter-clone
 go 1.25.5
 
 require (
+	github.com/MicahParks/keyfunc/v3 v3.8.0
 	github.com/alibaba/sentinel-golang v1.0.4
 	github.com/alicebob/miniredis/v2 v2.38.0
 	github.com/allegro/bigcache/v3 v3.1.0
@@ -46,6 +47,7 @@ require (
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
+	github.com/MicahParks/jwkset v0.11.0 // indirect
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect

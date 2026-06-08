@@ -6,76 +6,15 @@ import (
 	"os"
 	"time"
 
+	consts "twitter-clone/internal/gateway/internal/consts"
+
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
+	"github.com/joho/godotenv"
 )
 
-// RateLimitMiddleware implements a simple Fixed Window rate limiter using Redis
-// limit: max requests per window
-// window: time window duration
-func RateLimitMiddleware(rdb *redis.Client, limit int, window time.Duration) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		ip := c.ClientIP()
-		key := fmt.Sprintf("rate_limit:%s", ip)
-
-		// Pipeline execution for atomicity
-		pipe := rdb.Pipeline()
-		incr := pipe.Incr(c, key)
-		expire := pipe.Expire(c, key, window)
-		_, err := pipe.Exec(c)
-
-		if err != nil {
-			// Fail-open strategy: if Redis fails, allow request
-			c.Next()
-			return
-		}
-
-		count, _ := incr.Result()
-
-		// Setting expiration only on the first increment (if key didn't exist) is tricky with pipeline
-		// because we don't know if it existed.
-		// Optimized approach: Always set expire. It's cheap.
-		// Correct approach for fixed window:
-		// If INCR returns 1, it means it's new, set EXPIRE.
-		// If > 1, do nothing (preserve existing TTL).
-		// But checking result requires two round trips or Lua.
-		// For simplicity/performance trade-off here, we just use the simple INCR approach.
-		// A better simple approach:
-		// timestamp based?
-		// Let's stick to the simple "INCR > limit" check.
-		// The expire is reset on every request here? No, `Expire` updates TTL.
-		// We only want to set TTL if it's a new key.
-		// `redis.Incr` operation is atomic.
-
-		// Refined Logic:
-		// 1. INCR
-		// 2. If result == 1, EXPIRE
-		// 3. Check limit.
-
-		// To do this atomically without Lua, we can't easily.
-		// But checking result after INCR is fine.
-		// If result == 1, we call Expire.
-
-		// HOWEVER, pipeline executes all.
-		// Let's remove pipeline for logic correctness (at cost of RTT) or use Lua.
-		// Lua is best.
-
-		if count > int64(limit) {
-			ttl, _ := expire.Result() // Just debugging
-			_ = ttl
-			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
-				"error":       "too many requests",
-				"retry_after": window.Seconds(),
-			})
-			return
-		}
-
-		c.Next()
-	}
-}
-
-// NewRateLimitMiddleware creates the middleware with default Lua script for atomicity
-func NewRateLimitMiddleware(rdb *redis.Client, limit int, window time.Duration) gin.HandlerFunc {
+// RateLimitMiddlewareFixedWindow creates the middleware with default Lua script for atomicity
+func RateLimitMiddlewareFixedWindow(rdb *redis.Client, limit int, window time.Duration) gin.HandlerFunc {
 	// Lua script for Fixed Window counter
 	// KEYS[1]: key
 	// ARGV[1]: limit
@@ -100,7 +39,10 @@ func NewRateLimitMiddleware(rdb *redis.Client, limit int, window time.Duration) 
 	return func(c *gin.Context) {
 		// 🎯 压测环境且携带压测万能令牌，直接放行，避免限流拦截，把并发压力传导至 Sentinel 熔断层
 		authHeader := c.GetHeader("Authorization")
-		if os.Getenv("APP_ENV") == "chaos_testing" && authHeader == "Bearer CHAOS_MOCK_UNIVERSAL_TOKEN_999" {
+		if err := godotenv.Load(); err != nil {
+			fmt.Println("Error loading .env file:", err)
+		}
+		if os.Getenv("APP_ENV") == consts.TestAppEnv && authHeader == consts.TestToken {
 			c.Next()
 			return
 		}
@@ -109,6 +51,81 @@ func NewRateLimitMiddleware(rdb *redis.Client, limit int, window time.Duration) 
 		key := fmt.Sprintf("rate_limit:%s", ip)
 
 		val, err := rdb.Eval(c, script, []string{key}, limit, int(window.Seconds())).Int()
+
+		// 🛠️ DEBUG LOG: Print detailed info to console
+		fmt.Printf("🔒 RATELIMIT DEBUG | IP: %s | Key: %s | Limit: %d | Window: %ds | Redis Result: %d | Err: %v\n",
+			ip, key, limit, int(window.Seconds()), val, err)
+
+		if err != nil {
+			// Fail open
+			fmt.Println("⚠️ RATELIMIT ERROR: Redis Eval failed, allowing request.")
+			c.Next()
+			return
+		}
+
+		if val == 0 {
+			fmt.Println("🛑 RATELIMIT BLOCKED: Request denied for", ip)
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
+				"error":       "too many requests",
+				"retry_after": int(window.Seconds()),
+			})
+			return
+		}
+
+		fmt.Println("✅ RATELIMIT ALLOWED: Request allowed for", ip)
+		c.Next()
+	}
+}
+
+// RateLimitMiddlewareSlidingWindow creates the middleware with default Lua script for atomicity
+func RateLimitMiddlewareSlidingWindow(rdb *redis.Client, limit int, window time.Duration) gin.HandlerFunc {
+	// Lua script for Sliding Window counter
+	// KEYS[1]: key
+	// ARGV[1]: limit
+	// ARGV[2]: window (seconds)
+	// Returns: 1 if allowed, 0 if blocked
+	script := `
+		local key = KEYS[1]
+		local limit = tonumber(ARGV[1])
+		local window = tonumber(ARGV[2])
+		local now = tonumber(ARGV[3])
+		local min_score = now - window  -- 窗口开始时间
+
+		-- 清理过期记录
+		redis.call("ZREMRANGEBYSCORE", key, 0, min_score)
+
+		-- 统计窗口内请求数
+		local current = redis.call("ZCARD", key)
+
+		if current >= limit then
+			return 0
+		end
+
+		-- 插入本次请求（score=时间戳, member=时间戳+随机数保证唯一）
+		redis.call("ZADD", key, now, now .. "-" .. math.random(100000))
+
+		-- 设置key过期（避免内存泄漏）
+		redis.call("EXPIRE", key, window)
+
+		return 1
+	`
+
+	return func(c *gin.Context) {
+		// 🎯 压测环境且携带压测万能令牌，直接放行，避免限流拦截，把并发压力传导至 Sentinel 熔断层
+		authHeader := c.GetHeader("Authorization")
+		if err := godotenv.Load(); err != nil {
+			fmt.Println("Error loading .env file:", err)
+		}
+		if os.Getenv("APP_ENV") == consts.TestAppEnv && authHeader == consts.TestToken {
+			c.Next()
+			return
+		}
+
+		ip := c.ClientIP()
+		key := fmt.Sprintf("rate_limit:%s", ip)
+
+		now := time.Now().UnixNano() / int64(time.Millisecond)
+		val, err := rdb.Eval(c, script, []string{key}, limit, window.Milliseconds(), now).Int()
 
 		// 🛠️ DEBUG LOG: Print detailed info to console
 		fmt.Printf("🔒 RATELIMIT DEBUG | IP: %s | Key: %s | Limit: %d | Window: %ds | Redis Result: %d | Err: %v\n",

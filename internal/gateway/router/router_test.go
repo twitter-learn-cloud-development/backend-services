@@ -51,7 +51,7 @@ func TestRouter_AlertsWebhook(t *testing.T) {
 		&handler.MessengerHandler{},
 		&handler.WebSocketHandler{},
 		agentHandler,
-		&middleware.JWTMiddleware{},
+		&middleware.GatewayAuthMiddleware{},
 		nil,
 	)
 
@@ -132,7 +132,7 @@ func TestRouter_AlertsWebhook(t *testing.T) {
 	// 用例 5: 状态是 firing，且大模型成功返回自愈指令 (TriggerCircuitBreaker)，触发动态熔断
 	{
 		mockClient.MockRCA = `{"root_cause":"RedisDown","action":"TriggerCircuitBreaker","resource":"GET:/api/v1/feeds"}`
-		
+
 		req, _ := http.NewRequest(http.MethodPost, "/alerts", bytes.NewBufferString(`{"status":"firing","groupKey":"key-5"}`))
 		req.Header.Set("X-Alertmanager-Token", "twitter-clone-secret-alert-token")
 		resp := httptest.NewRecorder()
@@ -144,7 +144,7 @@ func TestRouter_AlertsWebhook(t *testing.T) {
 
 		// 等待异步协程执行完并触发熔断
 		time.Sleep(150 * time.Millisecond)
-		
+
 		// 验证 Sentinel 中是否已经成功动态写入了该规则
 		found := false
 		rules := circuitbreaker.GetRules()

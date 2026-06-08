@@ -12,11 +12,14 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	aiAgentv1 "twitter-clone/api/aiAgent/v1"
+	authV1 "twitter-clone/api/auth/v1"
 	followv1 "twitter-clone/api/follow/v1"
 	messengerv1 "twitter-clone/api/messenger/v1"
 	notificationv1 "twitter-clone/api/notification/v1"
 	tweetv1 "twitter-clone/api/tweet/v1"
 	userv1 "twitter-clone/api/user/v1"
+
+	consts "twitter-clone/internal/gateway/internal/consts"
 
 	sentinel "github.com/alibaba/sentinel-golang/api"
 )
@@ -28,6 +31,7 @@ type GRPCClients struct {
 	MessengerClient    messengerv1.MessengerServiceClient
 	AgentClient        aiAgentv1.AiAgentServiceClient
 	NotificationClient notificationv1.NotificationServiceClient
+	AuthClient         authV1.AuthServiceClient
 
 	userConn         *grpc.ClientConn
 	tweetConn        *grpc.ClientConn
@@ -35,6 +39,7 @@ type GRPCClients struct {
 	messengerConn    *grpc.ClientConn
 	agentConn        *grpc.ClientConn
 	notificationConn *grpc.ClientConn
+	authConn         *grpc.ClientConn
 }
 
 func getServiceTarget(consulAddr, serviceName, envKey, defaultAddr string) string {
@@ -150,16 +155,27 @@ func NewGRPCClients(consulAddr string) (*GRPCClients, error) {
 		otelInterceptor,
 	)
 	if err != nil {
-		userConn.Close()
-		tweetConn.Close()
-		followConn.Close()
-		messengerConn.Close()
-		agentConn.Close()
+		clients.Close()
 		return nil, fmt.Errorf("failed to create notification service client: %v", err)
 	}
 	clients.notificationConn = notificationConn
 	clients.NotificationClient = notificationv1.NewNotificationServiceClient(notificationConn)
 	log.Printf("✅ Gateway connected to Notification Service (Target: %s)", notificationTarget)
+
+	// 7. 连接 Auth Service
+	authTarget := getServiceTarget(consulAddr, "auth-service", "AUTH_SERVICE_ADDR", "twitter-clone-auth:9097")
+	authConn, err := grpc.NewClient(authTarget,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultServiceConfig(serviceConfig),
+		otelInterceptor,
+	)
+	if err != nil {
+		clients.Close()
+		return nil, fmt.Errorf("failed to create auth service client: %v", err)
+	}
+	clients.authConn = authConn
+	clients.AuthClient = authV1.NewAuthServiceClient(authConn)
+	log.Printf("✅ Gateway connected to Auth Service (Target: %s)", authTarget)
 
 	return clients, nil
 }
@@ -183,6 +199,9 @@ func (c *GRPCClients) Close() {
 	if c.notificationConn != nil {
 		c.notificationConn.Close()
 	}
+	if c.authConn != nil {
+		c.authConn.Close()
+	}
 }
 
 // =============================================================================
@@ -196,9 +215,9 @@ type ProtectedTweetClient struct {
 
 // GetTweet overrides the default GetTweet with Circuit Breaking
 func (c *ProtectedTweetClient) GetTweet(ctx context.Context, in *tweetv1.GetTweetRequest, opts ...grpc.CallOption) (*tweetv1.GetTweetResponse, error) {
-	entry, blockError := sentinel.Entry("grpc:tweet-service")
+	entry, blockError := sentinel.Entry(consts.ResourceTweetService)
 	if blockError != nil {
-		log.Printf("🔥 Circuit Breaker BLOCKED: grpc:tweet-service | Reason: %v", blockError)
+		log.Printf("🔥 Circuit Breaker BLOCKED: %s | Reason: %v", consts.ResourceTweetService, blockError)
 		return nil, fmt.Errorf("service overloaded (Circuit Breaker Open)")
 	}
 	defer entry.Exit()
@@ -218,9 +237,9 @@ type ProtectedUserClient struct {
 
 // GetProfile overrides the default GetProfile with Circuit Breaking
 func (c *ProtectedUserClient) GetProfile(ctx context.Context, in *userv1.GetProfileRequest, opts ...grpc.CallOption) (*userv1.GetProfileResponse, error) {
-	entry, blockError := sentinel.Entry("grpc:user-service")
+	entry, blockError := sentinel.Entry(consts.ResourceUserService)
 	if blockError != nil {
-		log.Printf("🔥 Circuit Breaker BLOCKED: grpc:user-service | Reason: %v", blockError)
+		log.Printf("🔥 Circuit Breaker BLOCKED: %s | Reason: %v", consts.ResourceUserService, blockError)
 		return nil, fmt.Errorf("service overloaded (Circuit Breaker Open)")
 	}
 	defer entry.Exit()

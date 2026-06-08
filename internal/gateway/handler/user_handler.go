@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/sync/errgroup"
 
+	authV1 "twitter-clone/api/auth/v1"
 	followv1 "twitter-clone/api/follow/v1"
 	tweetv1 "twitter-clone/api/tweet/v1"
 	userv1 "twitter-clone/api/user/v1"
@@ -21,14 +22,16 @@ type UserHandler struct {
 	userClient   userv1.UserServiceClient
 	followClient followv1.FollowServiceClient
 	tweetClient  tweetv1.TweetServiceClient
+	authClient   authV1.AuthServiceClient
 }
 
 // NewUserHandler 创建用户处理器
-func NewUserHandler(userClient userv1.UserServiceClient, followClient followv1.FollowServiceClient, tweetClient tweetv1.TweetServiceClient) *UserHandler {
+func NewUserHandler(userClient userv1.UserServiceClient, followClient followv1.FollowServiceClient, tweetClient tweetv1.TweetServiceClient, authClient authV1.AuthServiceClient) *UserHandler {
 	return &UserHandler{
 		userClient:   userClient,
 		followClient: followClient,
 		tweetClient:  tweetClient,
+		authClient:   authClient,
 	}
 }
 
@@ -85,7 +88,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
-	resp, err := h.userClient.Login(ctx, &userv1.LoginRequest{
+	resp, err := h.authClient.Login(ctx, &authV1.LoginRequest{
 		Email:    req.Email,
 		Password: req.Password,
 	})
@@ -98,7 +101,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"token": resp.Token,
-		"user":  formatUser(resp.User),
+		"user":  formatAuthUser(resp.User),
 	})
 }
 
@@ -366,6 +369,20 @@ func formatUser(user *userv1.User) gin.H {
 		"id":         strconv.FormatUint(user.Id, 10),
 		"username":   user.Username,
 		"email":      user.Email, // 注意隐私，视情况是否返回
+		"avatar":     user.Avatar,
+		"bio":        user.Bio,
+		"cover_url":  user.CoverUrl,
+		"website":    user.Website,
+		"location":   user.Location,
+		"created_at": user.CreatedAt,
+	}
+}
+
+func formatAuthUser(user *authV1.User) gin.H {
+	return gin.H{
+		"id":         strconv.FormatUint(user.Id, 10),
+		"username":   user.Username,
+		"email":      user.Email,
 		"avatar":     user.Avatar,
 		"bio":        user.Bio,
 		"cover_url":  user.CoverUrl,

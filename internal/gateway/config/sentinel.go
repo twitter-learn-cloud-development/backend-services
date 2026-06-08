@@ -1,29 +1,40 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"strconv"
+
+	consts "twitter-clone/internal/gateway/internal/consts"
 
 	sentinel "github.com/alibaba/sentinel-golang/api"
 	"github.com/alibaba/sentinel-golang/core/circuitbreaker"
 	"github.com/alibaba/sentinel-golang/core/config"
+	"github.com/joho/godotenv"
 )
 
 // InitSentinel initializes Sentinel and loads circuit breaker rules
 func InitSentinel() {
+	if err := godotenv.Load(); err != nil {
+		fmt.Println("Error loading .env file:", err)
+	}
 	// 1. Initialize Sentinel Configuration
 	conf := config.NewDefaultConfig()
 	// Set App Name (displayed in Dashboard)
-	// Set App Name (displayed in Dashboard)
-	conf.Sentinel.App.Name = "gateway"
+	appName := getEnv("SENTINEL_APP_NAME", consts.AppName)
+	conf.Sentinel.App.Name = appName
 	// Set Log Dir
-	conf.Sentinel.Log.Dir = "/tmp/sentinel/logs"
+	logDir := getEnv("SENTINEL_LOG_DIR", consts.LogDir)
+	conf.Sentinel.Log.Dir = logDir
 
 	// Use Environment Variables for Transport Config (avoiding struct field issues)
-	os.Setenv("SENTINEL_DASHBOARD_ADDR", "sentinel:9142")
-	os.Setenv("SENTINEL_TRANSPORT_PORT", "8719")
+	dashboardAddr := getEnv("SENTINEL_DASHBOARD_ADDR", consts.DashboardAddress)
+	os.Setenv("SENTINEL_DASHBOARD_ADDR", dashboardAddr)
+	transportPort := getEnv("SENTINEL_TRANSPORT_PORT", strconv.Itoa(consts.TransportPort))
+	os.Setenv("SENTINEL_TRANSPORT_PORT", transportPort)
 	// Also set App Name via Env for consistency
-	os.Setenv("SENTINEL_APP_NAME", "gateway")
+	os.Setenv("SENTINEL_APP_NAME", appName)
 	err := sentinel.InitWithConfig(conf)
 	if err != nil {
 		log.Fatalf("❌ Failed to initialize Sentinel: %+v", err)
@@ -39,23 +50,23 @@ func loadRules() {
 		// Rule 1: Protect Gateway from Tweet Service failures
 		// Strategy: ErrorRatio (if 50% of requests fail, break)
 		&circuitbreaker.Rule{
-			Resource:         "grpc:tweet-service",
+			Resource:         consts.ResourceTweetService,
 			Strategy:         circuitbreaker.ErrorRatio,
-			RetryTimeoutMs:   3000, // Wait 3s before retry (Half-Open)
-			MinRequestAmount: 10,   // Min 10 requests to trigger
-			StatIntervalMs:   1000, // 1s window
-			Threshold:        0.5,  // 50% Error Rate
+			RetryTimeoutMs:   consts.TweetRetryTimeoutMs,
+			MinRequestAmount: consts.TweetMinRequestAmount,
+			StatIntervalMs:   consts.TweetStatIntervalMs,
+			Threshold:        consts.TweetThreshold,
 		},
 		// Rule 2: Protect Gateway from User Service slow responses
 		// Strategy: SlowRequestRatio (if 50% of requests > 500ms, break)
 		&circuitbreaker.Rule{
-			Resource:         "grpc:user-service",
+			Resource:         consts.ResourceUserService,
 			Strategy:         circuitbreaker.SlowRequestRatio,
-			RetryTimeoutMs:   3000,
-			MinRequestAmount: 10,
-			StatIntervalMs:   1000,
-			MaxAllowedRtMs:   500, // Max 500ms allowed
-			Threshold:        0.5, // 50% Slow Requests
+			RetryTimeoutMs:   consts.UserRetryTimeoutMs,
+			MinRequestAmount: consts.UserMinRequestAmount,
+			StatIntervalMs:   consts.UserStatIntervalMs,
+			MaxAllowedRtMs:   consts.UserMaxAllowedRtMs,
+			Threshold:        consts.UserThreshold,
 		},
 	})
 

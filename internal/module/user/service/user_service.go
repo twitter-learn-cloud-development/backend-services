@@ -7,9 +7,7 @@ import (
 	"strings"
 
 	"twitter-clone/internal/domain"
-	"twitter-clone/pkg/logger"
 
-	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -106,30 +104,49 @@ func (s *UserService) Register(ctx context.Context, username, email, password st
 
 // Login 用户登录
 // 返回: token string, user *domain.User, error
-func (s *UserService) Login(ctx context.Context, email, password string) (string, *domain.User, error) {
+// func (s *UserService) Login(ctx context.Context, email, password string) (string, *domain.User, error) {
+// 	// 1. 根据邮箱查找用户
+// 	user, err := s.repo.GetByEmail(ctx, email)
+// 	if err != nil {
+// 		// 统一返回 ErrInvalidCredentials，不暴露具体错误（安全考虑）
+// 		return "", nil, ErrInvalidCredentials
+// 	}
+
+// 	// 2. 校验密码
+// 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
+// 	if err != nil {
+// 		// 密码错误，返回 ErrInvalidCredentials
+// 		return "", nil, ErrInvalidCredentials
+// 	}
+
+// 	// 3. 生成 JWT Token
+// 	token, err := GenerateToken(s.jwtConfig, user.ID, user.Username, user.Email)
+// 	if err != nil {
+// 		return "", nil, fmt.Errorf("failed to generate token: %w", err)
+// 	}
+// 	logger.Info(ctx, "✅ User logged in", zap.String("username", user.Username), zap.Uint64("user_id", user.ID))
+
+// 	// 4. 返回 Token 和用户信息
+// 	return token, user, nil
+// }
+
+func (s *UserService) Login(ctx context.Context, email, password string) (*domain.User, error) {
 	// 1. 根据邮箱查找用户
 	user, err := s.repo.GetByEmail(ctx, email)
 	if err != nil {
 		// 统一返回 ErrInvalidCredentials，不暴露具体错误（安全考虑）
-		return "", nil, ErrInvalidCredentials
+		return nil, ErrInvalidCredentials
 	}
 
 	// 2. 校验密码
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
 	if err != nil {
 		// 密码错误，返回 ErrInvalidCredentials
-		return "", nil, ErrInvalidCredentials
+		return nil, ErrInvalidCredentials
 	}
 
-	// 3. 生成 JWT Token
-	token, err := GenerateToken(s.jwtConfig, user.ID, user.Username, user.Email)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to generate token: %w", err)
-	}
-	logger.Info(ctx, "✅ User logged in", zap.String("username", user.Username), zap.Uint64("user_id", user.ID))
-
-	// 4. 返回 Token 和用户信息
-	return token, user, nil
+	// 3. 返回 用户信息
+	return user, nil
 }
 
 // GetProfile 获取用户信息
@@ -281,6 +298,11 @@ func (s *UserService) ChangePassword(ctx context.Context, userID uint64, oldPass
 // VerifyToken 验证 Token 并返回用户信息
 func (s *UserService) VerifyToken(tokenString string) (*UserClaims, error) {
 	return ParseToken(s.jwtConfig, tokenString)
+}
+
+// GenerateToken 为遗留模块生成 HS256 对称 Token
+func (s *UserService) GenerateToken(userID uint64, username string, email string) (string, error) {
+	return GenerateToken(s.jwtConfig, userID, username, email)
 }
 
 // validateUsername 验证用户名格式
