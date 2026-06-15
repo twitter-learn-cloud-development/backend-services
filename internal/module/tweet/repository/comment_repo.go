@@ -24,7 +24,11 @@ func NewCommentRepository(db *gorm.DB) domain.CommentRepository {
 
 // Create 创建评论
 func (r *commentRepo) Create(ctx context.Context, comment *domain.Comment) error {
-	comment.ID = snowflake.GenerateID()
+	id, err := snowflake.GenerateID()
+	if err != nil {
+		return fmt.Errorf("failed to generate ID: %w", err)
+	}
+	comment.ID = id
 	comment.CreatedAt = time.Now().UnixMilli()
 	comment.DeletedAt = 0
 

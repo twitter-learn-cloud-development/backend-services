@@ -220,7 +220,7 @@ func (s *TweetServer) GetTweetComments(ctx context.Context, req *tweetv1.GetTwee
 func (s *TweetServer) SearchTweets(ctx context.Context, req *tweetv1.SearchTweetsRequest) (*tweetv1.SearchTweetsResponse, error) {
 	log.Printf("gRPC: SearchTweets - query=%s, cursor=%d, limit=%d", req.Query, req.Cursor, req.Limit)
 
-	tweets, nextCursor, hasMore, err := s.svc.SearchTweets(ctx, req.Query, req.Cursor, int(req.Limit))
+	tweets, nextCursor, hasMore, err := s.svc.SearchTweets(ctx, req.Query, req.Cursor, int(req.Limit), req.RequestingUserId)
 	if err != nil {
 		log.Printf("❌ SearchTweets error: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to search tweets: %v", err)
@@ -267,7 +267,7 @@ func (s *TweetServer) GetTrendingTopics(ctx context.Context, req *tweetv1.GetTre
 func (s *TweetServer) ListTweets(ctx context.Context, req *tweetv1.ListTweetsRequest) (*tweetv1.ListTweetsResponse, error) {
 	log.Printf("gRPC: ListTweets - cursor=%d, limit=%d", req.Cursor, req.Limit)
 
-	tweets, nextCursor, hasMore, err := s.svc.ListTweets(ctx, req.Cursor, int(req.Limit))
+	tweets, nextCursor, hasMore, err := s.svc.ListTweets(ctx, req.Cursor, int(req.Limit), req.RequestingUserId)
 	if err != nil {
 		log.Printf("❌ ListTweets error: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to list tweets: %v", err)
@@ -353,7 +353,7 @@ func domainPollToProto(poll *domain.Poll) *tweetv1.Poll {
 func (s *TweetServer) GetTweetReplies(ctx context.Context, req *tweetv1.GetTweetRepliesRequest) (*tweetv1.GetTweetRepliesResponse, error) {
 	log.Printf("gRPC: GetTweetReplies - tweet_id=%d, cursor=%d, limit=%d", req.TweetId, req.Cursor, req.Limit)
 
-	tweets, nextCursor, hasMore, err := s.svc.GetTweetReplies(ctx, req.TweetId, req.Cursor, int(req.Limit))
+	tweets, nextCursor, hasMore, err := s.svc.GetTweetReplies(ctx, req.TweetId, req.Cursor, int(req.Limit), req.RequestingUserId)
 	if err != nil {
 		log.Printf("❌ GetTweetReplies error: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to get tweet replies: %v", err)

@@ -29,9 +29,9 @@ import (
 	consulConfig "twitter-clone/pkg/config"
 	"twitter-clone/pkg/logger"
 	"twitter-clone/pkg/pkg/snowflake"
+	"twitter-clone/pkg/profiler"
 	"twitter-clone/pkg/registry"
 	"twitter-clone/pkg/trace"
-	"twitter-clone/pkg/profiler"
 
 	"twitter-clone/pkg/metric"
 
@@ -57,12 +57,6 @@ func main() {
 	// 🔍 初始化链路追踪
 	jaegerEndpoint := getEnv("JAEGER_COLLECTOR_ENDPOINT", "http://localhost:14268/api/traces")
 	trace.InitTracer("tweet-service", jaegerEndpoint)
-
-	// 1. 初始化 Snowflake
-	if err := snowflake.Init(1); err != nil {
-		log.Fatalf("❌ Failed to init snowflake: %v", err)
-	}
-	log.Println("✅ Snowflake initialized (Node ID: 1)")
 
 	// 📊 初始化 Prometheus 指标 (Tweet Service uses 2112)
 	metric.InitMetrics()
@@ -117,6 +111,10 @@ func main() {
 	// 🎯 [Hot Reload] 启动自举报拉取与 PubSub 动态监听器，解决配置脑裂
 	cache.StartConfigListener(context.Background(), redisClient)
 
+	// 初始化 Snowflake
+	snowflake.MustInit(redisClient)
+	log.Println("✅ Snowflake initialized (Node ID: 1)")
+
 	// 5. 初始化 RabbitMQ
 	mqConfig := mq.DefaultRabbitMQConfig()
 	if consulConfigClient != nil {
@@ -135,9 +133,9 @@ func main() {
 	// 6. 创建依赖
 	tweetRepo := tweetRepository.NewTweetRepository(db)
 	followRepo := followRepository.NewFollowRepository(db)
-	likeRepo := tweetRepository.NewLikeRepository(db)       // 点赞仓储
-	commentRepo := tweetRepository.NewCommentRepository(db) // 🆕 评论仓储
-	pollRepo := tweetRepository.NewPollRepository(db)       // 🆕 投票仓储
+	likeRepo := tweetRepository.NewLikeRepository(db)         // 点赞仓储
+	commentRepo := tweetRepository.NewCommentRepository(db)   // 🆕 评论仓储
+	pollRepo := tweetRepository.NewPollRepository(db)         // 🆕 投票仓储
 	bookmarkRepo := tweetRepository.NewBookmarkRepository(db) // 🆕 书签仓储
 	retweetRepo := tweetRepository.NewRetweetRepository(db)   // 🆕 转发仓储
 	timelineCache := tweetCache.NewTimelineCache(redisClient)
@@ -158,8 +156,8 @@ func main() {
 		tweetRepo,
 		followRepo,
 		likeRepo,
-		commentRepo, // 🆕 注入评论仓储
-		pollRepo,    // 🆕 注入投票仓储
+		commentRepo,  // 🆕 注入评论仓储
+		pollRepo,     // 🆕 注入投票仓储
 		bookmarkRepo, // 🆕 注入书签仓储
 		retweetRepo,  // 🆕 注入转发仓储
 		timelineCache,

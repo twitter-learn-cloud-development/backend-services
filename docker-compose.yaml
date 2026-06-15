@@ -159,6 +159,8 @@ services:
     environment:
       - CONSUL_HOST=consul
       - CONSUL_PORT=8500
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - SERVICE_NAME=auth-service
       - SERVICE_ADDR=auth-service
       - SERVICE_PORT=9097
@@ -176,6 +178,8 @@ services:
         condition: service_started
       user-service:
         condition: service_started
+      redis:
+        condition: service_healthy
 
   user-service:
     build:

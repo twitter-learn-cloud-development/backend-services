@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -9,7 +10,10 @@ import (
 	"strconv"
 	"syscall"
 
+	redisCache "twitter-clone/internal/infrastructure/cache"
+
 	"github.com/joho/godotenv"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
@@ -49,23 +53,29 @@ func main() {
 	jaegerEndpoint := getEnv("JAEGER_COLLECTOR_ENDPOINT", "http://localhost:14268/api/traces")
 	trace.InitTracer("user-service", jaegerEndpoint)
 
-	// 1. 初始化 Snowflake
-	if err := snowflake.Init(1); err != nil {
-		log.Fatalf("❌ Failed to init snowflake: %v", err)
+	//初始化reids(用于snowflow)
+	redisConfig := redisCache.DefaultRedisConfig()
+	redisClient, err := redisCache.NewRedis(redisConfig)
+	if err != nil {
+		logger.Fatal(context.Background(), "Failed to init redis", zap.Error(err))
 	}
-	log.Println("✅ Snowflake initialized (Node ID: 1)")
+	defer redisClient.Close()
 
-	// 📊 初始化 Prometheus 指标
+	// 初始化 Snowflake
+	snowflake.MustInit(redisClient)
+	logger.Info(context.Background(), "Snowflake initialized (Node ID: 1)")
+
+	// 初始化 Prometheus 指标
 	metric.InitMetrics()
 	// 启动 Metrics Server (User Service uses 2111)
 	metric.StartMetricsServer(2111)
 
-	// 4. 初始化 Consul 连接信息 (提前读取用于加载配置)
+	// 初始化 Consul 连接信息 (提前读取用于加载配置)
 	consulHost := getEnv("CONSUL_HOST", "localhost")
 	consulPort := getEnv("CONSUL_PORT", "8500")
 	registryAddr := consulHost + ":" + consulPort
 
-	// 2. 初始化数据库
+	// 初始化数据库
 	dbConfig := persistence.DefaultDBConfig()
 
 	// 🆕 从 Consul 加载配置覆盖默认值

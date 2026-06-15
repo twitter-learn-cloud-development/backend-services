@@ -23,7 +23,11 @@ func NewNotificationRepository(db *gorm.DB) domain.NotificationRepository {
 
 // Create 创建通知
 func (r *notificationRepo) Create(ctx context.Context, n *domain.Notification) error {
-	n.ID = snowflake.GenerateID()
+	id, err := snowflake.GenerateID()
+	if err != nil {
+		return fmt.Errorf("failed to generate ID: %w", err)
+	}
+	n.ID = id
 	n.CreatedAt = time.Now().UnixMilli()
 
 	if err := r.db.WithContext(ctx).Create(n).Error; err != nil {

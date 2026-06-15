@@ -294,8 +294,13 @@ func (c *TimelineConsumer) handleFanoutMessage(msg amqp.Delivery) {
 	if err != nil {
 		log.Printf("❌ Failed to marshal ES outbox payload: %v", err)
 	} else {
+		id, err := snowflake.GenerateID()
+		if err != nil {
+			return
+		}
+
 		task := &domain.OutboxTask{
-			ID:         snowflake.GenerateID(),
+			ID:         id,
 			TaskType:   "sync_es",
 			Payload:    string(payloadBytes),
 			Status:     domain.OutboxStatusPending,

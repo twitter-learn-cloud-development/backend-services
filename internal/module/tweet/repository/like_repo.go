@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -24,20 +25,37 @@ func NewLikeRepository(db *gorm.DB) domain.LikeRepository {
 
 // Like 点赞（幂等）
 func (r *likeRepo) Like(ctx context.Context, userID, tweetID uint64) error {
+	var existing domain.Like
+	err := r.db.WithContext(ctx).
+		Where("user_id = ? AND tweet_id = ?", userID, tweetID).
+		First(&existing).Error
+	if err == nil {
+		// Already liked, return nil for idempotency
+		return nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return fmt.Errorf("failed to check existing like: %w", err)
+	}
+
+	id, err := snowflake.GenerateID()
+	if err != nil {
+		return fmt.Errorf("failed to generate ID: %w", err)
+	}
+
 	like := &domain.Like{
-		ID:        snowflake.GenerateID(),
+		ID:        id,
 		UserID:    userID,
 		TweetID:   tweetID,
 		CreatedAt: time.Now().UnixMilli(),
 	}
 
-	// 使用 ON DUPLICATE KEY 实现幂等（重复点赞不报错）
-	result := r.db.WithContext(ctx).
-		Where("user_id = ? AND tweet_id = ?", userID, tweetID).
-		FirstOrCreate(like)
-
-	if result.Error != nil {
-		return fmt.Errorf("failed to like tweet: %w", result.Error)
+	if err := r.db.WithContext(ctx).Create(like).Error; err != nil {
+		// If another concurrent insert succeeded in the meantime, ignore the duplicate entry error
+		// to maintain idempotency
+		if strings.Contains(err.Error(), "1062") || strings.Contains(err.Error(), "Duplicate entry") || strings.Contains(err.Error(), "duplicate key") {
+			return nil
+		}
+		return fmt.Errorf("failed to create like: %w", err)
 	}
 	return nil
 }

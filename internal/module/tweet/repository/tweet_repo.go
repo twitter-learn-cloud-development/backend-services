@@ -24,7 +24,11 @@ func NewTweetRepository(db *gorm.DB) domain.TweetRepository {
 func (r *tweetRepo) Create(ctx context.Context, tweet *domain.Tweet) error {
 	// 1. 生成 Snowflake ID
 	if tweet.ID == 0 {
-		tweet.ID = snowflake.GenerateID()
+		id, err := snowflake.GenerateID()
+		if err != nil {
+			return fmt.Errorf("failed to generate ID: %w", err)
+		}
+		tweet.ID = id
 	}
 
 	//2. 设置时间戳

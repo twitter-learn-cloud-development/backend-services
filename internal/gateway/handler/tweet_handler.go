@@ -583,9 +583,10 @@ func (h *TweetHandler) GetTweetReplies(c *gin.Context) {
 	defer cancel()
 
 	resp, err := h.tweetClient.GetTweetReplies(ctx, &tweetv1.GetTweetRepliesRequest{
-		TweetId: tweetID,
-		Cursor:  cursor,
-		Limit:   int32(limit),
+		TweetId:          tweetID,
+		Cursor:           cursor,
+		Limit:            int32(limit),
+		RequestingUserId: requestingUserID,
 	})
 
 	if err != nil {
@@ -627,9 +628,10 @@ func (h *TweetHandler) SearchTweets(c *gin.Context) {
 	defer cancel()
 
 	resp, err := h.tweetClient.SearchTweets(ctx, &tweetv1.SearchTweetsRequest{
-		Query:  query,
-		Cursor: cursor,
-		Limit:  int32(limit),
+		Query:            query,
+		Cursor:           cursor,
+		Limit:            int32(limit),
+		RequestingUserId: requestingUserID,
 	})
 
 	if err != nil {
@@ -888,8 +890,9 @@ func (h *TweetHandler) ListTweets(c *gin.Context) {
 	defer cancel()
 
 	resp, err := h.tweetClient.ListTweets(ctx, &tweetv1.ListTweetsRequest{
-		Cursor: cursor,
-		Limit:  int32(limit),
+		Cursor:           cursor,
+		Limit:            int32(limit),
+		RequestingUserId: requestingUserID,
 	})
 
 	if err != nil {

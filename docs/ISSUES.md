@@ -451,5 +451,20 @@
 |------|------|
 | **问题** | 1. 模式二（资讯搜索）、模式三（写推发布）和模式四（多智能体协作）在进行第一次调用后，第二次调用就会报 500 或 `Invalid session ID` 错误且永久失效，提示连接已死或 Context Canceled。<br>2. 局域网/容器中未部署 Qdrant 时，调用搜索功能直接报错阻断 LLM 运行，报“请求失败，请重试”。<br>3. 智能体搜索关于“云原生”、“Go 语言”的推文时，召回内容空空如也，导致 AI 写作结果极其简陋。 |
 | **原因** | 1. `getOrInitMCPClient` 启动客户端 `mcpClient.Start(ctx)` 传入了单次请求的 Context，当该 gRPC 请求返回响应后 Context 被 cancel，导致全局长连接底层的 SSE 通道被强制关闭，下一次调用便抛出 canceled 错误。此外，`0.0.0.0` 回环地址在部分容器内无法拨号。<br>2. `RegisterSearchTweets` 内部直接强依赖 Qdrant 的 Search，未对其连接失败或未启动进行容错与优雅降级。<br>3. 数据库 `seed_data.go` 中没有填充相应的中文专业测试推文，系统初始化完毕后处于空库状态，无从召回相关主题。 |
-| **解决** | 1. 结构体 `AgentService` 重构引入生命周期 Context `serviceCtx` 与 `cancelFunc` 并实现 `Close()` 回收。在 `getOrInitMCPClient` 时将 `Start` 绑定至 `serviceCtx`，确保连接生命周期不随请求而中断。<br>2. 对 `0.0.0.0` 目标地址转换进行智能替换为 `127.0.0.1` 以供本地容器安全回环拨号，并对握手、加载 Tools 方法添加 5 秒超时保护。<br>3. 重构 `search_tweets.go` 中的 `RegisterSearchTweets` 参数以接入 `esClient`，在 Qdrant 连接失败或未部署时打印 warning 并**优雅降级为 Elasticsearch 文本倒排检索（BM25）**。若二者皆墨，则优雅返回兜底说明文本，防止 Error 冒泡打断 LLM 对话流。<br>4. 在 `docker-compose.yaml` 中补充 `qdrant` 服务定义并映射端口，同时为使用它的微服务注入 `QDRANT_URL=http://qdrant:6333`。<br>5. 升级 `seed_data.go` 种子数据，新增 10 条高质量云原生、微服务、Go 语言和微服务开发中文推文数据，极大丰富了 AI 检索的召回素材，打通端到端闭环。 |
+| **解决** | 1. 结构体 `AgentService` 重构引入生命周期 Context `serviceCtx` 与 `cancelFunc` 并实现 `Close()` 回收。在 `getOrInitMCPClient` 时将 `Start` 绑定至 `serviceCtx`，确保连接生命周期不随请求而中断。<br>2. 对 `0.0.0.0` 目标地址转换进行智能替换为 `127.0.0.1` 以供本地容器安全回环拨号，并对握手、加载 Tools 方法添加 5 秒超时保护。<br>3. 重构 `search_tweets.go` 中的 `RegisterSearchTweets` 参数以接入 `esClient`，在 Qdrant 连接失败或未部署时打印 warning 并**优雅降级为 Elasticsearch 文本倒排检索（BM25）**。若二者皆墨，则优雅返回兜底说明文本，防止 Error 冒泡打断 LLM 对话流。<br>4. 在 `docker-compose.yaml` 中补充 `qdrant` 服务定义并映射端口，同时为使用它的微服务注入 `QDRANT_URL=http://qdrant:6333`。<br>5. 升级 `seed_data.go` 种子数据，新增 10 条高质量云原生、微服务、Go 语言 and 微服务开发中文推文数据，极大丰富了 AI 检索的召回素材，打通端到端闭环。 |
 
+## 57. Snowflake 发号器升级为双值返回 (uint64, error) 导致各模块编译与镜像构建报错
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 升级发号器全局接口后，编译各微服务或运行 `docker compose up -d --build` 报错，提示 `assignment mismatch: 1 variable but snowflake.GenerateID returns 2 values`，或 `MustInit(...) (no value) used as value`，或 `undefined: snowflake.Init` |
+| **原因** | 1. 发号器 `snowflake.go` 的 `GenerateID()` 签名升级为 `(uint64, error)`，但 `notification-service`、`messenger-service` 等散落在各处的代码依旧以单变量形式接收。<br>2. 部分微服务在初始化时错误地对 `MustInit` 的返回值进行了 `err` 接收（而 Must 前缀方法在生产级语义中出错时应直接 panic 退出，无返回值）。<br>3. 原有的 `snowflake.Init` 静态节点初始化方法在重构中被移去，导致依赖它的组件（如 `notification-service`）报未定义错误。 |
+| **解决** | 1. 将 `notification_repo.go`、`messenger_service.go`、`bookmark_repo.go`、`comment_repo.go`、`like_repo.go`、`poll_repo.go`、`retweet_repo.go` 等仓库/服务代码统一改写为双变量形式接收并向上传播或进行安全拦截。<br>2. 还原 `snowflake.Init(workerID)` 方法以支持非 Redis 环境下的单机静态节点自举，并修复 `gateway` 对其的调用错误。<br>3. 恢复 `MustInit` 发生异常直接 panic 的零返回值设计，同时清理并去除了 `tweet-service`、`follow-service`、`messenger-service`、`auth-service`、`consumer` 各个 `main.go` 启动时对 `MustInit` 错误返回值的接收。编译及构建全绿通过。 |
+
+## 58. 点赞报错 500、最新推文不显示与热门趋势暂无数据 Bug
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 1. 点击点赞按钮控制台报错 500 Internal Server Error，且刷新后点赞高亮失效。<br>2. 首页的“为你推荐”流只能看到 7 天前的历史测试推文，新发布的最新推文无法在前 20 条内刷出（但在个人资料页中可见）。<br>3. 首页右侧“推荐趋势”区域一直显示“暂无热门话题”。 |
+| **原因** | 1. `likeRepo.Like` 写入前对 `Like.ID` 赋予了生成的非零 Snowflake ID，导致 GORM 在后续使用 `FirstOrCreate` 时将主键 ID 自动拼入 WHERE 条件中使得查询必然失效，进而触发 INSERT 冲突引发 `uk_user_tweet` 联合唯一键重复报错；且网关在 `ListTweets` / `GetTweetReplies` / `SearchTweets` 中未透传当前请求的用户 ID，导致后端 `is_liked` 填充硬编码为 false。<br>2. 本地发号器修改后的自定义起始时间戳 `epoch` 是 `1609459200000` (2021年)，而 7 天前历史数据用的是默认纪元 `1420070400000` (2015年)。这造成新推文的 Snowflake ID (7.21e17 级) 远小于老推文 ID (2.06e18 级)，使得按 `Order("id DESC")` 排序 of 列表接口把新推文全部强行排到了第 131 条之后而沉底。<br>3. 系统内存在的全部测试推文在发布时都未包含 `#` 话题标签，所以后台没有清洗出任何话题写入 Redis sorted set `trends:global` 中。 |
+| **解决** | 1. 重构点赞仓储的 `Like` 方法为先查询后写入的形式；在 API 网关和 gRPC Server 层的 `ListTweets`、`GetTweetReplies`、`SearchTweets` 调用链中加入 `RequestingUserId` 参数向下透传以实现高亮判定。<br>2. 将发号器的 `epoch` 重新修改回原有的 `1420070400000`，使新生成 ID 返回 2.06e18+ 级，恢复正常时间轴排序并兼容历史老数据。<br>3. 发布带有 `#` 前缀的推文进行测试后，话题提取与定时刷新组件即能够自动统计并将数据加载在趋势面板中。 |

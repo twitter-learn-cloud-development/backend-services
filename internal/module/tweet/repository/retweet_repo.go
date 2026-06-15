@@ -23,8 +23,13 @@ func NewRetweetRepository(db *gorm.DB) domain.RetweetRepository {
 
 // Create 创建转发（幂等）
 func (r *retweetRepo) Create(ctx context.Context, userID, tweetID uint64) error {
+	id, err := snowflake.GenerateID()
+	if err != nil {
+		return fmt.Errorf("failed to generate ID: %w", err)
+	}
+
 	retweet := &domain.Retweet{
-		ID:        snowflake.GenerateID(),
+		ID:        id,
 		UserID:    userID,
 		TweetID:   tweetID,
 		CreatedAt: time.Now().UnixMilli(),

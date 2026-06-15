@@ -118,7 +118,9 @@ func main() {
 	// }
 
 	// 初始化 Snowflake ID 生成器 (书签等功能需要)
-	snowflake.MustInit(1)
+	if err := snowflake.Init(1); err != nil {
+		log.Fatalf("❌ Failed to init snowflake: %v", err)
+	}
 	log.Println("✅ Snowflake ID generator initialized")
 
 	// 创建处理器

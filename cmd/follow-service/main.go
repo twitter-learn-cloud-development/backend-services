@@ -25,10 +25,10 @@ import (
 	tweetCache "twitter-clone/internal/module/tweet/cache"
 	tweetRepository "twitter-clone/internal/module/tweet/repository"
 	"twitter-clone/internal/mq/producer"
+	"twitter-clone/pkg/logger"
 	"twitter-clone/pkg/pkg/snowflake"
 	"twitter-clone/pkg/registry"
 	"twitter-clone/pkg/trace"
-	"twitter-clone/pkg/logger"
 
 	"twitter-clone/pkg/metric"
 
@@ -51,12 +51,6 @@ func main() {
 
 	// 📝 初始化结构化日志
 	logger.InitLogger()
-
-	// 1. 初始化 Snowflake
-	if err := snowflake.Init(1); err != nil {
-		log.Fatalf("❌ Failed to init snowflake: %v", err)
-	}
-	log.Println("✅ Snowflake initialized (Node ID: 1)")
 
 	// 📊 初始化 Prometheus 指标 (Follow Service uses 2113)
 	metric.InitMetrics()
@@ -83,6 +77,10 @@ func main() {
 		log.Fatalf("❌ Failed to connect redis: %v", err)
 	}
 	log.Println("✅ Redis connected")
+
+	// 初始化 Snowflake
+	snowflake.MustInit(redisClient)
+	log.Println("✅ Snowflake initialized (Node ID: 1)")
 
 	// 5. 初始化 RabbitMQ
 	mqConfig := mq.DefaultRabbitMQConfig()

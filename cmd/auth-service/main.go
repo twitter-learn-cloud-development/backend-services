@@ -15,6 +15,7 @@ import (
 	"time"
 	authV1 "twitter-clone/api/auth/v1"
 	userv1 "twitter-clone/api/user/v1"
+	redisCache "twitter-clone/internal/infrastructure/cache"
 	auth "twitter-clone/internal/module/auth"
 	consulConfig "twitter-clone/pkg/config"
 	"twitter-clone/pkg/logger"
@@ -51,11 +52,16 @@ func main() {
 	jaegerEndpoint := getEnv("JAEGER_COLLECTOR_ENDPOINT", "http://localhost:14268/api/traces")
 	trace.InitTracer("auth-service", jaegerEndpoint)
 
-	//初始化Snowflake
-	if err := snowflake.Init(1); err != nil {
-		logger.Fatal(context.Background(), "Error initializing Snowflake", zap.Error(err))
+	// 初始化 Redis
+	redisConfig := redisCache.DefaultRedisConfig()
+	redisClient, err := redisCache.NewRedis(redisConfig)
+	if err != nil {
+		logger.Fatal(context.Background(), "Failed to connect redis: %v", zap.Error(err))
 	}
-	logger.Info(context.Background(), "Snowflake initialized successfully")
+	logger.Info(context.Background(), "Redis connected")
+	// 初始化 Snowflake
+	snowflake.MustInit(redisClient)
+	logger.Info(context.Background(), "Snowflake initialized (Node ID: 1)")
 
 	//初始化Prometheus指标
 	metric.InitMetrics()

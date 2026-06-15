@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 	"twitter-clone/internal/domain"
 	"twitter-clone/pkg/pkg/snowflake"
 
@@ -19,12 +20,20 @@ func NewPollRepository(db *gorm.DB) domain.PollRepository {
 
 func (r *pollRepo) Create(ctx context.Context, poll *domain.Poll) error {
 	if poll.ID == 0 {
-		poll.ID = snowflake.GenerateID()
+		id, err := snowflake.GenerateID()
+		if err != nil {
+			return fmt.Errorf("failed to generate ID: %w", err)
+		}
+		poll.ID = id
 	}
 	// 为选项生成 ID
 	for i := range poll.Options {
 		if poll.Options[i].ID == 0 {
-			poll.Options[i].ID = snowflake.GenerateID()
+			id, err := snowflake.GenerateID()
+			if err != nil {
+				return fmt.Errorf("failed to generate ID: %w", err)
+			}
+			poll.Options[i].ID = id
 		}
 		poll.Options[i].PollID = poll.ID
 	}
@@ -74,7 +83,11 @@ func (r *pollRepo) Vote(ctx context.Context, vote *domain.PollVote) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 1. 创建投票记录
 		if vote.ID == 0 {
-			vote.ID = snowflake.GenerateID()
+			id, err := snowflake.GenerateID()
+			if err != nil {
+				return fmt.Errorf("failed to generate ID: %w", err)
+			}
+			vote.ID = id
 		}
 		if err := tx.Create(vote).Error; err != nil {
 			return err // 重复投票会违反唯一约束，返回 error

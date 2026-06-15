@@ -31,7 +31,10 @@ func NewMessengerService(repo domain.MessageRepository, redisClient *redis.Clien
 // SendMessage 发送消息
 func (s *MessengerService) SendMessage(ctx context.Context, req *messengerv1.SendMessageRequest) (*messengerv1.SendMessageResponse, error) {
 	// 1. 生成 ID 和 ConversationID
-	id := snowflake.GenerateID()
+	id, err := snowflake.GenerateID()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate ID: %w", err)
+	}
 	conversationID := getConversationID(req.SenderId, req.ReceiverId)
 
 	now := time.Now().UnixMilli()

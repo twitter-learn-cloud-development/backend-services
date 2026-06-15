@@ -36,12 +36,6 @@ func main() {
 
 	logger.InitLogger()
 
-	// 1. 初始化 Snowflake
-	if err := snowflake.Init(1); err != nil {
-		log.Fatalf("❌ Failed to init snowflake: %v", err)
-	}
-	log.Println("✅ Snowflake initialized")
-
 	// 2. 初始化数据库
 	dbConfig := persistence.DefaultDBConfig()
 	db, err := persistence.NewDB(dbConfig)
@@ -70,6 +64,10 @@ func main() {
 		log.Fatalf("❌ Failed to connect redis: %v", err)
 	}
 	log.Println("✅ Redis connected")
+
+	// 初始化 Snowflake
+	snowflake.MustInit(redisClient)
+	log.Println("✅ Snowflake initialized (Node ID: 1)")
 
 	// 5. 初始化 RabbitMQ
 	mqConfig := mq.DefaultRabbitMQConfig()

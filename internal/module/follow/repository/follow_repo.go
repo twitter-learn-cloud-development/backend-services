@@ -37,9 +37,14 @@ func (r *followRepo) Follow(ctx context.Context, followerID, followeeID uint64) 
 		return fmt.Errorf("already following")
 	}
 
+	generateID, err := snowflake.GenerateID()
+	if err != nil {
+		return fmt.Errorf("failed to generate ID: %w", err)
+	}
+
 	//创建关注关系
 	follow := &domain.Follow{
-		ID:         snowflake.GenerateID(),
+		ID:         generateID,
 		FollowerID: followerID,
 		FolloweeID: followeeID,
 		CreatedAt:  time.Now().UnixMilli(),

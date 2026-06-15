@@ -21,7 +21,11 @@ func NewUserRepository(db *gorm.DB) domain.UserRepository {
 func (r *userRepo) Create(ctx context.Context, user *domain.User) error {
 	if user.ID == 0 {
 		// 确保你有一个真实的 snowflake 实现，如果没有，暂时用 uint64(time.Now().UnixNano()) 代替
-		user.ID = uint64(snowflake.GenerateID())
+		if id, err := snowflake.GenerateID(); err != nil {
+			return err
+		} else {
+			user.ID = id
+		}
 	}
 
 	now := time.Now().UnixMilli()

@@ -48,12 +48,6 @@ func main() {
 	jaegerEndpoint := getEnv("JAEGER_COLLECTOR_ENDPOINT", "http://localhost:14268/api/traces")
 	trace.InitTracer("messenger-service", jaegerEndpoint)
 
-	// 1. 初始化 Snowflake (Node ID: 4, 假设 1=tweet, 2=user, 3=follow)
-	if err := snowflake.Init(4); err != nil {
-		log.Fatalf("❌ Failed to init snowflake: %v", err)
-	}
-	log.Println("✅ Snowflake initialized (Node ID: 4)")
-
 	// 📊 初始化 Prometheus 指标 (Port 2115)
 	metric.InitMetrics()
 	metric.StartMetricsServer(2115)
@@ -97,6 +91,10 @@ func main() {
 		log.Fatalf("❌ Failed to connect redis: %v", err)
 	}
 	log.Println("✅ Redis connected")
+
+	// 5. 初始化 Snowflake
+	snowflake.MustInit(redisClient)
+	log.Println("✅ Snowflake initialized (Node ID: 4)")
 
 	// 6. 创建依赖
 	messageRepo := messengerRepo.NewMessageRepository(db)

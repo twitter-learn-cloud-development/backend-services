@@ -1198,7 +1198,7 @@ func (s *TweetService) GetTweetComments(ctx context.Context, tweetID uint64, cur
 }
 
 // SearchTweets 搜索推文
-func (s *TweetService) SearchTweets(ctx context.Context, query string, cursor uint64, limit int) ([]*domain.Tweet, uint64, bool, error) {
+func (s *TweetService) SearchTweets(ctx context.Context, query string, cursor uint64, limit int, requestingUserID uint64) ([]*domain.Tweet, uint64, bool, error) {
 	// 1. 参数验证
 	if limit <= 0 {
 		limit = 20
@@ -1230,9 +1230,7 @@ func (s *TweetService) SearchTweets(ctx context.Context, query string, cursor ui
 	}
 
 	// 5. 填充统计数据 (点赞/评论等)
-	// 搜索时 requestingUserID 暂不传递，或者需要从 ctx 获取 (如果需要 is_liked 状态)
-	// 这里为了简化，暂不传 requestingUserID (is_liked = false)
-	s.populateTweetStats(ctx, tweets, 0)
+	s.populateTweetStats(ctx, tweets, requestingUserID)
 
 	return tweets, nextCursor, hasMore, nil
 }
@@ -1250,7 +1248,7 @@ func (s *TweetService) GetTrendingTopics(ctx context.Context, limit int) ([]*dom
 }
 
 // ListTweets 获取全站最新推文
-func (s *TweetService) ListTweets(ctx context.Context, cursor uint64, limit int) ([]*domain.Tweet, uint64, bool, error) {
+func (s *TweetService) ListTweets(ctx context.Context, cursor uint64, limit int, requestingUserID uint64) ([]*domain.Tweet, uint64, bool, error) {
 	// 1. 参数验证
 	if limit <= 0 {
 		limit = 20
@@ -1278,15 +1276,13 @@ func (s *TweetService) ListTweets(ctx context.Context, cursor uint64, limit int)
 	}
 
 	// 5. 填充统计数据
-	// 全站流不需要传 requestingUserID，除非我们需要显示当前用户是否点赞
-	// 这里为了简单暂不传，如果需要，Controller 层需要解析 Token 并传入
-	s.populateTweetStats(ctx, tweets, 0)
+	s.populateTweetStats(ctx, tweets, requestingUserID)
 
 	return tweets, nextCursor, hasMore, nil
 }
 
 // GetTweetReplies 获取推文回复
-func (s *TweetService) GetTweetReplies(ctx context.Context, tweetID uint64, cursor uint64, limit int) ([]*domain.Tweet, uint64, bool, error) {
+func (s *TweetService) GetTweetReplies(ctx context.Context, tweetID uint64, cursor uint64, limit int, requestingUserID uint64) ([]*domain.Tweet, uint64, bool, error) {
 	// 1. 获取回复
 	tweets, nextCursor, err := s.repo.GetReplies(ctx, tweetID, cursor, limit)
 	if err != nil {
@@ -1294,7 +1290,7 @@ func (s *TweetService) GetTweetReplies(ctx context.Context, tweetID uint64, curs
 	}
 
 	// 2. 丰富数据
-	s.populateTweetStats(ctx, tweets, 0)
+	s.populateTweetStats(ctx, tweets, requestingUserID)
 
 	return tweets, nextCursor, nextCursor > 0, nil
 }

@@ -45,12 +45,14 @@ func NewAuthService(userClient userv1.UserServiceClient, cfg *service.JWTConfig)
 }
 
 func (a *AuthService) Login(ctx context.Context, req *authV1.LoginRequest) (*authV1.LoginResponse, error) {
+	logger.Info(ctx, "gRPC: Auth Login start", zap.String("email", req.Email))
 
 	//远程调用user服务
 	userResponse, err := a.userClient.Login(ctx, &userv1.LoginRequest{
 		Email:    req.Email,
 		Password: req.Password,
 	})
+	logger.Info(ctx, "gRPC: Auth Login finished", zap.Error(err))
 	if err != nil {
 		return nil, err
 	}

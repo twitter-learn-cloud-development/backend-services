@@ -24,7 +24,11 @@ func NewBookmarkRepository(db *gorm.DB) domain.BookmarkRepository {
 // Create 添加书签
 func (r *bookmarkRepo) Create(ctx context.Context, bookmark *domain.Bookmark) error {
 	if bookmark.ID == 0 {
-		bookmark.ID = snowflake.GenerateID()
+		id, err := snowflake.GenerateID()
+		if err != nil {
+			return fmt.Errorf("failed to generate ID: %w", err)
+		}
+		bookmark.ID = id
 	}
 	if bookmark.CreatedAt == 0 {
 		bookmark.CreatedAt = time.Now().UnixMilli()
