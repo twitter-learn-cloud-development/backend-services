@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { HeartIcon, ChatBubbleLeftIcon, ArrowPathRoundedSquareIcon, ShareIcon, TrashIcon, BookmarkIcon } from '@heroicons/vue/24/outline'
+import { HeartIcon, ChatBubbleLeftIcon, ArrowPathRoundedSquareIcon, ShareIcon, TrashIcon, BookmarkIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { HeartIcon as HeartIconSolid, BookmarkIcon as BookmarkIconSolid } from '@heroicons/vue/24/solid'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -9,6 +9,7 @@ import 'dayjs/locale/zh-cn'
 import { type Tweet, likeTweet, unlikeTweet, deleteTweet, addBookmark, removeBookmark, retweetTweet, unretweetTweet, votePoll } from '../api/tweet'
 import { useUserStore } from '../stores/user'
 import { CheckCircleIcon } from '@heroicons/vue/24/solid'
+import { TransitionRoot, TransitionChild, Dialog } from '@headlessui/vue'
 
 dayjs.extend(relativeTime)
 dayjs.locale('zh-cn')
@@ -153,9 +154,30 @@ const getGridClass = (count: number) => {
     return 'grid-cols-2' // 4 -> 2x2
 }
 
-const previewImage = (url: string) => {
-    // TODO: Implement light box
-    window.open(url, '_blank')
+const lightboxOpen = ref(false)
+const lightboxIndex = ref(0)
+const lightboxList = computed(() => {
+    return (props.tweet.media_urls || []).map(url => ({
+        url,
+        type: isVideo(url) ? 'video' as const : 'image' as const
+    }))
+})
+
+const previewImage = (index: number) => {
+    lightboxIndex.value = index
+    lightboxOpen.value = true
+}
+
+const prevLightbox = () => {
+    if (lightboxIndex.value > 0) {
+        lightboxIndex.value--
+    }
+}
+
+const nextLightbox = () => {
+    if (lightboxIndex.value < lightboxList.value.length - 1) {
+        lightboxIndex.value++
+    }
 }
 </script>
 
@@ -224,7 +246,7 @@ const previewImage = (url: string) => {
                     :src="url"
                     class="w-full h-full object-cover max-h-80 hover:opacity-90 transition-opacity"
                     alt="Media"
-                    @click.stop="previewImage(url)"
+                    @click.stop="previewImage(index)"
                 />
             </template>
         </div>
@@ -306,5 +328,46 @@ const previewImage = (url: string) => {
         </div>
       </div>
     </div>
+
+    <!-- Lightbox 大图预览 -->
+    <TransitionRoot as="template" :show="lightboxOpen">
+      <Dialog as="div" class="relative z-50" @close="lightboxOpen = false">
+        <TransitionChild as="template" enter="ease-out duration-300" enter-from="opacity-0" enter-to="opacity-100" leave="ease-in duration-200" leave-from="opacity-100" leave-to="opacity-0">
+          <div class="fixed inset-0 bg-black/90 backdrop-blur-sm transition-opacity" />
+        </TransitionChild>
+
+        <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4">
+          <div class="relative max-w-4xl w-full flex flex-col items-center">
+            <!-- Close Button -->
+            <button @click="lightboxOpen = false" class="absolute -top-12 right-0 text-white/80 hover:text-white p-2">
+              <XMarkIcon class="w-8 h-8" />
+            </button>
+
+            <!-- Navigation -->
+            <button v-if="lightboxIndex > 0" @click="prevLightbox" class="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-3 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+              </svg>
+            </button>
+            <button v-if="lightboxIndex < lightboxList.length - 1" @click="nextLightbox" class="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-3 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
+
+            <!-- Media Display -->
+            <div class="w-full max-h-[80vh] flex items-center justify-center rounded-2xl overflow-hidden bg-black/50" @click.stop>
+              <img v-if="lightboxList[lightboxIndex]?.type === 'image'" :src="lightboxList[lightboxIndex]?.url" class="max-w-full max-h-[80vh] object-contain rounded-lg" />
+              <video v-else :src="lightboxList[lightboxIndex]?.url" class="max-w-full max-h-[80vh] object-contain rounded-lg" controls autoplay></video>
+            </div>
+            
+            <!-- Counter -->
+            <div class="mt-4 text-white/60 text-sm">
+               {{ lightboxIndex + 1 }} / {{ lightboxList.length }}
+            </div>
+          </div>
+        </div>
+      </Dialog>
+    </TransitionRoot>
   </div>
 </template>

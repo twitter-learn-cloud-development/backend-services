@@ -74,7 +74,11 @@ const removeMedia = (index: number) => {
 }
 
 const handleReply = async () => {
-    if ((!content.value.trim() && selectedFiles.value.length === 0) || !props.replyTo) return
+    if (!content.value.trim()) {
+        alert('回复内容不能为空')
+        return
+    }
+    if (!props.replyTo) return
     
     loading.value = true
     try {
@@ -100,6 +104,29 @@ const handleReply = async () => {
         alert('回复失败')
     } finally {
         loading.value = false
+    }
+}
+
+// Lightbox 大图预览
+const lightboxOpen = ref(false)
+const lightboxIndex = ref(0)
+const lightboxList = ref<{ url: string; type: 'image' | 'video' }[]>([])
+
+const openLightbox = (index: number) => {
+    lightboxList.value = previewUrls.value
+    lightboxIndex.value = index
+    lightboxOpen.value = true
+}
+
+const prevLightbox = () => {
+    if (lightboxIndex.value > 0) {
+        lightboxIndex.value--
+    }
+}
+
+const nextLightbox = () => {
+    if (lightboxIndex.value < lightboxList.value.length - 1) {
+        lightboxIndex.value++
     }
 }
 </script>
@@ -161,17 +188,26 @@ const handleReply = async () => {
                             placeholder="发布你的回复"
                           ></textarea>
 
-                          <!-- Media Preview -->
-                          <div v-if="previewUrls.length > 0" class="relative mt-2 mb-4 grid gap-2" :class="previewUrls.length > 1 ? 'grid-cols-2' : 'grid-cols-1'">
-                              <div v-for="(media, index) in previewUrls" :key="index" class="relative group">
-                                  <img v-if="media.type === 'image'" :src="media.url" class="rounded-xl w-full h-32 object-cover border border-gray-100 dark:border-gray-800" />
-                                  <video v-else :src="media.url" class="rounded-xl w-full h-32 object-cover border border-gray-100 dark:border-gray-800" controls></video>
+                          <!-- 精致媒体预览横向滑块列表 -->
+                          <div v-if="previewUrls.length > 0" class="flex space-x-3 overflow-x-auto py-2 mb-4 no-scrollbar">
+                              <div v-for="(media, index) in previewUrls" :key="index" class="relative flex-shrink-0 w-24 h-24 group cursor-pointer" @click="openLightbox(index)">
+                                  <img v-if="media.type === 'image'" :src="media.url" class="rounded-xl w-full h-full object-cover border border-gray-200 dark:border-gray-800 shadow-sm transition-transform duration-200 group-hover:scale-[1.02]" />
+                                  <div v-else class="relative w-full h-full">
+                                      <video :src="media.url" class="rounded-xl w-full h-full object-cover border border-gray-200 dark:border-gray-800 shadow-sm"></video>
+                                      <div class="absolute inset-0 flex items-center justify-center bg-black/30 rounded-xl">
+                                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-white drop-shadow">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
+                                          </svg>
+                                      </div>
+                                  </div>
                                   
                                   <button 
-                                    @click="removeMedia(index)"
-                                    class="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 hover:bg-black/70 transition-colors"
+                                    @click.stop="removeMedia(index)"
+                                    class="absolute top-1 right-1 bg-black/75 hover:bg-red-600 text-white rounded-full p-1 transition-colors z-10"
                                   >
-                                      <XMarkIcon class="h-4 w-4 text-white" />
+                                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                      </svg>
                                   </button>
                               </div>
                           </div>
@@ -203,7 +239,7 @@ const handleReply = async () => {
                     type="button"
                     class="rounded-full bg-primary px-4 py-1.5 text-sm font-bold text-white shadow-sm hover:bg-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50"
                     @click="handleReply"
-                    :disabled="loading || (!content.trim() && selectedFiles.length === 0)"
+                    :disabled="loading || !content.trim()"
                   >
                     {{ loading ? '发送中...' : '回复' }}
                   </button>
@@ -212,6 +248,46 @@ const handleReply = async () => {
           </TransitionChild>
         </div>
       </div>
+    <!-- Lightbox 大图预览 -->
+    <TransitionRoot as="template" :show="lightboxOpen">
+      <Dialog as="div" class="relative z-50" @close="lightboxOpen = false">
+        <TransitionChild as="template" enter="ease-out duration-300" enter-from="opacity-0" enter-to="opacity-100" leave="ease-in duration-200" leave-from="opacity-100" leave-to="opacity-0">
+          <div class="fixed inset-0 bg-black/90 backdrop-blur-sm transition-opacity" />
+        </TransitionChild>
+
+        <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4">
+          <div class="relative max-w-4xl w-full flex flex-col items-center">
+            <!-- Close Button -->
+            <button @click="lightboxOpen = false" class="absolute -top-12 right-0 text-white/80 hover:text-white p-2">
+              <XMarkIcon class="w-8 h-8" />
+            </button>
+
+            <!-- Navigation -->
+            <button v-if="lightboxIndex > 0" @click="prevLightbox" class="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-3 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+              </svg>
+            </button>
+            <button v-if="lightboxIndex < lightboxList.length - 1" @click="nextLightbox" class="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-3 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
+
+            <!-- Media Display -->
+            <div class="w-full max-h-[80vh] flex items-center justify-center rounded-2xl overflow-hidden bg-black/50">
+              <img v-if="lightboxList[lightboxIndex]?.type === 'image'" :src="lightboxList[lightboxIndex]?.url" class="max-w-full max-h-[80vh] object-contain rounded-lg" />
+              <video v-else :src="lightboxList[lightboxIndex]?.url" class="max-w-full max-h-[80vh] object-contain rounded-lg" controls autoplay></video>
+            </div>
+            
+            <!-- Counter -->
+            <div class="mt-4 text-white/60 text-sm">
+               {{ lightboxIndex + 1 }} / {{ lightboxList.length }}
+            </div>
+          </div>
+        </div>
+      </Dialog>
+    </TransitionRoot>
     </Dialog>
   </TransitionRoot>
 </template>

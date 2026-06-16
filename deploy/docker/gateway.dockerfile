@@ -4,7 +4,7 @@ FROM golang:1.25-alpine AS builder
 WORKDIR /app
 
 # 设置代理，加速下载
-ENV GOPROXY=https://goproxy.cn,https://mirrors.aliyun.com/goproxy/,direct
+ENV GOPROXY=https://mirrors.aliyun.com/goproxy/,https://goproxy.io,direct
 
 # 预下载依赖
 COPY go.mod go.sum ./

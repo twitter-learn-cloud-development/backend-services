@@ -110,8 +110,18 @@ func main() {
 
 	aiClient := ai.NewClient(os.Getenv("LM_STUDIO_API_URL"))
 
+	// 7.1 初始化智能趋势处理器（如果分词器启动失败，则降级继续，防止主进程 crash）
+	var trendsProcessor *consumer.TrendsProcessor
+	var trendsErr error
+	trendsProcessor, trendsErr = consumer.NewTrendsProcessor()
+	if trendsErr != nil {
+		log.Printf("⚠️  Failed to initialize trends processor: %v. Trends feature will fallback to basic hashtag regex.", trendsErr)
+	} else {
+		log.Println("✅ Trends processor (GSE NER) initialized successfully")
+	}
+
 	// 8. 创建 Consumer
-	timelineConsumer, err := consumer.NewTimelineConsumer(mqClient, followRepo, timelineCache, redisClient, esClient, qdrantClient, aiClient, outboxRepo)
+	timelineConsumer, err := consumer.NewTimelineConsumer(mqClient, followRepo, timelineCache, redisClient, esClient, qdrantClient, aiClient, outboxRepo, trendsProcessor)
 	if err != nil {
 		log.Fatalf("❌ Failed to create consumer: %v", err)
 	}

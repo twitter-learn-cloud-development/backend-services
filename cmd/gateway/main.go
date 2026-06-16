@@ -118,9 +118,7 @@ func main() {
 	// }
 
 	// 初始化 Snowflake ID 生成器 (书签等功能需要)
-	if err := snowflake.Init(1); err != nil {
-		log.Fatalf("❌ Failed to init snowflake: %v", err)
-	}
+	snowflake.MustInit(redisClient)
 	log.Println("✅ Snowflake ID generator initialized")
 
 	// 创建处理器
@@ -130,7 +128,13 @@ func main() {
 	userHandler := handler.NewUserHandler(grpcClients.UserClient, grpcClients.FollowClient, grpcClients.TweetClient, grpcClients.AuthClient)
 	tweetHandler := handler.NewTweetHandler(grpcClients.TweetClient, grpcClients.UserClient)
 	followHandler := handler.NewFollowHandler(grpcClients.FollowClient)
-	uploadHandler := handler.NewUploadHandler("./uploads", "http://localhost:"+cfg.Port) // MVP: Local upload
+	minioEndpoint := getEnv("MINIO_ENDPOINT", "localhost:9000")
+	minioAccessKey := getEnv("MINIO_ACCESS_KEY", "admin")
+	minioSecretKey := getEnv("MINIO_SECRET_KEY", "31415927")
+	minioBucket := getEnv("MINIO_BUCKET", "twitter-media")
+	minioPublicURL := getEnv("MINIO_PUBLIC_URL", "http://localhost:9000")
+	uploadHandler := handler.NewUploadHandler(minioEndpoint, minioAccessKey, minioSecretKey, minioBucket, minioPublicURL)
+
 
 	// 通知/书签处理器
 	notificationHandler := handler.NewNotificationHandler(grpcClients.NotificationClient, grpcClients.UserClient)

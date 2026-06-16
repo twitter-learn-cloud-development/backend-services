@@ -1,17 +1,18 @@
 <script setup lang="ts">
 import MainLayout from '../layout/MainLayout.vue'
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 
 import TweetCard from '../components/TweetCard.vue'
 import ReplyModal from '../components/ReplyModal.vue'
-import { HeartIcon, ChatBubbleLeftIcon, ArrowPathRoundedSquareIcon, ShareIcon, ArrowLeftIcon, TrashIcon } from '@heroicons/vue/24/outline'
+import { HeartIcon, ChatBubbleLeftIcon, ArrowPathRoundedSquareIcon, ShareIcon, ArrowLeftIcon, TrashIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { HeartIcon as HeartIconSolid, CheckCircleIcon } from '@heroicons/vue/24/solid'
 import { getTweet, getComments, getTweetReplies, createComment, likeTweet, unlikeTweet, deleteTweet, votePoll, retweetTweet, unretweetTweet, type Tweet, type Comment } from '../api/tweet'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/zh-cn'
+import { TransitionRoot, TransitionChild, Dialog } from '@headlessui/vue'
 
 dayjs.extend(relativeTime)
 dayjs.locale('zh-cn')
@@ -267,6 +268,38 @@ onMounted(() => {
     fetchComments(true)
     fetchReplies(true)
 })
+
+// Lightbox 大图预览
+const lightboxOpen = ref(false)
+const lightboxIndex = ref(0)
+const lightboxList = computed(() => {
+    return (tweet.value?.media_urls || []).map(url => ({
+        url,
+        type: isVideo(url) ? 'video' as const : 'image' as const
+    }))
+})
+
+const previewImage = (index: number) => {
+    lightboxIndex.value = index
+    lightboxOpen.value = true
+}
+
+const prevLightbox = () => {
+    if (lightboxIndex.value > 0) {
+        lightboxIndex.value--
+    }
+}
+
+const nextLightbox = () => {
+    if (lightboxIndex.value < lightboxList.value.length - 1) {
+        lightboxIndex.value++
+    }
+}
+
+const isVideo = (url: string) => {
+    const lower = url.toLowerCase()
+    return lower.endsWith('.mp4') || lower.endsWith('.mov') || lower.endsWith('.avi') || lower.endsWith('.webm')
+}
 </script>
 
 <template>
@@ -325,13 +358,21 @@ onMounted(() => {
 
           <!-- Media -->
           <div v-if="tweet.media_urls && tweet.media_urls.length > 0" class="px-4 mt-3">
-              <div class="grid gap-2" :class="tweet.media_urls.length > 1 ? 'grid-cols-2' : 'grid-cols-1'">
-                  <img
-                    v-for="(url, index) in tweet.media_urls"
-                    :key="index"
-                    :src="url"
-                    class="rounded-2xl border border-gray-100 dark:border-gray-800 w-full object-cover max-h-[500px]"
-                  />
+              <div class="grid gap-2 rounded-2xl overflow-hidden" :class="tweet.media_urls.length > 1 ? 'grid-cols-2' : 'grid-cols-1'">
+                  <template v-for="(url, index) in tweet.media_urls" :key="index">
+                      <video 
+                          v-if="isVideo(url)" 
+                          :src="url" 
+                          controls 
+                          class="w-full object-cover max-h-[500px] bg-black border border-gray-100 dark:border-gray-800 rounded-2xl"
+                      ></video>
+                      <img
+                        v-else
+                        :src="url"
+                        class="rounded-2xl border border-gray-100 dark:border-gray-800 w-full object-cover max-h-[500px] hover:opacity-95 cursor-pointer transition-opacity"
+                        @click="previewImage(index)"
+                      />
+                  </template>
               </div>
           </div>
 
@@ -510,4 +551,45 @@ onMounted(() => {
         @reply-created="handleReplyCreated" 
       />
   </MainLayout>
+
+  <!-- Lightbox 大图预览 -->
+  <TransitionRoot as="template" :show="lightboxOpen">
+    <Dialog as="div" class="relative z-50" @close="lightboxOpen = false">
+      <TransitionChild as="template" enter="ease-out duration-300" enter-from="opacity-0" enter-to="opacity-100" leave="ease-in duration-200" leave-from="opacity-100" leave-to="opacity-0">
+        <div class="fixed inset-0 bg-black/90 backdrop-blur-sm transition-opacity" />
+      </TransitionChild>
+
+      <div class="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4">
+        <div class="relative max-w-4xl w-full flex flex-col items-center">
+          <!-- Close Button -->
+          <button @click="lightboxOpen = false" class="absolute -top-12 right-0 text-white/80 hover:text-white p-2">
+            <XMarkIcon class="w-8 h-8" />
+          </button>
+
+          <!-- Navigation -->
+          <button v-if="lightboxIndex > 0" @click="prevLightbox" class="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-3 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+            </svg>
+          </button>
+          <button v-if="lightboxIndex < lightboxList.length - 1" @click="nextLightbox" class="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-3 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+            </svg>
+          </button>
+
+          <!-- Media Display -->
+          <div class="w-full max-h-[80vh] flex items-center justify-center rounded-2xl overflow-hidden bg-black/50" @click.stop>
+            <img v-if="lightboxList[lightboxIndex]?.type === 'image'" :src="lightboxList[lightboxIndex]?.url" class="max-w-full max-h-[80vh] object-contain rounded-lg" />
+            <video v-else :src="lightboxList[lightboxIndex]?.url" class="max-w-full max-h-[80vh] object-contain rounded-lg" controls autoplay></video>
+          </div>
+          
+          <!-- Counter -->
+          <div class="mt-4 text-white/60 text-sm">
+             {{ lightboxIndex + 1 }} / {{ lightboxList.length }}
+          </div>
+        </div>
+      </div>
+    </Dialog>
+  </TransitionRoot>
 </template>

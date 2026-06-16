@@ -511,7 +511,7 @@ POST /api/v1/upload
 
 ```json
 {
-  "url": "http://localhost:8080/uploads/20231010/uuid.jpg"
+  "url": "http://localhost:9000/twitter-media/20231010/uuid.jpg"
 }
 ```
 

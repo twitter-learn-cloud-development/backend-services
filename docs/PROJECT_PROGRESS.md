@@ -206,6 +206,16 @@
 - [x] **可观测追踪与联合测试验证** — 完成了 OTel 调优子 Span 的深度切入，并编写了一键自动化演练脚本 `test_adaptive_tuning.py`，打通了“性能过载-火焰图抓取-AI调优-配置热重载-OTel拓扑追踪”的完整闭环。
 - [x] **发总结的 AI 助手定时任务激活** — 实例化并启动了 `TrendingReporter` 定时舆情监视哨兵，实现了大V粉丝热度推文并发双路召回（ES+Qdrant）、内存去重、AI 评论快报自动生成及官方发帖（BotUserID=100）的完整业务闭环。
 
+### 阶段 23：云原生对象存储适配与数据流重构 (MinIO Object Storage)
+- [x] **MinIO 对象存储自举集成** — 网关 (gateway) 集成官方 MinIO SDK，启动时自动检测并幂等创建 `twitter-media` 存储桶，自动下发 JSON 公共只读 (Public Read-Only) 访问策略。
+- [x] **流式上传与透明网络适配** — 重构网关 `/api/v1/upload` 接口，废除本地磁盘落盘逻辑，将文件流流式上传至 MinIO，并妥善解决网关容器内写入 Endpoint (`minio:9000`) 与宿主机公开访问 Base URL (`http://localhost:9000`) 异构网络访问问题。
+
+### 阶段 24：大厂级动态加权防刷热搜与时间衰减模型 (Dynamic Trending & Anti-Spam Decay)
+- [x] **GSE 纯 Go 中文分词与实体提取** — 引入纯 Go 实现的轻量级分词器 `go-ego/gse`，避免 CGO 对 Docker 容器交叉编译的干扰，支持开箱即用的分词与 NER。
+- [x] **48小时 TTL 预映射缓存** — 发推时提取实体词并写入 `tweet_tags:{tweet_id}` (48h TTL)，将点赞/评论的二级加分完全收拢在内存层，实现数据库 0 压力。
+- [x] **1小时滑窗防刷 (W&A)** — 引入用户维度的 `lock:user_tag_count:{uid}:{tag}` 进行 1 小时限频，同一个 UID 对同一个词超过 3 次的交互不再计分，有效抵御水军刷榜。
+- [x] **多副本防雪崩分布式锁衰减** — 引入 Redis 分布式锁 `lock:trends_decay`，在多副本部署下每分钟仅允许单实例抢锁并对 ZSet 进行 0.95 衰减，同时即时裁剪前 100 名之外的长尾热词。
+
 ---
 
 ## 🚧 当前阶段：已全部完成

@@ -468,3 +468,36 @@
 | **问题** | 1. 点击点赞按钮控制台报错 500 Internal Server Error，且刷新后点赞高亮失效。<br>2. 首页的“为你推荐”流只能看到 7 天前的历史测试推文，新发布的最新推文无法在前 20 条内刷出（但在个人资料页中可见）。<br>3. 首页右侧“推荐趋势”区域一直显示“暂无热门话题”。 |
 | **原因** | 1. `likeRepo.Like` 写入前对 `Like.ID` 赋予了生成的非零 Snowflake ID，导致 GORM 在后续使用 `FirstOrCreate` 时将主键 ID 自动拼入 WHERE 条件中使得查询必然失效，进而触发 INSERT 冲突引发 `uk_user_tweet` 联合唯一键重复报错；且网关在 `ListTweets` / `GetTweetReplies` / `SearchTweets` 中未透传当前请求的用户 ID，导致后端 `is_liked` 填充硬编码为 false。<br>2. 本地发号器修改后的自定义起始时间戳 `epoch` 是 `1609459200000` (2021年)，而 7 天前历史数据用的是默认纪元 `1420070400000` (2015年)。这造成新推文的 Snowflake ID (7.21e17 级) 远小于老推文 ID (2.06e18 级)，使得按 `Order("id DESC")` 排序 of 列表接口把新推文全部强行排到了第 131 条之后而沉底。<br>3. 系统内存在的全部测试推文在发布时都未包含 `#` 话题标签，所以后台没有清洗出任何话题写入 Redis sorted set `trends:global` 中。 |
 | **解决** | 1. 重构点赞仓储的 `Like` 方法为先查询后写入的形式；在 API 网关和 gRPC Server 层的 `ListTweets`、`GetTweetReplies`、`SearchTweets` 调用链中加入 `RequestingUserId` 参数向下透传以实现高亮判定。<br>2. 将发号器的 `epoch` 重新修改回原有的 `1420070400000`，使新生成 ID 返回 2.06e18+ 级，恢复正常时间轴排序并兼容历史老数据。<br>3. 发布带有 `#` 前缀的推文进行测试后，话题提取与定时刷新组件即能够自动统计并将数据加载在趋势面板中。 |
+
+## 59. Docker 容器构建时 Go 模块下载 unexpected EOF 导致编译失败
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 运行 `docker compose up -d --build` 或构建各微服务镜像时，在 `go mod download` 阶段报错 `unexpected EOF` 导致构建中断 |
+| **原因** | Dockerfile 中默认的 `GOPROXY=https://goproxy.cn` 在拉取特定大型依赖包时发生了网络连接超时或握手阶段重置（EOF） |
+| **解决** | 修改 `deploy/docker/` 目录下所有微服务的 Dockerfile（包括 gateway, user, tweet, follow, messenger, notification, consumer, auth, agent），将 `GOPROXY` 调整为优先使用阿里云代理并补充兜底 `https://mirrors.aliyun.com/goproxy/,https://goproxy.io,direct`，顺利通过所有依赖拉取和容器编译构建 |
+
+## 60. 前端上传多媒体文件时报 413 (Request Entity Too Large) 错误
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 页面上传大于 1MB 的图片/视频时，控制台报错 `Failed to load resource: the server responded with a status of 413 (Request Entity Too Large)` |
+| **原因** | 前端 Nginx 开发服务器的反向代理配置中，没有显式设置文件大小限制。Nginx 默认的 `client_max_body_size` 限制为 1MB，大文件请求被 Nginx 提前拦截拒绝 |
+| **解决** | 修改 `web/nginx.conf`，在 `server` 块中添加 `client_max_body_size 20m;` 配置，解除小文件限制并允许最高 20MB 的多媒体上传，重新构建并部署 frontend 服务后测试通过 |
+
+## 61. 文本框内容为空但上传图片后点击发推发生 400 报错且引起图片无限上传
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 在只添加媒体图片但不输入文字的情况下点击“发推”或“回复”会失败，且用户多次重复点击导致大量无用图片上传入库，形成脏数据 |
+| **原因** | 前端 `ComposeBox.vue` 和 `ReplyModal.vue` 在发推前的前置校验中，使用的是 `if (!content.trim() && selectedFiles.length === 0)`。这意味着只要有图片，即使文字为空也会放行，从而先执行多媒体上传 API。但在最终创建推文的后端服务接收请求时，其因为内容为空字段校验失败抛出 400，造成了图片已被入库而推文无法发布的漏洞 |
+| **解决** | 修改 `ComposeBox.vue` 和 `ReplyModal.vue`，将发推/回复按钮的 `:disabled` 属性以及提交函数 `handleTweet`/`handleReply` 的前置合法性拦截判定直接绑定到 `!content.trim()` 上。只要文字内容为空，直接灰掉按钮且拦截动作并友好提示，从前端源头断绝了无文字发推失败导致图片无限上传的问题 |
+
+## 62. GSE 分词器编译报错 (PosSeg 未定义)
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 编译 `consumer` 组件时，在 `trends_processor.go` 报编译错误：`p.seg.PosSeg undefined (type gse.Segmenter has no field or method PosSeg)` |
+| **原因** | 纯 Go 分词器 `go-ego/gse` 中的词性标注分词方法已更名为 `Pos`，原本在伪代码或旧版本中的 `PosSeg` 方法在此版本中未定义 |
+| **解决** | 将 `trends_processor.go` 中对 `p.seg.PosSeg(cleanText)` 的调用修改为 `p.seg.Pos(cleanText)`，编译全绿通过。 |
+

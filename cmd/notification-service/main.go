@@ -49,12 +49,6 @@ func main() {
 	jaegerEndpoint := getEnv("JAEGER_COLLECTOR_ENDPOINT", "http://localhost:14268/api/traces")
 	trace.InitTracer("notification-service", jaegerEndpoint)
 
-	// 1. 初始化 Snowflake
-	if err := snowflake.Init(2); err != nil { // Node ID 2
-		log.Fatalf("❌ Failed to init snowflake: %v", err)
-	}
-	log.Println("✅ Snowflake initialized (Node ID: 2)")
-
 	// 2. Consul Config (可选)
 	consulHost := getEnv("CONSUL_HOST", "localhost")
 	consulPort := getEnv("CONSUL_PORT", "8500")
@@ -94,6 +88,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("❌ Failed to connect redis: %v", err)
 	}
+
+	// 1. 初始化 Snowflake
+	// 初始化 Snowflake
+	snowflake.MustInit(redisClient)
+	log.Println("✅ Snowflake initialized (Node ID: 2)")
 
 	// 5. RabbitMQ
 	mqConfig := mq.DefaultRabbitMQConfig()

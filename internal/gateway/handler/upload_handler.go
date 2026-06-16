@@ -1,35 +1,82 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 
 	"twitter-clone/internal/gateway/middleware"
 )
 
 // UploadHandler 上传处理器
 type UploadHandler struct {
-	uploadDir string
-	baseURL   string
+	minioClient *minio.Client
+	bucketName  string
+	publicURL   string
 }
 
 // NewUploadHandler 创建上传处理器
-func NewUploadHandler(uploadDir, baseURL string) *UploadHandler {
-	// 确保上传目录存在
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
-		panic(fmt.Sprintf("failed to create upload dir: %v", err))
+func NewUploadHandler(endpoint, accessKey, secretKey, bucketName, publicURL string) *UploadHandler {
+	// 初始化 MinIO 客户端
+	minioClient, err := minio.New(endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
+		Secure: false, // 本地开发用 HTTP，如果是生产环境可以通过端口或参数判断
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to initialize minio client: %v", err))
+	}
+
+	// 确保存储桶存在
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	exists, err := minioClient.BucketExists(ctx, bucketName)
+	if err != nil {
+		panic(fmt.Sprintf("failed to check if bucket exists: %v", err))
+	}
+	if !exists {
+		err = minioClient.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{})
+		if err != nil {
+			panic(fmt.Sprintf("failed to create bucket %s: %v", bucketName, err))
+		}
+	}
+
+	// 设置公共只读 Policy
+	policy := fmt.Sprintf(`{
+		"Version": "2012-10-17",
+		"Statement": [
+			{
+				"Effect": "Allow",
+				"Principal": {
+					"AWS": ["*"]
+				},
+				"Action": [
+					"s3:GetObject"
+				],
+				"Resource": [
+					"arn:aws:s3:::%s/*"
+				]
+			}
+		]
+	}`, bucketName)
+
+	err = minioClient.SetBucketPolicy(ctx, bucketName, policy)
+	if err != nil {
+		panic(fmt.Sprintf("failed to set bucket policy: %v", err))
 	}
 
 	return &UploadHandler{
-		uploadDir: uploadDir,
-		baseURL:   baseURL,
+		minioClient: minioClient,
+		bucketName:  bucketName,
+		publicURL:   publicURL,
 	}
 }
 
@@ -44,49 +91,65 @@ func (h *UploadHandler) UploadFile(c *gin.Context) {
 	}
 
 	// 获取文件
-	file, err := c.FormFile("file")
+	fileHeader, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "file is required"})
 		return
 	}
 
 	// 验证文件类型 (简单验证后缀)
-	ext := strings.ToLower(filepath.Ext(file.Filename))
+	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
 	if ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".gif" && ext != ".mp4" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid file type"})
 		return
 	}
 
 	// 验证文件大小 (例如 10MB)
-	if file.Size > 10*1024*1024 {
+	if fileHeader.Size > 10*1024*1024 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "file too large (max 10MB)"})
 		return
 	}
 
-	// 生成文件名 (UUID)
-	newFilename := uuid.New().String() + ext
-
-	// 按日期分目录 (避免单目录文件过多)
-	dateDir := time.Now().Format("20060102")
-	saveDir := filepath.Join(h.uploadDir, dateDir)
-	if err := os.MkdirAll(saveDir, 0755); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create directory"})
+	// 打开文件流
+	srcFile, err := fileHeader.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open file"})
 		return
 	}
+	defer srcFile.Close()
 
-	savePath := filepath.Join(saveDir, newFilename)
+	// 生成文件名 (UUID)
+	newFilename := uuid.New().String() + ext
+	dateDir := time.Now().Format("20060102")
+	objectName := fmt.Sprintf("%s/%s", dateDir, newFilename)
 
-	// 保存文件
-	if err := c.SaveUploadedFile(file, savePath); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file"})
+	// 根据后缀推断 Content-Type
+	contentType := "application/octet-stream"
+	switch ext {
+	case ".jpg", ".jpeg":
+		contentType = "image/jpeg"
+	case ".png":
+		contentType = "image/png"
+	case ".gif":
+		contentType = "image/gif"
+	case ".mp4":
+		contentType = "video/mp4"
+	}
+
+	// 上传文件至 MinIO
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	_, err = h.minioClient.PutObject(ctx, h.bucketName, objectName, srcFile, fileHeader.Size, minio.PutObjectOptions{
+		ContentType: contentType,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to upload file to object storage: %v", err)})
 		return
 	}
 
 	// 生成访问 URL
-	// baseURL/uploads/20231010/xxx.jpg
-	// 注意 windows 下 filepath.Join 可能用反斜杠，URL 需要正斜杠
-	relPath := fmt.Sprintf("uploads/%s/%s", dateDir, newFilename)
-	fullURL := fmt.Sprintf("%s/%s", h.baseURL, relPath)
+	fullURL := fmt.Sprintf("%s/%s/%s", strings.TrimSuffix(h.publicURL, "/"), h.bucketName, objectName)
 
 	c.JSON(http.StatusOK, gin.H{
 		"url": fullURL,

@@ -3,7 +3,7 @@ FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
-ENV GOPROXY=https://goproxy.cn,https://mirrors.aliyun.com/goproxy/,direct
+ENV GOPROXY=https://mirrors.aliyun.com/goproxy/,https://goproxy.io,direct
 
 COPY go.mod go.sum ./
 RUN go mod download

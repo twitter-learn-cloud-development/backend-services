@@ -31,8 +31,13 @@ func NewHashtagBatcher(client *redis.Client, interval time.Duration) *HashtagBat
 
 // Add appends a hashtag count to the local in-memory buffer
 func (b *HashtagBatcher) Add(tag string) {
+	b.AddWithScore(tag, 1)
+}
+
+// AddWithScore appends a hashtag with custom score weight to the local in-memory buffer
+func (b *HashtagBatcher) AddWithScore(tag string, score int64) {
 	b.mu.Lock()
-	b.buffer[tag]++
+	b.buffer[tag] += score
 	b.mu.Unlock()
 }
 

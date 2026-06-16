@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"strings"
 	"time"
 
 	"twitter-clone/pkg/es"
@@ -77,6 +78,18 @@ const (
 
 	// MaxRetries 最大重试次数
 	MaxRetries = 3
+
+	// QueueTweetLiked 🆕 推文点赞队列
+	QueueTweetLiked = "queue.tweet.liked"
+
+	// QueueCommentCreated 🆕 评论创建队列
+	QueueCommentCreated = "queue.comment.created"
+
+	// RoutingKeyTweetLiked 🆕 推文点赞路由键
+	RoutingKeyTweetLiked = "tweet.liked"
+
+	// RoutingKeyCommentCreated 🆕 评论创建路由键
+	RoutingKeyCommentCreated = "comment.created"
 )
 
 // TimelineConsumer Timeline 消费者
@@ -90,6 +103,7 @@ type TimelineConsumer struct {
 	aiClient       *ai.Client
 	outboxRepo     domain.OutboxRepository // 🆕 注入 Outbox 仓储
 	hashtagBatcher *HashtagBatcher         // 🆕 注入 Hashtag 批量计数缓冲器
+	trendsProcessor *TrendsProcessor       // 🆕 注入趋势话题处理器
 }
 
 // NewTimelineConsumer 创建 Timeline 消费者
@@ -102,6 +116,7 @@ func NewTimelineConsumer(
 	qdrantClient *qdrant.Client, // 🆕 注入 Qdrant 客户端
 	aiClient *ai.Client,
 	outboxRepo domain.OutboxRepository, // 🆕 注入 Outbox 仓储
+	trendsProcessor *TrendsProcessor, // 🆕 注入趋势话题处理器
 ) (*TimelineConsumer, error) {
 	// 1. 声明 Exchanges
 	if err := mqClient.DeclareExchange(ExchangeEvents, "topic", true); err != nil {
@@ -124,6 +139,12 @@ func NewTimelineConsumer(
 	}
 	if _, err := mqClient.DeclareQueue(QueueTweetRisk, true); err != nil {
 		return nil, fmt.Errorf("failed to declare risk queue: %w", err)
+	}
+	if _, err := mqClient.DeclareQueue(QueueTweetLiked, true); err != nil {
+		return nil, fmt.Errorf("failed to declare liked queue: %w", err)
+	}
+	if _, err := mqClient.DeclareQueue(QueueCommentCreated, true); err != nil {
+		return nil, fmt.Errorf("failed to declare comment queue: %w", err)
 	}
 
 	// 3. 声明重试队列（配置 Dead Letter 参数以在 TTL 到期时重新发回到业务队列）
@@ -150,7 +171,7 @@ func NewTimelineConsumer(
 	if _, err := mqClient.DeclareQueue(QueueTweetDeleteDLQ, true); err != nil {
 		return nil, fmt.Errorf("failed to declare delete dlq: %w", err)
 	}
-	log.Println("✅ Queues declared: business, retry, dlq, risk")
+	log.Println("✅ Queues declared: business, retry, dlq, risk, liked, comment")
 
 	// 5. 绑定正常业务队列
 	if err := mqClient.BindQueue(QueueTweetFanout, RoutingKeyTweetCreated, ExchangeEvents); err != nil {
@@ -161,6 +182,12 @@ func NewTimelineConsumer(
 	}
 	if err := mqClient.BindQueue(QueueTweetRisk, RoutingKeyTweetRisk, ExchangeEvents); err != nil {
 		return nil, fmt.Errorf("failed to bind risk queue: %w", err)
+	}
+	if err := mqClient.BindQueue(QueueTweetLiked, RoutingKeyTweetLiked, ExchangeEvents); err != nil {
+		return nil, fmt.Errorf("failed to bind liked queue: %w", err)
+	}
+	if err := mqClient.BindQueue(QueueCommentCreated, RoutingKeyCommentCreated, ExchangeEvents); err != nil {
+		return nil, fmt.Errorf("failed to bind comment queue: %w", err)
 	}
 
 	// 6. 绑定重试队列
@@ -190,15 +217,16 @@ func NewTimelineConsumer(
 	hashtagBatcher := NewHashtagBatcher(redisClient, 500*time.Millisecond)
 
 	return &TimelineConsumer{
-		mq:             mqClient,
-		followRepo:     followRepo,
-		timelineCache:  timelineCache,
-		redisClient:    redisClient,
-		esClient:       esClient,
-		qdrantClient:   qdrantClient, // 🆕 注入 Qdrant
-		aiClient:       aiClient,
-		outboxRepo:     outboxRepo, // 🆕 注入 Outbox 仓储
-		hashtagBatcher: hashtagBatcher,
+		mq:              mqClient,
+		followRepo:      followRepo,
+		timelineCache:   timelineCache,
+		redisClient:     redisClient,
+		esClient:        esClient,
+		qdrantClient:    qdrantClient, // 🆕 注入 Qdrant
+		aiClient:        aiClient,
+		outboxRepo:      outboxRepo, // 🆕 注入 Outbox 仓储
+		hashtagBatcher:  hashtagBatcher,
+		trendsProcessor: trendsProcessor,
 	}, nil
 }
 
@@ -207,11 +235,18 @@ func (c *TimelineConsumer) Start(ctx context.Context) error {
 	// 🆕 启动 hashtag 批量收集器
 	c.hashtagBatcher.Start()
 
+	// 🆕 启动 Redis 趋势话题时间衰减及清理协程（分布式锁防雪崩）
+	go c.startTrendsDecayWorker(ctx)
+
 	// 启动扇出消费者
 	go c.consumeFanout(ctx)
 
 	// 启动删除消费者
 	go c.consumeDelete(ctx)
+
+	// 🆕 监听点赞与评论事件以计算热度分值
+	go c.consumeTweetLiked(ctx)
+	go c.consumeCommentCreated(ctx)
 
 	// 🆕 启动事务发件箱（Outbox）对账补偿协程
 	go c.StartOutboxWorker(ctx)
@@ -286,8 +321,8 @@ func (c *TimelineConsumer) handleFanoutMessage(msg amqp.Delivery) {
 		log.Printf("❌ Failed to ack message: %v", err)
 	}
 
-	// 提取并更新 Hashtags 用于热门话题
-	go c.processHashtags(context.Background(), event.Content)
+	// 提取并更新 Hashtags 及实体词映射用于热门话题
+	go c.processHashtags(context.Background(), event)
 
 	// 🆕 将 ES 向量同步操作作为 Outbox 任务持久化写入数据库，保障高可用与最终一致性
 	payloadBytes, err := json.Marshal(event)
@@ -327,24 +362,227 @@ func (c *TimelineConsumer) handleFanoutMessage(msg amqp.Delivery) {
 	log.Printf("✅ Fanout completed: tweet_id=%d", event.TweetID)
 }
 
-// processHashtags 提取 Hashtags 并更新 Redis ZSet
-func (c *TimelineConsumer) processHashtags(ctx context.Context, content string) {
-	// 正则匹配 #hashtag
-	re := regexp.MustCompile(`#(\w+)`)
-	matches := re.FindAllStringSubmatch(content, -1)
-
-	if len(matches) == 0 {
+// processHashtags 提取并给发帖增加热度，同时建立推文到实体的 48小时 Redis TTL 预映射
+func (c *TimelineConsumer) processHashtags(ctx context.Context, event events.TweetCreatedEvent) {
+	if c.trendsProcessor == nil {
+		// 降级：仅提取 Hashtag
+		re := regexp.MustCompile(`#(\w+)`)
+		matches := re.FindAllStringSubmatch(event.Content, -1)
+		if len(matches) == 0 {
+			return
+		}
+		for _, match := range matches {
+			if len(match) > 1 {
+				tag := match[1]
+				c.hashtagBatcher.Add(tag)
+			}
+		}
 		return
 	}
 
-	for _, match := range matches {
-		if len(match) > 1 {
-			tag := match[1]
-			// 🆕 将高频热 Key 写入改为本地内存计数累加，避开单点 CPU 排他锁竞争
-			c.hashtagBatcher.Add(tag)
+	topics := c.trendsProcessor.ExtractTopics(event.Content)
+	if len(topics) == 0 {
+		return
+	}
+
+	// 1. 构建逗号拼接的实体词字符串列表并写入 Redis，设定 48 小时 TTL
+	var tagList []string
+	for tag := range topics {
+		tagList = append(tagList, tag)
+	}
+	tagsStr := strings.Join(tagList, ",")
+	tagsKey := fmt.Sprintf("tweet_tags:%d", event.TweetID)
+
+	if err := c.redisClient.Set(ctx, tagsKey, tagsStr, 48*time.Hour).Err(); err != nil {
+		log.Printf("⚠️  Failed to set tweet tags mapping in Redis: %v", err)
+	}
+
+	// 2. 对每个提取出的实体词给趋势榜加分，这里应用发推的防刷限频（W_p = 10，我们使用 topics 预设好的分值，Hashtag=30，NER=10）
+	for tag, baseScore := range topics {
+		limitKey := fmt.Sprintf("lock:user_tag_count:%d:%s", event.AuthorID, tag)
+		count, err := c.redisClient.Incr(ctx, limitKey).Result()
+		if err != nil {
+			log.Printf("⚠️  Failed to increment user tag limit: %v", err)
+			continue
+		}
+
+		if count == 1 {
+			_ = c.redisClient.Expire(ctx, limitKey, 1*time.Hour)
+		}
+
+		if count > 3 {
+			continue
+		}
+
+		c.hashtagBatcher.AddWithScore(tag, baseScore)
+	}
+	log.Printf("🔥 Processed new tweet topics mapping for tweet_id=%d: %v", event.TweetID, topics)
+}
+
+// consumeTweetLiked 监听推文点赞事件
+func (c *TimelineConsumer) consumeTweetLiked(ctx context.Context) {
+	messages, err := c.mq.Consume(QueueTweetLiked, ConsumerName+"-liked")
+	if err != nil {
+		log.Printf("❌ Failed to consume liked queue: %v", err)
+		return
+	}
+	log.Println("📥 Listening for tweet.liked events...")
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case msg, ok := <-messages:
+			if !ok {
+				time.Sleep(5 * time.Second)
+				messages, _ = c.mq.Consume(QueueTweetLiked, ConsumerName+"-liked")
+				continue
+			}
+			c.handleTweetLikedMessage(msg)
 		}
 	}
-	log.Printf("🔥 Buffered trending topics locally: %v", matches)
+}
+
+// handleTweetLikedMessage 处理点赞消息并触发算分
+func (c *TimelineConsumer) handleTweetLikedMessage(msg amqp.Delivery) {
+	var event events.TweetLikedEvent
+	if err := json.Unmarshal(msg.Body, &event); err != nil {
+		log.Printf("❌ Failed to unmarshal liked event: %v", err)
+		msg.Nack(false, false)
+		return
+	}
+
+	_ = msg.Ack(false)
+	go c.processEngagement(context.Background(), event.TweetID, event.UserID, 2) // 点赞权重 W_l = 2
+}
+
+// consumeCommentCreated 监听评论创建事件
+func (c *TimelineConsumer) consumeCommentCreated(ctx context.Context) {
+	messages, err := c.mq.Consume(QueueCommentCreated, ConsumerName+"-comment")
+	if err != nil {
+		log.Printf("❌ Failed to consume comment queue: %v", err)
+		return
+	}
+	log.Println("📥 Listening for comment.created events...")
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case msg, ok := <-messages:
+			if !ok {
+				time.Sleep(5 * time.Second)
+				messages, _ = c.mq.Consume(QueueCommentCreated, ConsumerName+"-comment")
+				continue
+			}
+			c.handleCommentCreatedMessage(msg)
+		}
+	}
+}
+
+// handleCommentCreatedMessage 处理评论消息并触发算分
+func (c *TimelineConsumer) handleCommentCreatedMessage(msg amqp.Delivery) {
+	var event events.CommentCreatedEvent
+	if err := json.Unmarshal(msg.Body, &event); err != nil {
+		log.Printf("❌ Failed to unmarshal comment event: %v", err)
+		msg.Nack(false, false)
+		return
+	}
+
+	_ = msg.Ack(false)
+	go c.processEngagement(context.Background(), event.TweetID, event.UserID, 5) // 评论权重 W_c = 5
+}
+
+// processEngagement 结合 48h TTL 映射与 1h 用户限频防刷进行多维加权算分
+func (c *TimelineConsumer) processEngagement(ctx context.Context, tweetID uint64, userID uint64, eventWeight int64) {
+	tagsKey := fmt.Sprintf("tweet_tags:%d", tweetID)
+	tagsStr, err := c.redisClient.Get(ctx, tagsKey).Result()
+	if err == redis.Nil {
+		// TTL 过期或无此映射，不计入热搜（老帖子防刷与截断）
+		return
+	} else if err != nil {
+		log.Printf("⚠️  Failed to query tweet tags from Redis: %v", err)
+		return
+	}
+
+	tags := strings.Split(tagsStr, ",")
+	for _, tag := range tags {
+		tag = strings.TrimSpace(tag)
+		if tag == "" {
+			continue
+		}
+
+		// 限频防刷：同一个用户针对同一个实体词，1 小时内最多计前 3 次互动
+		limitKey := fmt.Sprintf("lock:user_tag_count:%d:%s", userID, tag)
+		count, err := c.redisClient.Incr(ctx, limitKey).Result()
+		if err != nil {
+			log.Printf("⚠️  Failed to increment user tag limit: %v", err)
+			continue
+		}
+
+		if count == 1 {
+			_ = c.redisClient.Expire(ctx, limitKey, 1*time.Hour)
+		}
+
+		if count > 3 {
+			continue
+		}
+
+		c.hashtagBatcher.AddWithScore(tag, eventWeight)
+	}
+}
+
+// startTrendsDecayWorker 启动后台 Ticker 周期运行衰减
+func (c *TimelineConsumer) startTrendsDecayWorker(ctx context.Context) {
+	log.Println("🚀 Trends decay worker started")
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("⏹️  Trends decay worker stopped")
+			return
+		case <-ticker.C:
+			c.decayTrends(ctx)
+		}
+	}
+}
+
+// decayTrends 执行分布式锁保护的时间衰减与长尾词即时截断，避免雪崩衰减与内存膨胀
+func (c *TimelineConsumer) decayTrends(ctx context.Context) {
+	decayCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	// 1. 获取分布式锁，防止多副本重复衰减（雪崩衰减）。锁有效期为 50 秒。
+	lockKey := "lock:trends_decay"
+	success, err := c.redisClient.SetNX(decayCtx, lockKey, "1", 50*time.Second).Result()
+	if err != nil {
+		log.Printf("⚠️  Failed to acquire trends decay lock: %v", err)
+		return
+	}
+	if !success {
+		// 抢锁失败说明其他副本已在此分钟内执行过衰减
+		return
+	}
+
+	log.Println("🔒 Acquired trends decay lock, executing decay and cleanup...")
+
+	// 2. 使用 ZINTERSTORE 对整个 trends:global 乘以权重系数 0.95 进行指数衰减
+	store := redis.ZStore{
+		Keys:    []string{"trends:global"},
+		Weights: []float64{0.95},
+	}
+
+	err = c.redisClient.ZInterStore(decayCtx, "trends:global", &store).Err()
+	if err != nil {
+		log.Printf("⚠️  Failed to decay trends:global ZSet: %v", err)
+		return
+	}
+
+	// 3. 顺手物理裁剪长尾词，仅保留前 100 名，防止 Redis 内存膨胀
+	err = c.redisClient.ZRemRangeByRank(decayCtx, "trends:global", 0, -101).Err()
+	if err != nil {
+		log.Printf("⚠️  Failed to clean up long-tail trends: %v", err)
+	}
 }
 
 // fanoutToFollowers 扇出到粉丝

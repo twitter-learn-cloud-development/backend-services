@@ -4,7 +4,7 @@ FROM golang:1.25-alpine AS builder
 #设置工作目录
 WORKDIR /app
 #设置代理对象网站
-ENV GOPROXY=https://goproxy.cn,https://mirrors.aliyun.com/goproxy/,direct
+ENV GOPROXY=https://mirrors.aliyun.com/goproxy/,https://goproxy.io,direct
 #复制go.mod,go.sum到/app路径下
 COPY go.mod go.sum ./
 #进行依赖下载
