@@ -74,6 +74,7 @@ func NewGRPCClients(consulAddr string) (*GRPCClients, error) {
 		return nil, fmt.Errorf("failed to create user service client: %v", err)
 	}
 	clients.userConn = userConn
+	userConn.Connect() // 🆕 主动预热连接，防止首次请求冷启动延迟
 	// Wrap with Circuit Breaker
 	originalUserClient := userv1.NewUserServiceClient(userConn)
 	clients.UserClient = &ProtectedUserClient{UserServiceClient: originalUserClient}
@@ -91,6 +92,7 @@ func NewGRPCClients(consulAddr string) (*GRPCClients, error) {
 		return nil, fmt.Errorf("failed to create tweet service client: %v", err)
 	}
 	clients.tweetConn = tweetConn
+	tweetConn.Connect() // 🆕 主动预热连接，防止首次请求冷启动延迟
 	// Wrap with Circuit Breaker
 	originalTweetClient := tweetv1.NewTweetServiceClient(tweetConn)
 	clients.TweetClient = &ProtectedTweetClient{TweetServiceClient: originalTweetClient}
@@ -109,6 +111,7 @@ func NewGRPCClients(consulAddr string) (*GRPCClients, error) {
 		return nil, fmt.Errorf("failed to create follow service client: %v", err)
 	}
 	clients.followConn = followConn
+	followConn.Connect() // 🆕 主动预热连接，防止首次请求冷启动延迟
 	clients.FollowClient = followv1.NewFollowServiceClient(followConn)
 	log.Printf("✅ Gateway connected to Follow Service info (Target: %s)", followTarget)
 
@@ -126,6 +129,7 @@ func NewGRPCClients(consulAddr string) (*GRPCClients, error) {
 		return nil, fmt.Errorf("failed to create messenger service client: %v", err)
 	}
 	clients.messengerConn = messengerConn
+	messengerConn.Connect() // 🆕 主动预热连接，防止首次请求冷启动延迟
 	clients.MessengerClient = messengerv1.NewMessengerServiceClient(messengerConn)
 	log.Printf("✅ Gateway connected to Messenger Service info (Target: %s)", messengerTarget)
 
@@ -144,6 +148,7 @@ func NewGRPCClients(consulAddr string) (*GRPCClients, error) {
 		return nil, fmt.Errorf("failed to create agent service client: %v", err)
 	}
 	clients.agentConn = agentConn
+	agentConn.Connect() // 🆕 主动预热连接，防止首次请求冷启动延迟
 	clients.AgentClient = aiAgentv1.NewAiAgentServiceClient(agentConn)
 	log.Printf("✅ Gateway connected to Agent Service (Target: %s)", agentTarget)
 
@@ -159,6 +164,7 @@ func NewGRPCClients(consulAddr string) (*GRPCClients, error) {
 		return nil, fmt.Errorf("failed to create notification service client: %v", err)
 	}
 	clients.notificationConn = notificationConn
+	notificationConn.Connect() // 🆕 主动预热连接，防止首次请求冷启动延迟
 	clients.NotificationClient = notificationv1.NewNotificationServiceClient(notificationConn)
 	log.Printf("✅ Gateway connected to Notification Service (Target: %s)", notificationTarget)
 
@@ -174,6 +180,7 @@ func NewGRPCClients(consulAddr string) (*GRPCClients, error) {
 		return nil, fmt.Errorf("failed to create auth service client: %v", err)
 	}
 	clients.authConn = authConn
+	authConn.Connect() // 🆕 主动预热连接，防止首次请求冷启动延迟
 	clients.AuthClient = authV1.NewAuthServiceClient(authConn)
 	log.Printf("✅ Gateway connected to Auth Service (Target: %s)", authTarget)
 

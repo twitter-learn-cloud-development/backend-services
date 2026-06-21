@@ -15,6 +15,24 @@ type MQProducer interface {
 	PublishRawJSON(ctx context.Context, exchange string, routingKey string, body []byte) error
 }
 
+// RouteConfig 路由配置定义
+type RouteConfig struct {
+	Exchange   string
+	RoutingKey string
+}
+
+// 静态路由字典，彻底解耦事件类型和 MQ 路由的强关联
+var routeRegistry = map[string]RouteConfig{
+	"TWEET_CREATED": {
+		Exchange:   "twitter.events",
+		RoutingKey: "tweet.created",
+	},
+	"TWEET_DELETED": {
+		Exchange:   "twitter.events",
+		RoutingKey: "tweet.deleted",
+	},
+}
+
 // PositionStore Binlog 消费位点存储接口
 type PositionStore interface {
 	SavePosition(pos mysql.Position) error
@@ -199,10 +217,17 @@ func (r *OutboxEventRelay) runWorker() {
 			}
 
 		case <-r.ctx.Done():
-			// 收到安全退出信号，清理并退出
-			log.Println("🛑 Worker 正在安全退出...")
-			r.flushPosition()
-			return
+			log.Println("🛑 Worker 正在安全退出，排空残留事件...")
+			// 循环读取通道，直到完全读空，确保零丢失
+			for {
+				select {
+				case event := <-r.eventChan:
+					r.publishWithRetryAndBackpressure(event)
+				default:
+					r.flushPosition()
+					return
+				}
+			}
 		}
 	}
 }
@@ -229,20 +254,14 @@ func (r *OutboxEventRelay) publishWithRetryAndBackpressure(event *OutboxRelayEve
 	maxDelay := 10 * time.Second
 	currentDelay := baseDelay
 
-	// 根据事件类型动态映射 Exchange 和 RoutingKey
-	var exchange, routingKey string
-	switch event.EventType {
-	case "TWEET_CREATED":
-		exchange = "twitter.events"
-		routingKey = "tweet.created"
-	case "TWEET_DELETED":
-		exchange = "twitter.events"
-		routingKey = "tweet.deleted"
-	default:
-		// 丢弃未知事件，继续处理
+	// 🎯 从静态路由字典动态检索路由配置
+	route, ok := routeRegistry[event.EventType]
+	if !ok {
 		log.Printf("⚠️ 忽略未知事件类型: %s", event.EventType)
 		return
 	}
+	exchange := route.Exchange
+	routingKey := route.RoutingKey
 
 	for {
 		// 1. 尝试发送到 RabbitMQ (使用动态映射的 Exchange 和 RoutingKey，带 5 秒超时保护)
@@ -277,8 +296,12 @@ func (r *OutboxEventRelay) publishWithRetryAndBackpressure(event *OutboxRelayEve
 
 // Stop 优雅关闭中继器并退出 Canal
 func (r *OutboxEventRelay) Stop() {
-	r.cancel()
-	r.canalInstance.Close()
-	r.wg.Wait()
-	log.Println("✅ Canal relay stopped gracefully")
+	log.Println("🛑 正在停止 Canal 提取...")
+	r.canalInstance.Close() // 1. 先通知 canal 停止从 MySQL 提取 Binlog
+
+	log.Println("🛑 正在触发中继工作协程优雅退出...")
+	r.cancel() // 2. 触发工作协程 cancel
+
+	r.wg.Wait() // 3. 阻塞等待下游工作协程将残存事件发送完毕并退出
+	log.Println("🔩 Canal relay stopped gracefully")
 }

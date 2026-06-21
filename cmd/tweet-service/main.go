@@ -33,8 +33,6 @@ import (
 	"twitter-clone/pkg/registry"
 	"twitter-clone/pkg/trace"
 
-	canalRelay "twitter-clone/internal/infrastructure/canal"
-	"github.com/go-mysql-org/go-mysql/canal"
 	"twitter-clone/internal/pkg/database/uow"
 
 	"twitter-clone/pkg/metric"
@@ -235,44 +233,6 @@ func main() {
 	log.Println("   - GetFeeds")
 	log.Println("========================================")
 
-	// 10. 初始化 Canal 旁路中继器
-	canalCfg := canal.NewDefaultConfig()
-	canalCfg.Addr = fmt.Sprintf("%s:%d", dbConfig.Host, dbConfig.Port)
-	canalCfg.User = dbConfig.User
-	canalCfg.Password = dbConfig.Password
-	canalCfg.Dump.ExecutionPath = "" // 禁用备份 dump
-	// ServerID 要避免和主库冲突，这里我们取 9092 + 100
-	canalCfg.ServerID = 9192
-
-	canalInstance, err := canal.NewCanal(canalCfg)
-	if err != nil {
-		log.Fatalf("❌ Failed to create canal instance: %v", err)
-	}
-
-	posStore := canalRelay.NewRedisPositionStore(redisClient, "canal:position:tweet-service")
-	relay := canalRelay.NewOutboxEventRelay(canalInstance, mqClient, posStore)
-
-	if err := relay.Start(); err != nil {
-		log.Fatalf("❌ Failed to start canal relay: %v", err)
-	}
-
-	// 异步启动 Canal
-	go func() {
-		pos, err := posStore.GetPosition()
-		if err == nil && pos.Name != "" {
-			log.Printf("🔄 Resuming Canal from position: %v", pos)
-			if err := canalInstance.RunFrom(pos); err != nil {
-				log.Printf("❌ Canal run from position error: %v", err)
-			}
-		} else {
-			log.Println("🔄 Starting Canal from current master position")
-			if err := canalInstance.Run(); err != nil {
-				log.Printf("❌ Canal run error: %v", err)
-			}
-		}
-	}()
-	log.Println("✅ Canal outbox relay started")
-
 	// 11. 优雅关闭
 	go func() {
 		if err := grpcServer.Serve(lis); err != nil {
@@ -286,8 +246,6 @@ func main() {
 
 	log.Println("🛑 Shutting down server...")
 
-	// 优雅停止 Canal
-	relay.Stop()
 
 	grpcServer.GracefulStop()
 	log.Println("✅ Server exited")

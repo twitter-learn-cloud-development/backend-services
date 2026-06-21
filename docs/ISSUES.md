@@ -380,6 +380,7 @@
 | **问题** | 高并发压测下，`kubectl port-forward` 产生连接耗尽，宿主机向网关发送 Webhook 告警报 `Could not connect to server` 错误，导致闭环失效。 |
 | **原因** | 网关在并发压力（平均 RPS ~1500）下处理大量连接，使 port-forward 的代理套接字被占满导致连接排队拒绝；另外测试环境下 `agent-service` 强依赖的重型存储未部署在 K8s 中，导致 gRPC 调用分析失败。 |
 | **解决** | 1. 在网关 `/alerts` webhook 处理中，开发了 **本地自愈兜底防线**（`Local Self-Healing Fallback`）。当 AIOps 脑诊断因为不可达连接失败时，网关在 `chaos_testing` 模式下退一步，出于防御性设计，自动对白名单内的 `/api/v1/feeds` 下发熔断指令，实现自主防护。<br>2. 升级 `stress_feeds.go`，在压测开始后，由压测进程内部向网关发送 Firing 告警，从而避开了宿主机高并发端口占用问题。在 Minikube 集群中完美跑通了“故障注入 -> 本地自愈兜底 -> 动态 Sentinel 规则加载 -> 流量拦截”的完整闭环，Sentinel 拦截率从 0% 瞬时攀升至 ~20%，其余网络错误全部得到拦截净化。 |
+| **解决** | 1. 在 网关 `/alerts` webhook 处理中，开发了 **本地自愈兜底防线**（`Local Self-Healing Fallback`）。当 AIOps 脑诊断因为不可达连接失败时，网关在 `chaos_testing` 模式下退一步，出于防御性设计，自动对白名单内的 `/api/v1/feeds` 下发熔断指令，实现自主防护。<br>2. 升级 `stress_feeds.go`，在压测开始后，由压测进程内部向网关发送 Firing 告警，从而避开了宿主机高并发端口占用问题。在 Minikube 集群中完美跑通了“故障注入 -> 本地自愈兜底 -> 动态 Sentinel 规则加载 -> 流量拦截”的完整闭环，Sentinel 拦截率从 0% 瞬时攀升至 ~20%，其余网络错误全部得到拦截净化。 |
 
 ## 48. 网关限流提早拦截导致熔断悬空及 Feeds 缺乏 Sentinel 保护漏洞 (熔断失效漏洞)
 
@@ -510,3 +511,12 @@
 | **问题** | 运行 `docker compose up -d --build` 或构建各微服务镜像时，在 `go mod download` 阶段拉取包（特别是 `compress`）时频发 `unexpected EOF` 导致构建中断 |
 | **原因** | Docker 容器内网络默认的 MTU 配置较大，或者国内网络环境下连接阿里云代理 `mirrors.aliyun.com` 和七牛云代理 `goproxy.cn` 容易因大依赖包拉取缓慢而触发超时和连接重置，使得 `go mod download` 异常退出 |
 | **解决** | 1. 在宿主机上执行 `go mod vendor`，将项目所需的全部第三方依赖包完整下载至本地 `vendor` 文件夹。<br>2. 批量重构所有微服务的 Dockerfile，移除其中容器内部的依赖拉取步骤（如 `go mod download`），并将编译指令变更为使用本地依赖库的 `-mod=vendor` 编译模式。<br>3. 重新执行 `docker compose build` 时，编译流程完全离线自举，成功绕过容器内部的代理下载握手问题，构建速度大幅提升且全绿通过。 |
+
+
+## 64. Qdrant 向量库初始化冷启动延迟导致写入时报 404 错误
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 在微服务启动后，消费者或旁路任务向 Qdrant 向量数据库写入数据（UpsertPoint）时，频繁报错 `failed to upsert point to Qdrant: failed to upsert point, status: 404, response: `，导致事件任务重试失败并归档为 Failed。 |
+| **原因** | 1. Docker Compose 部署中，`consumer` 和 `agent-service` 依赖 `qdrant` 时仅配置了 `condition: service_started`，导致在 Qdrant API 尚未就绪前应用已初始化完毕。<br>2. 尽管应用在初始化时尝试创建 `tweets` 集合，但由于端口未就绪导致创建静默失败。随后写入数据时，由于 Collection 依然不存在，Qdrant 就会返回 404 错误。 |
+| **解决** | 1. 在 `pkg/qdrant/qdrant.go` 客户端的 `UpsertPoint` 写入逻辑中加入了**写时自愈**（On-Demand Healing）机制：当捕获到 Qdrant 返回的 404 状态码时，自动提取当前写入向量的维度，发起 `CreateCollection` 进行幂等创建，创建成功后自动递归重试写入。<br>2. 重新编译微服务并运行，自愈机制彻底规避了启动依赖时序和冷启动未准备好的痛点，实现了高弹性的自愈向量写入保障。 |

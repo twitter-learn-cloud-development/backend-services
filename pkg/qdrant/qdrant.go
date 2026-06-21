@@ -47,7 +47,7 @@ func ConvertSnowflakeToQdrantID(snowflakeID uint64) string {
 // CreateCollection 幂等创建 Collection
 func (c *Client) CreateCollection(ctx context.Context, name string, dim int) error {
 	// 1. 检查 Collection 是否已经存在
-	checkURL := fmt.Sprintf("%s/v1/collections/%s", c.url, name)
+	checkURL := fmt.Sprintf("%s/collections/%s", c.url, name)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, checkURL, nil)
 	if err != nil {
 		return fmt.Errorf("create collection check request failed: %w", err)
@@ -63,7 +63,7 @@ func (c *Client) CreateCollection(ctx context.Context, name string, dim int) err
 	}
 
 	// 2. Collection 不存在，发起创建
-	createURL := fmt.Sprintf("%s/v1/collections/%s", c.url, name)
+	createURL := fmt.Sprintf("%s/collections/%s", c.url, name)
 	body := map[string]interface{}{
 		"vectors": map[string]interface{}{
 			"size":     dim,
@@ -100,7 +100,7 @@ func (c *Client) CreateCollection(ctx context.Context, name string, dim int) err
 // UpsertPoint 插入或覆盖向量点，同时写入 metadata Payload
 func (c *Client) UpsertPoint(ctx context.Context, collection string, pointID uint64, vector []float32, payload map[string]interface{}) error {
 	uuidStr := ConvertSnowflakeToQdrantID(pointID)
-	upsertURL := fmt.Sprintf("%s/v1/collections/%s/points?wait=true", c.url, collection)
+	upsertURL := fmt.Sprintf("%s/collections/%s/points?wait=true", c.url, collection)
 
 	// 将真正的推文 ID 作为字符串塞入 payload 中，方便检索端直接无精度损耗拉取
 	if payload == nil {
@@ -137,6 +137,15 @@ func (c *Client) UpsertPoint(ctx context.Context, collection string, pointID uin
 
 	respBytes, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
+		// 🎯 发现 404 错误，自适应执行 Collection 写时自愈创建，并自动重试一次
+		if resp.StatusCode == http.StatusNotFound {
+			dim := len(vector)
+			if dim > 0 {
+				if errCreate := c.CreateCollection(ctx, collection, dim); errCreate == nil {
+					return c.UpsertPoint(ctx, collection, pointID, vector, payload)
+				}
+			}
+		}
 		return fmt.Errorf("failed to upsert point, status: %d, response: %s", resp.StatusCode, string(respBytes))
 	}
 
@@ -153,7 +162,7 @@ type qdrantSearchResponse struct {
 
 // Search 进行向量相似度检索
 func (c *Client) Search(ctx context.Context, collection string, vector []float32, limit int) ([]SearchResult, error) {
-	searchURL := fmt.Sprintf("%s/v1/collections/%s/points/search", c.url, collection)
+	searchURL := fmt.Sprintf("%s/collections/%s/points/search", c.url, collection)
 
 	body := map[string]interface{}{
 		"vector":       vector,

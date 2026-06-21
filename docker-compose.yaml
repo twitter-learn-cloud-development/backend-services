@@ -304,6 +304,32 @@ services:
       rabbitmq:
         condition: service_healthy
 
+  # === Canal 旁路中继器 ===
+  canal-relay:
+    build:
+      context: .
+      dockerfile: deploy/docker/canal-relay.dockerfile
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=twitter
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MQ_HOST=rabbitmq
+      - MQ_PORT=5672
+      - MQ_USER=guest
+      - MQ_PASSWORD=guest
+    restart: on-failure
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
   # === 消费者 ===
   consumer:
     build:

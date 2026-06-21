@@ -224,9 +224,15 @@
 - [x] **热搜与 AI 智能体** — 支持 Trends 趋势榜与文字检索；编写 `AgentChatScreen` 支持 RAG 向量卡片、对话以及 AI 创作草稿一键确认发布。
 - [x] **实时通知与私信聊天室** — 接入 WebSocket 服务端推送，实时广播私信（`message`）事件并让 `ChatRoomScreen` 对话气泡动态流式追加；实现实时通知（`like`/`comment`/`follow`）红点徽标提示及 `NotificationScreen` 分类列表跳转。
 
+### 阶段 26：微服务通信与连接性能深度治理 (gRPC Connection Optimization & Eager Dial)
+- [x] **Consul 发现 gRPC 重构** — 将 `auth-service` 对 `user-service` 的连接由原本硬编码的容器内直连升级为通过 Consul 注册中心自动发现与 `round_robin` 负载均衡。
+- [x] **连接预热 (Eager Connection)** — 在 API Gateway 和 `auth-service` 的 gRPC 客户端引入 `conn.Connect()` 主动长连接预热，将 DNS 首次解析超时及 TCP/HTTP2 建连成本消灭在系统初始化阶段，彻底扫除首笔登录请求超时。
+- [x] **链路追踪断裂修复** — 在 `auth-service` 连接 `user-service` 时补齐 OTEL Client stats handler 拦截器，完美在 Jaeger 中连通 `user-service` Span，完成闭环分布式追踪。
+
 ---
 
 ## 🚧 当前阶段：已全部完成
+
 
 ### 目标
 完成了微服务高并发多级缓存、分布式 Saga 自愈编排、K6/PodKill 混沌压测、大模型闭环熔断自愈治理以及基础设施控制面的主动降级与网格自愈，并实现基于 Pyroscope 火焰图的 AI 自适应性能调优智能体。同时，全面实现了具备离线持久化、BFF 多层缓存对接、WebSocket 实时聊天与分类推送等特性的生产级 Flutter 移动端手机 App。

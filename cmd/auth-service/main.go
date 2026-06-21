@@ -32,6 +32,7 @@ import (
 	"google.golang.org/grpc"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	_ "github.com/mbobakov/grpc-consul-resolver" // 🆕 导入 Consul 解析器
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 )
@@ -157,12 +158,17 @@ func main() {
 		}
 	}
 
-	// 获取远程 user-service 的 gRPC 天线客户端
-	userSvcAddr := getEnv("USER_SERVICE_ADDR", "localhost:9091")
-	userConn, err := grpc.NewClient(userSvcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// 获取远程 user-service 的 gRPC 客户端 (使用 Consul 服务发现)
+	userTarget := fmt.Sprintf("consul://%s/user-service?healthy=true", registryAddr)
+	userConn, err := grpc.NewClient(userTarget,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy": "round_robin"}`),
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler()), // 🔍 补全 OTEL 拦截器以关联调用链路
+	)
 	if err != nil {
 		logger.Fatal(context.Background(), "Failed to dial user service", zap.Error(err))
 	}
+	userConn.Connect() // 🆕 主动触发连接预热，消除首笔请求冷启动延迟
 	userGRPCClient := userv1.NewUserServiceClient(userConn)
 
 	// WIRE 灵魂组装一击：一键算出所有依赖，直接拿到 AuthService 实例！
