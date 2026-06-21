@@ -1,27 +1,22 @@
 # 1. Build Stage
-#创建构造镜像，并命名为builder
+#åå»ºæé éåï¼å¹¶å½åä¸ºbuilder
 FROM golang:1.25-alpine AS builder   
-#设置工作目录
+#è®¾ç½®å·¥ä½ç®å½
 WORKDIR /app
-#设置代理对象网站
-ENV GOPROXY=https://mirrors.aliyun.com/goproxy/,https://goproxy.io,direct
-#复制go.mod,go.sum到/app路径下
-COPY go.mod go.sum ./
-#进行依赖下载
-RUN go mod download
-#复制源码到/app目录下
+#è®¾ç½®ä»£çå¯¹è±¡ç½ç«
+#å¤å¶æºç å?appç®å½ä¸?
 COPY . .
-#构建consumer可执行文件
-RUN go build -o consumer ./cmd/consumer/main.go
+#æå»ºconsumerå¯æ§è¡æä»?
+RUN go build -mod=vendor -o consumer ./cmd/consumer/main.go
 
 # 2. Run Stage
-#获得运行环境镜像
+#è·å¾è¿è¡ç¯å¢éå
 FROM alpine:latest
-#设置工作目录
+#è®¾ç½®å·¥ä½ç®å½
 WORKDIR /app
-#复制builder中/app/consumer到当前目录
+#å¤å¶builderä¸?app/consumerå°å½åç®å½?
 COPY --from=builder /app/consumer .
-#复制builder中/app/configs到当前目录下的configs目录
+#å¤å¶builderä¸?app/configså°å½åç®å½ä¸çconfigsç®å½
 COPY --from=builder /app/configs ./configs
-#运行consumer
+#è¿è¡consumer
 CMD ["./consumer"]

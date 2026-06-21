@@ -501,3 +501,12 @@
 | **原因** | 纯 Go 分词器 `go-ego/gse` 中的词性标注分词方法已更名为 `Pos`，原本在伪代码或旧版本中的 `PosSeg` 方法在此版本中未定义 |
 | **解决** | 将 `trends_processor.go` 中对 `p.seg.PosSeg(cleanText)` 的调用修改为 `p.seg.Pos(cleanText)`，编译全绿通过。 |
 
+
+
+## 63. Docker 容器构建时使用国内 Go 代理拉取包频发 unexpected EOF 导致编译失败
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 运行 `docker compose up -d --build` 或构建各微服务镜像时，在 `go mod download` 阶段拉取包（特别是 `compress`）时频发 `unexpected EOF` 导致构建中断 |
+| **原因** | Docker 容器内网络默认的 MTU 配置较大，或者国内网络环境下连接阿里云代理 `mirrors.aliyun.com` 和七牛云代理 `goproxy.cn` 容易因大依赖包拉取缓慢而触发超时和连接重置，使得 `go mod download` 异常退出 |
+| **解决** | 1. 在宿主机上执行 `go mod vendor`，将项目所需的全部第三方依赖包完整下载至本地 `vendor` 文件夹。<br>2. 批量重构所有微服务的 Dockerfile，移除其中容器内部的依赖拉取步骤（如 `go mod download`），并将编译指令变更为使用本地依赖库的 `-mod=vendor` 编译模式。<br>3. 重新执行 `docker compose build` 时，编译流程完全离线自举，成功绕过容器内部的代理下载握手问题，构建速度大幅提升且全绿通过。 |

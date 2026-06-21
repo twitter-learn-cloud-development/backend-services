@@ -3,14 +3,11 @@ FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
-ENV GOPROXY=https://mirrors.aliyun.com/goproxy/,https://goproxy.io,direct
 
-COPY go.mod go.sum ./
-RUN go mod download
 
 COPY . .
 
-RUN go build -o tweet-service ./cmd/tweet-service/main.go
+RUN go build -mod=vendor -o tweet-service ./cmd/tweet-service/main.go
 
 # 2. Run Stage
 FROM alpine:latest

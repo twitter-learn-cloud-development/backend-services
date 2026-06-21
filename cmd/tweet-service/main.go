@@ -33,6 +33,10 @@ import (
 	"twitter-clone/pkg/registry"
 	"twitter-clone/pkg/trace"
 
+	canalRelay "twitter-clone/internal/infrastructure/canal"
+	"github.com/go-mysql-org/go-mysql/canal"
+	"twitter-clone/internal/pkg/database/uow"
+
 	"twitter-clone/pkg/metric"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
@@ -90,7 +94,7 @@ func main() {
 	log.Println("✅ Database connected")
 
 	// 3. 自动迁移
-	if err := db.AutoMigrate(&domain.Tweet{}, &domain.Follow{}, &domain.Like{}, &domain.Comment{}, &domain.Retweet{}, &domain.Poll{}, &domain.PollOption{}, &domain.PollVote{}, &domain.Bookmark{}, &domain.OutboxTask{}); err != nil {
+	if err := db.AutoMigrate(&domain.Tweet{}, &domain.Follow{}, &domain.Like{}, &domain.Comment{}, &domain.Retweet{}, &domain.Poll{}, &domain.PollOption{}, &domain.PollVote{}, &domain.Bookmark{}, &domain.OutboxTask{}, &domain.OutboxEvent{}); err != nil {
 		log.Fatalf("❌ Failed to migrate database: %v", err)
 	}
 	log.Println("✅ Database migrated")
@@ -138,6 +142,7 @@ func main() {
 	pollRepo := tweetRepository.NewPollRepository(db)         // 🆕 投票仓储
 	bookmarkRepo := tweetRepository.NewBookmarkRepository(db) // 🆕 书签仓储
 	retweetRepo := tweetRepository.NewRetweetRepository(db)   // 🆕 转发仓储
+	outboxEventRepo := tweetRepository.NewMysqlOutboxEventRepo(db) // 🆕 发件箱仓储
 	timelineCache := tweetCache.NewTimelineCache(redisClient)
 	l1Cache, err := tweetCache.NewL1Cache(redisClient, 256) // 256MB 分配给 L1 缓存
 	if err != nil {
@@ -152,6 +157,7 @@ func main() {
 	}
 
 	// 7. 创建 Service
+	uowManager := uow.NewGormManager(db)
 	tweetSvc := tweetService.NewTweetService(
 		tweetRepo,
 		followRepo,
@@ -163,6 +169,8 @@ func main() {
 		timelineCache,
 		eventProducer,
 		l1Cache,
+		outboxEventRepo, // 🆕 注入发件箱仓储
+		uowManager,      // 🆕 注入工作单元管理器
 	)
 
 	// 8. 初始化 Consul 注册中心
@@ -227,7 +235,45 @@ func main() {
 	log.Println("   - GetFeeds")
 	log.Println("========================================")
 
-	// 10. 优雅关闭
+	// 10. 初始化 Canal 旁路中继器
+	canalCfg := canal.NewDefaultConfig()
+	canalCfg.Addr = fmt.Sprintf("%s:%d", dbConfig.Host, dbConfig.Port)
+	canalCfg.User = dbConfig.User
+	canalCfg.Password = dbConfig.Password
+	canalCfg.Dump.ExecutionPath = "" // 禁用备份 dump
+	// ServerID 要避免和主库冲突，这里我们取 9092 + 100
+	canalCfg.ServerID = 9192
+
+	canalInstance, err := canal.NewCanal(canalCfg)
+	if err != nil {
+		log.Fatalf("❌ Failed to create canal instance: %v", err)
+	}
+
+	posStore := canalRelay.NewRedisPositionStore(redisClient, "canal:position:tweet-service")
+	relay := canalRelay.NewOutboxEventRelay(canalInstance, mqClient, posStore)
+
+	if err := relay.Start(); err != nil {
+		log.Fatalf("❌ Failed to start canal relay: %v", err)
+	}
+
+	// 异步启动 Canal
+	go func() {
+		pos, err := posStore.GetPosition()
+		if err == nil && pos.Name != "" {
+			log.Printf("🔄 Resuming Canal from position: %v", pos)
+			if err := canalInstance.RunFrom(pos); err != nil {
+				log.Printf("❌ Canal run from position error: %v", err)
+			}
+		} else {
+			log.Println("🔄 Starting Canal from current master position")
+			if err := canalInstance.Run(); err != nil {
+				log.Printf("❌ Canal run error: %v", err)
+			}
+		}
+	}()
+	log.Println("✅ Canal outbox relay started")
+
+	// 11. 优雅关闭
 	go func() {
 		if err := grpcServer.Serve(lis); err != nil {
 			log.Fatalf("❌ Failed to serve: %v", err)
@@ -239,6 +285,10 @@ func main() {
 	<-quit
 
 	log.Println("🛑 Shutting down server...")
+
+	// 优雅停止 Canal
+	relay.Stop()
+
 	grpcServer.GracefulStop()
 	log.Println("✅ Server exited")
 }

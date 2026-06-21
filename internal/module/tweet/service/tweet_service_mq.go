@@ -13,6 +13,7 @@ import (
 	"twitter-clone/internal/domain"
 	"twitter-clone/internal/events"
 	"twitter-clone/internal/module/tweet/cache"
+	"twitter-clone/internal/pkg/database/uow"
 	"twitter-clone/pkg/logger"
 
 	"go.opentelemetry.io/otel"
@@ -39,17 +40,19 @@ type EventProducer interface {
 
 // TweetService 推文服务（带消息队列）
 type TweetService struct {
-	repo          domain.TweetRepository
-	followRepo    domain.FollowRepository
-	likeRepo      domain.LikeRepository
-	commentRepo   domain.CommentRepository
-	pollRepo      domain.PollRepository
-	bookmarkRepo  domain.BookmarkRepository
-	retweetRepo   domain.RetweetRepository
-	timelineCache *cache.TimelineCache
-	eventProducer EventProducer
-	l1Cache       *cache.L1Cache
-	requestGroup  singleflight.Group
+	repo            domain.TweetRepository
+	followRepo      domain.FollowRepository
+	likeRepo        domain.LikeRepository
+	commentRepo     domain.CommentRepository
+	pollRepo        domain.PollRepository
+	bookmarkRepo    domain.BookmarkRepository
+	retweetRepo     domain.RetweetRepository
+	timelineCache   *cache.TimelineCache
+	eventProducer   EventProducer
+	l1Cache         *cache.L1Cache
+	requestGroup    singleflight.Group
+	uow             uow.Manager
+	outboxEventRepo domain.OutboxEventRepository
 }
 
 // NewTweetService 创建推文服务
@@ -64,18 +67,22 @@ func NewTweetService(
 	timelineCache *cache.TimelineCache,
 	eventProducer EventProducer,
 	l1Cache *cache.L1Cache,
+	outboxEventRepo domain.OutboxEventRepository,
+	uowManager uow.Manager, // 🆕 新增工作单元管理器注入
 ) *TweetService {
 	return &TweetService{
-		repo:          repo,
-		followRepo:    followRepo,
-		likeRepo:      likeRepo,
-		commentRepo:   commentRepo,
-		pollRepo:      pollRepo,
-		bookmarkRepo:  bookmarkRepo,
-		retweetRepo:   retweetRepo,
-		timelineCache: timelineCache,
-		eventProducer: eventProducer,
-		l1Cache:       l1Cache,
+		repo:            repo,
+		followRepo:      followRepo,
+		likeRepo:        likeRepo,
+		commentRepo:     commentRepo,
+		pollRepo:        pollRepo,
+		bookmarkRepo:    bookmarkRepo,
+		retweetRepo:     retweetRepo,
+		timelineCache:   timelineCache,
+		eventProducer:   eventProducer,
+		l1Cache:         l1Cache,
+		outboxEventRepo: outboxEventRepo,
+		uow:             uowManager, // 🆕 赋值
 	}
 }
 
@@ -122,57 +129,75 @@ func (s *TweetService) CreateTweet(ctx context.Context, userID uint64, content s
 
 	// 4. 保存到数据库
 	// 🔍 DB Span
-	dbCtx, dbSpan := tr.Start(ctx, "TweetRepo.Create")
-	if err := s.repo.Create(dbCtx, tweet); err != nil {
+	dbCtx, dbSpan := tr.Start(ctx, "TweetService.Transaction")
+	err := s.uow.Do(dbCtx, func(txCtx context.Context) error {
+		if err := s.repo.Create(txCtx, tweet); err != nil {
+			return fmt.Errorf("failed to create tweet: %w", err)
+		}
+
+		payload := &domain.OutboxTweetCreatedPayload{
+			TweetID:     tweet.ID, // 此时已由 GORM 回填
+			AuthorID:    tweet.UserID,
+			ParentID:    tweet.ParentID,
+			Content:     tweet.Content,
+			MediaURLs:   tweet.MediaURLs,
+			Type:        tweet.Type,
+			VisibleType: tweet.VisibleType,
+			CreatedAt:   tweet.CreatedAt, // 此时已由 GORM 回填
+			HasPoll:     false,
+		}
+		// 保存投票 (如果有)
+		if len(pollOptions) >= 2 {
+			poll := &domain.Poll{
+				TweetID:   tweet.ID,
+				Question:  content, // 默认问题为推文内容 (或者可以独立)
+				CreatedAt: tweet.CreatedAt,
+				EndTime:   tweet.CreatedAt + int64(pollDuration)*60*1000, // 分钟转毫秒
+			}
+			for _, opt := range pollOptions {
+				poll.Options = append(poll.Options, domain.PollOption{
+					Text: opt,
+				})
+			}
+			if err := s.pollRepo.Create(txCtx, poll); err != nil {
+				logger.Error(txCtx, "failed to create poll", zap.Error(err))
+				return fmt.Errorf("failed to create poll: %w", err)
+			}
+
+			tweet.Poll = poll
+
+			// 挂载聚合子实体到 Payload
+			payload.HasPoll = true
+			payload.Poll = poll
+
+		}
+
+		payloadBytes, err := json.Marshal(payload)
+		if err != nil {
+			// 防止出现奇葩字符导致 JSON 序列化 Panic
+			return fmt.Errorf("failed to marshal outbox payload: %w", err)
+		}
+
+		outboxEvent := &domain.OutboxEvent{
+			EventType: "TWEET_CREATED",
+			Payload:   string(payloadBytes),
+		}
+
+		if err := s.outboxEventRepo.Create(txCtx, outboxEvent); err != nil {
+			return fmt.Errorf("failed to create outbox event: %w", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
 		dbSpan.RecordError(err)
-		dbSpan.End()
-		return nil, fmt.Errorf("failed to create tweet: %w", err)
 	}
 	dbSpan.End()
 
-	// 4.5 保存投票 (如果有)
-	if len(pollOptions) >= 2 {
-		poll := &domain.Poll{
-			TweetID:   tweet.ID,
-			Question:  content, // 默认问题为推文内容 (或者可以独立)
-			CreatedAt: tweet.CreatedAt,
-			EndTime:   tweet.CreatedAt + int64(pollDuration)*60*1000, // 分钟转毫秒
-		}
-		for _, opt := range pollOptions {
-			poll.Options = append(poll.Options, domain.PollOption{
-				Text: opt,
-			})
-		}
-		if err := s.pollRepo.Create(ctx, poll); err != nil {
-			logger.Error(ctx, "failed to create poll", zap.Error(err))
-			// 这种情况下是否回滚推文？
-			// MVP: 记录错误，不回滚，前端可能显示不完整
-		} else {
-			// 关联 poll 到返回的 tweet 对象，以便前端立即显示
-			tweet.Poll = poll
-		}
-	}
-
-	logger.Info(ctx, "✅ Tweet created", zap.Uint64("tweet_id", tweet.ID), zap.Uint64("user_id", tweet.UserID), zap.Uint64("parent_id", parentID))
-
-	// 5. 🆕 发送消息到 MQ（异步扇出）
-	event := &events.TweetCreatedEvent{
-		TweetID:  tweet.ID,
-		AuthorID: tweet.UserID,
-		Content:  tweet.Content,
-		Type:     tweet.Type,
-		// TODO: Add ParentID to event if needed for notification service
-	}
-
-	// 🔥 关键改进：不再使用 Goroutine，而是发送到消息队列
-	// 🔍 MQ Span
-	mqCtx, mqSpan := tr.Start(ctx, "MQProducer.Publish")
-	if err := s.eventProducer.PublishTweetCreated(mqCtx, event); err != nil {
-		// ⚠️ 即使发送失败，推文也已保存，记录错误即可
-		mqSpan.RecordError(err)
-		logger.Error(mqCtx, "⚠️  Failed to publish tweet created event", zap.Error(err))
-	}
-	mqSpan.End()
+	logger.Info(ctx, "✅ Tweet created and outbox event registered",
+		zap.Uint64("tweet_id", tweet.ID),
+		zap.Uint64("user_id", tweet.UserID))
 
 	return tweet, nil
 }

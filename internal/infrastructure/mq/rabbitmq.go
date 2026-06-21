@@ -157,6 +157,23 @@ func (r *RabbitMQ) Publish(ctx context.Context, exchange, routingKey string, bod
 	)
 }
 
+// PublishRawJSON 直接发布原生 JSON 字节流，主要用于 Canal 旁路中继器投递
+func (r *RabbitMQ) PublishRawJSON(ctx context.Context, exchange string, routingKey string, body []byte) error {
+	return r.channel.PublishWithContext(
+		ctx,
+		exchange,
+		routingKey,
+		false,
+		false,
+		amqp.Publishing{
+			ContentType:  "application/json",
+			Body:         body,
+			DeliveryMode: amqp.Persistent, // 持久化消息
+			Timestamp:    time.Now(),
+		},
+	)
+}
+
 // Consume 消费消息
 func (r *RabbitMQ) Consume(queueName, consumer string) (<-chan amqp.Delivery, error) {
 	return r.channel.Consume(

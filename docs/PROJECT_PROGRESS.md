@@ -216,12 +216,21 @@
 - [x] **1小时滑窗防刷 (W&A)** — 引入用户维度的 `lock:user_tag_count:{uid}:{tag}` 进行 1 小时限频，同一个 UID 对同一个词超过 3 次的交互不再计分，有效抵御水军刷榜。
 - [x] **多副本防雪崩分布式锁衰减** — 引入 Redis 分布式锁 `lock:trends_decay`，在多副本部署下每分钟仅允许单实例抢锁并对 ZSet 进行 0.95 衰减，同时即时裁剪前 100 名之外的长尾热词。
 
+### 阶段 25：Flutter 移动端 App 开发 (V6.0) (已完成)
+- [x] **基础设施与环境适配** — 采用 `adb reverse` 统一真机与模拟器调试时的本地网关端口映射，规避多端网络拓扑冲突；在客户端实现相对媒体路径补全，彻底解决 MinIO 绑定痛点；基于 `--dart-define-from-file` 配合 json 配置实现编译期环境隔离。
+- [x] **登录与鉴权** — 编写 Auth 响应模型和本地 Token 持久化存储，利用 Riverpod v3 Notifier 机制自动引导登录态并自愈登出。
+- [x] **首页信息流与发帖上传** — 封装 TweetCard 极佳适配 Twitter 图片布局逻辑，实现触底 Cursor 自动分页加载；集成 image_picker，调用后端 `/api/v1/upload` 流式上传至 MinIO。
+- [x] **互动、详情与个人主页** — 支持点赞、转发、书签、评论等交互按钮的即时 UI 乐观更新；支持 `TweetDetailScreen` 层级评论展现；构建 `ProfileScreen` 并配合 Notifier.family 提供发帖、媒体、喜欢三 Tab 各自 Cursor 分页。
+- [x] **热搜与 AI 智能体** — 支持 Trends 趋势榜与文字检索；编写 `AgentChatScreen` 支持 RAG 向量卡片、对话以及 AI 创作草稿一键确认发布。
+- [x] **实时通知与私信聊天室** — 接入 WebSocket 服务端推送，实时广播私信（`message`）事件并让 `ChatRoomScreen` 对话气泡动态流式追加；实现实时通知（`like`/`comment`/`follow`）红点徽标提示及 `NotificationScreen` 分类列表跳转。
+
 ---
 
 ## 🚧 当前阶段：已全部完成
 
 ### 目标
-完成了微服务高并发多级缓存、分布式 Saga 自愈编排、K6/PodKill 混沌压测、大模型闭环熔断自愈治理以及基础设施控制面的主动降级与网格自愈，并实现基于 Pyroscope 火焰图的 AI 自适应性能调优智能体。系统处于极强高可用、自调优自治状态。
+完成了微服务高并发多级缓存、分布式 Saga 自愈编排、K6/PodKill 混沌压测、大模型闭环熔断自愈治理以及基础设施控制面的主动降级与网格自愈，并实现基于 Pyroscope 火焰图的 AI 自适应性能调优智能体。同时，全面实现了具备离线持久化、BFF 多层缓存对接、WebSocket 实时聊天与分类推送等特性的生产级 Flutter 移动端手机 App。
+
 
 ---
 

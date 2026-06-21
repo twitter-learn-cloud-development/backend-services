@@ -1,18 +1,13 @@
 # 1. Build Stage
-#创建构造镜像，并命名为builder
+#åå»ºæé éåï¼å¹¶å½åä¸ºbuilder
 FROM golang:1.25-alpine AS builder
-#设置工作目录
+#è®¾ç½®å·¥ä½ç®å½
 WORKDIR /app
-#设置代理对象网站
-ENV GOPROXY=https://mirrors.aliyun.com/goproxy/,https://goproxy.io,direct
-#复制go.mod,go.sum到/app路径下
-COPY go.mod go.sum ./
-#进行依赖下载
-RUN go mod download
-#复制源码到/app目录下
+#è®¾ç½®ä»£çå¯¹è±¡ç½ç«
+#å¤å¶æºç å?appç®å½ä¸?
 COPY . .
-#构建follow可执行文件
-RUN go build -o follow-service ./cmd/follow-service/main.go
+#æå»ºfollowå¯æ§è¡æä»?
+RUN go build -mod=vendor -o follow-service ./cmd/follow-service/main.go
 
 # 2. Run Stage
 FROM alpine:latest
@@ -21,7 +16,7 @@ WORKDIR /app
 
 COPY --from=builder /app/follow-service .
 COPY --from=builder /app/configs ./configs
-#暴露在9093服务端口，意味着大家可以通过这个端口访问这个服务
+#æ´é²å?093æå¡ç«¯å£ï¼æå³çå¤§å®¶å¯ä»¥éè¿è¿ä¸ªç«¯å£è®¿é®è¿ä¸ªæå¡
 EXPOSE 9093
 
 CMD ["./follow-service"]

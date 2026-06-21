@@ -1,0 +1,4 @@
+{
+  "API_BASE_URL": "http://10.103.229.101/api/v1",
+  "MEDIA_BASE_URL": "http://10.103.229.101:9000"
+}

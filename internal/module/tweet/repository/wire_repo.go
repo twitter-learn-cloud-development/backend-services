@@ -10,4 +10,5 @@ var ProviderRepoSet = wire.NewSet(
 	NewCommentRepository, // Assuming these exist
 	NewRetweetRepository, // Assuming these exist
 	NewBookmarkRepository,
+	NewMysqlOutboxEventRepo,
 )

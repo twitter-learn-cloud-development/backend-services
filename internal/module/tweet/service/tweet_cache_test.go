@@ -55,6 +55,8 @@ func TestGetTweet_MultiLevelCacheFlow(t *testing.T) {
 		timelineCache,
 		mockProducer,
 		l1Cache,
+		nil, // outboxEventRepo
+		nil, // uowManager
 	)
 
 	tweetID := uint64(1001)
@@ -166,6 +168,8 @@ func TestGetTweet_Singleflight(t *testing.T) {
 		timelineCache,
 		nil,
 		l1Cache,
+		nil,
+		nil,
 	)
 
 	tweetID := uint64(9999)
@@ -255,6 +259,8 @@ func TestGetFeeds_HybridCacheFlow(t *testing.T) {
 		timelineCache,
 		nil,
 		l1Cache,
+		nil,
+		nil,
 	)
 
 	userID := uint64(100)

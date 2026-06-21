@@ -120,3 +120,28 @@ func (m *MockEventProducer) PublishCommentCreated(ctx context.Context, event *ev
 	args := m.Called(ctx, event)
 	return args.Error(0)
 }
+
+// MockOutboxEventRepository 模拟 OutboxEventRepository
+type MockOutboxEventRepository struct {
+	mock.Mock
+}
+
+func (m *MockOutboxEventRepository) Create(ctx context.Context, event *domain.OutboxEvent) error {
+	args := m.Called(ctx, event)
+	return args.Error(0)
+}
+
+func (m *MockOutboxEventRepository) DeleteExpired(ctx context.Context, beforeTimestamp int64) error {
+	args := m.Called(ctx, beforeTimestamp)
+	return args.Error(0)
+}
+
+// MockUOWManager 模拟 uow.Manager
+type MockUOWManager struct {
+	mock.Mock
+}
+
+func (m *MockUOWManager) Do(ctx context.Context, fn func(txCtx context.Context) error) error {
+	// 直接执行业务闭包，透传 context
+	return fn(ctx)
+}
