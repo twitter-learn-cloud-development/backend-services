@@ -1,10 +1,12 @@
 package trace
 
 import (
+	"context"
 	"log"
+	"time"
 
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/jaeger"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -25,11 +27,17 @@ func InitTracer(serviceName string, collectorHost string) {
 		log.Printf("⚠️ Failed to merge resource: %v", err)
 	}
 
-	// 2. 配置 Exporter (将数据发送给 Jaeger Collector - HTTP)
-	// 使用 HTTP Collector Endpoint 替代 UDP Agent，适用于无 Sidecar 部署
-	exporter, err := jaeger.New(jaeger.WithCollectorEndpoint(jaeger.WithEndpoint(collectorHost)))
+	// 2. 配置 Exporter (将数据发送给 OTel Collector - gRPC)
+	// collectorHost 形式一般为 IP:Port 或域名:Port，例如 localhost:4317
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	exporter, err := otlptracegrpc.New(ctx,
+		otlptracegrpc.WithEndpoint(collectorHost),
+		otlptracegrpc.WithInsecure(), // 本地/内部调用，默认不使用 TLS
+	)
 	if err != nil {
-		log.Printf("⚠️ Failed to create jaeger exporter: %v", err)
+		log.Printf("⚠️ Failed to create OTLP gRPC exporter: %v", err)
 		return
 	}
 
@@ -50,5 +58,6 @@ func InitTracer(serviceName string, collectorHost string) {
 		propagation.Baggage{},
 	))
 
-	log.Printf("✅ Tracer initialized for service: %s (Agent: %s)", serviceName, collectorHost)
+	log.Printf("✅ Tracer initialized for service: %s (OTLP gRPC Collector: %s)", serviceName, collectorHost)
 }
+

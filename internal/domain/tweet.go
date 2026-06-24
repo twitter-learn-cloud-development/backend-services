@@ -139,3 +139,19 @@ type TrendingTopic struct {
 	Topic string `json:"topic"`
 	Score int32  `json:"score"`
 }
+
+// TweetCreatedPayload 对应发件箱中 TWEET_CREATED 事件的 JSON 结构
+type TweetCreatedPayload struct {
+	TweetID     uint64             `json:"tweet_id"`
+	AuthorID    uint64             `json:"author_id"`
+	ParentID    uint64             `json:"parent_id,omitempty"`    // 回复父推文时需要
+	Content     string             `json:"content"`
+	MediaURLs   []string           `json:"media_urls,omitempty"`   // 附带的媒体流
+	Type        int   `json:"type"`
+	VisibleType int `json:"visible_type"`           // 控制下游是否推送到公网
+	CreatedAt   int64              `json:"created_at"`             // 发生时间的时间戳
+	
+	// 投票等聚合子实体
+	HasPoll     bool               `json:"has_poll"`
+	Poll        *Poll       `json:"poll,omitempty"`
+}

@@ -232,13 +232,13 @@ func (a *AgentActivities) ParallelRetrieveActivity(ctx context.Context, topic st
 		embedding, err := a.aiClient.GetEmbedding(gCtx, topic, a.embeddingModel)
 		if err != nil {
 			log.Printf("⚠️ Qdrant pathway failed to get embedding: %v", err)
-			return nil
+			return err
 		}
 
 		results, err := a.qdrantClient.Search(gCtx, "tweets", embedding, 10)
 		if err != nil {
 			log.Printf("⚠️ Qdrant pathway search failed: %v", err)
-			return nil
+			return err
 		}
 
 		for _, res := range results {
@@ -258,7 +258,7 @@ func (a *AgentActivities) ParallelRetrieveActivity(ctx context.Context, topic st
 		docs, err := a.esClient.SearchTweets(gCtx, topic, 1, 10)
 		if err != nil {
 			log.Printf("⚠️ ES pathway search failed: %v", err)
-			return nil
+			return err
 		}
 		for _, doc := range docs {
 			esResults = append(esResults, doc.Content)
@@ -311,8 +311,13 @@ func (a *AgentActivities) GenerateSummaryActivity(ctx context.Context, topic str
 	}
 
 	// 注入 Temporal 心跳上报逻辑
+	// 顶级写法：利用高阶函数做限流，每隔 2 秒或累积一定内容才上报一次
+	lastHeartbeat := time.Now()
 	onProgress := func(chunk string) {
-		activity.RecordHeartbeat(ctx, chunk)
+		if time.Since(lastHeartbeat) > 2*time.Second {
+			activity.RecordHeartbeat(ctx, chunk)
+			lastHeartbeat = time.Now()
+		}
 	}
 
 	summaryCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -339,6 +344,26 @@ func (a *AgentActivities) PublishTweetActivity(ctx context.Context, summary stri
 	reqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
+	var idempotencyKey string
+	if activity.IsActivity(ctx) {
+		info := activity.GetInfo(ctx)
+		// 结合 Workflow ID 和 Activity ID 作为唯一的幂等键
+		idempotencyKey = fmt.Sprintf("idempotency:publish_tweet:%s:%s", info.WorkflowExecution.ID, info.ActivityID)
+	}
+
+	// 1. 如果有幂等键，先尝试从 Redis 中获取已发布的 Tweet ID
+	if idempotencyKey != "" && a.redisClient != nil {
+		cachedTweetIDStr, err := a.redisClient.Get(reqCtx, idempotencyKey).Result()
+		if err == nil && cachedTweetIDStr != "" {
+			var cachedTweetID uint64
+			if _, errScan := fmt.Sscanf(cachedTweetIDStr, "%d", &cachedTweetID); errScan == nil {
+				log.Printf("ℹ️ Idempotency hit: Tweet already published previously. Key: %s, Returned TweetID: %d", 
+					idempotencyKey, cachedTweetID)
+				return cachedTweetID, nil
+			}
+		}
+	}
+
 	createReq := &tweetv1.CreateTweetRequest{
 		UserId:  a.botUserID,
 		Content: summary,
@@ -349,6 +374,17 @@ func (a *AgentActivities) PublishTweetActivity(ctx context.Context, summary stri
 		return 0, fmt.Errorf("failed to publish trending tweet via tweetClient: %w", err)
 	}
 
+	// 2. 发布成功后，将生成的 TweetID 写入 Redis 缓存（缓存 24 小时以防重试）
+	if idempotencyKey != "" && a.redisClient != nil {
+		errSet := a.redisClient.Set(reqCtx, idempotencyKey, fmt.Sprintf("%d", resp.Tweet.Id), 24*time.Hour).Err()
+		if errSet != nil {
+			log.Printf("⚠️ Failed to cache idempotency key in Redis: %v", errSet)
+		} else {
+			log.Printf("💾 Idempotency key cached in Redis: %s -> %d", idempotencyKey, resp.Tweet.Id)
+		}
+	}
+
 	log.Printf("✅ Trending report published successfully via Activity! TweetID: %d", resp.Tweet.Id)
 	return resp.Tweet.Id, nil
 }
+

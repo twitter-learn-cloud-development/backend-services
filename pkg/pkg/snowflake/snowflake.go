@@ -7,8 +7,10 @@ import (
 	"strconv"
 	"sync"
 	"time"
+	"twitter-clone/pkg/logger"
 
 	"github.com/go-redis/redis/v8"
+	"go.uber.org/zap"
 )
 
 const machineIDSlotKey = "machine_slots"
@@ -133,13 +135,16 @@ func (n *customNode) generate() (uint64, error) {
 
 	realNow := time.Now().UnixMilli()
 	now := realNow
-
 	if now < n.lastTimestamp {
 		offset := n.lastTimestamp - now
 		if offset > maxTolerateTimeDifference {
-			// 回拨幅度太大（比如倒退了 10 秒），绝对不能借用未来！
-			// 直接报错，外层业务捕获此错误后，应立刻去 Redis 申请“动态漂移”换新槽位
-			return 0, fmt.Errorf("时钟回拨超过阈值(%dms)，必须申请新槽位", offset)
+			// 回拨幅度太大（比如倒退了 10 秒），绝对不能借用未来！直接等待时间一致。
+			logger.Warn(context.Background(), "clock rollback detected",
+				zap.Int64("offset", offset),
+			)
+
+			// 1. 直接等待时间恢复（最安全）
+			time.Sleep(time.Duration(offset) * time.Millisecond)
 		}
 		// 回拨幅度很小（<=5ms），安全！我们直接“借用”最后一次发号的时间
 		now = n.lastTimestamp
@@ -229,7 +234,7 @@ func keepAlive(redisClient *redis.Client, workerID int64, ip string) {
 		err := redisClient.HSet(ctx, machineIDSlotKey, slotID, val).Err()
 		if err != nil {
 			// 这里最好接入你们的日志库打印 Error，心跳失败不一定马上死，但需要警报
-			fmt.Printf("snowflake keepalive warning: %v\n", err)
+			logger.Fatal(ctx, "snowflake keepalive warning: %v", zap.Error(err))
 		}
 	}
 }
