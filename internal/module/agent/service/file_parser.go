@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"strings"
 	"unicode/utf8"
 
@@ -36,20 +37,20 @@ type ModelInfo struct {
 
 // GetAvailableModels 返回当前可用的模型列表
 func GetAvailableModels() []ModelInfo {
+	chatModel := os.Getenv("DASHSCOPE_MODEL_CHAT")
+	if chatModel == "" {
+		chatModel = os.Getenv("PREMIUM_AI_MODEL_CHAT")
+	}
+	if chatModel == "" {
+		chatModel = "qwen-plus"
+	}
 	return []ModelInfo{
 		{
 			ID:          1,
-			Name:        "qwen3.6-plus",
+			Name:        chatModel,
 			Description: "阿里云百炼 Qwen 大语言模型，用于对话、推理和推文生成",
 			MaxTokens:   32768,
 			FileKinds:   SupportedFileKinds,
-		},
-		{
-			ID:          2,
-			Name:        "text-embedding-bge-m3",
-			Description: "BGE-M3 向量化模型（本地 LM Studio），用于推文语义搜索",
-			MaxTokens:   8192,
-			FileKinds:   nil, // embedding 模型不支持文件解析
 		},
 	}
 }

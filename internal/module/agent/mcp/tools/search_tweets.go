@@ -50,20 +50,21 @@ func RegisterSearchTweets(srv *server.MCPServer, aiClient *ai.Client, esClient *
 			}
 		}
 
-		// 1. 把用户问题向量化
-		vector, err := aiClient.GetEmbedding(ctx, query, model)
-		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("embedding failed: %v", err)), nil
-		}
-
 		// 🎯 优化：初筛漏斗数量放大 3 倍，避免内存和网络 I/O 暴涨
 		initialSize := size * 3
+
+		// 1. 把用户问题向量化。Embedding 不可用时不要中断搜索，降级到 ES/BM25。
+		vector, err := aiClient.GetEmbedding(ctx, query, model)
+		vectorReady := err == nil
+		if err != nil {
+			log.Printf("⚠️ [RAG Degradation] embedding failed, skip vector path and use ES fallback: %v", err)
+		}
 
 		var tweets []es.TweetDocument
 		var searchErr error
 
 		// 2. Qdrant 向量检索粗筛 (首选的高级向量检索)
-		if qdrantClient != nil {
+		if vectorReady && qdrantClient != nil {
 			var qdrantResults []qdrant.SearchResult
 			qdrantResults, searchErr = qdrantClient.Search(ctx, "tweets", vector, initialSize)
 			if searchErr == nil {
@@ -215,14 +216,15 @@ func RegisterHybridSearchTweets(srv *server.MCPServer, aiClient *ai.Client, esCl
 			}
 		}
 
-		// 1. 向量化
-		vector, err := aiClient.GetEmbedding(ctx, query, model)
-		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("embedding failed: %v", err)), nil
-		}
-
 		// 🎯 优化：初筛漏斗数量放大 3 倍
 		initialSize := size * 3
+
+		// 1. 向量化。失败时仍保留 ES 文本检索路径，避免查询工具整体不可用。
+		vector, err := aiClient.GetEmbedding(ctx, query, model)
+		vectorReady := err == nil
+		if err != nil {
+			log.Printf("⚠️ [Hybrid Search] embedding failed, skip Qdrant path and continue with ES: %v", err)
+		}
 
 		// 2. 混合搜索双路并发召回 (ES 文本倒排 + Qdrant 向量检索)
 		// 为整个 RAG 初筛链路设置强制短超时，防止下游拖垮上游
@@ -255,6 +257,10 @@ func RegisterHybridSearchTweets(srv *server.MCPServer, aiClient *ai.Client, esCl
 
 		// 🚀 路径二：并发调用 Qdrant 进行高维稠密向量语义召回 (HNSW)
 		g.Go(func() error {
+			if !vectorReady {
+				log.Println("⚠️  Embedding unavailable, skip Qdrant path")
+				return nil
+			}
 			if qdrantClient == nil {
 				log.Println("⚠️  Qdrant client is nil, skip Qdrant path")
 				return nil

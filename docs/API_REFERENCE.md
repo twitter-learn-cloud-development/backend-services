@@ -1,13 +1,15 @@
+d
+
 # Twitter Clone API 接口文档
 
 ## 概述
 
-| 项目 | 说明 |
-|------|------|
+| 项目               | 说明                                                                                                |
+| ------------------ | --------------------------------------------------------------------------------------------------- |
 | **Base URL** | `http://twitter-clone.local/api/v1` (Ingress) 或 `http://<minikube-ip>:30638/api/v1` (NodePort) |
-| **认证方式** | Bearer Token (JWT)，通过 `Authorization: Bearer <token>` 请求头传递 |
-| **数据格式** | JSON |
-| **网关端口** | 9638 |
+| **认证方式** | Bearer Token (JWT)，通过`Authorization: Bearer <token>` 请求头传递                                |
+| **数据格式** | JSON                                                                                                |
+| **网关端口** | 9638                                                                                                |
 
 ---
 
@@ -20,6 +22,7 @@ POST /api/v1/auth/register
 ```
 
 **请求体：**
+
 ```json
 {
   "username": "string (必填, 3-20字符)",
@@ -29,6 +32,7 @@ POST /api/v1/auth/register
 ```
 
 **成功响应 (200)：**
+
 ```json
 {
   "user": {
@@ -52,6 +56,7 @@ POST /api/v1/auth/login
 ```
 
 **请求体：**
+
 ```json
 {
   "email": "string (必填)",
@@ -60,6 +65,7 @@ POST /api/v1/auth/login
 ```
 
 **成功响应 (200)：**
+
 ```json
 {
   "token": "eyJhbGciOiJIUzI1NiIs...",
@@ -84,11 +90,13 @@ GET /api/v1/users/:id
 ```
 
 **路径参数：**
-| 参数 | 类型 | 说明 |
-|------|------|------|
+
+| 参数   | 类型   | 说明    |
+| ------ | ------ | ------- |
 | `id` | uint64 | 用户 ID |
 
 **成功响应 (200)：**
+
 ```json
 {
   "user": {
@@ -112,6 +120,7 @@ GET /api/v1/users/:id/full_profile
 > 🔥 **BFF 聚合端点**：并发调用 User/Tweet/Follow 三个服务，返回完整用户画像。
 
 **成功响应 (200)：**
+
 ```json
 {
   "user": {
@@ -156,6 +165,7 @@ PUT /api/v1/users/me
 **Headers：** `Authorization: Bearer <token>`
 
 **请求体：**
+
 ```json
 {
   "avatar": "string (可选)",
@@ -174,11 +184,13 @@ GET /api/v1/tweets/:id
 ```
 
 **路径参数：**
-| 参数 | 类型 | 说明 |
-|------|------|------|
+
+| 参数   | 类型   | 说明    |
+| ------ | ------ | ------- |
 | `id` | uint64 | 推文 ID |
 
 **成功响应 (200)：**
+
 ```json
 {
   "tweet": {
@@ -208,6 +220,7 @@ POST /api/v1/tweets
 **Headers：** `Authorization: Bearer <token>`
 
 **请求体：**
+
 ```json
 {
   "content": "string (必填)",
@@ -236,6 +249,7 @@ POST /api/v1/tweets/:id/like
 **Headers：** `Authorization: Bearer <token>`
 
 **成功响应 (200)：**
+
 ```json
 {
   "like_count": 6,
@@ -254,6 +268,7 @@ DELETE /api/v1/tweets/:id/like
 **Headers：** `Authorization: Bearer <token>`
 
 **成功响应 (200)：**
+
 ```json
 {
   "like_count": 5,
@@ -272,6 +287,7 @@ POST /api/v1/tweets/:id/comments
 **Headers：** `Authorization: Bearer <token>`
 
 **Body：**
+
 ```json
 {
   "content": "This is a comment!",
@@ -280,6 +296,7 @@ POST /api/v1/tweets/:id/comments
 ```
 
 **成功响应 (201)：**
+
 ```json
 {
   "comment": {
@@ -299,6 +316,7 @@ GET /api/v1/tweets/:id/comments?cursor=0&limit=20
 ```
 
 **成功响应 (200)：**
+
 ```json
 {
   "comments": [ ... ],
@@ -336,6 +354,7 @@ GET /api/v1/ws?token=<access_token>
 ```
 
 **Query Parameters：**
+
 - `token`: JWT Access Token (必填)
 
 **消息通过 WebSocket 推送，格式如下：**
@@ -368,6 +387,7 @@ GET /api/v1/search?q=<keyword>
 ```
 
 **Query Parameters：**
+
 - `q`: 搜索关键词 (必填)
 - `cursor`: 游标 (上次返回的 `next_cursor`，默认为 0)
 - `limit`: 每页数量 (默认 20)
@@ -395,6 +415,7 @@ GET /api/v1/trends
 ```
 
 **Query Parameters：**
+
 - `limit`: 返回数量 (默认 10，最大 50)
 
 **成功响应 (200 OK)：**
@@ -425,12 +446,14 @@ GET /api/v1/users/:id/timeline
 ```
 
 **查询参数：**
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `cursor` | uint64 | 0 | 游标（分页起点） |
-| `limit` | int32 | 20 | 每页数量 |
+
+| 参数       | 类型   | 默认值 | 说明             |
+| ---------- | ------ | ------ | ---------------- |
+| `cursor` | uint64 | 0      | 游标（分页起点） |
+| `limit`  | int32  | 20     | 每页数量         |
 
 **成功响应 (200)：**
+
 ```json
 {
   "tweets": [...],
@@ -505,6 +528,7 @@ POST /api/v1/upload
 **Content-Type**: `multipart/form-data`
 
 **Form Data:**
+
 - `file`: (Binary) 图片或视频文件 (max 10MB)
 
 **成功响应 (200 OK)：**
@@ -528,6 +552,7 @@ POST /api/v1/follows
 **Headers：** `Authorization: Bearer <token>`
 
 **请求体：**
+
 ```json
 {
   "followee_id": 2
@@ -555,6 +580,7 @@ GET /api/v1/follows/:id/status
 ```
 
 **成功响应 (200)：**
+
 ```json
 {
   "is_following": true
@@ -572,6 +598,7 @@ GET /api/v1/users/:id/followers
 **查询参数：** `cursor`, `limit`
 
 **成功响应 (200)：**
+
 ```json
 {
   "follower_ids": [3, 5, 8],
@@ -597,6 +624,7 @@ GET /api/v1/users/:id/stats
 ```
 
 **成功响应 (200)：**
+
 ```json
 {
   "follower_count": 42,
@@ -615,6 +643,7 @@ GET /health
 ```
 
 **响应：**
+
 ```json
 {
   "status": "ok"
@@ -639,51 +668,51 @@ GET /metrics
 
 ### 6.1 UserService (端口 9091)
 
-| 方法 | 请求 | 响应 |
-|------|------|------|
-| `Register` | `{username, email, password}` | `{user}` |
-| `Login` | `{email, password}` | `{token, user}` |
-| `GetProfile` | `{user_id}` | `{user}` |
-| `UpdateProfile` | `{user_id, avatar, bio}` | `{user}` |
-| `ChangePassword` | `{user_id, old_password, new_password}` | `{message}` |
+| 方法               | 请求                                      | 响应              |
+| ------------------ | ----------------------------------------- | ----------------- |
+| `Register`       | `{username, email, password}`           | `{user}`        |
+| `Login`          | `{email, password}`                     | `{token, user}` |
+| `GetProfile`     | `{user_id}`                             | `{user}`        |
+| `UpdateProfile`  | `{user_id, avatar, bio}`                | `{user}`        |
+| `ChangePassword` | `{user_id, old_password, new_password}` | `{message}`     |
 
 ### 6.2 TweetService (端口 9092)
 
-| 方法 | 请求 | 响应 |
-|------|------|------|
-| `CreateTweet` | `{user_id, content, media_urls}` | `{tweet}` |
-| `GetTweet` | `{tweet_id}` | `{tweet}` |
-| `DeleteTweet` | `{tweet_id, user_id}` | `{message}` |
-| `GetUserTimeline` | `{user_id, cursor, limit}` | `{tweets[], next_cursor, has_more}` |
-| `GetFeeds` | `{user_id, cursor, limit}` | `{tweets[], next_cursor, has_more}` |
-| `BookmarkTweet` | `{user_id, tweet_id}` | `{message}` |
-| `UnbookmarkTweet` | `{user_id, tweet_id}` | `{message}` |
-| `GetUserBookmarks` | `{user_id, cursor, limit}` | `{tweets[], next_cursor, has_more}` |
-| `RetweetTweet` | `{user_id, tweet_id}` | `{retweet_count, is_retweeted}` |
-| `UnretweetTweet` | `{user_id, tweet_id}` | `{retweet_count, is_retweeted}` |
-| `GetUserLikes` | `{user_id, cursor, limit, requesting_user_id}` | `{tweets[], next_cursor, has_more}` |
-| `GetUserReplies` | `{user_id, cursor, limit, requesting_user_id}` | `{tweets[], next_cursor, has_more}` |
-| `GetUserMedia` | `{user_id, cursor, limit, requesting_user_id}` | `{tweets[], next_cursor, has_more}` |
+| 方法                 | 请求                                             | 响应                                  |
+| -------------------- | ------------------------------------------------ | ------------------------------------- |
+| `CreateTweet`      | `{user_id, content, media_urls}`               | `{tweet}`                           |
+| `GetTweet`         | `{tweet_id}`                                   | `{tweet}`                           |
+| `DeleteTweet`      | `{tweet_id, user_id}`                          | `{message}`                         |
+| `GetUserTimeline`  | `{user_id, cursor, limit}`                     | `{tweets[], next_cursor, has_more}` |
+| `GetFeeds`         | `{user_id, cursor, limit}`                     | `{tweets[], next_cursor, has_more}` |
+| `BookmarkTweet`    | `{user_id, tweet_id}`                          | `{message}`                         |
+| `UnbookmarkTweet`  | `{user_id, tweet_id}`                          | `{message}`                         |
+| `GetUserBookmarks` | `{user_id, cursor, limit}`                     | `{tweets[], next_cursor, has_more}` |
+| `RetweetTweet`     | `{user_id, tweet_id}`                          | `{retweet_count, is_retweeted}`     |
+| `UnretweetTweet`   | `{user_id, tweet_id}`                          | `{retweet_count, is_retweeted}`     |
+| `GetUserLikes`     | `{user_id, cursor, limit, requesting_user_id}` | `{tweets[], next_cursor, has_more}` |
+| `GetUserReplies`   | `{user_id, cursor, limit, requesting_user_id}` | `{tweets[], next_cursor, has_more}` |
+| `GetUserMedia`     | `{user_id, cursor, limit, requesting_user_id}` | `{tweets[], next_cursor, has_more}` |
 
 ### 6.3 FollowService (端口 9093)
 
-| 方法 | 请求 | 响应 |
-|------|------|------|
-| `Follow` | `{follower_id, followee_id}` | `{message}` |
-| `Unfollow` | `{follower_id, followee_id}` | `{message}` |
-| `IsFollowing` | `{follower_id, followee_id}` | `{is_following}` |
-| `GetFollowers` | `{user_id, cursor, limit}` | `{follower_ids[], next_cursor, has_more}` |
-| `GetFollowees` | `{user_id, cursor, limit}` | `{followee_ids[], next_cursor, has_more}` |
-| `GetFollowStats` | `{user_id}` | `{follower_count, followee_count}` |
+| 方法               | 请求                           | 响应                                        |
+| ------------------ | ------------------------------ | ------------------------------------------- |
+| `Follow`         | `{follower_id, followee_id}` | `{message}`                               |
+| `Unfollow`       | `{follower_id, followee_id}` | `{message}`                               |
+| `IsFollowing`    | `{follower_id, followee_id}` | `{is_following}`                          |
+| `GetFollowers`   | `{user_id, cursor, limit}`   | `{follower_ids[], next_cursor, has_more}` |
+| `GetFollowees`   | `{user_id, cursor, limit}`   | `{followee_ids[], next_cursor, has_more}` |
+| `GetFollowStats` | `{user_id}`                  | `{follower_count, followee_count}`        |
 
 ### 6.4 NotificationService (端口 9095)
 
-| 方法 | 请求 | 响应 |
-|------|------|------|
+| 方法                  | 请求                         | 响应                                         |
+| --------------------- | ---------------------------- | -------------------------------------------- |
 | `ListNotifications` | `{user_id, cursor, limit}` | `{notifications[], next_cursor, has_more}` |
-| `MarkAsRead` | `{user_id, ids[]}` | `{message}` |
-| `MarkAllAsRead` | `{user_id}` | `{message}` |
-| `GetUnreadCount` | `{user_id}` | `{count}` |
+| `MarkAsRead`        | `{user_id, ids[]}`         | `{message}`                                |
+| `MarkAllAsRead`     | `{user_id}`                | `{message}`                                |
+| `GetUnreadCount`    | `{user_id}`                | `{count}`                                  |
 
 ---
 
@@ -697,14 +726,14 @@ GET /metrics
 }
 ```
 
-| HTTP 状态码 | 说明 |
-|------------|------|
-| 400 | 请求参数错误 |
-| 401 | 未认证 / Token 无效 |
-| 403 | 权限不足 |
-| 404 | 资源不存在 |
-| 429 | 请求过于频繁（限流） |
-| 500 | 服务器内部错误 |
+| HTTP 状态码 | 说明                 |
+| ----------- | -------------------- |
+| 400         | 请求参数错误         |
+| 401         | 未认证 / Token 无效  |
+| 403         | 权限不足             |
+| 404         | 资源不存在           |
+| 429         | 请求过于频繁（限流） |
+| 500         | 服务器内部错误       |
 
 ---
 
@@ -717,6 +746,7 @@ GET /api/v1/notifications?cursor=0&limit=20
 ```
 
 **成功响应 (200)：**
+
 ```json
 {
   "notifications": [
@@ -748,6 +778,7 @@ PUT /api/v1/notifications/read
 ```
 
 **请求体：**
+
 ```json
 {
   "ids": [1234567890, 1234567891]
@@ -761,6 +792,7 @@ GET /api/v1/notifications/unread-count
 ```
 
 **成功响应 (200)：**
+
 ```json
 {
   "count": 5
@@ -790,6 +822,7 @@ GET /api/v1/bookmarks?cursor=0&limit=20
 ```
 
 **成功响应 (200)：**
+
 ```json
 {
   "tweets": [
@@ -816,6 +849,7 @@ POST /api/v1/tweets/:id/retweet
 ```
 
 **成功响应：**
+
 ```json
 { "retweet_count": 5, "is_retweeted": true }
 ```
@@ -827,6 +861,7 @@ DELETE /api/v1/tweets/:id/retweet
 ```
 
 **成功响应：**
+
 ```json
 { "retweet_count": 4, "is_retweeted": false }
 ```
@@ -850,6 +885,7 @@ GET /api/v1/users/:id/replies?cursor=0&limit=20
 ```
 
 **成功响应：**
+
 ```json
 {
   "replies": [
@@ -889,11 +925,13 @@ POST /alerts
 ```
 
 **Headers：**
-| 请求头 | 说明 | 必填 |
-|------|------|------|
-| `X-Alertmanager-Token` | 鉴权令牌，固定为 `twitter-clone-secret-alert-token` | 是 |
+
+| 请求头                   | 说明                                                 | 必填 |
+| ------------------------ | ---------------------------------------------------- | ---- |
+| `X-Alertmanager-Token` | 鉴权令牌，固定为`twitter-clone-secret-alert-token` | 是   |
 
 **请求体 (JSON 示例)：**
+
 ```json
 {
   "status": "firing",
@@ -904,6 +942,7 @@ POST /alerts
 **成功响应 (200 OK)：**
 
 1. **正常接收并启动大模型诊断**（首次触发 firing）：
+
 ```json
 {
   "status": "accepted",
@@ -912,6 +951,7 @@ POST /alerts
 ```
 
 2. **触发防抖去重拦截**（同一个 groupKey 在 5分钟内重复发送）：
+
 ```json
 {
   "status": "debounced",
@@ -920,6 +960,7 @@ POST /alerts
 ```
 
 3. **忽略恢复告警**（status 为 resolved）：
+
 ```json
 {
   "status": "ignored",
@@ -931,17 +972,17 @@ POST /alerts
 
 ## 13. 中间件
 
-| 中间件 | 说明 |
-|--------|------|
-| **OpenTelemetry** | 自动注入 TraceID/SpanID |
-| **Prometheus Metrics** | 记录请求延迟、状态码等指标 |
-| **Rate Limiter** | Redis 分布式限流 (1000/min per IP) |
-| **Logger** | 请求日志记录 |
-| **CORS** | 跨域资源共享 |
-| **Recovery** | Panic 恢复 |
-| **Error Handler** | 统一错误处理 |
-| **JWT Auth** | 🔒 标记的接口需要认证 |
-| **JWT AuthOptional** | 可选认证：有 token 就解析 user_id，没有则跳过 |
+| 中间件                       | 说明                                          |
+| ---------------------------- | --------------------------------------------- |
+| **OpenTelemetry**      | 自动注入 TraceID/SpanID                       |
+| **Prometheus Metrics** | 记录请求延迟、状态码等指标                    |
+| **Rate Limiter**       | Redis 分布式限流 (1000/min per IP)            |
+| **Logger**             | 请求日志记录                                  |
+| **CORS**               | 跨域资源共享                                  |
+| **Recovery**           | Panic 恢复                                    |
+| **Error Handler**      | 统一错误处理                                  |
+| **JWT Auth**           | 🔒 标记的接口需要认证                         |
+| **JWT AuthOptional**   | 可选认证：有 token 就解析 user_id，没有则跳过 |
 
 ---
 
@@ -956,6 +997,7 @@ POST /api/v1/agent/chat
 ```
 
 **请求体：**
+
 ```json
 {
   "content": "你好",
@@ -963,9 +1005,11 @@ POST /api/v1/agent/chat
   "model_kind_id": 1
 }
 ```
+
 *注：首次发起新对话时 `dialogue_id` 可传空字符串 `""` 或 `"0"`，后续追加对话需携带首轮返回的 dialogue_id*
 
 **成功响应 (200 OK)：**
+
 ```json
 {
   "response": "你好！我是你的 AI 助手，有什么可以帮你的吗？"
@@ -981,6 +1025,7 @@ POST /api/v1/agent/consult
 ```
 
 **请求体：**
+
 ```json
 {
   "content": "帮我搜搜关于 Go 1.25 的推文",
@@ -990,6 +1035,7 @@ POST /api/v1/agent/consult
 ```
 
 **成功响应 (200 OK)：**
+
 ```json
 {
   "response": "为您找到了以下关于 Go 1.25 的推文：",
@@ -1012,6 +1058,7 @@ POST /api/v1/agent/assist
 ```
 
 **请求体：**
+
 ```json
 {
   "content": "写一篇关于 K8s Ingress 的推文",
@@ -1021,6 +1068,7 @@ POST /api/v1/agent/assist
 ```
 
 **成功响应 (200 OK)：**
+
 ```json
 {
   "response": "这是为您生成的推文草稿选项：",
@@ -1053,6 +1101,7 @@ POST /api/v1/agent/confirm
 ```
 
 **请求体：**
+
 ```json
 {
   "content": "确认发布的推文内容"
@@ -1060,6 +1109,7 @@ POST /api/v1/agent/confirm
 ```
 
 **成功响应 (200 OK)：**
+
 ```json
 {
   "response": "推文发布成功！",
@@ -1076,6 +1126,7 @@ POST /api/v1/agent/multi
 ```
 
 **请求体：**
+
 ```json
 {
   "domain": "技术分享",
@@ -1087,6 +1138,7 @@ POST /api/v1/agent/multi
 ```
 
 **成功响应 (200 OK)：**
+
 ```json
 {
   "response": "Markdown 格式的深度研究推文推荐及舆情审查意见"
@@ -1102,13 +1154,16 @@ GET /api/v1/agent/dialogues
 ```
 
 **成功响应 (200 OK)：**
+
 ```json
 {
   "code": 200,
   "msg": "success",
   "repository_dialogue_list": [
     {
-      "id": "3553550178352795156",
+      "id": "667f8e03c35b9a1200000001",
+      "dialogue_key": "667f8e03c35b9a1200000001",
+      "legacy_id": "3553550178352795156",
       "user_id": "123",
       "title": "关于 K8s Ingress 的讨论"
     }
@@ -1125,11 +1180,13 @@ GET /api/v1/agent/dialogues/:id/messages
 ```
 
 **路径参数：**
-| 参数 | 类型 | 说明 |
-|------|------|------|
+
+| 参数   | 类型   | 说明        |
+| ------ | ------ | ----------- |
 | `id` | string | 对话会话 ID |
 
 **成功响应 (200 OK)：**
+
 ```json
 {
   "code": 200,
@@ -1139,12 +1196,27 @@ GET /api/v1/agent/dialogues/:id/messages
       "id": "3553550178352795157",
       "user_id": "123",
       "dialogue_id": "3553550178352795156",
+      "dialogue_key": "667f8e03c35b9a1200000001",
+      "role": "user",
+      "content": "你好",
       "question": "你好",
+      "response": ""
+    },
+    {
+      "id": "3553550178352795158",
+      "user_id": "123",
+      "dialogue_id": "3553550178352795156",
+      "dialogue_key": "667f8e03c35b9a1200000001",
+      "role": "assistant",
+      "content": "你好！我是你的 AI 助手...",
+      "question": "",
       "response": "你好！我是你的 AI 助手..."
     }
   ]
 }
 ```
+
+客户端应优先读取 `role/content`。`question/response` 是兼容旧客户端的过渡字段。
 
 ---
 
@@ -1155,6 +1227,7 @@ GET /api/v1/agent/models
 ```
 
 **成功响应 (200 OK)：**
+
 ```json
 {
   "code": 200,
@@ -1162,9 +1235,9 @@ GET /api/v1/agent/models
   "model_kind_list": [
     {
       "id": 1,
-      "name": "GPT-4o",
-      "description": "高性能语言模型",
-      "max_tokens": 4096,
+      "name": "qwen-plus",
+      "description": "阿里云百炼 Qwen 大语言模型，用于对话、推理和推文生成",
+      "max_tokens": 32768,
       "file_kind_list": [
         {
           "id": 1,
@@ -1175,6 +1248,8 @@ GET /api/v1/agent/models
   ]
 }
 ```
+
+该接口只返回支持 Chat Completion 的语言模型。Embedding、Reranker 等基础设施模型不会出现在 AI 助手模型选择器中。
 
 ---
 
@@ -1187,10 +1262,12 @@ POST /api/v1/agent/files/analysis
 **Content-Type**: `multipart/form-data`
 
 **Form Data:**
+
 - `file`: 文件二进制
 - `file_kind_id`: 文件类型 ID
 
 **成功响应 (200 OK)：**
+
 ```json
 {
   "code": 200,
@@ -1200,3 +1277,237 @@ POST /api/v1/agent/files/analysis
 }
 ```
 
+---
+
+### 14.10 可视化工作流 DSL 接口
+
+所有接口均需要 `Authorization: Bearer <token>`。`workflow_id` 与 `run_id` 使用字符串传输，避免前端数字精度丢失。
+
+#### 14.10.1 创建工作流
+
+```
+POST /api/v1/agent/workflows
+```
+
+**请求体：**
+
+```json
+{
+  "name": "高定制化 AI 发推助手",
+  "dsl": {
+    "name": "高定制化 AI 发推助手",
+    "nodes": [
+      {
+        "id": "start",
+        "type": "start",
+        "properties": {},
+        "timeout_sec": 30
+      },
+      {
+        "id": "node_llm_01",
+        "type": "llm",
+        "properties": {
+          "prompt": "帮我重新润色: {{start.user_input}}"
+        },
+        "timeout_sec": 15
+      },
+      {
+        "id": "node_tweet_01",
+        "type": "tool",
+        "properties": {
+          "tool_name": "PublishTweet",
+          "content": "{{node_llm_01.text}}"
+        },
+        "timeout_sec": 10
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "start",
+        "target": "node_llm_01",
+        "source_handle": "output",
+        "target_handle": "input"
+      }
+    ]
+  }
+}
+```
+
+也可传 `dsl_json` 字符串字段，网关会校验其必须是合法 JSON。
+
+**成功响应：**
+
+```json
+{
+  "workflow": {
+    "workflow_id": "66aa...",
+    "user_id": "123",
+    "name": "高定制化 AI 发推助手",
+    "dsl": {},
+    "dsl_json": "{}",
+    "created_at": 1782380000,
+    "updated_at": 1782380000
+  }
+}
+```
+
+#### 14.10.2 更新工作流
+
+```
+PUT /api/v1/agent/workflows/:id
+```
+
+请求体同创建接口。后端会按当前登录用户过滤所有权。
+
+#### 14.10.3 查询工作流列表
+
+```
+GET /api/v1/agent/workflows?page=1&page_size=20
+```
+
+**成功响应：**
+
+```json
+{
+  "workflows": [
+    {
+      "workflow_id": "66aa...",
+      "user_id": "123",
+      "name": "高定制化 AI 发推助手",
+      "created_at": 1782380000,
+      "updated_at": 1782380000
+    }
+  ],
+  "total": 1
+}
+```
+
+#### 14.10.4 查询工作流详情
+
+```
+GET /api/v1/agent/workflows/:id
+```
+
+响应结构同创建接口。
+
+#### 14.10.5 执行工作流
+
+```
+POST /api/v1/agent/workflows/:id/run
+```
+
+**请求体：**
+
+```json
+{
+  "input": {
+    "user_input": "分析 Go 工作流引擎的设计取舍",
+    "dialogue_key": "",
+    "persist_dialogue": true
+  }
+}
+```
+
+也可传 `input_json` 字符串字段。非法 JSON 会返回 400。
+
+`persist_dialogue` 默认关闭，工作流编辑器的测试运行不会污染 AI 助手历史。AI 助手的“自定义工作流”模式会显式开启该字段，并通过 `dialogue_key` 续接会话。
+
+**成功响应：**
+
+```json
+{
+  "dialogue_key": "667f8e03c35b9a1200000001",
+  "response": "工作流最终可展示文本",
+  "run": {
+    "run_id": "66bb...",
+    "workflow_id": "66aa...",
+    "user_id": "123",
+    "status": "success",
+    "input": {},
+    "input_json": "{}",
+    "output": {},
+    "output_json": "{}",
+    "error_message": "",
+    "started_at": 1782380000,
+    "finished_at": 1782380008
+  }
+}
+```
+
+`status` 取值为 `running`、`success`、`failed`。节点执行失败时接口仍会返回运行记录，并在 `status` 与 `error_message` 中呈现失败原因。
+
+`output` 会保留各节点 blackboard 顶层字段，同时新增：
+
+```json
+{
+  "blackboard": {
+    "node_llm_01": {
+      "text": "生成结果"
+    }
+  },
+  "traces": [
+    {
+      "node_id": "node_llm_01",
+      "node_type": "llm",
+      "status": "success",
+      "started_at": 1782380000,
+      "finished_at": 1782380002,
+      "duration_ms": 2048
+    }
+  ]
+}
+```
+
+当前 DSL 支持以下能力：
+
+| 节点类型 | 能力 |
+| --- | --- |
+| `llm` | 对话、创作、Planner 规划 |
+| `agent` | `ReActAgent`、`PlanExecutor`，最多 8 轮，只允许调用只读 MCP 工具 |
+| `tool` | `PublishTweet`、`SemanticTweetSearch`、`HybridTweetSearch`、`SearchUsers`、`GetUserTweets`、`GetTweetsByIDs` |
+| `router` / `wait` | 条件分支、人工审批与挂起恢复 |
+
+策略节点不会隐式调用发布工具。所有写操作必须以独立 `PublishTweet` 节点呈现，并继续接受认证上下文注入与运行确认。
+
+`traces[].status` 取值为 `pending`、`running`、`success`、`failed`、`skipped`。
+
+#### 14.10.6 查询运行记录
+
+```
+GET /api/v1/agent/workflow-runs/:id
+```
+
+响应结构同执行工作流接口。
+
+#### 14.10.7 P4: Suspended Workflow Checkpoint
+
+工作流支持 `wait` 节点作为长时间阻塞任务、人工审批、外部 MCP 回调等场景的标准挂起点。
+
+当运行命中 `wait` 节点时，运行记录不会标记为 `failed`，而是进入 `suspended` 状态，并在 `output.checkpoint` 中返回恢复所需的状态快照：
+
+```json
+{
+  "status": "suspended",
+  "output": {
+    "blackboard": {},
+    "traces": [
+      {
+        "node_id": "wait_approval",
+        "node_type": "wait",
+        "status": "suspended"
+      }
+    ],
+    "checkpoint": {
+      "current_node_id": "wait_approval",
+      "blackboard": {},
+      "traces": [],
+      "suspended_at": 1782380010,
+      "reason": "waiting for external callback",
+      "resume_token": "approval-token"
+    }
+  }
+}
+```
+
+`traces[].status` 现在包含：`pending`、`running`、`suspended`、`success`、`failed`、`skipped`。

@@ -11,7 +11,7 @@ var (
 	ErrInvalidContent = errors.New("tweet content cannot be empty")
 
 	// ErrContentTooLong 内容过长
-	ErrContentTooLong = errors.New("tweet content too long (max 280 characters)")
+	ErrContentTooLong = errors.New("tweet content too long")
 
 	// ErrUnauthorized 无权限操作
 	ErrUnauthorized = errors.New("unauthorized to perform this action")

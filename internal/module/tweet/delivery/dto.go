@@ -2,7 +2,7 @@ package delivery
 
 // CreateTweetRequest 发布推文请求
 type CreateTweetRequest struct {
-	Content   string   `test_data:"content" binding:"required,max=280"`
+	Content   string   `test_data:"content" binding:"required"`
 	MediaURLs []string `test_data:"media_urls" binding:"omitempty,max=4,dive,url"`
 }
 

@@ -3,7 +3,7 @@ import MainLayout from '../layout/MainLayout.vue'
 import ComposeBox from '../components/ComposeBox.vue'
 import TweetCard from '../components/TweetCard.vue'
 import ReplyModal from '../components/ReplyModal.vue'
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { getFeeds, listTweets, type Tweet } from '../api/tweet'
 
 const tweets = ref<Tweet[]>([])
@@ -14,6 +14,7 @@ const activeTab = ref<'following' | 'forYou'>('forYou')
 
 const fetchTweets = async (refresh = false) => {
     if (loading.value) return
+    if (!refresh && !hasMore.value) return
     loading.value = true
     try {
         const currentCursor = refresh ? '0' : cursor.value
@@ -74,7 +75,19 @@ const handleReplyCreated = () => {
 
 onMounted(() => {
     fetchTweets(true)
+    window.addEventListener('scroll', handleScroll, { passive: true })
 })
+
+onUnmounted(() => {
+    window.removeEventListener('scroll', handleScroll)
+})
+
+const handleScroll = () => {
+    const nearBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 360
+    if (nearBottom) {
+        fetchTweets(false)
+    }
+}
 </script>
 
 <template>
@@ -119,6 +132,9 @@ onMounted(() => {
             @reply="handleReply"
           />
       </div>
+
+      <div v-if="loading && tweets.length > 0" class="p-4 text-center text-gray-500">加载更多...</div>
+      <div v-else-if="!hasMore && tweets.length > 0" class="p-4 text-center text-gray-400">已经到底了</div>
 
       <!-- ... -->
 

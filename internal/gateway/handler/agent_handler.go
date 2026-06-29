@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"time"
@@ -24,6 +25,9 @@ func parseInterfaceToUint64(val interface{}) (uint64, error) {
 		if v == "" || v == "0" {
 			return 0, nil
 		}
+		if len(v) == 24 {
+			return 0, nil
+		}
 		return strconv.ParseUint(v, 10, 64)
 	default:
 		return 0, strconv.ErrSyntax
@@ -44,6 +48,7 @@ func NewAgentHandler(agentClient aiAgentv1.AiAgentServiceClient) *AgentHandler {
 type CallApiOfAiRequest struct {
 	Content     string      `json:"content" binding:"required"`
 	DialogueID  interface{} `json:"dialogue_id"`
+	DialogueKey string      `json:"dialogue_key"`
 	ModelKindID interface{} `json:"model_kind_id"`
 }
 
@@ -58,7 +63,19 @@ type MultiAgentPublishRequest struct {
 	AuthorUserID      string   `json:"author_user_id" binding:"required"`
 	StyleRatio        float32  `json:"style_ratio" binding:"required"`
 	ReferenceTweetIDs []string `json:"reference_tweet_ids"`
+	DialogueKey       string   `json:"dialogue_key"`
 	Content           string   `json:"content" binding:"required"`
+}
+
+type WorkflowSaveRequest struct {
+	Name    string          `json:"name" binding:"required"`
+	DSLJSON string          `json:"dsl_json"`
+	DSL     json.RawMessage `json:"dsl"`
+}
+
+type WorkflowRunRequest struct {
+	InputJSON string          `json:"input_json"`
+	Input     json.RawMessage `json:"input"`
 }
 
 // CallApiOfAi 模式一：直接 AI 对话
@@ -103,9 +120,10 @@ func (h *AgentHandler) CallApiOfAi(c *gin.Context) {
 		UserId:      userID,
 		ModelKindId: modelKindID,
 		MainContent: &aiAgentv1.MainContent{
-			UserId:     userID,
-			DialogueId: dialogueID,
-			Content:    req.Content,
+			UserId:      userID,
+			DialogueId:  dialogueID,
+			DialogueKey: req.DialogueKey,
+			Content:     req.Content,
 		},
 	})
 	if err != nil {
@@ -114,7 +132,8 @@ func (h *AgentHandler) CallApiOfAi(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"response": resp.Response,
+		"response":     resp.Response,
+		"dialogue_key": resp.DialogueKey,
 	})
 }
 
@@ -122,6 +141,7 @@ func (h *AgentHandler) CallApiOfAi(c *gin.Context) {
 type ConsultContentRequest struct {
 	Content     string      `json:"content" binding:"required"`
 	DialogueID  interface{} `json:"dialogue_id"`
+	DialogueKey string      `json:"dialogue_key"`
 	ModelKindID interface{} `json:"model_kind_id"`
 }
 
@@ -167,9 +187,10 @@ func (h *AgentHandler) ConsultContent(c *gin.Context) {
 		UserId:      userID,
 		ModelKindId: modelKindID,
 		MainContent: &aiAgentv1.MainContent{
-			UserId:     userID,
-			DialogueId: dialogueID,
-			Content:    req.Content,
+			UserId:      userID,
+			DialogueId:  dialogueID,
+			DialogueKey: req.DialogueKey,
+			Content:     req.Content,
 		},
 	})
 	if err != nil {
@@ -187,8 +208,9 @@ func (h *AgentHandler) ConsultContent(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"response":   resp.Response,
-		"tweet_list": tweetList,
+		"response":     resp.Response,
+		"tweet_list":   tweetList,
+		"dialogue_key": resp.DialogueKey,
 	})
 }
 
@@ -196,6 +218,7 @@ func (h *AgentHandler) ConsultContent(c *gin.Context) {
 type AssistPublishRequest struct {
 	Content     string      `json:"content" binding:"required"`
 	DialogueID  interface{} `json:"dialogue_id"`
+	DialogueKey string      `json:"dialogue_key"`
 	ModelKindID interface{} `json:"model_kind_id"`
 }
 
@@ -241,9 +264,10 @@ func (h *AgentHandler) AssistPublishTwitter(c *gin.Context) {
 		UserId:      userID,
 		ModelKindId: modelKindID,
 		MainContent: &aiAgentv1.MainContent{
-			UserId:     userID,
-			DialogueId: dialogueID,
-			Content:    req.Content,
+			UserId:      userID,
+			DialogueId:  dialogueID,
+			DialogueKey: req.DialogueKey,
+			Content:     req.Content,
 		},
 	})
 	if err != nil {
@@ -272,8 +296,9 @@ func (h *AgentHandler) AssistPublishTwitter(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"response":   resp.Response,
-		"tweet_list": tweetList,
+		"response":     resp.Response,
+		"tweet_list":   tweetList,
+		"dialogue_key": resp.DialogueKey,
 	})
 }
 
@@ -355,6 +380,7 @@ func (h *AgentHandler) MultiAgentPublishTwitter(c *gin.Context) {
 		AuthorUserId:      authorUserID,
 		StyleRatio:        req.StyleRatio,
 		ReferenceTweetIds: refTweetIDs,
+		DialogueKey:       req.DialogueKey,
 		Content:           req.Content,
 	})
 	if err != nil {
@@ -363,7 +389,231 @@ func (h *AgentHandler) MultiAgentPublishTwitter(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"response": resp.Response,
+		"response":     resp.Response,
+		"dialogue_key": resp.DialogueKey,
+	})
+}
+
+// CreateWorkflow 保存自定义工作流
+// POST /api/v1/agent/workflows
+func (h *AgentHandler) CreateWorkflow(c *gin.Context) {
+	userID, exists := middleware.GetUserID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var req WorkflowSaveRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	dslJSON, ok := normalizeRawJSON(req.DSLJSON, req.DSL)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing dsl or dsl_json"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+	defer cancel()
+
+	resp, err := h.agentClient.CreateWorkflow(ctx, &aiAgentv1.CreateWorkflowRequest{
+		UserId:  userID,
+		Name:    req.Name,
+		DslJson: dslJSON,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"workflow": workflowDetailToJSON(resp.Workflow),
+	})
+}
+
+// UpdateWorkflow 更新自定义工作流
+// PUT /api/v1/agent/workflows/:id
+func (h *AgentHandler) UpdateWorkflow(c *gin.Context) {
+	userID, exists := middleware.GetUserID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	workflowID := c.Param("id")
+	var req WorkflowSaveRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	dslJSON, ok := normalizeRawJSON(req.DSLJSON, req.DSL)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing dsl or dsl_json"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+	defer cancel()
+
+	resp, err := h.agentClient.UpdateWorkflow(ctx, &aiAgentv1.UpdateWorkflowRequest{
+		UserId:     userID,
+		WorkflowId: workflowID,
+		Name:       req.Name,
+		DslJson:    dslJSON,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"workflow": workflowDetailToJSON(resp.Workflow),
+	})
+}
+
+// ListWorkflows 获取当前用户工作流列表
+// GET /api/v1/agent/workflows
+func (h *AgentHandler) ListWorkflows(c *gin.Context) {
+	userID, exists := middleware.GetUserID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 50 {
+		pageSize = 20
+	}
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := h.agentClient.ListWorkflows(ctx, &aiAgentv1.ListWorkflowsRequest{
+		UserId:   userID,
+		Page:     uint32(page),
+		PageSize: uint32(pageSize),
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	workflows := make([]gin.H, 0, len(resp.Workflows))
+	for _, workflow := range resp.Workflows {
+		workflows = append(workflows, gin.H{
+			"workflow_id": workflow.WorkflowId,
+			"user_id":     strconv.FormatUint(workflow.UserId, 10),
+			"name":        workflow.Name,
+			"created_at":  workflow.CreatedAt,
+			"updated_at":  workflow.UpdatedAt,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"workflows": workflows,
+		"total":     resp.Total,
+	})
+}
+
+// GetWorkflow 获取单个工作流 DSL
+// GET /api/v1/agent/workflows/:id
+func (h *AgentHandler) GetWorkflow(c *gin.Context) {
+	userID, exists := middleware.GetUserID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := h.agentClient.GetWorkflow(ctx, &aiAgentv1.GetWorkflowRequest{
+		UserId:     userID,
+		WorkflowId: c.Param("id"),
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"workflow": workflowDetailToJSON(resp.Workflow),
+	})
+}
+
+// RunWorkflow 执行工作流
+// POST /api/v1/agent/workflows/:id/run
+func (h *AgentHandler) RunWorkflow(c *gin.Context) {
+	userID, exists := middleware.GetUserID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var req WorkflowRunRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	inputJSON, ok := normalizeRawJSON(req.InputJSON, req.Input)
+	if !ok && (req.InputJSON != "" || len(req.Input) > 0) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid input or input_json"})
+		return
+	}
+	if inputJSON == "" {
+		inputJSON = "{}"
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 120*time.Second)
+	defer cancel()
+
+	resp, err := h.agentClient.RunWorkflow(ctx, &aiAgentv1.RunWorkflowRequest{
+		UserId:     userID,
+		WorkflowId: c.Param("id"),
+		InputJson:  inputJSON,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"run":          workflowRunToJSON(resp.Run),
+		"dialogue_key": resp.DialogueKey,
+		"response":     resp.Response,
+	})
+}
+
+// GetWorkflowRun 获取工作流运行记录
+// GET /api/v1/agent/workflow-runs/:id
+func (h *AgentHandler) GetWorkflowRun(c *gin.Context) {
+	userID, exists := middleware.GetUserID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := h.agentClient.GetWorkflowRun(ctx, &aiAgentv1.GetWorkflowRunRequest{
+		UserId: userID,
+		RunId:  c.Param("id"),
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"run": workflowRunToJSON(resp.Run),
 	})
 }
 
@@ -391,10 +641,16 @@ func (h *AgentHandler) GetRepositoryDialogue(c *gin.Context) {
 
 	dialogues := make([]gin.H, len(resp.RepositoryDialogueList))
 	for i, d := range resp.RepositoryDialogueList {
+		dialogueKey := d.DialogueKey
+		if dialogueKey == "" {
+			dialogueKey = strconv.FormatUint(d.Id, 10)
+		}
 		dialogues[i] = gin.H{
-			"id":      strconv.FormatUint(d.Id, 10),
-			"user_id": strconv.FormatUint(d.UserId, 10),
-			"title":   d.Title,
+			"id":           dialogueKey,
+			"legacy_id":    strconv.FormatUint(d.Id, 10),
+			"dialogue_key": dialogueKey,
+			"user_id":      strconv.FormatUint(d.UserId, 10),
+			"title":        d.Title,
 		}
 	}
 
@@ -416,17 +672,19 @@ func (h *AgentHandler) GetDialogueDetail(c *gin.Context) {
 
 	dialogueIDStr := c.Param("id")
 	dialogueID, err := strconv.ParseUint(dialogueIDStr, 10, 64)
+	dialogueKey := ""
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid dialogue_id format"})
-		return
+		dialogueID = 0
+		dialogueKey = dialogueIDStr
 	}
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	resp, err := h.agentClient.GetDialogueDetail(ctx, &aiAgentv1.GetDialogueDetailRequest{
-		UserId:     userID,
-		DialogueId: dialogueID,
+		UserId:      userID,
+		DialogueId:  dialogueID,
+		DialogueKey: dialogueKey,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -436,11 +694,14 @@ func (h *AgentHandler) GetDialogueDetail(c *gin.Context) {
 	messages := make([]gin.H, len(resp.Messages))
 	for i, m := range resp.Messages {
 		messages[i] = gin.H{
-			"id":          strconv.FormatUint(m.Id, 10),
-			"user_id":     strconv.FormatUint(m.UserId, 10),
-			"dialogue_id": strconv.FormatUint(m.DialogueId, 10),
-			"question":    m.Question,
-			"response":    m.Response,
+			"id":           strconv.FormatUint(m.Id, 10),
+			"user_id":      strconv.FormatUint(m.UserId, 10),
+			"dialogue_id":  strconv.FormatUint(m.DialogueId, 10),
+			"dialogue_key": m.DialogueKey,
+			"question":     m.Question,
+			"response":     m.Response,
+			"role":         m.Role,
+			"content":      m.Content,
 		}
 	}
 
@@ -530,4 +791,68 @@ func (h *AgentHandler) AnalysisFiles(c *gin.Context) {
 // AnalyzeAlert 告警根因分析透传
 func (h *AgentHandler) AnalyzeAlert(ctx context.Context, req *aiAgentv1.AnalyzeAlertRequest) (*aiAgentv1.AnalyzeAlertResponse, error) {
 	return h.agentClient.AnalyzeAlert(ctx, req)
+}
+
+func normalizeRawJSON(jsonString string, raw json.RawMessage) (string, bool) {
+	if jsonString != "" {
+		if !json.Valid([]byte(jsonString)) {
+			return "", false
+		}
+		return jsonString, true
+	}
+	if len(raw) == 0 {
+		return "", false
+	}
+	if !json.Valid(raw) {
+		return "", false
+	}
+	return string(raw), true
+}
+
+func workflowDetailToJSON(workflow *aiAgentv1.WorkflowDetail) gin.H {
+	if workflow == nil {
+		return gin.H{}
+	}
+
+	var dsl any
+	if workflow.DslJson != "" {
+		_ = json.Unmarshal([]byte(workflow.DslJson), &dsl)
+	}
+	return gin.H{
+		"workflow_id": workflow.WorkflowId,
+		"user_id":     strconv.FormatUint(workflow.UserId, 10),
+		"name":        workflow.Name,
+		"dsl":         dsl,
+		"dsl_json":    workflow.DslJson,
+		"created_at":  workflow.CreatedAt,
+		"updated_at":  workflow.UpdatedAt,
+	}
+}
+
+func workflowRunToJSON(run *aiAgentv1.WorkflowRun) gin.H {
+	if run == nil {
+		return gin.H{}
+	}
+
+	var input any
+	var output any
+	if run.InputJson != "" {
+		_ = json.Unmarshal([]byte(run.InputJson), &input)
+	}
+	if run.OutputJson != "" {
+		_ = json.Unmarshal([]byte(run.OutputJson), &output)
+	}
+	return gin.H{
+		"run_id":        run.RunId,
+		"workflow_id":   run.WorkflowId,
+		"user_id":       strconv.FormatUint(run.UserId, 10),
+		"status":        run.Status,
+		"input":         input,
+		"input_json":    run.InputJson,
+		"output":        output,
+		"output_json":   run.OutputJson,
+		"error_message": run.ErrorMessage,
+		"started_at":    run.StartedAt,
+		"finished_at":   run.FinishedAt,
+	}
 }

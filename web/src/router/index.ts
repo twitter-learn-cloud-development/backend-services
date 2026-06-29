@@ -68,6 +68,11 @@ const router = createRouter({
             path: '/agent',
             name: 'agent',
             component: () => import('../views/Agent.vue')
+        },
+        {
+            path: '/agent/workflow',
+            name: 'agent-workflow',
+            component: () => import('../views/agent/WorkflowEditor.vue')
         }
     ]
 })

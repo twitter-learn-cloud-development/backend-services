@@ -107,6 +107,8 @@
 - [x] **MCP Tool 鉴权隔离与 SSE 连接池** — 废除 LLM user_id 权限越权漏洞，基于 RWMutex 和 DCL 实现长连接复用与异常自愈（Phase 6 ✅）
 - [x] **RAG 语义二次精排 (Reranker)** — 引入 Rerank 漏斗检索机制，支持阿里百炼、硅基流动并实现基于 Bigram Jaccard 的 LocalMock 与 1.5s 超时优雅降级，降低 Context 噪声并杜绝幻觉（P2 ✅）
 - [x] **MCP 长连接与 RAG 检索加固** — 引入服务生命周期 context 控制及 Close() 机制规避协程泄露，实现 0.0.0.0 容器拨号纠偏，以及首选 Qdrant 失败时优雅降级为 ES 检索及兜底文本，补齐中文种子数据（✅）
+- [x] **可视化拖拽工作流编辑器前端页面** — 基于 Vue Flow 完成组件拖拽、端点自适应连线、属性配置变量树感知与安全删除交互闭环（✅）
+
 
 ### 阶段 8：分布式日志系统 (PLG Stack)
 - [x] **Loki & Promtail 部署** — 本地一键拉起 Loki 与 Promtail 服务，通过 Docker SD 实现容器日志自动收集与 Pipeline 解包
@@ -268,3 +270,58 @@
 | CI/CD | GitHub Actions |
 | GitOps | ArgoCD |
 | Ingress | Nginx Ingress Controller |
+
+---
+
+## 2026-06-25 P1 工作流 DSL 闭环开发
+
+- [x] **DSL 持久化接口**：新增 Agent Workflow 的 proto、gRPC、Service、Repository 与 Gateway HTTP 接口，支持创建、更新、列表、详情查询，并通过 MongoDB `agent_workflows` 集合按 `user_id` 隔离存储。
+- [x] **DAG 后端执行入口**：新增运行记录模型与 `agent_workflow_runs` 集合，`RunWorkflow` 会加载 DSL、编译 DAG、注入用户上下文 Guardrail、执行节点并回写运行状态、输出快照与错误信息。
+- [x] **前端画布接入后端**：`WorkflowEditor.vue` 的保存按钮已调用 `/agent/workflows`，运行按钮会自动保存未持久化 DSL 后调用 `/agent/workflows/:id/run`，并将 `tool_name` 写入工具节点属性，保证后端可稳定解析工具类型。
+- [ ] **验证阻塞**：本地 Go 工具链仍为 `1.24.3`，低于 `go.mod` 的 `1.25.5` 要求；自动下载工具链在当前受限网络下超时，完整 `go test` 需等待 Go 1.25.5 可用后执行。
+
+## 2026-06-25 P2 认知 RAG 主链路接入
+
+- [x] **Cascade Router 工程化重构**：重写 `workflow/rag/router.go`，恢复清晰的中英文词典路由，并保留语义锚点与 LLM JSON fallback，路由失败时自动降级为全局知识检索。
+- [x] **三层记忆管理器可降级化**：重写 `workflow/rag/memory.go`，支持 L1 用户画像、L2 Qdrant 私有 episodic memory、L3 ES + Qdrant 混合召回；任一依赖缺失时跳过对应路径，不阻断对话主流程。
+- [x] **Chat 认知上下文注入**：新增 `cognitive_context.go`，通过 `SetCognitiveEngine` 将 Router/Memory 以可插拔方式挂入 `AgentService`，普通 Chat 会在 system prompt 中注入画像、记忆与知识上下文，并记录路由元数据。
+- [x] **摘要结晶化写入**：对话回复持久化后异步提炼当前回合为 L2 episodic memory，写入用户隔离的 Qdrant collection；失败只记日志，不影响用户请求。
+- [ ] **验证阻塞**：`go test ./internal/module/agent/service ./internal/module/agent/workflow/rag` 仍受本地 Go 1.24.3 与项目 Go 1.25.5 要求不匹配影响，需工具链可用后复测。
+
+## 2026-06-25 P3 工作流运行可观测性与节点级 SLA Trace
+
+- [x] **Scheduler 节点级 Trace**：调度器新增 `NodeTrace`，记录节点 `pending/running/success/failed/skipped`、开始/结束时间、耗时和错误信息，支持路由分支跳过节点可视化。
+- [x] **运行记录输出增强**：`RunWorkflow` 的 `output_json` 同时保留原 blackboard 顶层字段，并新增 `blackboard` 与 `traces` 字段，前端和排障工具可以直接消费节点运行轨迹。
+- [x] **前端节点状态回填**：工作流画布运行后会读取 `run.output.traces`，逐节点更新状态，不再只按整体成功/失败粗粒度染色。
+- [x] **Trace 单元测试补充**：新增调度器 trace 测试，覆盖成功节点与 router 未激活分支的 skipped 状态。
+- [ ] **验证阻塞**：Go 测试仍受本地 Go 1.24.3 与项目 Go 1.25.5 要求不匹配影响，需工具链可用后复测。
+## 2026-06-25 P4 工作流挂起恢复与 Checkpoint
+
+- [x] **Engine Checkpoint 抽象**：新增 `WorkflowCheckpoint` 与 `SuspensionError`，调度器支持 `suspended` 节点状态、黑板快照导出以及 `ExecuteFromCheckpoint` 恢复执行，恢复时不会重跑已成功或已跳过的上游节点。
+- [x] **运行记录挂起状态持久化**：`agent_workflow_runs` 增加 `checkpoint_json`、`waiting_node_id`、`resume_token`、`suspended_at` 字段，并补充按 `user_id/status/suspended_at` 查询的 MongoDB 索引。
+- [x] **Wait 节点与内部恢复入口**：DSL 新增 `wait` 节点类型，用于人工审批、外部 MCP 回调和长阻塞任务；`AgentService.ResumeWorkflowRun` 已支持从 checkpoint 水化并继续执行下游。
+- [x] **前端画布接入**：将原先不被后端支持的 `approve` 节点统一为 `wait` 节点，补充 reason/resume_token 属性配置，并支持 `suspended` 节点状态展示。
+- [x] **Temporal 兼容**：Temporal bridge 同时兼容旧 `approve` 与新 `wait` 节点类型，避免分布式工作流和本地 DAG 引擎语义分裂。
+- [x] **验证**：`npm run build` 通过，`git diff --check` 通过；Go 测试仍受本地 Go 1.24.3 与项目 Go 1.25.5 要求不匹配影响，需工具链升级后复测。
+## 2026-06-25 P4 Follow-up: LLM Provider Customization
+
+- [x] **LM Studio 默认模型修正**：移除 `qwen3.6-plus` / `deepseek-chat` 旧默认值，本地工作流默认改为 `qwen2.5-3b-instruct`，DashScope 对话默认改为 `qwen-plus` / `DASHSCOPE_MODEL_CHAT`。
+- [x] **工作流 LLM 节点可定制 API**：`LLMChatTool` 支持从节点属性读取 `provider`、`base_url`、`api_key`、`model`、`system_prompt`、`max_tokens`，兼容 LM Studio、DashScope 和 OpenAI-compatible 自定义服务。
+- [x] **前端属性面板补齐**：Workflow Editor 的 LLM 节点新增 Provider、Base URL、API Key、Max Tokens 配置项，用户可在单节点维度切换模型服务。
+- [x] **验证**：`npm run build` 通过，`git diff --check` 通过；Go 测试仍受本地 Go 1.24.3 与项目 Go 1.25.5 要求不匹配影响。
+
+## 2026-06-26 课程设计报告书写与 Word 自动化导出 (Course Design Report)
+
+- [x] **详细 Markdown 报告撰写**：在 `docs/COURSE_DESIGN_REPORT.md` 中为项目编写了完整的 9 章节课程设计报告。突出论述了系统的微服务模块边界、多级缓存机制、JWKS 零共享密钥验签、以及 Canal CDC 事务发件箱模式（对传统对称 JWT 和同步双写消息队列的设计优势），内容严谨学术，代码注释行级解析。
+- [x] **Word DOCX 导出自动化**：编写了 `scripts/generate_report_docx.py` 转换脚本，基于 `python-docx` 库实现了对 Markdown 中标题级联、无序/有序列表、阴影边框引用块、细灰网格表格以及 Consolas 等宽字体代码容器的精美排版解析。
+- [x] **深度扩写与百页级架构剖析**：响应用户对报告字数和深度的要求，重新读取了核心中间件（JWKS）、MQ 消费者（Timeline 推拉结合防雪崩）、事务发件箱（Outbox）以及 AI 智能体编排（Temporal + Kahn 拓扑排序）的核心源码，生成了附带真实源码注释和极深原理解读的万字级报告。
+- [x] **生成与双端验证**：在项目根目录下成功输出了 Word 文档 `（6）课程设计报告（含任务书）_生成版.docx`，并通过 Python 代码级物理校验确认其完全生成。
+
+## 2026-06-27 Agent 会话一致性与工作流策略扩展
+
+- [x] **历史消息协议统一**：对话详情新增标准 `role/content` 字段并保留 `question/response` 兼容字段，前端统一归一化渲染；重复点击当前会话可重新拉取，避免列表选中但消息区为空。
+- [x] **自定义工作流会话持久化**：AI 助手运行工作流时显式传入 `persist_dialogue` 和 `dialogue_key`，运行结果写入同一 MongoDB 对话仓储；编辑器测试默认不落聊天历史。
+- [x] **模型目录职责修正**：AI 助手模型接口只返回 Chat Completion 模型，Embedding 模型从用户选择器移除。
+- [x] **MCP 工作流桥接**：将语义推文检索、混合推文检索、用户搜索、用户推文和按 ID 取推文接入统一 `AgentTool` 注册边界。
+- [x] **策略组件补齐**：新增 Planner、ReAct、Plan Executor 组件；策略节点采用只读 MCP 白名单、1-8 次迭代上限和节点超时，写操作仍由独立 PublishTweet 节点承载。
+- [x] **验证**：`npm run build` 通过；`go test ./internal/module/agent/... ./internal/gateway/handler ./cmd/agent-service` 通过。

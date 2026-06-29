@@ -55,6 +55,19 @@ type AgentRepository interface {
 
 	// EnsureIndexes 创建必要的 MongoDB 索引
 	EnsureIndexes(ctx context.Context) error
+
+	// ---- 自定义工作流管理 ----
+
+	CreateWorkflow(ctx context.Context, workflow *WorkflowDefinition) error
+	UpdateWorkflow(ctx context.Context, workflow *WorkflowDefinition) error
+	ListWorkflows(ctx context.Context, userID uint64, page, pageSize int) ([]*WorkflowDefinition, int64, error)
+	GetWorkflow(ctx context.Context, workflowID primitive.ObjectID, userID uint64) (*WorkflowDefinition, error)
+
+	// ---- 工作流运行记录 ----
+
+	CreateWorkflowRun(ctx context.Context, run *WorkflowRunRecord) error
+	UpdateWorkflowRun(ctx context.Context, run *WorkflowRunRecord) error
+	GetWorkflowRun(ctx context.Context, runID primitive.ObjectID, userID uint64) (*WorkflowRunRecord, error)
 }
 
 // ========================== MongoDB 实现 ==========================
@@ -63,6 +76,8 @@ type AgentRepository interface {
 type MongoAgentRepository struct {
 	dialogueColl *mongo.Collection
 	messageColl  *mongo.Collection
+	workflowColl *mongo.Collection
+	runColl      *mongo.Collection
 }
 
 // NewMongoAgentRepository 创建 MongoDB 对话仓储
@@ -70,6 +85,8 @@ func NewMongoAgentRepository(db *mongo.Database) *MongoAgentRepository {
 	return &MongoAgentRepository{
 		dialogueColl: db.Collection(CollectionDialogues),
 		messageColl:  db.Collection(CollectionMessages),
+		workflowColl: db.Collection(CollectionWorkflows),
+		runColl:      db.Collection(CollectionRuns),
 	}
 }
 
@@ -77,7 +94,7 @@ func NewMongoAgentRepository(db *mongo.Database) *MongoAgentRepository {
 
 func (r *MongoAgentRepository) CreateDialogue(ctx context.Context, userID uint64, title string, mode DialogueMode) (*Dialogue, error) {
 	now := time.Now()
-	
+
 	// 为了兼容 gRPC 层的 uint64 传输（有损转换取后8字节），
 	// 我们显式构造一个前 4 字节为 0，后 8 字节为随机 uint64 的 ObjectID。
 	// 这能保证在双向转换时实现 100% 无损。
@@ -337,5 +354,161 @@ func (r *MongoAgentRepository) EnsureIndexes(ctx context.Context) error {
 		return fmt.Errorf("create message indexes failed: %w", err)
 	}
 
+	workflowIndexes := []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "user_id", Value: 1}, {Key: "updated_at", Value: -1}},
+			Options: options.Index().SetName("idx_workflow_user_updated"),
+		},
+	}
+	if _, err := r.workflowColl.Indexes().CreateMany(ctx, workflowIndexes); err != nil {
+		return fmt.Errorf("create workflow indexes failed: %w", err)
+	}
+
+	runIndexes := []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "user_id", Value: 1}, {Key: "started_at", Value: -1}},
+			Options: options.Index().SetName("idx_workflow_run_user_started"),
+		},
+		{
+			Keys:    bson.D{{Key: "workflow_id", Value: 1}, {Key: "started_at", Value: -1}},
+			Options: options.Index().SetName("idx_workflow_run_workflow_started"),
+		},
+		{
+			Keys:    bson.D{{Key: "user_id", Value: 1}, {Key: "status", Value: 1}, {Key: "suspended_at", Value: -1}},
+			Options: options.Index().SetName("idx_workflow_run_user_status_suspended"),
+		},
+	}
+	if _, err := r.runColl.Indexes().CreateMany(ctx, runIndexes); err != nil {
+		return fmt.Errorf("create workflow run indexes failed: %w", err)
+	}
+
 	return nil
+}
+
+func (r *MongoAgentRepository) CreateWorkflow(ctx context.Context, workflow *WorkflowDefinition) error {
+	now := time.Now()
+	if workflow.ID.IsZero() {
+		workflow.ID = primitive.NewObjectID()
+	}
+	if workflow.CreatedAt.IsZero() {
+		workflow.CreatedAt = now
+	}
+	workflow.UpdatedAt = now
+
+	if _, err := r.workflowColl.InsertOne(ctx, workflow); err != nil {
+		return fmt.Errorf("insert workflow failed: %w", err)
+	}
+	return nil
+}
+
+func (r *MongoAgentRepository) UpdateWorkflow(ctx context.Context, workflow *WorkflowDefinition) error {
+	workflow.UpdatedAt = time.Now()
+	res, err := r.workflowColl.UpdateOne(ctx,
+		bson.M{"_id": workflow.ID, "user_id": workflow.UserID},
+		bson.M{"$set": bson.M{
+			"name":       workflow.Name,
+			"dsl_json":   workflow.DSLJSON,
+			"updated_at": workflow.UpdatedAt,
+		}},
+	)
+	if err != nil {
+		return fmt.Errorf("update workflow failed: %w", err)
+	}
+	if res.MatchedCount == 0 {
+		return fmt.Errorf("workflow not found or not owned by user")
+	}
+	return nil
+}
+
+func (r *MongoAgentRepository) ListWorkflows(ctx context.Context, userID uint64, page, pageSize int) ([]*WorkflowDefinition, int64, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 50 {
+		pageSize = 20
+	}
+
+	filter := bson.M{"user_id": userID}
+	total, err := r.workflowColl.CountDocuments(ctx, filter)
+	if err != nil {
+		return nil, 0, fmt.Errorf("count workflows failed: %w", err)
+	}
+
+	opts := options.Find().
+		SetSort(bson.D{{Key: "updated_at", Value: -1}}).
+		SetSkip(int64((page - 1) * pageSize)).
+		SetLimit(int64(pageSize))
+	cursor, err := r.workflowColl.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, 0, fmt.Errorf("find workflows failed: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var workflows []*WorkflowDefinition
+	if err := cursor.All(ctx, &workflows); err != nil {
+		return nil, 0, fmt.Errorf("decode workflows failed: %w", err)
+	}
+	return workflows, total, nil
+}
+
+func (r *MongoAgentRepository) GetWorkflow(ctx context.Context, workflowID primitive.ObjectID, userID uint64) (*WorkflowDefinition, error) {
+	var workflow WorkflowDefinition
+	err := r.workflowColl.FindOne(ctx, bson.M{"_id": workflowID, "user_id": userID}).Decode(&workflow)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("workflow not found: %s", workflowID.Hex())
+		}
+		return nil, fmt.Errorf("find workflow failed: %w", err)
+	}
+	return &workflow, nil
+}
+
+func (r *MongoAgentRepository) CreateWorkflowRun(ctx context.Context, run *WorkflowRunRecord) error {
+	now := time.Now()
+	if run.ID.IsZero() {
+		run.ID = primitive.NewObjectID()
+	}
+	if run.StartedAt.IsZero() {
+		run.StartedAt = now
+	}
+
+	if _, err := r.runColl.InsertOne(ctx, run); err != nil {
+		return fmt.Errorf("insert workflow run failed: %w", err)
+	}
+	return nil
+}
+
+func (r *MongoAgentRepository) UpdateWorkflowRun(ctx context.Context, run *WorkflowRunRecord) error {
+	res, err := r.runColl.UpdateOne(ctx,
+		bson.M{"_id": run.ID, "user_id": run.UserID},
+		bson.M{"$set": bson.M{
+			"status":          run.Status,
+			"output_json":     run.OutputJSON,
+			"checkpoint_json": run.CheckpointJSON,
+			"waiting_node_id": run.WaitingNodeID,
+			"resume_token":    run.ResumeToken,
+			"error_message":   run.ErrorMessage,
+			"suspended_at":    run.SuspendedAt,
+			"finished_at":     run.FinishedAt,
+		}},
+	)
+	if err != nil {
+		return fmt.Errorf("update workflow run failed: %w", err)
+	}
+	if res.MatchedCount == 0 {
+		return fmt.Errorf("workflow run not found or not owned by user")
+	}
+	return nil
+}
+
+func (r *MongoAgentRepository) GetWorkflowRun(ctx context.Context, runID primitive.ObjectID, userID uint64) (*WorkflowRunRecord, error) {
+	var run WorkflowRunRecord
+	err := r.runColl.FindOne(ctx, bson.M{"_id": runID, "user_id": userID}).Decode(&run)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("workflow run not found: %s", runID.Hex())
+		}
+		return nil, fmt.Errorf("find workflow run failed: %w", err)
+	}
+	return &run, nil
 }

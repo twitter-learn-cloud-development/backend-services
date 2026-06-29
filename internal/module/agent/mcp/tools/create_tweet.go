@@ -17,7 +17,7 @@ func RegisterCreateTweet(srv *server.MCPServer, tweetClient tweetv1.TweetService
 		mcp.WithDescription("代替用户发布一条推文"),
 		mcp.WithString("content",
 			mcp.Required(),
-			mcp.Description("推文内容，不超过280字"),
+			mcp.Description("推文内容，长度由 TweetService 配置控制"),
 		),
 	)
 

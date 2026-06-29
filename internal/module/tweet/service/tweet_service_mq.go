@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -23,8 +25,11 @@ import (
 )
 
 const (
-	// MaxContentLength 推文最大长度
-	MaxContentLength = 280
+	// DefaultMaxContentLength is the default configurable content length.
+	DefaultMaxContentLength = 10000
+
+	// DefaultHardMaxContentLength prevents accidental unbounded payloads.
+	DefaultHardMaxContentLength = 20000
 
 	// MaxMediaCount 最大媒体数量
 	MaxMediaCount = 4
@@ -53,6 +58,7 @@ type TweetService struct {
 	requestGroup    singleflight.Group
 	uow             uow.Manager
 	outboxEventRepo domain.OutboxEventRepository
+	maxContentLen   int
 }
 
 // NewTweetService 创建推文服务
@@ -82,6 +88,7 @@ func NewTweetService(
 		eventProducer:   eventProducer,
 		l1Cache:         l1Cache,
 		outboxEventRepo: outboxEventRepo,
+		maxContentLen:   resolveMaxContentLength(),
 		uow:             uowManager, // 🆕 赋值
 	}
 }
@@ -849,12 +856,47 @@ func (s *TweetService) validateContent(content string) error {
 		return ErrInvalidContent
 	}
 
-	// 使用 rune 计数（支持中文等 Unicode 字符）
-	if len([]rune(content)) > MaxContentLength {
-		return ErrContentTooLong
+	maxLength := s.effectiveMaxContentLength()
+	if len([]rune(content)) > maxLength {
+		return fmt.Errorf("%w (max %d characters)", ErrContentTooLong, maxLength)
 	}
 
 	return nil
+}
+
+func (s *TweetService) effectiveMaxContentLength() int {
+	if s != nil && s.maxContentLen > 0 {
+		return s.maxContentLen
+	}
+	return resolveMaxContentLength()
+}
+
+func resolveMaxContentLength() int {
+	hardMax := intFromEnv("TWEET_HARD_MAX_CONTENT_LENGTH", DefaultHardMaxContentLength)
+	if hardMax <= 0 {
+		hardMax = DefaultHardMaxContentLength
+	}
+
+	maxLength := intFromEnv("TWEET_MAX_CONTENT_LENGTH", DefaultMaxContentLength)
+	if maxLength <= 0 {
+		return DefaultMaxContentLength
+	}
+	if maxLength > hardMax {
+		return hardMax
+	}
+	return maxLength
+}
+
+func intFromEnv(key string, fallback int) int {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return fallback
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil {
+		return fallback
+	}
+	return value
 }
 
 func (s *TweetService) validateMediaURLs(mediaURLs []string) error {

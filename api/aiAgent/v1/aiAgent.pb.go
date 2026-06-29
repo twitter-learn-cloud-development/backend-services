@@ -28,6 +28,7 @@ type MainContent struct {
 	UserId        uint64                 `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	DialogueId    uint64                 `protobuf:"varint,3,opt,name=dialogue_id,json=dialogueId,proto3" json:"dialogue_id,omitempty"`
 	Content       string                 `protobuf:"bytes,4,opt,name=content,proto3" json:"content,omitempty"`
+	DialogueKey   string                 `protobuf:"bytes,5,opt,name=dialogue_key,json=dialogueKey,proto3" json:"dialogue_key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -90,6 +91,13 @@ func (x *MainContent) GetContent() string {
 	return ""
 }
 
+func (x *MainContent) GetDialogueKey() string {
+	if x != nil {
+		return x.DialogueKey
+	}
+	return ""
+}
+
 // 单条历史消息记录
 type RepositoryContentList struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -98,6 +106,9 @@ type RepositoryContentList struct {
 	DialogueId    uint64                 `protobuf:"varint,3,opt,name=dialogue_id,json=dialogueId,proto3" json:"dialogue_id,omitempty"`
 	Question      string                 `protobuf:"bytes,4,opt,name=question,proto3" json:"question,omitempty"`
 	Response      string                 `protobuf:"bytes,5,opt,name=response,proto3" json:"response,omitempty"`
+	DialogueKey   string                 `protobuf:"bytes,6,opt,name=dialogue_key,json=dialogueKey,proto3" json:"dialogue_key,omitempty"`
+	Role          string                 `protobuf:"bytes,7,opt,name=role,proto3" json:"role,omitempty"`
+	Content       string                 `protobuf:"bytes,8,opt,name=content,proto3" json:"content,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -167,12 +178,34 @@ func (x *RepositoryContentList) GetResponse() string {
 	return ""
 }
 
+func (x *RepositoryContentList) GetDialogueKey() string {
+	if x != nil {
+		return x.DialogueKey
+	}
+	return ""
+}
+
+func (x *RepositoryContentList) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *RepositoryContentList) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
 // 历史对话（标题级别）
 type RepositoryDialogue struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	UserId        uint64                 `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	DialogueKey   string                 `protobuf:"bytes,4,opt,name=dialogue_key,json=dialogueKey,proto3" json:"dialogue_key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -224,6 +257,13 @@ func (x *RepositoryDialogue) GetUserId() uint64 {
 func (x *RepositoryDialogue) GetTitle() string {
 	if x != nil {
 		return x.Title
+	}
+	return ""
+}
+
+func (x *RepositoryDialogue) GetDialogueKey() string {
+	if x != nil {
+		return x.DialogueKey
 	}
 	return ""
 }
@@ -966,6 +1006,7 @@ type GetDialogueDetailRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	DialogueId    uint64                 `protobuf:"varint,2,opt,name=dialogue_id,json=dialogueId,proto3" json:"dialogue_id,omitempty"`
+	DialogueKey   string                 `protobuf:"bytes,3,opt,name=dialogue_key,json=dialogueKey,proto3" json:"dialogue_key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1012,6 +1053,13 @@ func (x *GetDialogueDetailRequest) GetDialogueId() uint64 {
 		return x.DialogueId
 	}
 	return 0
+}
+
+func (x *GetDialogueDetailRequest) GetDialogueKey() string {
+	if x != nil {
+		return x.DialogueKey
+	}
+	return ""
 }
 
 type GetDialogueDetailResponse struct {
@@ -1267,6 +1315,7 @@ type CallApiOfAiResponse struct {
 	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
 	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
 	Response      string                 `protobuf:"bytes,3,opt,name=response,proto3" json:"response,omitempty"`
+	DialogueKey   string                 `protobuf:"bytes,4,opt,name=dialogue_key,json=dialogueKey,proto3" json:"dialogue_key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1318,6 +1367,13 @@ func (x *CallApiOfAiResponse) GetMsg() string {
 func (x *CallApiOfAiResponse) GetResponse() string {
 	if x != nil {
 		return x.Response
+	}
+	return ""
+}
+
+func (x *CallApiOfAiResponse) GetDialogueKey() string {
+	if x != nil {
+		return x.DialogueKey
 	}
 	return ""
 }
@@ -1384,6 +1440,7 @@ func (x *ConsultContentRequest) GetMainContent() *MainContent {
 
 type ConsultContentResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	DialogueKey   string                 `protobuf:"bytes,5,opt,name=dialogue_key,json=dialogueKey,proto3" json:"dialogue_key,omitempty"`
 	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
 	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
 	Response      string                 `protobuf:"bytes,3,opt,name=response,proto3" json:"response,omitempty"`                    // AI 自然语言回复
@@ -1420,6 +1477,13 @@ func (x *ConsultContentResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ConsultContentResponse.ProtoReflect.Descriptor instead.
 func (*ConsultContentResponse) Descriptor() ([]byte, []int) {
 	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *ConsultContentResponse) GetDialogueKey() string {
+	if x != nil {
+		return x.DialogueKey
+	}
+	return ""
 }
 
 func (x *ConsultContentResponse) GetCode() uint64 {
@@ -1512,6 +1576,7 @@ func (x *AssistPublishTwitterRequest) GetMainContent() *MainContent {
 
 type AssistPublishTwitterResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	DialogueKey   string                 `protobuf:"bytes,5,opt,name=dialogue_key,json=dialogueKey,proto3" json:"dialogue_key,omitempty"`
 	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
 	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
 	Response      string                 `protobuf:"bytes,3,opt,name=response,proto3" json:"response,omitempty"`                    // AI 生成的推文草稿说明
@@ -1548,6 +1613,13 @@ func (x *AssistPublishTwitterResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use AssistPublishTwitterResponse.ProtoReflect.Descriptor instead.
 func (*AssistPublishTwitterResponse) Descriptor() ([]byte, []int) {
 	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *AssistPublishTwitterResponse) GetDialogueKey() string {
+	if x != nil {
+		return x.DialogueKey
+	}
+	return ""
 }
 
 func (x *AssistPublishTwitterResponse) GetCode() uint64 {
@@ -1700,6 +1772,7 @@ func (x *ConfirmPublishTwitterResponse) GetTweetId() uint64 {
 
 type MultiAgentPublishTwitterRequest struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
+	DialogueKey       string                 `protobuf:"bytes,7,opt,name=dialogue_key,json=dialogueKey,proto3" json:"dialogue_key,omitempty"`
 	UserId            uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Domain            string                 `protobuf:"bytes,2,opt,name=domain,proto3" json:"domain,omitempty"`
 	AuthorUserId      uint64                 `protobuf:"varint,3,opt,name=author_user_id,json=authorUserId,proto3" json:"author_user_id,omitempty"`
@@ -1738,6 +1811,13 @@ func (x *MultiAgentPublishTwitterRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use MultiAgentPublishTwitterRequest.ProtoReflect.Descriptor instead.
 func (*MultiAgentPublishTwitterRequest) Descriptor() ([]byte, []int) {
 	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *MultiAgentPublishTwitterRequest) GetDialogueKey() string {
+	if x != nil {
+		return x.DialogueKey
+	}
+	return ""
 }
 
 func (x *MultiAgentPublishTwitterRequest) GetUserId() uint64 {
@@ -1784,6 +1864,7 @@ func (x *MultiAgentPublishTwitterRequest) GetContent() string {
 
 type MultiAgentPublishTwitterResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	DialogueKey   string                 `protobuf:"bytes,4,opt,name=dialogue_key,json=dialogueKey,proto3" json:"dialogue_key,omitempty"`
 	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
 	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
 	Response      string                 `protobuf:"bytes,3,opt,name=response,proto3" json:"response,omitempty"`
@@ -1819,6 +1900,13 @@ func (x *MultiAgentPublishTwitterResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use MultiAgentPublishTwitterResponse.ProtoReflect.Descriptor instead.
 func (*MultiAgentPublishTwitterResponse) Descriptor() ([]byte, []int) {
 	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *MultiAgentPublishTwitterResponse) GetDialogueKey() string {
+	if x != nil {
+		return x.DialogueKey
+	}
+	return ""
 }
 
 func (x *MultiAgentPublishTwitterResponse) GetCode() uint64 {
@@ -1962,29 +2050,1038 @@ func (x *AnalyzeAlertResponse) GetStructuredRca() string {
 	return ""
 }
 
+type WorkflowSummary struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkflowId    string                 `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	UserId        uint64                 `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	CreatedAt     int64                  `protobuf:"varint,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt     int64                  `protobuf:"varint,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkflowSummary) Reset() {
+	*x = WorkflowSummary{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkflowSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkflowSummary) ProtoMessage() {}
+
+func (x *WorkflowSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkflowSummary.ProtoReflect.Descriptor instead.
+func (*WorkflowSummary) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *WorkflowSummary) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *WorkflowSummary) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *WorkflowSummary) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *WorkflowSummary) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *WorkflowSummary) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+type WorkflowDetail struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkflowId    string                 `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	UserId        uint64                 `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	DslJson       string                 `protobuf:"bytes,4,opt,name=dsl_json,json=dslJson,proto3" json:"dsl_json,omitempty"`
+	CreatedAt     int64                  `protobuf:"varint,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt     int64                  `protobuf:"varint,6,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkflowDetail) Reset() {
+	*x = WorkflowDetail{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkflowDetail) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkflowDetail) ProtoMessage() {}
+
+func (x *WorkflowDetail) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkflowDetail.ProtoReflect.Descriptor instead.
+func (*WorkflowDetail) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *WorkflowDetail) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *WorkflowDetail) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *WorkflowDetail) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *WorkflowDetail) GetDslJson() string {
+	if x != nil {
+		return x.DslJson
+	}
+	return ""
+}
+
+func (x *WorkflowDetail) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *WorkflowDetail) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+type WorkflowRun struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	WorkflowId    string                 `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	UserId        uint64                 `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	InputJson     string                 `protobuf:"bytes,5,opt,name=input_json,json=inputJson,proto3" json:"input_json,omitempty"`
+	OutputJson    string                 `protobuf:"bytes,6,opt,name=output_json,json=outputJson,proto3" json:"output_json,omitempty"`
+	ErrorMessage  string                 `protobuf:"bytes,7,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	StartedAt     int64                  `protobuf:"varint,8,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	FinishedAt    int64                  `protobuf:"varint,9,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkflowRun) Reset() {
+	*x = WorkflowRun{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkflowRun) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkflowRun) ProtoMessage() {}
+
+func (x *WorkflowRun) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkflowRun.ProtoReflect.Descriptor instead.
+func (*WorkflowRun) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *WorkflowRun) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *WorkflowRun) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *WorkflowRun) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *WorkflowRun) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *WorkflowRun) GetInputJson() string {
+	if x != nil {
+		return x.InputJson
+	}
+	return ""
+}
+
+func (x *WorkflowRun) GetOutputJson() string {
+	if x != nil {
+		return x.OutputJson
+	}
+	return ""
+}
+
+func (x *WorkflowRun) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
+func (x *WorkflowRun) GetStartedAt() int64 {
+	if x != nil {
+		return x.StartedAt
+	}
+	return 0
+}
+
+func (x *WorkflowRun) GetFinishedAt() int64 {
+	if x != nil {
+		return x.FinishedAt
+	}
+	return 0
+}
+
+type CreateWorkflowRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	DslJson       string                 `protobuf:"bytes,3,opt,name=dsl_json,json=dslJson,proto3" json:"dsl_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateWorkflowRequest) Reset() {
+	*x = CreateWorkflowRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateWorkflowRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateWorkflowRequest) ProtoMessage() {}
+
+func (x *CreateWorkflowRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateWorkflowRequest.ProtoReflect.Descriptor instead.
+func (*CreateWorkflowRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *CreateWorkflowRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *CreateWorkflowRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateWorkflowRequest) GetDslJson() string {
+	if x != nil {
+		return x.DslJson
+	}
+	return ""
+}
+
+type CreateWorkflowResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Workflow      *WorkflowDetail        `protobuf:"bytes,3,opt,name=workflow,proto3" json:"workflow,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateWorkflowResponse) Reset() {
+	*x = CreateWorkflowResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateWorkflowResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateWorkflowResponse) ProtoMessage() {}
+
+func (x *CreateWorkflowResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateWorkflowResponse.ProtoReflect.Descriptor instead.
+func (*CreateWorkflowResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *CreateWorkflowResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *CreateWorkflowResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *CreateWorkflowResponse) GetWorkflow() *WorkflowDetail {
+	if x != nil {
+		return x.Workflow
+	}
+	return nil
+}
+
+type UpdateWorkflowRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	WorkflowId    string                 `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	DslJson       string                 `protobuf:"bytes,4,opt,name=dsl_json,json=dslJson,proto3" json:"dsl_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateWorkflowRequest) Reset() {
+	*x = UpdateWorkflowRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateWorkflowRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateWorkflowRequest) ProtoMessage() {}
+
+func (x *UpdateWorkflowRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateWorkflowRequest.ProtoReflect.Descriptor instead.
+func (*UpdateWorkflowRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *UpdateWorkflowRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *UpdateWorkflowRequest) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *UpdateWorkflowRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *UpdateWorkflowRequest) GetDslJson() string {
+	if x != nil {
+		return x.DslJson
+	}
+	return ""
+}
+
+type UpdateWorkflowResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Workflow      *WorkflowDetail        `protobuf:"bytes,3,opt,name=workflow,proto3" json:"workflow,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateWorkflowResponse) Reset() {
+	*x = UpdateWorkflowResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateWorkflowResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateWorkflowResponse) ProtoMessage() {}
+
+func (x *UpdateWorkflowResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateWorkflowResponse.ProtoReflect.Descriptor instead.
+func (*UpdateWorkflowResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *UpdateWorkflowResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *UpdateWorkflowResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *UpdateWorkflowResponse) GetWorkflow() *WorkflowDetail {
+	if x != nil {
+		return x.Workflow
+	}
+	return nil
+}
+
+type ListWorkflowsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Page          uint32                 `protobuf:"varint,2,opt,name=page,proto3" json:"page,omitempty"`
+	PageSize      uint32                 `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListWorkflowsRequest) Reset() {
+	*x = ListWorkflowsRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListWorkflowsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListWorkflowsRequest) ProtoMessage() {}
+
+func (x *ListWorkflowsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListWorkflowsRequest.ProtoReflect.Descriptor instead.
+func (*ListWorkflowsRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *ListWorkflowsRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ListWorkflowsRequest) GetPage() uint32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListWorkflowsRequest) GetPageSize() uint32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type ListWorkflowsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Workflows     []*WorkflowSummary     `protobuf:"bytes,3,rep,name=workflows,proto3" json:"workflows,omitempty"`
+	Total         int64                  `protobuf:"varint,4,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListWorkflowsResponse) Reset() {
+	*x = ListWorkflowsResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListWorkflowsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListWorkflowsResponse) ProtoMessage() {}
+
+func (x *ListWorkflowsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListWorkflowsResponse.ProtoReflect.Descriptor instead.
+func (*ListWorkflowsResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *ListWorkflowsResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *ListWorkflowsResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *ListWorkflowsResponse) GetWorkflows() []*WorkflowSummary {
+	if x != nil {
+		return x.Workflows
+	}
+	return nil
+}
+
+func (x *ListWorkflowsResponse) GetTotal() int64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+type GetWorkflowRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	WorkflowId    string                 `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetWorkflowRequest) Reset() {
+	*x = GetWorkflowRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWorkflowRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWorkflowRequest) ProtoMessage() {}
+
+func (x *GetWorkflowRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWorkflowRequest.ProtoReflect.Descriptor instead.
+func (*GetWorkflowRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *GetWorkflowRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *GetWorkflowRequest) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+type GetWorkflowResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Workflow      *WorkflowDetail        `protobuf:"bytes,3,opt,name=workflow,proto3" json:"workflow,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetWorkflowResponse) Reset() {
+	*x = GetWorkflowResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWorkflowResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWorkflowResponse) ProtoMessage() {}
+
+func (x *GetWorkflowResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWorkflowResponse.ProtoReflect.Descriptor instead.
+func (*GetWorkflowResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *GetWorkflowResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *GetWorkflowResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *GetWorkflowResponse) GetWorkflow() *WorkflowDetail {
+	if x != nil {
+		return x.Workflow
+	}
+	return nil
+}
+
+type RunWorkflowRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	WorkflowId    string                 `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	InputJson     string                 `protobuf:"bytes,3,opt,name=input_json,json=inputJson,proto3" json:"input_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunWorkflowRequest) Reset() {
+	*x = RunWorkflowRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunWorkflowRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunWorkflowRequest) ProtoMessage() {}
+
+func (x *RunWorkflowRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunWorkflowRequest.ProtoReflect.Descriptor instead.
+func (*RunWorkflowRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *RunWorkflowRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *RunWorkflowRequest) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *RunWorkflowRequest) GetInputJson() string {
+	if x != nil {
+		return x.InputJson
+	}
+	return ""
+}
+
+type RunWorkflowResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Run           *WorkflowRun           `protobuf:"bytes,3,opt,name=run,proto3" json:"run,omitempty"`
+	DialogueKey   string                 `protobuf:"bytes,4,opt,name=dialogue_key,json=dialogueKey,proto3" json:"dialogue_key,omitempty"`
+	Response      string                 `protobuf:"bytes,5,opt,name=response,proto3" json:"response,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunWorkflowResponse) Reset() {
+	*x = RunWorkflowResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunWorkflowResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunWorkflowResponse) ProtoMessage() {}
+
+func (x *RunWorkflowResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunWorkflowResponse.ProtoReflect.Descriptor instead.
+func (*RunWorkflowResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *RunWorkflowResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *RunWorkflowResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *RunWorkflowResponse) GetRun() *WorkflowRun {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
+func (x *RunWorkflowResponse) GetDialogueKey() string {
+	if x != nil {
+		return x.DialogueKey
+	}
+	return ""
+}
+
+func (x *RunWorkflowResponse) GetResponse() string {
+	if x != nil {
+		return x.Response
+	}
+	return ""
+}
+
+type GetWorkflowRunRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetWorkflowRunRequest) Reset() {
+	*x = GetWorkflowRunRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWorkflowRunRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWorkflowRunRequest) ProtoMessage() {}
+
+func (x *GetWorkflowRunRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWorkflowRunRequest.ProtoReflect.Descriptor instead.
+func (*GetWorkflowRunRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *GetWorkflowRunRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *GetWorkflowRunRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+type GetWorkflowRunResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Run           *WorkflowRun           `protobuf:"bytes,3,opt,name=run,proto3" json:"run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetWorkflowRunResponse) Reset() {
+	*x = GetWorkflowRunResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWorkflowRunResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWorkflowRunResponse) ProtoMessage() {}
+
+func (x *GetWorkflowRunResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWorkflowRunResponse.ProtoReflect.Descriptor instead.
+func (*GetWorkflowRunResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *GetWorkflowRunResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *GetWorkflowRunResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *GetWorkflowRunResponse) GetRun() *WorkflowRun {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
 var File_api_aiAgent_v1_aiAgent_proto protoreflect.FileDescriptor
 
 const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
 	"\n" +
 	"\x1capi/aiAgent/v1/aiAgent.proto\x12\n" +
-	"aiAgent.v1\"q\n" +
+	"aiAgent.v1\"\x94\x01\n" +
 	"\vMainContent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x04R\x06userId\x12\x1f\n" +
 	"\vdialogue_id\x18\x03 \x01(\x04R\n" +
 	"dialogueId\x12\x18\n" +
-	"\acontent\x18\x04 \x01(\tR\acontent\"\x99\x01\n" +
+	"\acontent\x18\x04 \x01(\tR\acontent\x12!\n" +
+	"\fdialogue_key\x18\x05 \x01(\tR\vdialogueKey\"\xea\x01\n" +
 	"\x15RepositoryContentList\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x04R\x06userId\x12\x1f\n" +
 	"\vdialogue_id\x18\x03 \x01(\x04R\n" +
 	"dialogueId\x12\x1a\n" +
 	"\bquestion\x18\x04 \x01(\tR\bquestion\x12\x1a\n" +
-	"\bresponse\x18\x05 \x01(\tR\bresponse\"S\n" +
+	"\bresponse\x18\x05 \x01(\tR\bresponse\x12!\n" +
+	"\fdialogue_key\x18\x06 \x01(\tR\vdialogueKey\x12\x12\n" +
+	"\x04role\x18\a \x01(\tR\x04role\x12\x18\n" +
+	"\acontent\x18\b \x01(\tR\acontent\"v\n" +
 	"\x12RepositoryDialogue\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x04R\x06userId\x12\x14\n" +
-	"\x05title\x18\x03 \x01(\tR\x05title\".\n" +
+	"\x05title\x18\x03 \x01(\tR\x05title\x12!\n" +
+	"\fdialogue_key\x18\x04 \x01(\tR\vdialogueKey\".\n" +
 	"\bFileKind\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\"\xac\x01\n" +
@@ -2053,11 +3150,12 @@ const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
 	"\x1dgetRepositoryDialogueResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
 	"\x03msg\x18\x02 \x01(\tR\x03msg\x12X\n" +
-	"\x18repository_dialogue_list\x18\x03 \x03(\v2\x1e.aiAgent.v1.RepositoryDialogueR\x16repositoryDialogueList\"T\n" +
+	"\x18repository_dialogue_list\x18\x03 \x03(\v2\x1e.aiAgent.v1.RepositoryDialogueR\x16repositoryDialogueList\"w\n" +
 	"\x18getDialogueDetailRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x1f\n" +
 	"\vdialogue_id\x18\x02 \x01(\x04R\n" +
-	"dialogueId\"\x80\x01\n" +
+	"dialogueId\x12!\n" +
+	"\fdialogue_key\x18\x03 \x01(\tR\vdialogueKey\"\x80\x01\n" +
 	"\x19getDialogueDetailResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
 	"\x03msg\x18\x02 \x01(\tR\x03msg\x12=\n" +
@@ -2075,16 +3173,18 @@ const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
 	"\x12callApiOfAiRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\"\n" +
 	"\rmodel_kind_id\x18\x02 \x01(\x04R\vmodelKindId\x12:\n" +
-	"\fmain_content\x18\x03 \x01(\v2\x17.aiAgent.v1.MainContentR\vmainContent\"W\n" +
+	"\fmain_content\x18\x03 \x01(\v2\x17.aiAgent.v1.MainContentR\vmainContent\"z\n" +
 	"\x13callApiOfAiResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
 	"\x03msg\x18\x02 \x01(\tR\x03msg\x12\x1a\n" +
-	"\bresponse\x18\x03 \x01(\tR\bresponse\"\x90\x01\n" +
+	"\bresponse\x18\x03 \x01(\tR\bresponse\x12!\n" +
+	"\fdialogue_key\x18\x04 \x01(\tR\vdialogueKey\"\x90\x01\n" +
 	"\x15consultContentRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\"\n" +
 	"\rmodel_kind_id\x18\x02 \x01(\x04R\vmodelKindId\x12:\n" +
-	"\fmain_content\x18\x03 \x01(\v2\x17.aiAgent.v1.MainContentR\vmainContent\"\x92\x01\n" +
-	"\x16consultContentResponse\x12\x12\n" +
+	"\fmain_content\x18\x03 \x01(\v2\x17.aiAgent.v1.MainContentR\vmainContent\"\xb5\x01\n" +
+	"\x16consultContentResponse\x12!\n" +
+	"\fdialogue_key\x18\x05 \x01(\tR\vdialogueKey\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
 	"\x03msg\x18\x02 \x01(\tR\x03msg\x12\x1a\n" +
 	"\bresponse\x18\x03 \x01(\tR\bresponse\x126\n" +
@@ -2093,8 +3193,9 @@ const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
 	"\x1bassistPublishTwitterRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\"\n" +
 	"\rmodel_kind_id\x18\x02 \x01(\x04R\vmodelKindId\x12:\n" +
-	"\fmain_content\x18\x03 \x01(\v2\x17.aiAgent.v1.MainContentR\vmainContent\"\x92\x01\n" +
-	"\x1cassistPublishTwitterResponse\x12\x12\n" +
+	"\fmain_content\x18\x03 \x01(\v2\x17.aiAgent.v1.MainContentR\vmainContent\"\xb5\x01\n" +
+	"\x1cassistPublishTwitterResponse\x12!\n" +
+	"\fdialogue_key\x18\x05 \x01(\tR\vdialogueKey\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
 	"\x03msg\x18\x02 \x01(\tR\x03msg\x12\x1a\n" +
 	"\bresponse\x18\x03 \x01(\tR\bresponse\x120\n" +
@@ -2107,16 +3208,18 @@ const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
 	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
 	"\x03msg\x18\x02 \x01(\tR\x03msg\x12\x1a\n" +
 	"\bresponse\x18\x03 \x01(\tR\bresponse\x12\x19\n" +
-	"\btweet_id\x18\x04 \x01(\x04R\atweetId\"\xe3\x01\n" +
-	"\x1fMultiAgentPublishTwitterRequest\x12\x17\n" +
+	"\btweet_id\x18\x04 \x01(\x04R\atweetId\"\x86\x02\n" +
+	"\x1fMultiAgentPublishTwitterRequest\x12!\n" +
+	"\fdialogue_key\x18\a \x01(\tR\vdialogueKey\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x16\n" +
 	"\x06domain\x18\x02 \x01(\tR\x06domain\x12$\n" +
 	"\x0eauthor_user_id\x18\x03 \x01(\x04R\fauthorUserId\x12\x1f\n" +
 	"\vstyle_ratio\x18\x04 \x01(\x02R\n" +
 	"styleRatio\x12.\n" +
 	"\x13reference_tweet_ids\x18\x05 \x03(\x04R\x11referenceTweetIds\x12\x18\n" +
-	"\acontent\x18\x06 \x01(\tR\acontent\"d\n" +
-	" MultiAgentPublishTwitterResponse\x12\x12\n" +
+	"\acontent\x18\x06 \x01(\tR\acontent\"\x87\x01\n" +
+	" MultiAgentPublishTwitterResponse\x12!\n" +
+	"\fdialogue_key\x18\x04 \x01(\tR\vdialogueKey\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
 	"\x03msg\x18\x02 \x01(\tR\x03msg\x12\x1a\n" +
 	"\bresponse\x18\x03 \x01(\tR\bresponse\"Y\n" +
@@ -2128,7 +3231,95 @@ const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
 	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
 	"\x03msg\x18\x02 \x01(\tR\x03msg\x12'\n" +
 	"\x0fanalysis_report\x18\x03 \x01(\tR\x0eanalysisReport\x12%\n" +
-	"\x0estructured_rca\x18\x04 \x01(\tR\rstructuredRca2\x82\b\n" +
+	"\x0estructured_rca\x18\x04 \x01(\tR\rstructuredRca\"\x9d\x01\n" +
+	"\x0fWorkflowSummary\x12\x1f\n" +
+	"\vworkflow_id\x18\x01 \x01(\tR\n" +
+	"workflowId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\x04R\x06userId\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x04 \x01(\x03R\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x05 \x01(\x03R\tupdatedAt\"\xb7\x01\n" +
+	"\x0eWorkflowDetail\x12\x1f\n" +
+	"\vworkflow_id\x18\x01 \x01(\tR\n" +
+	"workflowId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\x04R\x06userId\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12\x19\n" +
+	"\bdsl_json\x18\x04 \x01(\tR\adslJson\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x05 \x01(\x03R\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x06 \x01(\x03R\tupdatedAt\"\x9b\x02\n" +
+	"\vWorkflowRun\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1f\n" +
+	"\vworkflow_id\x18\x02 \x01(\tR\n" +
+	"workflowId\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x04R\x06userId\x12\x16\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\x12\x1d\n" +
+	"\n" +
+	"input_json\x18\x05 \x01(\tR\tinputJson\x12\x1f\n" +
+	"\voutput_json\x18\x06 \x01(\tR\n" +
+	"outputJson\x12#\n" +
+	"\rerror_message\x18\a \x01(\tR\ferrorMessage\x12\x1d\n" +
+	"\n" +
+	"started_at\x18\b \x01(\x03R\tstartedAt\x12\x1f\n" +
+	"\vfinished_at\x18\t \x01(\x03R\n" +
+	"finishedAt\"_\n" +
+	"\x15CreateWorkflowRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x19\n" +
+	"\bdsl_json\x18\x03 \x01(\tR\adslJson\"v\n" +
+	"\x16CreateWorkflowResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x126\n" +
+	"\bworkflow\x18\x03 \x01(\v2\x1a.aiAgent.v1.WorkflowDetailR\bworkflow\"\x80\x01\n" +
+	"\x15UpdateWorkflowRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x1f\n" +
+	"\vworkflow_id\x18\x02 \x01(\tR\n" +
+	"workflowId\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12\x19\n" +
+	"\bdsl_json\x18\x04 \x01(\tR\adslJson\"v\n" +
+	"\x16UpdateWorkflowResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x126\n" +
+	"\bworkflow\x18\x03 \x01(\v2\x1a.aiAgent.v1.WorkflowDetailR\bworkflow\"`\n" +
+	"\x14ListWorkflowsRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x12\n" +
+	"\x04page\x18\x02 \x01(\rR\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x03 \x01(\rR\bpageSize\"\x8e\x01\n" +
+	"\x15ListWorkflowsResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x129\n" +
+	"\tworkflows\x18\x03 \x03(\v2\x1b.aiAgent.v1.WorkflowSummaryR\tworkflows\x12\x14\n" +
+	"\x05total\x18\x04 \x01(\x03R\x05total\"N\n" +
+	"\x12GetWorkflowRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x1f\n" +
+	"\vworkflow_id\x18\x02 \x01(\tR\n" +
+	"workflowId\"s\n" +
+	"\x13GetWorkflowResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x126\n" +
+	"\bworkflow\x18\x03 \x01(\v2\x1a.aiAgent.v1.WorkflowDetailR\bworkflow\"m\n" +
+	"\x12RunWorkflowRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x1f\n" +
+	"\vworkflow_id\x18\x02 \x01(\tR\n" +
+	"workflowId\x12\x1d\n" +
+	"\n" +
+	"input_json\x18\x03 \x01(\tR\tinputJson\"\xa5\x01\n" +
+	"\x13RunWorkflowResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12)\n" +
+	"\x03run\x18\x03 \x01(\v2\x17.aiAgent.v1.WorkflowRunR\x03run\x12!\n" +
+	"\fdialogue_key\x18\x04 \x01(\tR\vdialogueKey\x12\x1a\n" +
+	"\bresponse\x18\x05 \x01(\tR\bresponse\"G\n" +
+	"\x15GetWorkflowRunRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\"i\n" +
+	"\x16GetWorkflowRunResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12)\n" +
+	"\x03run\x18\x03 \x01(\v2\x17.aiAgent.v1.WorkflowRunR\x03run2\x83\f\n" +
 	"\x0eAiAgentService\x12~\n" +
 	"\x1bgetModelDetailedInformation\x12..aiAgent.v1.getModelDetailedInformationRequest\x1a/.aiAgent.v1.getModelDetailedInformationResponse\x12l\n" +
 	"\x15getRepositoryDialogue\x12(.aiAgent.v1.getRepositoryDialogueRequest\x1a).aiAgent.v1.getRepositoryDialogueResponse\x12`\n" +
@@ -2139,7 +3330,13 @@ const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
 	"\x14assistPublishTwitter\x12'.aiAgent.v1.assistPublishTwitterRequest\x1a(.aiAgent.v1.assistPublishTwitterResponse\x12l\n" +
 	"\x15confirmPublishTwitter\x12(.aiAgent.v1.ConfirmPublishTwitterRequest\x1a).aiAgent.v1.ConfirmPublishTwitterResponse\x12u\n" +
 	"\x18multiAgentPublishTwitter\x12+.aiAgent.v1.MultiAgentPublishTwitterRequest\x1a,.aiAgent.v1.MultiAgentPublishTwitterResponse\x12Q\n" +
-	"\fanalyzeAlert\x12\x1f.aiAgent.v1.AnalyzeAlertRequest\x1a .aiAgent.v1.AnalyzeAlertResponseB(Z&twitter-clone/api/aiAgent/v1;aiAgentv1b\x06proto3"
+	"\fanalyzeAlert\x12\x1f.aiAgent.v1.AnalyzeAlertRequest\x1a .aiAgent.v1.AnalyzeAlertResponse\x12W\n" +
+	"\x0ecreateWorkflow\x12!.aiAgent.v1.CreateWorkflowRequest\x1a\".aiAgent.v1.CreateWorkflowResponse\x12W\n" +
+	"\x0eupdateWorkflow\x12!.aiAgent.v1.UpdateWorkflowRequest\x1a\".aiAgent.v1.UpdateWorkflowResponse\x12T\n" +
+	"\rlistWorkflows\x12 .aiAgent.v1.ListWorkflowsRequest\x1a!.aiAgent.v1.ListWorkflowsResponse\x12N\n" +
+	"\vgetWorkflow\x12\x1e.aiAgent.v1.GetWorkflowRequest\x1a\x1f.aiAgent.v1.GetWorkflowResponse\x12N\n" +
+	"\vrunWorkflow\x12\x1e.aiAgent.v1.RunWorkflowRequest\x1a\x1f.aiAgent.v1.RunWorkflowResponse\x12W\n" +
+	"\x0egetWorkflowRun\x12!.aiAgent.v1.GetWorkflowRunRequest\x1a\".aiAgent.v1.GetWorkflowRunResponseB(Z&twitter-clone/api/aiAgent/v1;aiAgentv1b\x06proto3"
 
 var (
 	file_api_aiAgent_v1_aiAgent_proto_rawDescOnce sync.Once
@@ -2153,7 +3350,7 @@ func file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP() []byte {
 	return file_api_aiAgent_v1_aiAgent_proto_rawDescData
 }
 
-var file_api_aiAgent_v1_aiAgent_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
+var file_api_aiAgent_v1_aiAgent_proto_msgTypes = make([]protoimpl.MessageInfo, 44)
 var file_api_aiAgent_v1_aiAgent_proto_goTypes = []any{
 	(*MainContent)(nil),                         // 0: aiAgent.v1.MainContent
 	(*RepositoryContentList)(nil),               // 1: aiAgent.v1.RepositoryContentList
@@ -2184,6 +3381,21 @@ var file_api_aiAgent_v1_aiAgent_proto_goTypes = []any{
 	(*MultiAgentPublishTwitterResponse)(nil),    // 26: aiAgent.v1.MultiAgentPublishTwitterResponse
 	(*AnalyzeAlertRequest)(nil),                 // 27: aiAgent.v1.AnalyzeAlertRequest
 	(*AnalyzeAlertResponse)(nil),                // 28: aiAgent.v1.AnalyzeAlertResponse
+	(*WorkflowSummary)(nil),                     // 29: aiAgent.v1.WorkflowSummary
+	(*WorkflowDetail)(nil),                      // 30: aiAgent.v1.WorkflowDetail
+	(*WorkflowRun)(nil),                         // 31: aiAgent.v1.WorkflowRun
+	(*CreateWorkflowRequest)(nil),               // 32: aiAgent.v1.CreateWorkflowRequest
+	(*CreateWorkflowResponse)(nil),              // 33: aiAgent.v1.CreateWorkflowResponse
+	(*UpdateWorkflowRequest)(nil),               // 34: aiAgent.v1.UpdateWorkflowRequest
+	(*UpdateWorkflowResponse)(nil),              // 35: aiAgent.v1.UpdateWorkflowResponse
+	(*ListWorkflowsRequest)(nil),                // 36: aiAgent.v1.ListWorkflowsRequest
+	(*ListWorkflowsResponse)(nil),               // 37: aiAgent.v1.ListWorkflowsResponse
+	(*GetWorkflowRequest)(nil),                  // 38: aiAgent.v1.GetWorkflowRequest
+	(*GetWorkflowResponse)(nil),                 // 39: aiAgent.v1.GetWorkflowResponse
+	(*RunWorkflowRequest)(nil),                  // 40: aiAgent.v1.RunWorkflowRequest
+	(*RunWorkflowResponse)(nil),                 // 41: aiAgent.v1.RunWorkflowResponse
+	(*GetWorkflowRunRequest)(nil),               // 42: aiAgent.v1.GetWorkflowRunRequest
+	(*GetWorkflowRunResponse)(nil),              // 43: aiAgent.v1.GetWorkflowRunResponse
 }
 var file_api_aiAgent_v1_aiAgent_proto_depIdxs = []int32{
 	3,  // 0: aiAgent.v1.ModelKind.file_kind_list:type_name -> aiAgent.v1.FileKind
@@ -2197,31 +3409,49 @@ var file_api_aiAgent_v1_aiAgent_proto_depIdxs = []int32{
 	8,  // 8: aiAgent.v1.consultContentResponse.tweet_list:type_name -> aiAgent.v1.TweetResult
 	0,  // 9: aiAgent.v1.assistPublishTwitterRequest.main_content:type_name -> aiAgent.v1.MainContent
 	7,  // 10: aiAgent.v1.assistPublishTwitterResponse.tweet_list:type_name -> aiAgent.v1.Tweet
-	9,  // 11: aiAgent.v1.AiAgentService.getModelDetailedInformation:input_type -> aiAgent.v1.getModelDetailedInformationRequest
-	11, // 12: aiAgent.v1.AiAgentService.getRepositoryDialogue:input_type -> aiAgent.v1.getRepositoryDialogueRequest
-	13, // 13: aiAgent.v1.AiAgentService.getDialogueDetail:input_type -> aiAgent.v1.getDialogueDetailRequest
-	15, // 14: aiAgent.v1.AiAgentService.analysisFiles:input_type -> aiAgent.v1.analysisFilesRequest
-	17, // 15: aiAgent.v1.AiAgentService.callApiOfAi:input_type -> aiAgent.v1.callApiOfAiRequest
-	19, // 16: aiAgent.v1.AiAgentService.consultContent:input_type -> aiAgent.v1.consultContentRequest
-	21, // 17: aiAgent.v1.AiAgentService.assistPublishTwitter:input_type -> aiAgent.v1.assistPublishTwitterRequest
-	23, // 18: aiAgent.v1.AiAgentService.confirmPublishTwitter:input_type -> aiAgent.v1.ConfirmPublishTwitterRequest
-	25, // 19: aiAgent.v1.AiAgentService.multiAgentPublishTwitter:input_type -> aiAgent.v1.MultiAgentPublishTwitterRequest
-	27, // 20: aiAgent.v1.AiAgentService.analyzeAlert:input_type -> aiAgent.v1.AnalyzeAlertRequest
-	10, // 21: aiAgent.v1.AiAgentService.getModelDetailedInformation:output_type -> aiAgent.v1.getModelDetailedInformationResponse
-	12, // 22: aiAgent.v1.AiAgentService.getRepositoryDialogue:output_type -> aiAgent.v1.getRepositoryDialogueResponse
-	14, // 23: aiAgent.v1.AiAgentService.getDialogueDetail:output_type -> aiAgent.v1.getDialogueDetailResponse
-	16, // 24: aiAgent.v1.AiAgentService.analysisFiles:output_type -> aiAgent.v1.analysisFilesResponse
-	18, // 25: aiAgent.v1.AiAgentService.callApiOfAi:output_type -> aiAgent.v1.callApiOfAiResponse
-	20, // 26: aiAgent.v1.AiAgentService.consultContent:output_type -> aiAgent.v1.consultContentResponse
-	22, // 27: aiAgent.v1.AiAgentService.assistPublishTwitter:output_type -> aiAgent.v1.assistPublishTwitterResponse
-	24, // 28: aiAgent.v1.AiAgentService.confirmPublishTwitter:output_type -> aiAgent.v1.ConfirmPublishTwitterResponse
-	26, // 29: aiAgent.v1.AiAgentService.multiAgentPublishTwitter:output_type -> aiAgent.v1.MultiAgentPublishTwitterResponse
-	28, // 30: aiAgent.v1.AiAgentService.analyzeAlert:output_type -> aiAgent.v1.AnalyzeAlertResponse
-	21, // [21:31] is the sub-list for method output_type
-	11, // [11:21] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	30, // 11: aiAgent.v1.CreateWorkflowResponse.workflow:type_name -> aiAgent.v1.WorkflowDetail
+	30, // 12: aiAgent.v1.UpdateWorkflowResponse.workflow:type_name -> aiAgent.v1.WorkflowDetail
+	29, // 13: aiAgent.v1.ListWorkflowsResponse.workflows:type_name -> aiAgent.v1.WorkflowSummary
+	30, // 14: aiAgent.v1.GetWorkflowResponse.workflow:type_name -> aiAgent.v1.WorkflowDetail
+	31, // 15: aiAgent.v1.RunWorkflowResponse.run:type_name -> aiAgent.v1.WorkflowRun
+	31, // 16: aiAgent.v1.GetWorkflowRunResponse.run:type_name -> aiAgent.v1.WorkflowRun
+	9,  // 17: aiAgent.v1.AiAgentService.getModelDetailedInformation:input_type -> aiAgent.v1.getModelDetailedInformationRequest
+	11, // 18: aiAgent.v1.AiAgentService.getRepositoryDialogue:input_type -> aiAgent.v1.getRepositoryDialogueRequest
+	13, // 19: aiAgent.v1.AiAgentService.getDialogueDetail:input_type -> aiAgent.v1.getDialogueDetailRequest
+	15, // 20: aiAgent.v1.AiAgentService.analysisFiles:input_type -> aiAgent.v1.analysisFilesRequest
+	17, // 21: aiAgent.v1.AiAgentService.callApiOfAi:input_type -> aiAgent.v1.callApiOfAiRequest
+	19, // 22: aiAgent.v1.AiAgentService.consultContent:input_type -> aiAgent.v1.consultContentRequest
+	21, // 23: aiAgent.v1.AiAgentService.assistPublishTwitter:input_type -> aiAgent.v1.assistPublishTwitterRequest
+	23, // 24: aiAgent.v1.AiAgentService.confirmPublishTwitter:input_type -> aiAgent.v1.ConfirmPublishTwitterRequest
+	25, // 25: aiAgent.v1.AiAgentService.multiAgentPublishTwitter:input_type -> aiAgent.v1.MultiAgentPublishTwitterRequest
+	27, // 26: aiAgent.v1.AiAgentService.analyzeAlert:input_type -> aiAgent.v1.AnalyzeAlertRequest
+	32, // 27: aiAgent.v1.AiAgentService.createWorkflow:input_type -> aiAgent.v1.CreateWorkflowRequest
+	34, // 28: aiAgent.v1.AiAgentService.updateWorkflow:input_type -> aiAgent.v1.UpdateWorkflowRequest
+	36, // 29: aiAgent.v1.AiAgentService.listWorkflows:input_type -> aiAgent.v1.ListWorkflowsRequest
+	38, // 30: aiAgent.v1.AiAgentService.getWorkflow:input_type -> aiAgent.v1.GetWorkflowRequest
+	40, // 31: aiAgent.v1.AiAgentService.runWorkflow:input_type -> aiAgent.v1.RunWorkflowRequest
+	42, // 32: aiAgent.v1.AiAgentService.getWorkflowRun:input_type -> aiAgent.v1.GetWorkflowRunRequest
+	10, // 33: aiAgent.v1.AiAgentService.getModelDetailedInformation:output_type -> aiAgent.v1.getModelDetailedInformationResponse
+	12, // 34: aiAgent.v1.AiAgentService.getRepositoryDialogue:output_type -> aiAgent.v1.getRepositoryDialogueResponse
+	14, // 35: aiAgent.v1.AiAgentService.getDialogueDetail:output_type -> aiAgent.v1.getDialogueDetailResponse
+	16, // 36: aiAgent.v1.AiAgentService.analysisFiles:output_type -> aiAgent.v1.analysisFilesResponse
+	18, // 37: aiAgent.v1.AiAgentService.callApiOfAi:output_type -> aiAgent.v1.callApiOfAiResponse
+	20, // 38: aiAgent.v1.AiAgentService.consultContent:output_type -> aiAgent.v1.consultContentResponse
+	22, // 39: aiAgent.v1.AiAgentService.assistPublishTwitter:output_type -> aiAgent.v1.assistPublishTwitterResponse
+	24, // 40: aiAgent.v1.AiAgentService.confirmPublishTwitter:output_type -> aiAgent.v1.ConfirmPublishTwitterResponse
+	26, // 41: aiAgent.v1.AiAgentService.multiAgentPublishTwitter:output_type -> aiAgent.v1.MultiAgentPublishTwitterResponse
+	28, // 42: aiAgent.v1.AiAgentService.analyzeAlert:output_type -> aiAgent.v1.AnalyzeAlertResponse
+	33, // 43: aiAgent.v1.AiAgentService.createWorkflow:output_type -> aiAgent.v1.CreateWorkflowResponse
+	35, // 44: aiAgent.v1.AiAgentService.updateWorkflow:output_type -> aiAgent.v1.UpdateWorkflowResponse
+	37, // 45: aiAgent.v1.AiAgentService.listWorkflows:output_type -> aiAgent.v1.ListWorkflowsResponse
+	39, // 46: aiAgent.v1.AiAgentService.getWorkflow:output_type -> aiAgent.v1.GetWorkflowResponse
+	41, // 47: aiAgent.v1.AiAgentService.runWorkflow:output_type -> aiAgent.v1.RunWorkflowResponse
+	43, // 48: aiAgent.v1.AiAgentService.getWorkflowRun:output_type -> aiAgent.v1.GetWorkflowRunResponse
+	33, // [33:49] is the sub-list for method output_type
+	17, // [17:33] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_api_aiAgent_v1_aiAgent_proto_init() }
@@ -2235,7 +3465,7 @@ func file_api_aiAgent_v1_aiAgent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_aiAgent_v1_aiAgent_proto_rawDesc), len(file_api_aiAgent_v1_aiAgent_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   29,
+			NumMessages:   44,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

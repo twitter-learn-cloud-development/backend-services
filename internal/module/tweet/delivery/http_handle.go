@@ -165,7 +165,7 @@ func (h *TweetHandler) handleError(c *gin.Context, err error) {
 	case errors.Is(err, service.ErrInvalidContent):
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid content"})
 	case errors.Is(err, service.ErrContentTooLong):
-		c.JSON(http.StatusBadRequest, gin.H{"error": "content too long (max 280 characters)"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	case errors.Is(err, service.ErrUnauthorized):
 		c.JSON(http.StatusForbidden, gin.H{"error": "unauthorized"})
 	case errors.Is(err, service.ErrInvalidMediaURL):

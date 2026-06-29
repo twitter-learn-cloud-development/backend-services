@@ -520,3 +520,36 @@
 | **问题** | 在微服务启动后，消费者或旁路任务向 Qdrant 向量数据库写入数据（UpsertPoint）时，频繁报错 `failed to upsert point to Qdrant: failed to upsert point, status: 404, response: `，导致事件任务重试失败并归档为 Failed。 |
 | **原因** | 1. Docker Compose 部署中，`consumer` 和 `agent-service` 依赖 `qdrant` 时仅配置了 `condition: service_started`，导致在 Qdrant API 尚未就绪前应用已初始化完毕。<br>2. 尽管应用在初始化时尝试创建 `tweets` 集合，但由于端口未就绪导致创建静默失败。随后写入数据时，由于 Collection 依然不存在，Qdrant 就会返回 404 错误。 |
 | **解决** | 1. 在 `pkg/qdrant/qdrant.go` 客户端的 `UpsertPoint` 写入逻辑中加入了**写时自愈**（On-Demand Healing）机制：当捕获到 Qdrant 返回的 404 状态码时，自动提取当前写入向量的维度，发起 `CreateCollection` 进行幂等创建，创建成功后自动递归重试写入。<br>2. 重新编译微服务并运行，自愈机制彻底规避了启动依赖时序和冷启动未准备好的痛点，实现了高弹性的自愈向量写入保障。 |
+
+## 65. 可视化工作流编辑器 Handle 端点堆叠无法连线
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 在工作流编辑器中，各个节点连线的 Handle（如输入、输出小方块）堆叠在左侧，且无法从一个节点拖拽连线至另一个节点 |
+| **原因** | 前端主画布组件 `WorkflowEditor.vue` 仅加载了 `@vue-flow` 组件，却未引入 `@vue-flow/core/dist/style.css` 和 `@vue-flow/core/dist/theme-default.css` 核心样式文件，导致内置的 Handle 样式与定位失效 |
+| **解决** | 在 `WorkflowEditor.vue` 的 `<script setup>` 顶部追加导入这二者核心样式，使 Handle 恢复绝对定位并渲染在节点左右两侧，连线交互得以正常使用 |
+
+## 66. 自定义工作流节点删除按钮点击无效
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 点击自定义节点右上角的 "✕"（删除按钮）后无响应，无法删除节点 |
+| **原因** | `CustomNodeWrapper.vue` 原本仅发出 `emit('delete')` 自定义事件。然而该组件是作为 Vue Flow 动态渲染的节点类型反射出来的，外部的 `<VueFlow>` 父组件无法直接捕获到子组件的 emit；且之前父组件 provide 的 `deleteNode` 方法在子组件中未定义 `inject` 接收，导致无法触发真正的删除流程 |
+| **解决** | 在 `CustomNodeWrapper.vue` 中显式 `inject` 接收父组件提供的 `deleteNode` 函数，同时引入 `useVueFlow().removeNodes` 作为原生删除的兜底方案。点击删除按钮时，调用 `deleteNode` 统一删除节点、关联连线，并安全重置右侧配置抽屉 |
+
+## 67. 本地 Workflow 单元测试受 Go 1.25.5 工具链下载阻塞
+
+| 项目 | 内容 |
+|------|------|
+| **问题** | 执行 `go test ./internal/module/agent/workflow/...` 时无法完成验证。使用 `GOTOOLCHAIN=local` 会提示本机 Go 版本为 `1.24.3`，低于 `go.mod` 要求的 `1.25.5`；启用自动工具链下载后，下载过程在当前受限网络环境中超时。 |
+| **原因** | 本地可用 Go 工具链版本与项目声明版本不一致，且沙箱网络/代理限制导致 `go1.25.5` 自动下载无法稳定完成。 |
+| **解决** | 代码已完成 `gofmt` 和静态检查；待本机预装 Go 1.25.5 或配置可用 Go toolchain 缓存后，重新执行 `go test ./internal/module/agent/workflow/...` 与相关 agent 包测试完成闭环验证。 |
+## 2026-06-25 P4 Go Toolchain Validation Blocker
+
+| 字段 | 内容 |
+|------|------|
+| 问题 | `GOTOOLCHAIN=local go test ./internal/module/agent/workflow/engine ./internal/module/agent/service` 未能进入编译阶段 |
+| 原因 | 当前本机 Go 版本为 `go1.24.3`，但 `go.mod` 要求 `go >= 1.25.5` |
+| 影响 | P4 的 Go 单元测试无法在当前本地工具链完成验证；前端构建与 diff check 已通过 |
+| 解决方案 | 安装或允许下载 Go 1.25.5 后重新执行上述 Go 测试 |
+| 状态 | Open |

@@ -29,6 +29,12 @@ const (
 	AiAgentService_ConfirmPublishTwitter_FullMethodName       = "/aiAgent.v1.AiAgentService/confirmPublishTwitter"
 	AiAgentService_MultiAgentPublishTwitter_FullMethodName    = "/aiAgent.v1.AiAgentService/multiAgentPublishTwitter"
 	AiAgentService_AnalyzeAlert_FullMethodName                = "/aiAgent.v1.AiAgentService/analyzeAlert"
+	AiAgentService_CreateWorkflow_FullMethodName              = "/aiAgent.v1.AiAgentService/createWorkflow"
+	AiAgentService_UpdateWorkflow_FullMethodName              = "/aiAgent.v1.AiAgentService/updateWorkflow"
+	AiAgentService_ListWorkflows_FullMethodName               = "/aiAgent.v1.AiAgentService/listWorkflows"
+	AiAgentService_GetWorkflow_FullMethodName                 = "/aiAgent.v1.AiAgentService/getWorkflow"
+	AiAgentService_RunWorkflow_FullMethodName                 = "/aiAgent.v1.AiAgentService/runWorkflow"
+	AiAgentService_GetWorkflowRun_FullMethodName              = "/aiAgent.v1.AiAgentService/getWorkflowRun"
 )
 
 // AiAgentServiceClient is the client API for AiAgentService service.
@@ -57,6 +63,18 @@ type AiAgentServiceClient interface {
 	MultiAgentPublishTwitter(ctx context.Context, in *MultiAgentPublishTwitterRequest, opts ...grpc.CallOption) (*MultiAgentPublishTwitterResponse, error)
 	// 告警分析与根因诊断 (AIOps)
 	AnalyzeAlert(ctx context.Context, in *AnalyzeAlertRequest, opts ...grpc.CallOption) (*AnalyzeAlertResponse, error)
+	// 保存用户自定义工作流 DSL
+	CreateWorkflow(ctx context.Context, in *CreateWorkflowRequest, opts ...grpc.CallOption) (*CreateWorkflowResponse, error)
+	// 更新用户自定义工作流 DSL
+	UpdateWorkflow(ctx context.Context, in *UpdateWorkflowRequest, opts ...grpc.CallOption) (*UpdateWorkflowResponse, error)
+	// 获取用户工作流列表
+	ListWorkflows(ctx context.Context, in *ListWorkflowsRequest, opts ...grpc.CallOption) (*ListWorkflowsResponse, error)
+	// 获取单个工作流 DSL
+	GetWorkflow(ctx context.Context, in *GetWorkflowRequest, opts ...grpc.CallOption) (*GetWorkflowResponse, error)
+	// 运行工作流
+	RunWorkflow(ctx context.Context, in *RunWorkflowRequest, opts ...grpc.CallOption) (*RunWorkflowResponse, error)
+	// 获取工作流运行记录
+	GetWorkflowRun(ctx context.Context, in *GetWorkflowRunRequest, opts ...grpc.CallOption) (*GetWorkflowRunResponse, error)
 }
 
 type aiAgentServiceClient struct {
@@ -167,6 +185,66 @@ func (c *aiAgentServiceClient) AnalyzeAlert(ctx context.Context, in *AnalyzeAler
 	return out, nil
 }
 
+func (c *aiAgentServiceClient) CreateWorkflow(ctx context.Context, in *CreateWorkflowRequest, opts ...grpc.CallOption) (*CreateWorkflowResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateWorkflowResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_CreateWorkflow_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) UpdateWorkflow(ctx context.Context, in *UpdateWorkflowRequest, opts ...grpc.CallOption) (*UpdateWorkflowResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateWorkflowResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_UpdateWorkflow_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) ListWorkflows(ctx context.Context, in *ListWorkflowsRequest, opts ...grpc.CallOption) (*ListWorkflowsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListWorkflowsResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_ListWorkflows_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) GetWorkflow(ctx context.Context, in *GetWorkflowRequest, opts ...grpc.CallOption) (*GetWorkflowResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetWorkflowResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_GetWorkflow_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) RunWorkflow(ctx context.Context, in *RunWorkflowRequest, opts ...grpc.CallOption) (*RunWorkflowResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RunWorkflowResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_RunWorkflow_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) GetWorkflowRun(ctx context.Context, in *GetWorkflowRunRequest, opts ...grpc.CallOption) (*GetWorkflowRunResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetWorkflowRunResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_GetWorkflowRun_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AiAgentServiceServer is the server API for AiAgentService service.
 // All implementations must embed UnimplementedAiAgentServiceServer
 // for forward compatibility.
@@ -193,6 +271,18 @@ type AiAgentServiceServer interface {
 	MultiAgentPublishTwitter(context.Context, *MultiAgentPublishTwitterRequest) (*MultiAgentPublishTwitterResponse, error)
 	// 告警分析与根因诊断 (AIOps)
 	AnalyzeAlert(context.Context, *AnalyzeAlertRequest) (*AnalyzeAlertResponse, error)
+	// 保存用户自定义工作流 DSL
+	CreateWorkflow(context.Context, *CreateWorkflowRequest) (*CreateWorkflowResponse, error)
+	// 更新用户自定义工作流 DSL
+	UpdateWorkflow(context.Context, *UpdateWorkflowRequest) (*UpdateWorkflowResponse, error)
+	// 获取用户工作流列表
+	ListWorkflows(context.Context, *ListWorkflowsRequest) (*ListWorkflowsResponse, error)
+	// 获取单个工作流 DSL
+	GetWorkflow(context.Context, *GetWorkflowRequest) (*GetWorkflowResponse, error)
+	// 运行工作流
+	RunWorkflow(context.Context, *RunWorkflowRequest) (*RunWorkflowResponse, error)
+	// 获取工作流运行记录
+	GetWorkflowRun(context.Context, *GetWorkflowRunRequest) (*GetWorkflowRunResponse, error)
 	mustEmbedUnimplementedAiAgentServiceServer()
 }
 
@@ -232,6 +322,24 @@ func (UnimplementedAiAgentServiceServer) MultiAgentPublishTwitter(context.Contex
 }
 func (UnimplementedAiAgentServiceServer) AnalyzeAlert(context.Context, *AnalyzeAlertRequest) (*AnalyzeAlertResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method AnalyzeAlert not implemented")
+}
+func (UnimplementedAiAgentServiceServer) CreateWorkflow(context.Context, *CreateWorkflowRequest) (*CreateWorkflowResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateWorkflow not implemented")
+}
+func (UnimplementedAiAgentServiceServer) UpdateWorkflow(context.Context, *UpdateWorkflowRequest) (*UpdateWorkflowResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateWorkflow not implemented")
+}
+func (UnimplementedAiAgentServiceServer) ListWorkflows(context.Context, *ListWorkflowsRequest) (*ListWorkflowsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListWorkflows not implemented")
+}
+func (UnimplementedAiAgentServiceServer) GetWorkflow(context.Context, *GetWorkflowRequest) (*GetWorkflowResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetWorkflow not implemented")
+}
+func (UnimplementedAiAgentServiceServer) RunWorkflow(context.Context, *RunWorkflowRequest) (*RunWorkflowResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RunWorkflow not implemented")
+}
+func (UnimplementedAiAgentServiceServer) GetWorkflowRun(context.Context, *GetWorkflowRunRequest) (*GetWorkflowRunResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetWorkflowRun not implemented")
 }
 func (UnimplementedAiAgentServiceServer) mustEmbedUnimplementedAiAgentServiceServer() {}
 func (UnimplementedAiAgentServiceServer) testEmbeddedByValue()                        {}
@@ -434,6 +542,114 @@ func _AiAgentService_AnalyzeAlert_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AiAgentService_CreateWorkflow_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateWorkflowRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).CreateWorkflow(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_CreateWorkflow_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).CreateWorkflow(ctx, req.(*CreateWorkflowRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_UpdateWorkflow_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateWorkflowRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).UpdateWorkflow(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_UpdateWorkflow_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).UpdateWorkflow(ctx, req.(*UpdateWorkflowRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_ListWorkflows_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListWorkflowsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).ListWorkflows(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_ListWorkflows_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).ListWorkflows(ctx, req.(*ListWorkflowsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_GetWorkflow_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetWorkflowRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).GetWorkflow(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_GetWorkflow_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).GetWorkflow(ctx, req.(*GetWorkflowRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_RunWorkflow_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RunWorkflowRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).RunWorkflow(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_RunWorkflow_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).RunWorkflow(ctx, req.(*RunWorkflowRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_GetWorkflowRun_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetWorkflowRunRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).GetWorkflowRun(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_GetWorkflowRun_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).GetWorkflowRun(ctx, req.(*GetWorkflowRunRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AiAgentService_ServiceDesc is the grpc.ServiceDesc for AiAgentService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -480,6 +696,30 @@ var AiAgentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "analyzeAlert",
 			Handler:    _AiAgentService_AnalyzeAlert_Handler,
+		},
+		{
+			MethodName: "createWorkflow",
+			Handler:    _AiAgentService_CreateWorkflow_Handler,
+		},
+		{
+			MethodName: "updateWorkflow",
+			Handler:    _AiAgentService_UpdateWorkflow_Handler,
+		},
+		{
+			MethodName: "listWorkflows",
+			Handler:    _AiAgentService_ListWorkflows_Handler,
+		},
+		{
+			MethodName: "getWorkflow",
+			Handler:    _AiAgentService_GetWorkflow_Handler,
+		},
+		{
+			MethodName: "runWorkflow",
+			Handler:    _AiAgentService_RunWorkflow_Handler,
+		},
+		{
+			MethodName: "getWorkflowRun",
+			Handler:    _AiAgentService_GetWorkflowRun_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

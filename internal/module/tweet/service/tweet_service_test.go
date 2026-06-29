@@ -55,11 +55,13 @@ func TestCreateTweet_Success(t *testing.T) {
 }
 
 func TestCreateTweet_ContentTooLong(t *testing.T) {
+	t.Setenv("TWEET_MAX_CONTENT_LENGTH", "10000")
+	t.Setenv("TWEET_HARD_MAX_CONTENT_LENGTH", "20000")
 	svc := NewTweetService(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 	// 构造超长字符串 (281 字符)
 	longContent := ""
-	for i := 0; i < 281; i++ {
+	for i := 0; i < DefaultMaxContentLength+1; i++ {
 		longContent += "a"
 	}
 
@@ -67,5 +69,5 @@ func TestCreateTweet_ContentTooLong(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, tweet)
-	assert.Equal(t, ErrContentTooLong, err)
+	assert.ErrorIs(t, err, ErrContentTooLong)
 }

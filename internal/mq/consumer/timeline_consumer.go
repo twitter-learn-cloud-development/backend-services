@@ -94,16 +94,16 @@ const (
 
 // TimelineConsumer Timeline 消费者
 type TimelineConsumer struct {
-	mq             *mq.RabbitMQ
-	followRepo     domain.FollowRepository
-	timelineCache  *tweetCache.TimelineCache
-	redisClient    *redis.Client
-	esClient       *es.Client
-	qdrantClient   *qdrant.Client // 🆕 注入 Qdrant 客户端
-	aiClient       *ai.Client
-	outboxRepo     domain.OutboxRepository // 🆕 注入 Outbox 仓储
-	hashtagBatcher *HashtagBatcher         // 🆕 注入 Hashtag 批量计数缓冲器
-	trendsProcessor *TrendsProcessor       // 🆕 注入趋势话题处理器
+	mq              *mq.RabbitMQ
+	followRepo      domain.FollowRepository
+	timelineCache   *tweetCache.TimelineCache
+	redisClient     *redis.Client
+	esClient        *es.Client
+	qdrantClient    *qdrant.Client // 🆕 注入 Qdrant 客户端
+	aiClient        *ai.Client
+	outboxRepo      domain.OutboxRepository // 🆕 注入 Outbox 仓储
+	hashtagBatcher  *HashtagBatcher         // 🆕 注入 Hashtag 批量计数缓冲器
+	trendsProcessor *TrendsProcessor        // 🆕 注入趋势话题处理器
 }
 
 // NewTimelineConsumer 创建 Timeline 消费者
@@ -366,15 +366,17 @@ func (c *TimelineConsumer) handleFanoutMessage(msg amqp.Delivery) {
 func (c *TimelineConsumer) processHashtags(ctx context.Context, event events.TweetCreatedEvent) {
 	if c.trendsProcessor == nil {
 		// 降级：仅提取 Hashtag
-		re := regexp.MustCompile(`#(\w+)`)
+		re := regexp.MustCompile(`#([\p{Han}A-Za-z0-9_][\p{Han}A-Za-z0-9_-]{0,63})`)
 		matches := re.FindAllStringSubmatch(event.Content, -1)
 		if len(matches) == 0 {
 			return
 		}
 		for _, match := range matches {
 			if len(match) > 1 {
-				tag := match[1]
-				c.hashtagBatcher.Add(tag)
+				tag := normalizeTrendTopic(match[1])
+				if tag != "" {
+					c.hashtagBatcher.Add(tag)
+				}
 			}
 		}
 		return

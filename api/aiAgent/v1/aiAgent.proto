@@ -25,6 +25,18 @@ service AiAgentService {
     rpc multiAgentPublishTwitter (MultiAgentPublishTwitterRequest) returns (MultiAgentPublishTwitterResponse);
     // 告警分析与根因诊断 (AIOps)
     rpc analyzeAlert (AnalyzeAlertRequest) returns (AnalyzeAlertResponse);
+    // 保存用户自定义工作流 DSL
+    rpc createWorkflow (CreateWorkflowRequest) returns (CreateWorkflowResponse);
+    // 更新用户自定义工作流 DSL
+    rpc updateWorkflow (UpdateWorkflowRequest) returns (UpdateWorkflowResponse);
+    // 获取用户工作流列表
+    rpc listWorkflows (ListWorkflowsRequest) returns (ListWorkflowsResponse);
+    // 获取单个工作流 DSL
+    rpc getWorkflow (GetWorkflowRequest) returns (GetWorkflowResponse);
+    // 运行工作流
+    rpc runWorkflow (RunWorkflowRequest) returns (RunWorkflowResponse);
+    // 获取工作流运行记录
+    rpc getWorkflowRun (GetWorkflowRunRequest) returns (GetWorkflowRunResponse);
 }
 
 
@@ -36,6 +48,7 @@ message MainContent {
     uint64 user_id     = 2;
     uint64 dialogue_id = 3;
     string content     = 4;
+    string dialogue_key = 5;
 }
 
 // 单条历史消息记录
@@ -45,6 +58,9 @@ message RepositoryContentList {
     uint64 dialogue_id = 3;
     string question    = 4;
     string response    = 5;
+    string dialogue_key = 6;
+    string role        = 7;
+    string content     = 8;
 }
 
 // 历史对话（标题级别）
@@ -52,6 +68,7 @@ message RepositoryDialogue {
     uint64 id      = 1;
     uint64 user_id = 2;
     string title   = 3;
+    string dialogue_key = 4;
 }
 
 // 文件类型
@@ -139,6 +156,7 @@ message getRepositoryDialogueResponse {
 message getDialogueDetailRequest {
     uint64 user_id     = 1;
     uint64 dialogue_id = 2;
+    string dialogue_key = 3;
 }
 message getDialogueDetailResponse {
     uint64                       code     = 1;
@@ -167,6 +185,7 @@ message callApiOfAiResponse {
     uint64 code     = 1;
     string msg      = 2;
     string response = 3;
+    string dialogue_key = 4;
 }
 
 message consultContentRequest {
@@ -175,6 +194,7 @@ message consultContentRequest {
     MainContent main_content  = 3;
 }
 message consultContentResponse {
+    string         dialogue_key = 5;
     uint64         code       = 1;
     string         msg        = 2;
     string         response   = 3; // AI 自然语言回复
@@ -187,6 +207,7 @@ message assistPublishTwitterRequest {
     MainContent main_content  = 3;
 }
 message assistPublishTwitterResponse {
+    string         dialogue_key = 5;
     uint64         code       = 1;
     string         msg        = 2;
     string         response   = 3; // AI 生成的推文草稿说明
@@ -206,6 +227,7 @@ message ConfirmPublishTwitterResponse {
 }
 
 message MultiAgentPublishTwitterRequest {
+    string dialogue_key               = 7;
     uint64 user_id                    = 1;
     string domain                     = 2;
     uint64 author_user_id             = 3;
@@ -215,6 +237,7 @@ message MultiAgentPublishTwitterRequest {
 }
 
 message MultiAgentPublishTwitterResponse {
+    string dialogue_key = 4;
     uint64 code     = 1;
     string msg      = 2;
     string response = 3;
@@ -230,4 +253,107 @@ message AnalyzeAlertResponse {
     string msg = 2;
     string analysis_report = 3;
     string structured_rca = 4; // JSON 格式的故障自愈结构化元数据
+}
+
+message WorkflowSummary {
+    string workflow_id = 1;
+    uint64 user_id = 2;
+    string name = 3;
+    int64 created_at = 4;
+    int64 updated_at = 5;
+}
+
+message WorkflowDetail {
+    string workflow_id = 1;
+    uint64 user_id = 2;
+    string name = 3;
+    string dsl_json = 4;
+    int64 created_at = 5;
+    int64 updated_at = 6;
+}
+
+message WorkflowRun {
+    string run_id = 1;
+    string workflow_id = 2;
+    uint64 user_id = 3;
+    string status = 4;
+    string input_json = 5;
+    string output_json = 6;
+    string error_message = 7;
+    int64 started_at = 8;
+    int64 finished_at = 9;
+}
+
+message CreateWorkflowRequest {
+    uint64 user_id = 1;
+    string name = 2;
+    string dsl_json = 3;
+}
+
+message CreateWorkflowResponse {
+    uint64 code = 1;
+    string msg = 2;
+    WorkflowDetail workflow = 3;
+}
+
+message UpdateWorkflowRequest {
+    uint64 user_id = 1;
+    string workflow_id = 2;
+    string name = 3;
+    string dsl_json = 4;
+}
+
+message UpdateWorkflowResponse {
+    uint64 code = 1;
+    string msg = 2;
+    WorkflowDetail workflow = 3;
+}
+
+message ListWorkflowsRequest {
+    uint64 user_id = 1;
+    uint32 page = 2;
+    uint32 page_size = 3;
+}
+
+message ListWorkflowsResponse {
+    uint64 code = 1;
+    string msg = 2;
+    repeated WorkflowSummary workflows = 3;
+    int64 total = 4;
+}
+
+message GetWorkflowRequest {
+    uint64 user_id = 1;
+    string workflow_id = 2;
+}
+
+message GetWorkflowResponse {
+    uint64 code = 1;
+    string msg = 2;
+    WorkflowDetail workflow = 3;
+}
+
+message RunWorkflowRequest {
+    uint64 user_id = 1;
+    string workflow_id = 2;
+    string input_json = 3;
+}
+
+message RunWorkflowResponse {
+    uint64 code = 1;
+    string msg = 2;
+    WorkflowRun run = 3;
+    string dialogue_key = 4;
+    string response = 5;
+}
+
+message GetWorkflowRunRequest {
+    uint64 user_id = 1;
+    string run_id = 2;
+}
+
+message GetWorkflowRunResponse {
+    uint64 code = 1;
+    string msg = 2;
+    WorkflowRun run = 3;
 }

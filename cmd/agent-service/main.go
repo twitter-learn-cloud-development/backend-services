@@ -22,21 +22,23 @@ import (
 	aiAgentv1 "twitter-clone/api/aiAgent/v1"
 	tweetv1 "twitter-clone/api/tweet/v1"
 	userv1 "twitter-clone/api/user/v1"
+	"twitter-clone/internal/infrastructure/cache"
+	mongoInfra "twitter-clone/internal/infrastructure/mongo"
+	"twitter-clone/internal/infrastructure/mq"
+	"twitter-clone/internal/infrastructure/persistence"
 	agentGrpc "twitter-clone/internal/module/agent/grpc"
 	agentMcp "twitter-clone/internal/module/agent/mcp"
 	"twitter-clone/internal/module/agent/repository"
 	agentService "twitter-clone/internal/module/agent/service"
-	mongoInfra "twitter-clone/internal/infrastructure/mongo"
-	"twitter-clone/internal/infrastructure/persistence"
-	"twitter-clone/internal/infrastructure/cache"
-	"twitter-clone/internal/infrastructure/mq"
+	"twitter-clone/internal/module/agent/workflow/rag"
+	workflowTool "twitter-clone/internal/module/agent/workflow/tool"
 	followRepository "twitter-clone/internal/module/follow/repository"
 	"twitter-clone/pkg/ai"
 	"twitter-clone/pkg/es"
 	"twitter-clone/pkg/logger"
+	"twitter-clone/pkg/profiler"
 	"twitter-clone/pkg/qdrant"
 	"twitter-clone/pkg/registry"
-	"twitter-clone/pkg/profiler"
 
 	_ "github.com/mbobakov/grpc-consul-resolver"
 	"google.golang.org/grpc/credentials/insecure"
@@ -94,6 +96,8 @@ func main() {
 
 	// 3. 初始化 AI Embedding 客户端
 	aiClient := ai.NewClient(getEnv("LM_STUDIO_API_URL", "http://localhost:1234/v1"))
+	chatModelLocal := getEnv("LM_STUDIO_MODEL_CHAT", "qwen2.5-3b-instruct")
+	chatModelPremium := getEnv("DASHSCOPE_MODEL_CHAT", getEnv("PREMIUM_AI_MODEL_CHAT", "qwen-plus"))
 	log.Println("✅ AI Embedding client initialized")
 
 	// 3.1 初始化 Reranker
@@ -168,12 +172,35 @@ func main() {
 	svc := agentService.NewAgentService(
 		getEnv("DASHSCOPE_API_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
 		getEnv("DASHSCOPE_API_KEY", ""),
-		getEnv("LM_STUDIO_MODEL_CHAT", "qwen3.6-plus"),
+		chatModelPremium,
 		mcpAddr,
 		repo,
 		aiClient,
 		redisClient,
 	)
+	memoryManager := rag.NewMemoryManager(
+		db,
+		esClient,
+		qdrantClient,
+		aiClient,
+		chatModelLocal,
+		embeddingModel,
+	)
+	cascadeRouter := rag.NewCascadeRouter(aiClient, chatModelLocal)
+	svc.SetCognitiveEngine(memoryManager, cascadeRouter, embeddingModel)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := cascadeRouter.InitSemanticAnchors(ctx, embeddingModel); err != nil {
+			log.Printf("鈿狅笍 Cognitive router semantic anchors unavailable: %v", err)
+		}
+	}()
+	workflowRegistry := workflowTool.GetRegistry()
+	workflowRegistry.Register(workflowTool.NewLLMChatToolWithConfig(aiClient, chatModelLocal, getEnv("LM_STUDIO_API_URL", "http://localhost:1234/v1"), "lm-studio"))
+	workflowRegistry.Register(workflowTool.NewWebSearchTool())
+	workflowRegistry.Register(workflowTool.NewPublishTweetTool(tweetClient))
+	registerWorkflowMCPTools(workflowRegistry, svc)
+	registerWorkflowStrategyTools(workflowRegistry, svc)
 	log.Println("✅ Agent Service initialized (with MongoDB persistence)")
 
 	mqConfig := mq.DefaultRabbitMQConfig()
@@ -200,7 +227,7 @@ func main() {
 		defer temporalClient.Close()
 
 		// 🆕 初始化 Temporal Activities
-		chatModelCheap := getEnv("LM_STUDIO_MODEL_CHAT", "qwen3.6-plus")
+		chatModelCheap := getEnv("LM_STUDIO_MODEL_CHAT", "qwen2.5-3b-instruct")
 		chatModelPremium := getEnv("PREMIUM_AI_MODEL_CHAT", "qwen-max")
 		botUserIDStr := getEnv("TRENDING_BOT_USER_ID", "100")
 		botUserID, _ := strconv.ParseUint(botUserIDStr, 10, 64)
@@ -281,7 +308,7 @@ func main() {
 	}
 
 	// 🆕 实例化并启动热点播报姬后台定时任务 (发总结的 AI 助手)
-	chatModelCheap := getEnv("LM_STUDIO_MODEL_CHAT", "qwen3.6-plus")
+	chatModelCheap := getEnv("LM_STUDIO_MODEL_CHAT", "qwen2.5-3b-instruct")
 	botUserIDStr := getEnv("TRENDING_BOT_USER_ID", "100")
 	botUserID, _ := strconv.ParseUint(botUserIDStr, 10, 64)
 	if botUserID == 0 {
@@ -347,6 +374,48 @@ func main() {
 		mqClient.Close()
 	}
 	log.Println("✅ Server exited")
+}
+
+func registerWorkflowMCPTools(registry *workflowTool.ToolRegistry, svc *agentService.AgentService) {
+	definitions := []struct {
+		name        string
+		mcpName     string
+		description string
+		schema      string
+	}{
+		{"SemanticTweetSearch", "search_tweets_by_semantic", "通过 MCP 对平台推文进行语义检索。", `{"type":"object","properties":{"query":{"type":"string"},"size":{"type":"number"}},"required":["query"]}`},
+		{"HybridTweetSearch", "hybrid_search_tweets", "通过 MCP 执行 BM25 与向量混合推文检索。", `{"type":"object","properties":{"query":{"type":"string"},"size":{"type":"number"}},"required":["query"]}`},
+		{"GetUserTweets", "get_user_tweets", "通过 MCP 获取指定用户的历史推文。", `{"type":"object","properties":{"user_id":{"type":"string"},"limit":{"type":"number"}},"required":["user_id"]}`},
+		{"GetTweetsByIDs", "get_tweets_by_ids", "通过 MCP 按 ID 获取推文内容。", `{"type":"object","properties":{"tweet_ids":{"type":"string"}},"required":["tweet_ids"]}`},
+		{"SearchUsers", "search_users", "通过 MCP 搜索平台用户。", `{"type":"object","properties":{"keyword":{"type":"string"},"limit":{"type":"number"}},"required":["keyword"]}`},
+	}
+
+	for _, definition := range definitions {
+		definition := definition
+		registry.Register(workflowTool.NewDelegatedTool(
+			definition.name,
+			definition.description,
+			definition.schema,
+			func(ctx context.Context, inputs map[string]interface{}) (map[string]interface{}, error) {
+				return svc.ExecuteWorkflowMCPTool(ctx, definition.mcpName, inputs)
+			},
+		))
+	}
+}
+
+func registerWorkflowStrategyTools(registry *workflowTool.ToolRegistry, svc *agentService.AgentService) {
+	schema := `{"type":"object","properties":{"objective":{"type":"string"},"plan":{"type":"string"},"system_prompt":{"type":"string"},"allowed_tools":{"type":"string"},"max_iterations":{"type":"number"},"model":{"type":"string"},"max_tokens":{"type":"number"}},"required":["objective"]}`
+	for _, strategy := range []string{"ReActAgent", "PlanExecutor"} {
+		strategy := strategy
+		registry.Register(workflowTool.NewDelegatedTool(
+			strategy,
+			"执行受限、可审计的智能体策略，只允许调用只读 MCP 工具。",
+			schema,
+			func(ctx context.Context, inputs map[string]interface{}) (map[string]interface{}, error) {
+				return svc.ExecuteWorkflowStrategy(ctx, strategy, inputs)
+			},
+		))
+	}
 }
 
 func getEnv(key, fallback string) string {

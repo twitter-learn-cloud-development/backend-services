@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	aiAgentv1 "twitter-clone/api/aiAgent/v1"
+	"twitter-clone/internal/module/agent/repository"
 	"twitter-clone/internal/module/agent/service"
 )
 
@@ -27,16 +28,17 @@ func NewAgentServer(svc *service.AgentService) *AgentServer {
 func (s *AgentServer) CallApiOfAi(ctx context.Context, req *aiAgentv1.CallApiOfAiRequest) (*aiAgentv1.CallApiOfAiResponse, error) {
 	log.Printf("gRPC: CallApiOfAi - user_id=%d, dialogue_id=%d", req.UserId, req.MainContent.DialogueId)
 
-	result, err := s.svc.CallApiOfAi(ctx, req.UserId, req.MainContent.DialogueId, req.MainContent.Content)
+	result, err := s.svc.CallApiOfAi(ctx, req.UserId, req.MainContent.DialogueId, req.MainContent.DialogueKey, req.MainContent.Content)
 	if err != nil {
 		log.Printf("❌ CallApiOfAi error: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to call ai: %v", err)
 	}
 
 	return &aiAgentv1.CallApiOfAiResponse{
-		Code:     200,
-		Msg:      "success",
-		Response: result.Response,
+		Code:        200,
+		Msg:         "success",
+		Response:    result.Response,
+		DialogueKey: result.DialogueID,
 	}, nil
 }
 
@@ -44,7 +46,7 @@ func (s *AgentServer) CallApiOfAi(ctx context.Context, req *aiAgentv1.CallApiOfA
 func (s *AgentServer) ConsultContent(ctx context.Context, req *aiAgentv1.ConsultContentRequest) (*aiAgentv1.ConsultContentResponse, error) {
 	log.Printf("gRPC: ConsultContent - user_id=%d, dialogue_id=%d", req.UserId, req.MainContent.DialogueId)
 
-	result, err := s.svc.ConsultContent(ctx, req.UserId, req.MainContent.DialogueId, req.MainContent.Content)
+	result, err := s.svc.ConsultContent(ctx, req.UserId, req.MainContent.DialogueId, req.MainContent.DialogueKey, req.MainContent.Content)
 	if err != nil {
 		log.Printf("❌ ConsultContent error: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to consult content: %v", err)
@@ -60,10 +62,11 @@ func (s *AgentServer) ConsultContent(ctx context.Context, req *aiAgentv1.Consult
 	}
 
 	return &aiAgentv1.ConsultContentResponse{
-		Code:      200,
-		Msg:       "success",
-		Response:  result.Response,
-		TweetList: protoTweetList,
+		Code:        200,
+		Msg:         "success",
+		Response:    result.Response,
+		TweetList:   protoTweetList,
+		DialogueKey: result.DialogueID,
 	}, nil
 }
 
@@ -71,15 +74,16 @@ func (s *AgentServer) ConsultContent(ctx context.Context, req *aiAgentv1.Consult
 func (s *AgentServer) AssistPublishTwitter(ctx context.Context, req *aiAgentv1.AssistPublishTwitterRequest) (*aiAgentv1.AssistPublishTwitterResponse, error) {
 	log.Printf("gRPC: AssistPublishTwitter - user_id=%d, dialogue_id=%d", req.UserId, req.MainContent.DialogueId)
 
-	result, err := s.svc.AssistPublishTwitter(ctx, req.UserId, req.MainContent.DialogueId, req.MainContent.Content)
+	result, err := s.svc.AssistPublishTwitter(ctx, req.UserId, req.MainContent.DialogueId, req.MainContent.DialogueKey, req.MainContent.Content)
 	if err != nil {
 		log.Printf("❌ AssistPublishTwitter error: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to assist publish twitter: %v", err)
 	}
 	return &aiAgentv1.AssistPublishTwitterResponse{
-		Code:     200,
-		Msg:      "success",
-		Response: result.Response,
+		Code:        200,
+		Msg:         "success",
+		Response:    result.Response,
+		DialogueKey: result.DialogueID,
 	}, nil
 }
 
@@ -113,15 +117,16 @@ func (s *AgentServer) GetRepositoryDialogue(ctx context.Context, req *aiAgentv1.
 	protoDialogues := make([]*aiAgentv1.RepositoryDialogue, len(dialogues))
 	for i, d := range dialogues {
 		protoDialogues[i] = &aiAgentv1.RepositoryDialogue{
-			Id:     dialogueObjectIDToUint64(d.ID),
-			UserId: d.UserID,
-			Title:  d.Title,
+			Id:          dialogueObjectIDToUint64(d.ID),
+			UserId:      d.UserID,
+			Title:       d.Title,
+			DialogueKey: d.ID.Hex(),
 		}
 	}
 
 	return &aiAgentv1.GetRepositoryDialogueResponse{
-		Code:                 200,
-		Msg:                  "success",
+		Code:                   200,
+		Msg:                    "success",
 		RepositoryDialogueList: protoDialogues,
 	}, nil
 }
@@ -131,7 +136,10 @@ func (s *AgentServer) GetDialogueDetail(ctx context.Context, req *aiAgentv1.GetD
 	log.Printf("gRPC: GetDialogueDetail - user_id=%d, dialogue_id=%d", req.UserId, req.DialogueId)
 
 	// 将 uint64 dialogue_id 转回 hex 格式
-	dialogueIDHex := uint64ToObjectIDHex(req.DialogueId)
+	dialogueIDHex := req.DialogueKey
+	if dialogueIDHex == "" {
+		dialogueIDHex = uint64ToObjectIDHex(req.DialogueId)
+	}
 
 	messages, err := s.svc.GetDialogueMessages(ctx, req.UserId, dialogueIDHex)
 	if err != nil {
@@ -150,11 +158,14 @@ func (s *AgentServer) GetDialogueDetail(ctx context.Context, req *aiAgentv1.GetD
 		}
 
 		protoMessages[i] = &aiAgentv1.RepositoryContentList{
-			Id:         dialogueObjectIDToUint64(m.ID),
-			UserId:     m.UserID,
-			DialogueId: dialogueObjectIDToUint64(m.DialogueID),
-			Question:   question,
-			Response:   response,
+			Id:          dialogueObjectIDToUint64(m.ID),
+			UserId:      m.UserID,
+			DialogueId:  dialogueObjectIDToUint64(m.DialogueID),
+			Question:    question,
+			Response:    response,
+			DialogueKey: m.DialogueID.Hex(),
+			Role:        string(m.Role),
+			Content:     m.Content,
 		}
 	}
 
@@ -217,16 +228,17 @@ func (s *AgentServer) AnalysisFiles(ctx context.Context, req *aiAgentv1.Analysis
 func (s *AgentServer) MultiAgentPublishTwitter(ctx context.Context, req *aiAgentv1.MultiAgentPublishTwitterRequest) (*aiAgentv1.MultiAgentPublishTwitterResponse, error) {
 	log.Printf("gRPC: MultiAgentPublishTwitter - user_id=%d, domain=%s", req.UserId, req.Domain)
 
-	result, err := s.svc.MultiAgentPublishTwitter(ctx, req.UserId, req.Domain, req.AuthorUserId, req.StyleRatio, req.ReferenceTweetIds, req.Content)
+	result, err := s.svc.MultiAgentPublishTwitter(ctx, req.UserId, req.Domain, req.AuthorUserId, req.StyleRatio, req.ReferenceTweetIds, req.DialogueKey, req.Content)
 	if err != nil {
 		log.Printf("❌ MultiAgentPublishTwitter error: %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to multi agent publish twitter: %v", err)
 	}
 
 	return &aiAgentv1.MultiAgentPublishTwitterResponse{
-		Code:     200,
-		Msg:      "success",
-		Response: result.Response,
+		Code:        200,
+		Msg:         "success",
+		Response:    result.Response,
+		DialogueKey: result.DialogueID,
 	}, nil
 }
 
@@ -248,7 +260,146 @@ func (s *AgentServer) AnalyzeAlert(ctx context.Context, req *aiAgentv1.AnalyzeAl
 	}, nil
 }
 
+func (s *AgentServer) CreateWorkflow(ctx context.Context, req *aiAgentv1.CreateWorkflowRequest) (*aiAgentv1.CreateWorkflowResponse, error) {
+	log.Printf("gRPC: CreateWorkflow - user_id=%d, name=%s", req.UserId, req.Name)
+
+	workflow, err := s.svc.CreateWorkflow(ctx, req.UserId, req.Name, req.DslJson)
+	if err != nil {
+		log.Printf("❌ CreateWorkflow error: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "failed to create workflow: %v", err)
+	}
+
+	return &aiAgentv1.CreateWorkflowResponse{
+		Code:     200,
+		Msg:      "success",
+		Workflow: workflowToProto(workflow),
+	}, nil
+}
+
+func (s *AgentServer) UpdateWorkflow(ctx context.Context, req *aiAgentv1.UpdateWorkflowRequest) (*aiAgentv1.UpdateWorkflowResponse, error) {
+	log.Printf("gRPC: UpdateWorkflow - user_id=%d, workflow_id=%s", req.UserId, req.WorkflowId)
+
+	workflow, err := s.svc.UpdateWorkflow(ctx, req.UserId, req.WorkflowId, req.Name, req.DslJson)
+	if err != nil {
+		log.Printf("❌ UpdateWorkflow error: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "failed to update workflow: %v", err)
+	}
+
+	return &aiAgentv1.UpdateWorkflowResponse{
+		Code:     200,
+		Msg:      "success",
+		Workflow: workflowToProto(workflow),
+	}, nil
+}
+
+func (s *AgentServer) ListWorkflows(ctx context.Context, req *aiAgentv1.ListWorkflowsRequest) (*aiAgentv1.ListWorkflowsResponse, error) {
+	log.Printf("gRPC: ListWorkflows - user_id=%d", req.UserId)
+
+	workflows, total, err := s.svc.ListWorkflows(ctx, req.UserId, int(req.Page), int(req.PageSize))
+	if err != nil {
+		log.Printf("❌ ListWorkflows error: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to list workflows: %v", err)
+	}
+
+	protoWorkflows := make([]*aiAgentv1.WorkflowSummary, 0, len(workflows))
+	for _, workflow := range workflows {
+		protoWorkflows = append(protoWorkflows, workflowSummaryToProto(workflow))
+	}
+
+	return &aiAgentv1.ListWorkflowsResponse{
+		Code:      200,
+		Msg:       "success",
+		Workflows: protoWorkflows,
+		Total:     total,
+	}, nil
+}
+
+func (s *AgentServer) GetWorkflow(ctx context.Context, req *aiAgentv1.GetWorkflowRequest) (*aiAgentv1.GetWorkflowResponse, error) {
+	log.Printf("gRPC: GetWorkflow - user_id=%d, workflow_id=%s", req.UserId, req.WorkflowId)
+
+	workflow, err := s.svc.GetWorkflow(ctx, req.UserId, req.WorkflowId)
+	if err != nil {
+		log.Printf("❌ GetWorkflow error: %v", err)
+		return nil, status.Errorf(codes.NotFound, "failed to get workflow: %v", err)
+	}
+
+	return &aiAgentv1.GetWorkflowResponse{
+		Code:     200,
+		Msg:      "success",
+		Workflow: workflowToProto(workflow),
+	}, nil
+}
+
+func (s *AgentServer) RunWorkflow(ctx context.Context, req *aiAgentv1.RunWorkflowRequest) (*aiAgentv1.RunWorkflowResponse, error) {
+	log.Printf("gRPC: RunWorkflow - user_id=%d, workflow_id=%s", req.UserId, req.WorkflowId)
+
+	result, err := s.svc.RunWorkflow(ctx, req.UserId, req.WorkflowId, req.InputJson)
+	if err != nil {
+		log.Printf("❌ RunWorkflow error: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to run workflow: %v", err)
+	}
+
+	return &aiAgentv1.RunWorkflowResponse{
+		Code:        200,
+		Msg:         "success",
+		Run:         workflowRunToProto(result.Run),
+		DialogueKey: result.DialogueKey,
+		Response:    result.Response,
+	}, nil
+}
+
+func (s *AgentServer) GetWorkflowRun(ctx context.Context, req *aiAgentv1.GetWorkflowRunRequest) (*aiAgentv1.GetWorkflowRunResponse, error) {
+	log.Printf("gRPC: GetWorkflowRun - user_id=%d, run_id=%s", req.UserId, req.RunId)
+
+	run, err := s.svc.GetWorkflowRun(ctx, req.UserId, req.RunId)
+	if err != nil {
+		log.Printf("❌ GetWorkflowRun error: %v", err)
+		return nil, status.Errorf(codes.NotFound, "failed to get workflow run: %v", err)
+	}
+
+	return &aiAgentv1.GetWorkflowRunResponse{
+		Code: 200,
+		Msg:  "success",
+		Run:  workflowRunToProto(run),
+	}, nil
+}
+
 // ========================== 辅助函数 ==========================
+
+func workflowSummaryToProto(workflow *repository.WorkflowDefinition) *aiAgentv1.WorkflowSummary {
+	return &aiAgentv1.WorkflowSummary{
+		WorkflowId: workflow.ID.Hex(),
+		UserId:     workflow.UserID,
+		Name:       workflow.Name,
+		CreatedAt:  workflow.CreatedAt.Unix(),
+		UpdatedAt:  workflow.UpdatedAt.Unix(),
+	}
+}
+
+func workflowToProto(workflow *repository.WorkflowDefinition) *aiAgentv1.WorkflowDetail {
+	return &aiAgentv1.WorkflowDetail{
+		WorkflowId: workflow.ID.Hex(),
+		UserId:     workflow.UserID,
+		Name:       workflow.Name,
+		DslJson:    workflow.DSLJSON,
+		CreatedAt:  workflow.CreatedAt.Unix(),
+		UpdatedAt:  workflow.UpdatedAt.Unix(),
+	}
+}
+
+func workflowRunToProto(run *repository.WorkflowRunRecord) *aiAgentv1.WorkflowRun {
+	return &aiAgentv1.WorkflowRun{
+		RunId:        run.ID.Hex(),
+		WorkflowId:   run.WorkflowID.Hex(),
+		UserId:       run.UserID,
+		Status:       run.Status,
+		InputJson:    run.InputJSON,
+		OutputJson:   run.OutputJSON,
+		ErrorMessage: run.ErrorMessage,
+		StartedAt:    run.StartedAt.Unix(),
+		FinishedAt:   run.FinishedAt.Unix(),
+	}
+}
 
 // dialogueObjectIDToUint64 将 MongoDB ObjectID 转为 uint64
 // 由于 proto 中 dialogue_id 定义为 uint64，这里取 ObjectID 的后 8 字节作为 uint64

@@ -25,7 +25,7 @@ export const getDialogueMessages = (dialogueId: string) => {
 }
 
 // 模式一：普通直接对话
-export const chat = (data: { content: string, dialogue_id: number | string, model_kind_id: number | string }) => {
+export const chat = (data: { content: string, dialogue_id: number | string, dialogue_key?: string, model_kind_id: number | string }) => {
     return request({
         url: '/agent/chat',
         method: 'post',
@@ -35,7 +35,7 @@ export const chat = (data: { content: string, dialogue_id: number | string, mode
 }
 
 // 模式二：推文推荐与资讯咨询
-export const consult = (data: { content: string, dialogue_id: number | string, model_kind_id: number | string }) => {
+export const consult = (data: { content: string, dialogue_id: number | string, dialogue_key?: string, model_kind_id: number | string }) => {
     return request({
         url: '/agent/consult',
         method: 'post',
@@ -45,7 +45,7 @@ export const consult = (data: { content: string, dialogue_id: number | string, m
 }
 
 // 模式三：AI 辅助发推 (生成草稿候选)
-export const assistPublish = (data: { content: string, dialogue_id: number | string, model_kind_id: number | string }) => {
+export const assistPublish = (data: { content: string, dialogue_id: number | string, dialogue_key?: string, model_kind_id: number | string }) => {
     return request({
         url: '/agent/assist',
         method: 'post',
@@ -69,6 +69,7 @@ export const multiAgentPublish = (data: {
     author_user_id: string, 
     style_ratio: number, 
     reference_tweet_ids: string[],
+    dialogue_key?: string,
     content: string 
 }) => {
     return request({
@@ -93,5 +94,54 @@ export const uploadFileAnalysis = (file: File, fileKindId: string) => {
             'Content-Type': 'multipart/form-data'
         },
         timeout: 60000
+    })
+}
+
+export const createWorkflow = (data: { name: string, dsl: Record<string, any> }) => {
+    return request({
+        url: '/agent/workflows',
+        method: 'post',
+        data,
+        timeout: 30000
+    })
+}
+
+export const updateWorkflow = (workflowId: string, data: { name: string, dsl: Record<string, any> }) => {
+    return request({
+        url: `/agent/workflows/${workflowId}`,
+        method: 'put',
+        data,
+        timeout: 30000
+    })
+}
+
+export const listWorkflows = (params?: { page?: number, page_size?: number }) => {
+    return request({
+        url: '/agent/workflows',
+        method: 'get',
+        params
+    })
+}
+
+export const getWorkflow = (workflowId: string) => {
+    return request({
+        url: `/agent/workflows/${workflowId}`,
+        method: 'get'
+    })
+}
+
+export const runWorkflow = (workflowId: string, data: { input?: Record<string, any>, input_json?: string }) => {
+    return request({
+        url: `/agent/workflows/${workflowId}/run`,
+        method: 'post',
+        data,
+        timeout: 120000
+    })
+}
+
+export const getWorkflowRun = (runId: string) => {
+    return request({
+        url: `/agent/workflow-runs/${runId}`,
+        method: 'get'
     })
 }

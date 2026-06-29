@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 	"twitter-clone/internal/module/agent/repository"
+	"twitter-clone/internal/module/agent/workflow/rag"
 	"twitter-clone/pkg/ai"
 	"twitter-clone/pkg/config"
 	"twitter-clone/pkg/logger"
@@ -53,12 +54,12 @@ type ChatResult struct {
 
 // AgentService AI Agent 服务
 type AgentService struct {
-	llmClient *openai.Client               // 对话模型客户端
-	repo      repository.AgentRepository   // 对话持久化仓储
-	chatModel string                        // 对话模型名称
-	mcpAddr   string                        // MCP Server 地址
-	aiClient  *ai.Client                    // 降级路由 AI 客户端
-	rdb       *redis.Client                 // 🎯 注入 Redis 客户端支持调优配置写入、广播和冷却锁
+	llmClient *openai.Client             // 对话模型客户端
+	repo      repository.AgentRepository // 对话持久化仓储
+	chatModel string                     // 对话模型名称
+	mcpAddr   string                     // MCP Server 地址
+	aiClient  *ai.Client                 // 降级路由 AI 客户端
+	rdb       *redis.Client              // 🎯 注入 Redis 客户端支持调优配置写入、广播和冷却锁
 
 	// 🆕 生命周期控制，防止 background context 导致的协程泄漏
 	serviceCtx context.Context
@@ -68,6 +69,10 @@ type AgentService struct {
 	mcpClient *client.Client
 	mcpTools  []mcp.Tool
 	mcpMu     sync.RWMutex
+
+	memoryManager  *rag.MemoryManager
+	cascadeRouter  *rag.CascadeRouter
+	embeddingModel string
 }
 
 // NewAgentService 创建 Agent 服务
@@ -105,6 +110,16 @@ func (s *AgentService) Close() {
 	s.resetMCPClient()
 }
 
+func resolveDialogueKey(dialogueID uint64, dialogueKey string) string {
+	dialogueKey = strings.TrimSpace(dialogueKey)
+	if dialogueKey != "" && dialogueKey != "0" {
+		return dialogueKey
+	}
+	if dialogueID > 0 {
+		return fmt.Sprintf("%024x", dialogueID)
+	}
+	return ""
+}
 
 // ========================== 对话上下文辅助方法 ==========================
 
@@ -288,25 +303,26 @@ func (s *AgentService) AnalysisFile(ctx context.Context, userID uint64, fileKind
 
 // CallApiOfAi 模式一：直接调用 AI 对话，不使用 MCP Tools
 // 支持多轮上下文：dialogueID 非空时加载历史消息
-func (s *AgentService) CallApiOfAi(ctx context.Context, userID uint64, dialogueID uint64, content string) (*ChatResult, error) {
+func (s *AgentService) CallApiOfAi(ctx context.Context, userID uint64, dialogueID uint64, dialogueKey string, content string) (*ChatResult, error) {
 	// 1. 获取或创建对话（dialogueID 作为十六进制传入时需要适配，这里兼容旧的 uint64 传参）
-	dialogueIDHex := ""
-	if dialogueID > 0 {
-		// 旧接口兼容：尝试将 uint64 当作 dialogueID 使用
-		// 新接口应直接传 hex 字符串
-		dialogueIDHex = fmt.Sprintf("%024x", dialogueID)
-	}
+	dialogueIDHex := resolveDialogueKey(dialogueID, dialogueKey)
 
 	dialogue, err := s.getOrCreateDialogue(ctx, userID, dialogueIDHex, content, repository.ModeChat)
 	if err != nil {
 		return nil, err
 	}
 
+	cognitive := s.buildCognitiveContext(ctx, userID, content)
+	systemPrompt := s.decorateSystemPromptWithCognitiveContext(
+		"你是一个专业的社交内容助手，请结合上下文给出具体、可执行、有质感的回复；不要沿用固定短字数限制，长度以用户要求和工具配置为准。",
+		cognitive,
+	)
+
 	// 2. 构建消息列表：system + 历史上下文 + 当前用户消息
 	messages := []openai.ChatCompletionMessage{
 		{
 			Role:    openai.ChatMessageRoleSystem,
-			Content: "你是一个专业的推特助手，请用简洁友好的方式回答用户问题。",
+			Content: systemPrompt,
 		},
 	}
 
@@ -339,10 +355,17 @@ func (s *AgentService) CallApiOfAi(ctx context.Context, userID uint64, dialogueI
 
 	aiResponse := resp.Choices[0].Message.Content
 
+	metadata := map[string]any{
+		"cognitive_intent":          string(cognitive.Intent),
+		"cognitive_rewritten_query": cognitive.RewrittenQuery,
+		"cognitive_chunk_count":     cognitive.ChunkCount,
+	}
+
 	// 4. 持久化消息
-	if err := s.saveUserAndAssistantMessages(ctx, dialogue.ID, userID, content, aiResponse, nil); err != nil {
+	if err := s.saveUserAndAssistantMessages(ctx, dialogue.ID, userID, content, aiResponse, metadata); err != nil {
 		logger.Error(ctx, "save messages failed", zap.Error(err))
 	}
+	s.crystallizeTurnMemoryAsync(userID, dialogue.ID, content, aiResponse)
 
 	return &ChatResult{
 		DialogueID: dialogue.ID.Hex(),
@@ -354,11 +377,8 @@ func (s *AgentService) CallApiOfAi(ctx context.Context, userID uint64, dialogueI
 
 // ConsultContent 模式二：通过 MCP Tool 搜索推文和用户
 // 使用 ReAct 循环：LLM 决策 → 调 Tool → 喂回结果 → 直到不再调 Tool
-func (s *AgentService) ConsultContent(ctx context.Context, userID uint64, dialogueID uint64, content string) (*ChatResult, error) {
-	dialogueIDHex := ""
-	if dialogueID > 0 {
-		dialogueIDHex = fmt.Sprintf("%024x", dialogueID)
-	}
+func (s *AgentService) ConsultContent(ctx context.Context, userID uint64, dialogueID uint64, dialogueKey string, content string) (*ChatResult, error) {
+	dialogueIDHex := resolveDialogueKey(dialogueID, dialogueKey)
 
 	dialogue, err := s.getOrCreateDialogue(ctx, userID, dialogueIDHex, content, repository.ModeConsult)
 	if err != nil {
@@ -377,8 +397,14 @@ func (s *AgentService) ConsultContent(ctx context.Context, userID uint64, dialog
 	// 3. 构建初始消息（含历史上下文）
 	messages := []openai.ChatCompletionMessage{
 		{
-			Role:    openai.ChatMessageRoleSystem,
-			Content: "你是一个推特内容助手。当用户想搜索推文或博主时，你必须调用对应的工具来查询真实数据，不要凭空捏造结果。",
+			Role: openai.ChatMessageRoleSystem,
+			Content: `你是一个推特内容检索助手。
+规则：
+1. 用户要查询推文、博主、趋势、历史内容时，必须调用对应工具获取真实数据。
+2. 工具返回了结果，就按结果列表直接整理：给出推文 ID、作者/用户 ID、内容摘要和可继续追问的线索。
+3. 工具返回“没有找到”或发生错误时，必须明确告诉用户当前没有拿到结果，并说明具体失败原因；禁止说“正在等待返回”“马上到达”“已成功发起请求”。
+4. 不要编造不存在的推文、搜索结果、工具状态或后台异步进度。
+5. 回答要短、准、可执行。`,
 		},
 	}
 
@@ -469,11 +495,8 @@ func (s *AgentService) ConsultContent(ctx context.Context, userID uint64, dialog
 // ========================== 模式三：AI 辅助写推文 ==========================
 
 // AssistPublishTwitter 模式三：让 LLM 生成推文草稿并在确认后调用工具发推 (ReAct)
-func (s *AgentService) AssistPublishTwitter(ctx context.Context, userID uint64, dialogueID uint64, content string) (*ChatResult, error) {
-	dialogueIDHex := ""
-	if dialogueID > 0 {
-		dialogueIDHex = fmt.Sprintf("%024x", dialogueID)
-	}
+func (s *AgentService) AssistPublishTwitter(ctx context.Context, userID uint64, dialogueID uint64, dialogueKey string, content string) (*ChatResult, error) {
+	dialogueIDHex := resolveDialogueKey(dialogueID, dialogueKey)
 
 	dialogue, err := s.getOrCreateDialogue(ctx, userID, dialogueIDHex, content, repository.ModeAssist)
 	if err != nil {
@@ -490,9 +513,13 @@ func (s *AgentService) AssistPublishTwitter(ctx context.Context, userID uint64, 
 	openaiTools := mcpToolsToOpenAI(tools)
 
 	// 3. 构建初始消息（含系统设定）
-	systemPrompt := fmt.Sprintf(`你是一个专业的推特文案助手，当前服务于 user_id: %d。
-1. 当用户想要发推且没有确定内容时，请帮他生成3个不同风格的推文草稿（不超过280字，可分正式版、轻松版、热点版）。
-2. 当用户确认了某个草稿，或者明确要求发推时，请务必立刻调用 create_tweet 工具完成发布。调用时请传入当前的 user_id 以及要发布的推文 content。`, userID)
+	systemPrompt := fmt.Sprintf(`你是一个资深社交媒体内容策划助手，当前服务于 user_id: %d。
+工作原则：
+1. 当用户要你写草稿时，不要直接发布；先给出 3 条高质量候选，每条都要有清晰角度、完整表达和适合发布的正文。
+2. 正文优先：分析可以短，但候选正文不能薄。除非用户明确要求极简，否则每条正文默认不少于 180 个中文字符；适合长文时可以写到 300-600 个中文字符。
+3. 不再默认使用固定短字数限制；长度遵循平台和发布工具配置。如果用户指定 1000 字、长文、线程等形式，就按用户要求组织。
+4. 候选内容要避免空泛口号，优先提供具体观点、语气差异、可传播的表达和必要的上下文。
+5. 当用户明确说“发布/发出去/就用这条”时，再调用 create_tweet 工具完成发布。调用时只传 content，系统会绑定当前用户身份。`, userID)
 
 	messages := []openai.ChatCompletionMessage{
 		{
@@ -611,10 +638,9 @@ func (s *AgentService) ConfirmPublishTwitter(ctx context.Context, userID uint64,
 // ========================== 模式四：多 Agent 协作写推文 ==========================
 
 // MultiAgentPublishTwitter 模式四：多 Agent 协作写推文
-func (s *AgentService) MultiAgentPublishTwitter(ctx context.Context, userID uint64, domain string, authorUserID uint64, styleRatio float32, referenceTweetIDs []uint64, content string) (*ChatResult, error) {
+func (s *AgentService) MultiAgentPublishTwitter(ctx context.Context, userID uint64, domain string, authorUserID uint64, styleRatio float32, referenceTweetIDs []uint64, dialogueKey string, content string) (*ChatResult, error) {
 
-	// 模式四每次都创建新对话（独立的创作任务）
-	dialogue, err := s.getOrCreateDialogue(ctx, userID, "", content, repository.ModeMulti)
+	dialogue, err := s.getOrCreateDialogue(ctx, userID, resolveDialogueKey(0, dialogueKey), content, repository.ModeMulti)
 	if err != nil {
 		return nil, err
 	}
@@ -702,17 +728,28 @@ func (s *AgentService) MultiAgentPublishTwitter(ctx context.Context, userID uint
 请综合以上信息，生成3个推文草稿，要求：
 1. 内容方向贴合用户要求和领域参考
 2. 写作风格模仿目标作者
-3. 每条不超过280字
-4. 格式如下：
+3. 正文优先，分析从简：简短研究摘要不超过 120 字，风格判断不超过 100 字，把主要 token 留给 3 条候选正文
+4. 除非用户明确要求极简/一句话，否则每条「正文」不少于 180 个中文字符；如果主题需要氛围、观点或故事感，每条正文写到 300-600 个中文字符
+5. 即使目标作者历史推文很短，也不要只输出一句话；可以保留其节奏、符号和标签，但要扩展成完整可发布内容
+6. 相关性是硬约束：如果领域参考、作者历史或指定参考里出现与用户当前主题无关的内容，必须忽略；禁止把其他领域的概念、事实、标签或术语混入当前主题
+7. 不再默认使用固定短字数限制；长度遵循用户要求与发布工具配置，必要时可以写成长文或线程式内容
+8. 输出必须包含：简短研究摘要、风格判断、3 条候选正文、每条候选的适用场景
+9. 格式如下：
 
 【草稿一】
-内容...
+角度：
+正文：
+适用场景：
 
 【草稿二】
-内容...
+角度：
+正文：
+适用场景：
 
 【草稿三】
-内容...`,
+角度：
+正文：
+适用场景：`,
 		content, domain, domainTweets, authorTweets, referenceTweets)
 
 	resp, err := s.llmClient.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
@@ -720,7 +757,7 @@ func (s *AgentService) MultiAgentPublishTwitter(ctx context.Context, userID uint
 		Messages: []openai.ChatCompletionMessage{
 			{
 				Role:    openai.ChatMessageRoleSystem,
-				Content: "你是一个专业的推文写作助手，擅长模仿不同作者的写作风格。",
+				Content: "你是一个严谨的多智能体写作总编。你的第一优先级是产出可直接发布、内容饱满、有观点和细节的候选正文；研究摘要和风格判断只能服务正文，不能喧宾夺主。你必须执行主题隔离：任何与用户当前主题不相关的检索结果、历史推文或参考材料都要丢弃，不得混入正文。",
 			},
 			{
 				Role:    openai.ChatMessageRoleUser,
@@ -872,6 +909,12 @@ func extractTextFromToolResult(result *mcp.CallToolResult) string {
 			text += textContent.Text
 		}
 	}
+	if result.IsError && text == "" {
+		return "工具调用失败，未返回可用结果。"
+	}
+	if result.IsError {
+		return "工具调用失败：" + text
+	}
 	return text
 }
 
@@ -963,7 +1006,7 @@ func (s *AgentService) AnalyzeAlert(ctx context.Context, alertPayload string, er
 	// 2. 调用支持容灾降级的大模型路由客户端 (开启 OTel 子 Span 记录推理开销)
 	cheapModel := os.Getenv("LM_STUDIO_MODEL_CHAT")
 	if cheapModel == "" {
-		cheapModel = "qwen3.6-plus"
+		cheapModel = "qwen2.5-3b-instruct"
 	}
 	premiumModel := os.Getenv("PREMIUM_AI_MODEL_CHAT")
 	if premiumModel == "" {
@@ -1088,7 +1131,7 @@ func (s *AgentService) TuneCacheConfig(ctx context.Context, l1TTL int, l2TTL int
 		L2CacheTTLSeconds: l2TTL,
 		PreloadDepth:      preloadDepth,
 	}
-	
+
 	payload, err := json.Marshal(newCfg)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal cache config: %w", err)

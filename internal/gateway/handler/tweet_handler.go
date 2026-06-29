@@ -4,7 +4,9 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -34,7 +36,7 @@ func NewTweetHandler(tweetClient tweetv1.TweetServiceClient, userClient userv1.U
 
 // CreateTweetRequest 创建推文请求
 type CreateTweetRequest struct {
-	Content             string   `json:"content" binding:"required,min=1,max=280"`
+	Content             string   `json:"content" binding:"required,min=1"`
 	MediaURLs           []string `json:"media_urls"`
 	ParentID            string   `json:"parent_id"` // 可选，回复的推文ID (接收字符串以避免精度丢失)
 	PollOptions         []string `json:"poll_options"`
@@ -399,7 +401,7 @@ func (h *TweetHandler) VotePoll(c *gin.Context) {
 
 // CreateCommentRequest 创建评论请求
 type CreateCommentRequest struct {
-	Content  string `json:"content" binding:"required,min=1,max=280"`
+	Content  string `json:"content" binding:"required,min=1"`
 	ParentID string `json:"parent_id"` // 可选
 }
 
@@ -667,8 +669,12 @@ func (h *TweetHandler) GetTrendingTopics(c *gin.Context) {
 
 	topics := make([]gin.H, 0, len(resp.Topics))
 	for _, topic := range resp.Topics {
+		cleanTopic := sanitizeTrendTopic(topic.Topic)
+		if cleanTopic == "" {
+			continue
+		}
 		topics = append(topics, gin.H{
-			"topic": topic.Topic,
+			"topic": cleanTopic,
 			"score": topic.Score,
 		})
 	}
@@ -692,6 +698,69 @@ func formatComment(comment *tweetv1.Comment) gin.H {
 			"avatar_url": comment.AvatarUrl,
 		},
 	}
+}
+
+var (
+	trendHashtagRE = regexp.MustCompile(`#([\p{Han}A-Za-z0-9_][\p{Han}A-Za-z0-9_-]{0,63})`)
+	trendTokenRE   = regexp.MustCompile(`[\p{Han}]{2,12}|[A-Za-z][A-Za-z0-9_-]{1,23}`)
+	trendStopwords = map[string]bool{
+		"这次":      true,
+		"一个":      true,
+		"我们":      true,
+		"你们":      true,
+		"他们":      true,
+		"这个":      true,
+		"那个":      true,
+		"网友":      true,
+		"话题":      true,
+		"推文":      true,
+		"搜索":      true,
+		"twitter": true,
+	}
+)
+
+func sanitizeTrendTopic(topic string) string {
+	raw := strings.TrimSpace(topic)
+	if raw == "" {
+		return ""
+	}
+
+	if match := trendHashtagRE.FindStringSubmatch(raw); len(match) > 1 {
+		return trimTrendTopic(match[1])
+	}
+
+	cleaned := strings.NewReplacer(
+		"【", " ", "】", " ", "「", " ", "」", " ", "『", " ", "』", " ",
+		"“", " ", "”", " ", "‘", " ", "’", " ", "，", " ", "。", " ",
+		"、", " ", "！", " ", "？", " ", "；", " ", "：", " ", "（", " ",
+		"）", " ", "(", " ", ")", " ", "[", " ", "]", " ", "{", " ", "}", " ",
+		",", " ", ".", " ", "!", " ", "?", " ", ";", " ", ":", " ",
+	).Replace(raw)
+
+	for _, candidate := range trendTokenRE.FindAllString(cleaned, -1) {
+		candidate = trimTrendTopic(candidate)
+		if candidate != "" && !trendStopwords[strings.ToLower(candidate)] {
+			return candidate
+		}
+	}
+
+	return trimTrendTopic(cleaned)
+}
+
+func trimTrendTopic(topic string) string {
+	topic = strings.Trim(topic, "# \t\r\n.,，。!！?？:：;；、'\"“”‘’()（）[]【】{}<>《》")
+	for _, marker := range []string{"话题", "真是", "真的", "网友", "我们", "你们", "他们", "一个", "这次", "这个", "那个"} {
+		if idx := strings.Index(topic, marker); idx > 0 {
+			topic = topic[:idx]
+			break
+		}
+	}
+	topic = strings.TrimSpace(topic)
+	runes := []rune(topic)
+	if len(runes) > 16 {
+		return string(runes[:16])
+	}
+	return topic
 }
 
 // formatTweet 格式化推文 (不含用户信息)
@@ -775,7 +844,7 @@ func (h *TweetHandler) enrichTweetsWithUserInfo(ctx context.Context, tweets []*t
 	result := make([]gin.H, 0, len(tweets))
 	for _, t := range tweets {
 		tweetData := formatTweetWithUser(t, userInfoMap[t.UserId])
-		
+
 		// 注入交互状态
 		tweetData["is_liked"] = t.IsLiked
 		tweetData["is_bookmarked"] = t.IsBookmarked
