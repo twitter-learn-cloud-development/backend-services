@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	platformTrace "twitter-clone/pkg/trace"
 )
 
 // Document 待重排的文档结构，包含ID与内容文本
@@ -26,17 +28,26 @@ type Reranker interface {
 }
 
 // 🎯 全局复用高性能 HTTP 客户端，防止高并发下 Socket 枯竭
-var sharedHTTPClient = &http.Client{
+var sharedHTTPClient = platformTrace.InstrumentHTTPClient(&http.Client{
 	Timeout: 1500 * time.Millisecond, // 严格限制三方精排超时为 1.5s
 	Transport: &http.Transport{
 		MaxIdleConns:        100,
 		MaxIdleConnsPerHost: 20,
 		IdleConnTimeout:     90 * time.Second,
 	},
-}
+}, "agent.reranker.http", nil)
 
 // NewReranker 实例化工厂方法，支持 dashscope, siliconflow 真实接口以及本地 Mock 降级器
 func NewReranker(rerankerType, apiKey, apiURL, modelName string) Reranker {
+	return NewRerankerWithHTTPClient(rerankerType, apiKey, apiURL, modelName, nil)
+}
+
+// NewRerankerWithHTTPClient allows evaluation and other controlled callers to
+// enforce an outbound endpoint policy without changing the Reranker contract.
+func NewRerankerWithHTTPClient(rerankerType, apiKey, apiURL, modelName string, httpClient *http.Client) Reranker {
+	if httpClient == nil {
+		httpClient = sharedHTTPClient
+	}
 	switch strings.ToLower(rerankerType) {
 	case "dashscope":
 		if apiURL == "" {
@@ -46,7 +57,7 @@ func NewReranker(rerankerType, apiKey, apiURL, modelName string) Reranker {
 			modelName = "gte-rerank"
 		}
 		return &DashScopeReranker{
-			client: sharedHTTPClient,
+			client: httpClient,
 			apiKey: apiKey,
 			url:    apiURL,
 			model:  modelName,
@@ -59,7 +70,7 @@ func NewReranker(rerankerType, apiKey, apiURL, modelName string) Reranker {
 			modelName = "BAAI/bge-reranker-v2-m3"
 		}
 		return &SiliconFlowReranker{
-			client: sharedHTTPClient,
+			client: httpClient,
 			apiKey: apiKey,
 			url:    apiURL,
 			model:  modelName,

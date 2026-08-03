@@ -26,11 +26,12 @@ type Client struct {
 
 // Config ElasticSearch 配置
 type Config struct {
-	Addresses []string
-	Username  string
-	Password  string
-	CloudID   string
-	APIKey    string
+	Addresses  []string
+	Username   string
+	Password   string
+	CloudID    string
+	APIKey     string
+	HTTPClient *http.Client
 }
 
 const TweetIndex = "tweets"
@@ -119,6 +120,16 @@ func GetEnv(key, defaultValue string) string {
 
 // NewClient 创建一个新的 ElasticSearch 客户端实例
 func NewClient(cfg Config) (*Client, error) {
+	transport := http.RoundTripper(&http.Transport{
+		MaxIdleConnsPerHost:   10,
+		ResponseHeaderTimeout: time.Second * 5,
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true, // 开发环境可跳过证书验证
+		},
+	})
+	if cfg.HTTPClient != nil && cfg.HTTPClient.Transport != nil {
+		transport = cfg.HTTPClient.Transport
+	}
 	esCfg := elasticsearch.Config{
 		Addresses: cfg.Addresses,
 		Username:  cfg.Username,
@@ -129,13 +140,7 @@ func NewClient(cfg Config) (*Client, error) {
 		// 根据需要配置重试机制和传输层
 		RetryOnStatus: []int{502, 503, 504, 429},
 		MaxRetries:    3,
-		Transport: &http.Transport{
-			MaxIdleConnsPerHost:   10,
-			ResponseHeaderTimeout: time.Second * 5,
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true, // 开发环境可跳过证书验证
-			},
-		},
+		Transport:     transport,
 	}
 
 	// 初始化 v8 的 TypedClient，提供更友好的 Go Struct 风格的 API

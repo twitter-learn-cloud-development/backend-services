@@ -2,6 +2,7 @@ package rag
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -12,15 +13,60 @@ import (
 
 	"gorm.io/gorm"
 
+	agentRuntime "twitter-clone/internal/module/agent/runtime"
 	"twitter-clone/pkg/ai"
 	"twitter-clone/pkg/es"
 	"twitter-clone/pkg/qdrant"
 )
 
 const (
-	defaultSimilarityThreshold = 0.65
-	defaultMemoryBudgetChars   = 3600
+	defaultSimilarityThreshold      = 0.65
+	defaultMemoryBudgetTokens       = 1200
+	defaultPersonaBudgetTokens      = 300
+	DefaultEpisodicCollectionName   = "agent_episodic_memory"
+	DefaultEpisodicEmbeddingVersion = "v1"
 )
+
+// EpisodicMemoryConfig keeps the physical collection and embedding identity
+// explicit. New writes always target the shared collection; legacy reads are a
+// bounded compatibility path for users that have not been migrated yet.
+type EpisodicMemoryConfig struct {
+	CollectionName       string
+	EmbeddingVersion     string
+	LegacyReadEnabled    bool
+	LegacyCollectionName func(userID uint64) string
+}
+
+type ScoringConfig struct {
+	SimilarityThreshold float64
+	SimilarityWeight    float64
+	TimeDecayWeight     float64
+	FrequencyWeight     float64
+	TimeDecayLambda     float64
+	KeywordBonus        float64
+}
+
+func DefaultScoringConfig() ScoringConfig {
+	return ScoringConfig{
+		SimilarityThreshold: defaultSimilarityThreshold,
+		SimilarityWeight:    0.60,
+		TimeDecayWeight:     0.25,
+		FrequencyWeight:     0.15,
+		TimeDecayLambda:     0.00001,
+		KeywordBonus:        0.15,
+	}
+}
+
+func DefaultEpisodicMemoryConfig() EpisodicMemoryConfig {
+	return EpisodicMemoryConfig{
+		CollectionName:    DefaultEpisodicCollectionName,
+		EmbeddingVersion:  DefaultEpisodicEmbeddingVersion,
+		LegacyReadEnabled: true,
+		LegacyCollectionName: func(userID uint64) string {
+			return fmt.Sprintf("episodic_user_%d", userID)
+		},
+	}
+}
 
 type UserPersona struct {
 	UserID    uint64 `gorm:"primaryKey;column:user_id"`
@@ -39,6 +85,53 @@ type MemoryManager struct {
 	aiClient     *ai.Client
 	chatModel    string
 	embedModel   string
+	tokenCounter agentRuntime.TokenCounter
+	episodic     EpisodicMemoryConfig
+	scoring      ScoringConfig
+}
+
+type MemoryManagerOption func(*MemoryManager)
+
+func WithEpisodicMemoryConfig(config EpisodicMemoryConfig) MemoryManagerOption {
+	return func(manager *MemoryManager) {
+		defaults := DefaultEpisodicMemoryConfig()
+		if strings.TrimSpace(config.CollectionName) != "" {
+			defaults.CollectionName = strings.TrimSpace(config.CollectionName)
+		}
+		if strings.TrimSpace(config.EmbeddingVersion) != "" {
+			defaults.EmbeddingVersion = strings.TrimSpace(config.EmbeddingVersion)
+		}
+		defaults.LegacyReadEnabled = config.LegacyReadEnabled
+		if config.LegacyCollectionName != nil {
+			defaults.LegacyCollectionName = config.LegacyCollectionName
+		}
+		manager.episodic = defaults
+	}
+}
+
+func WithScoringConfig(config ScoringConfig) MemoryManagerOption {
+	return func(manager *MemoryManager) {
+		defaults := DefaultScoringConfig()
+		if config.SimilarityThreshold > 0 {
+			defaults.SimilarityThreshold = config.SimilarityThreshold
+		}
+		if config.SimilarityWeight > 0 {
+			defaults.SimilarityWeight = config.SimilarityWeight
+		}
+		if config.TimeDecayWeight > 0 {
+			defaults.TimeDecayWeight = config.TimeDecayWeight
+		}
+		if config.FrequencyWeight > 0 {
+			defaults.FrequencyWeight = config.FrequencyWeight
+		}
+		if config.TimeDecayLambda > 0 {
+			defaults.TimeDecayLambda = config.TimeDecayLambda
+		}
+		if config.KeywordBonus > 0 {
+			defaults.KeywordBonus = config.KeywordBonus
+		}
+		manager.scoring = defaults
+	}
 }
 
 func NewMemoryManager(
@@ -48,19 +141,36 @@ func NewMemoryManager(
 	aiClient *ai.Client,
 	chatModel string,
 	embedModel string,
+	options ...MemoryManagerOption,
 ) *MemoryManager {
 	if db != nil {
 		_ = db.AutoMigrate(&UserPersona{})
 	}
 
-	return &MemoryManager{
+	manager := &MemoryManager{
 		db:           db,
 		esClient:     esClient,
 		qdrantClient: qdrantClient,
 		aiClient:     aiClient,
 		chatModel:    chatModel,
 		embedModel:   embedModel,
+		tokenCounter: agentRuntime.NewHeuristicTokenCounter(),
+		episodic:     DefaultEpisodicMemoryConfig(),
+		scoring:      DefaultScoringConfig(),
 	}
+	for _, option := range options {
+		if option != nil {
+			option(manager)
+		}
+	}
+	return manager
+}
+
+func (m *MemoryManager) SetTokenCounter(counter agentRuntime.TokenCounter) {
+	if m == nil || counter == nil {
+		return
+	}
+	m.tokenCounter = counter
 }
 
 func (m *MemoryManager) GetPersona(ctx context.Context, userID uint64) (string, error) {
@@ -91,48 +201,184 @@ func (m *MemoryManager) SavePersona(ctx context.Context, userID uint64, persona 
 	return m.db.WithContext(ctx).Save(&up).Error
 }
 
+type SessionSummaryRequest struct {
+	UserID          uint64
+	PointID         uint64
+	SourceDialogue  string
+	SummaryVersion  int
+	DialogueHistory string
+}
+
+type EpisodicSummary struct {
+	MemoryType  string   `json:"memory_type"`
+	Summary     string   `json:"summary"`
+	Facts       []string `json:"facts"`
+	Preferences []string `json:"preferences"`
+	Decisions   []string `json:"decisions"`
+	Followups   []string `json:"followups"`
+}
+
 func (m *MemoryManager) SaveEpisodicMemory(ctx context.Context, userID uint64, sessionID uint64, dialogHistory string) error {
+	return m.SaveSessionSummary(ctx, SessionSummaryRequest{
+		UserID:          userID,
+		PointID:         sessionID,
+		SourceDialogue:  fmt.Sprintf("legacy:%d", sessionID),
+		SummaryVersion:  1,
+		DialogueHistory: dialogHistory,
+	})
+}
+
+func (m *MemoryManager) SaveSessionSummary(ctx context.Context, request SessionSummaryRequest) error {
 	if m == nil || m.aiClient == nil || m.qdrantClient == nil {
 		return errors.New("episodic memory dependencies are not initialized")
 	}
-	if strings.TrimSpace(dialogHistory) == "" {
+	if strings.TrimSpace(request.DialogueHistory) == "" {
 		return nil
 	}
+	if request.SummaryVersion <= 0 {
+		request.SummaryVersion = 1
+	}
 
-	systemPrompt := "You are a long-term memory distiller. Summarize the dialogue into structured memory, preserving user preferences, technical topics, key conclusions, and follow-up items. Output only the summary body."
-	summary, err := m.aiClient.GetChatCompletion(ctx, systemPrompt, dialogHistory, m.chatModel)
+	systemPrompt := `You are a long-term memory distiller. Extract only durable, reusable information from the dialogue.
+Return one JSON object with exactly these fields:
+{"memory_type":"episodic","summary":"concise searchable summary","facts":[],"preferences":[],"decisions":[],"followups":[]}
+Do not invent information. Omit transient small talk. Use empty arrays when a category has no durable information.`
+	rawSummary, err := m.aiClient.GetChatCompletion(ctx, systemPrompt, request.DialogueHistory, m.chatModel)
 	if err != nil {
 		return fmt.Errorf("distill dialog history failed: %w", err)
 	}
-	summary = strings.TrimSpace(summary)
-	if summary == "" {
+	structured := parseEpisodicSummary(rawSummary)
+	searchable := renderEpisodicSummary(structured)
+	if searchable == "" {
 		return nil
 	}
 
-	vector, err := m.aiClient.GetEmbedding(ctx, summary, m.embedModel)
+	vector, err := m.aiClient.GetEmbedding(ctx, searchable, m.embedModel)
 	if err != nil {
 		return fmt.Errorf("generate episodic memory embedding failed: %w", err)
 	}
 
-	collectionName := fmt.Sprintf("episodic_user_%d", userID)
+	collectionName := m.episodic.CollectionName
 	payload := map[string]interface{}{
-		"summary":    summary,
-		"created_at": time.Now().Unix(),
-		"user_id":    fmt.Sprintf("%d", userID),
-		"source":     "episodic",
+		"summary":             searchable,
+		"memory_type":         structured.MemoryType,
+		"facts":               structured.Facts,
+		"preferences":         structured.Preferences,
+		"decisions":           structured.Decisions,
+		"followups":           structured.Followups,
+		"source_dialogue":     request.SourceDialogue,
+		"summary_version":     request.SummaryVersion,
+		"created_at":          time.Now().Unix(),
+		"user_id":             fmt.Sprintf("%d", request.UserID),
+		"source":              "episodic",
+		"collection_schema":   "shared_user_payload_v1",
+		"embedding_model":     m.embedModel,
+		"embedding_dimension": len(vector),
+		"embedding_version":   m.episodic.EmbeddingVersion,
 	}
-	if err := m.qdrantClient.UpsertPoint(ctx, collectionName, sessionID, vector, payload); err != nil {
+	if err := m.qdrantClient.UpsertPoint(ctx, collectionName, request.PointID, vector, payload); err != nil {
 		return fmt.Errorf("upsert episodic memory failed: %w", err)
 	}
 	return nil
 }
 
+func parseEpisodicSummary(raw string) EpisodicSummary {
+	raw = strings.TrimSpace(raw)
+	result := EpisodicSummary{MemoryType: "episodic"}
+	if raw == "" {
+		return result
+	}
+	if start := strings.Index(raw, "{"); start >= 0 {
+		if end := strings.LastIndex(raw, "}"); end >= start {
+			if err := json.Unmarshal([]byte(raw[start:end+1]), &result); err == nil {
+				result.MemoryType = "episodic"
+				result.Summary = strings.TrimSpace(result.Summary)
+				result.Facts = normalizeSummaryItems(result.Facts)
+				result.Preferences = normalizeSummaryItems(result.Preferences)
+				result.Decisions = normalizeSummaryItems(result.Decisions)
+				result.Followups = normalizeSummaryItems(result.Followups)
+				return result
+			}
+		}
+	}
+	result.Summary = raw
+	return result
+}
+
+func normalizeSummaryItems(items []string) []string {
+	normalized := make([]string, 0, len(items))
+	seen := make(map[string]struct{}, len(items))
+	for _, item := range items {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			continue
+		}
+		key := strings.ToLower(item)
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		normalized = append(normalized, item)
+	}
+	return normalized
+}
+
+func renderEpisodicSummary(summary EpisodicSummary) string {
+	var builder strings.Builder
+	if text := strings.TrimSpace(summary.Summary); text != "" {
+		builder.WriteString(text)
+	}
+	sections := []struct {
+		name  string
+		items []string
+	}{
+		{name: "Facts", items: summary.Facts},
+		{name: "Preferences", items: summary.Preferences},
+		{name: "Decisions", items: summary.Decisions},
+		{name: "Follow-ups", items: summary.Followups},
+	}
+	for _, section := range sections {
+		if len(section.items) == 0 {
+			continue
+		}
+		if builder.Len() > 0 {
+			builder.WriteString("\n")
+		}
+		builder.WriteString(section.name)
+		builder.WriteString(": ")
+		builder.WriteString(strings.Join(section.items, "; "))
+	}
+	return strings.TrimSpace(builder.String())
+}
+
 type MemoryChunk struct {
+	ID         string
 	Content    string
 	Timestamp  int64
 	Score      float64
 	Similarity float64
 	Source     string
+	Breakdown  ScoreBreakdown
+}
+
+type ScoreBreakdown struct {
+	Similarity float64
+	TimeDecay  float64
+	Frequency  float64
+	FinalScore float64
+}
+
+func episodicUserFilter(userID uint64) map[string]interface{} {
+	return map[string]interface{}{
+		"must": []interface{}{
+			map[string]interface{}{
+				"key": "user_id",
+				"match": map[string]interface{}{
+					"value": fmt.Sprintf("%d", userID),
+				},
+			},
+		},
+	}
 }
 
 func (m *MemoryManager) SearchEpisodicMemory(ctx context.Context, userID uint64, query string, limit int) ([]MemoryChunk, error) {
@@ -148,18 +394,37 @@ func (m *MemoryManager) SearchEpisodicMemory(ctx context.Context, userID uint64,
 		return nil, err
 	}
 
-	results, err := m.qdrantClient.Search(ctx, fmt.Sprintf("episodic_user_%d", userID), vector, limit)
-	if err != nil {
-		return nil, nil
+	sharedResults, sharedErr := m.qdrantClient.SearchWithFilter(ctx, m.episodic.CollectionName, vector, limit, episodicUserFilter(userID))
+	results := sharedResults
+	var legacyErr error
+	if m.episodic.LegacyReadEnabled && (sharedErr != nil || len(results) < limit) {
+		legacyCollection := m.episodic.LegacyCollectionName
+		if legacyCollection == nil {
+			legacyCollection = DefaultEpisodicMemoryConfig().LegacyCollectionName
+		}
+		legacyResults, err := m.qdrantClient.Search(ctx, legacyCollection(userID), vector, limit-len(results))
+		legacyErr = err
+		if err == nil {
+			results = append(results, legacyResults...)
+		}
+	}
+	if sharedErr != nil && (!m.episodic.LegacyReadEnabled || legacyErr != nil) {
+		return nil, fmt.Errorf("search episodic memory shared collection failed: %w", sharedErr)
 	}
 
 	chunks := make([]MemoryChunk, 0, len(results))
+	seen := make(map[string]struct{}, len(results))
 	for _, r := range results {
+		if _, exists := seen[r.ID]; exists {
+			continue
+		}
+		seen[r.ID] = struct{}{}
 		content, _ := r.Payload["summary"].(string)
 		if strings.TrimSpace(content) == "" {
 			continue
 		}
 		chunks = append(chunks, MemoryChunk{
+			ID:         r.ID,
 			Content:    content,
 			Timestamp:  payloadUnix(r.Payload["created_at"]),
 			Score:      r.Score,
@@ -225,6 +490,7 @@ func (m *MemoryManager) SearchHybridKnowledge(ctx context.Context, query string,
 				id := doc.ID
 				rrfScores[id] += rrf(rank)
 				docLookup[id] = MemoryChunk{
+					ID:        id,
 					Content:   doc.Content,
 					Timestamp: doc.CreatedAt,
 					Source:    "global_es",
@@ -239,6 +505,9 @@ func (m *MemoryManager) SearchHybridKnowledge(ctx context.Context, query string,
 					content, _ = doc.Payload["summary"].(string)
 				}
 				existing := docLookup[id]
+				if existing.ID == "" {
+					existing.ID = id
+				}
 				if existing.Content == "" {
 					existing.Content = content
 				}
@@ -262,7 +531,13 @@ func (m *MemoryManager) SearchHybridKnowledge(ctx context.Context, query string,
 		merged = append(merged, chunk)
 	}
 	sort.SliceStable(merged, func(i, j int) bool {
-		return merged[i].Score > merged[j].Score
+		if merged[i].Score != merged[j].Score {
+			return merged[i].Score > merged[j].Score
+		}
+		if merged[i].ID != merged[j].ID {
+			return merged[i].ID < merged[j].ID
+		}
+		return merged[i].Content < merged[j].Content
 	})
 	if len(merged) > limit {
 		merged = merged[:limit]
@@ -298,35 +573,27 @@ func (m *MemoryManager) RetrieveScoredChunks(ctx context.Context, userID uint64,
 	}
 
 	now := time.Now().Unix()
-	const lambda = 0.00001
+	scoring := m.scoring
+	if scoring.SimilarityThreshold <= 0 {
+		scoring = DefaultScoringConfig()
+	}
 	scored := make([]MemoryChunk, 0, len(allChunks))
 	for _, chunk := range allChunks {
-		sim := normalizedSimilarity(chunk)
-		if (chunk.Source == "episodic" || chunk.Similarity > 0) && sim < defaultSimilarityThreshold {
+		scoredChunk, accepted := scoreMemoryChunk(chunk, now, personaKeywords, scoring)
+		if !accepted {
 			continue
 		}
-
-		timeDiff := float64(now - chunk.Timestamp)
-		if chunk.Timestamp == 0 || timeDiff < 0 {
-			timeDiff = 0
-		}
-		timeDecay := math.Exp(-lambda * timeDiff)
-
-		freqWeight := 0.0
-		contentLower := strings.ToLower(chunk.Content)
-		for _, keyword := range personaKeywords {
-			kw := strings.ToLower(strings.TrimSpace(keyword))
-			if kw != "" && strings.Contains(contentLower, kw) {
-				freqWeight += 0.15
-			}
-		}
-
-		chunk.Score = (0.6 * sim) + (0.25 * timeDecay) + (0.15 * freqWeight)
-		scored = append(scored, chunk)
+		scored = append(scored, scoredChunk)
 	}
 
 	sort.SliceStable(scored, func(i, j int) bool {
-		return scored[i].Score > scored[j].Score
+		if scored[i].Score != scored[j].Score {
+			return scored[i].Score > scored[j].Score
+		}
+		if scored[i].ID != scored[j].ID {
+			return scored[i].ID < scored[j].ID
+		}
+		return scored[i].Content < scored[j].Content
 	})
 	if len(scored) > limit {
 		scored = scored[:limit]
@@ -334,34 +601,91 @@ func (m *MemoryManager) RetrieveScoredChunks(ctx context.Context, userID uint64,
 	return scored, nil
 }
 
-func (m *MemoryManager) BuildContextBlock(ctx context.Context, userID uint64, query string, persona string, personaKeywords []string, budgetChars int) (string, []MemoryChunk, error) {
-	if budgetChars <= 0 {
-		budgetChars = defaultMemoryBudgetChars
+func scoreMemoryChunk(chunk MemoryChunk, now int64, personaKeywords []string, scoring ScoringConfig) (MemoryChunk, bool) {
+	sim := normalizedSimilarity(chunk)
+	if (chunk.Source == "episodic" || chunk.Similarity > 0) && sim < scoring.SimilarityThreshold {
+		return chunk, false
+	}
+
+	timeDiff := float64(now - chunk.Timestamp)
+	if chunk.Timestamp == 0 || timeDiff < 0 {
+		timeDiff = 0
+	}
+	timeDecay := math.Exp(-scoring.TimeDecayLambda * timeDiff)
+
+	freqWeight := 0.0
+	contentLower := strings.ToLower(chunk.Content)
+	for _, keyword := range personaKeywords {
+		keyword = strings.ToLower(strings.TrimSpace(keyword))
+		if keyword != "" && strings.Contains(contentLower, keyword) {
+			freqWeight += scoring.KeywordBonus
+		}
+	}
+
+	chunk.Breakdown = ScoreBreakdown{
+		Similarity: sim,
+		TimeDecay:  timeDecay,
+		Frequency:  freqWeight,
+	}
+	chunk.Score = (scoring.SimilarityWeight * sim) +
+		(scoring.TimeDecayWeight * timeDecay) +
+		(scoring.FrequencyWeight * freqWeight)
+	chunk.Breakdown.FinalScore = chunk.Score
+	return chunk, true
+}
+
+func (m *MemoryManager) BuildContextBlock(ctx context.Context, userID uint64, query string, persona string, personaKeywords []string, budgetTokens int) (string, []MemoryChunk, error) {
+	if budgetTokens <= 0 {
+		budgetTokens = defaultMemoryBudgetTokens
 	}
 	chunks, err := m.RetrieveScoredChunks(ctx, userID, query, personaKeywords, 8)
 	if err != nil {
 		return "", nil, err
 	}
 
-	var builder strings.Builder
-	if strings.TrimSpace(persona) != "" {
-		builder.WriteString("[Long-term persona]\n")
-		builder.WriteString(truncate(persona, minInt(900, budgetChars)))
-		builder.WriteString("\n\n")
+	counter := m.tokenCounter
+	if counter == nil {
+		counter = agentRuntime.NewHeuristicTokenCounter()
 	}
-
-	if len(chunks) > 0 {
-		builder.WriteString("[Relevant memory and knowledge]\n")
-		for i, chunk := range chunks {
-			next := fmt.Sprintf("%d. (%s score=%.3f) %s\n", i+1, chunk.Source, chunk.Score, strings.TrimSpace(chunk.Content))
-			if builder.Len()+len([]rune(next)) > budgetChars {
-				break
-			}
-			builder.WriteString(next)
+	var builder strings.Builder
+	usedTokens := 0
+	if strings.TrimSpace(persona) != "" {
+		header := "[Long-term persona]\n"
+		personaBudget := minInt(defaultPersonaBudgetTokens, budgetTokens-counter.CountText(header))
+		personaText := truncateToTokenBudget(persona, personaBudget, counter)
+		block := header + personaText + "\n\n"
+		if personaText != "" && counter.CountText(block) <= budgetTokens {
+			builder.WriteString(block)
+			usedTokens = counter.CountText(block)
 		}
 	}
 
-	return strings.TrimSpace(builder.String()), chunks, nil
+	included := make([]MemoryChunk, 0, len(chunks))
+	if len(chunks) > 0 {
+		header := "[Relevant memory and knowledge]\n"
+		headerTokens := counter.CountText(header)
+		wroteHeader := false
+		for i, chunk := range chunks {
+			next := fmt.Sprintf("%d. (%s score=%.3f) %s\n", i+1, chunk.Source, chunk.Score, strings.TrimSpace(chunk.Content))
+			required := counter.CountText(next)
+			if !wroteHeader {
+				required += headerTokens
+			}
+			if usedTokens+required > budgetTokens {
+				continue
+			}
+			if !wroteHeader {
+				builder.WriteString(header)
+				usedTokens += headerTokens
+				wroteHeader = true
+			}
+			builder.WriteString(next)
+			usedTokens += counter.CountText(next)
+			included = append(included, chunk)
+		}
+	}
+
+	return strings.TrimSpace(builder.String()), included, nil
 }
 
 func rrf(rank int) float64 {
@@ -395,12 +719,29 @@ func payloadUnix(v interface{}) int64 {
 	}
 }
 
-func truncate(s string, maxRunes int) string {
-	runes := []rune(strings.TrimSpace(s))
-	if maxRunes <= 0 || len(runes) <= maxRunes {
-		return string(runes)
+func truncateToTokenBudget(s string, maxTokens int, counter agentRuntime.TokenCounter) string {
+	s = strings.TrimSpace(s)
+	if s == "" || maxTokens <= 0 {
+		return ""
 	}
-	return string(runes[:maxRunes]) + "..."
+	if counter.CountText(s) <= maxTokens {
+		return s
+	}
+	runes := []rune(s)
+	low, high := 0, len(runes)
+	for low < high {
+		mid := (low + high + 1) / 2
+		candidate := string(runes[:mid]) + "..."
+		if counter.CountText(candidate) <= maxTokens {
+			low = mid
+		} else {
+			high = mid - 1
+		}
+	}
+	if low == 0 {
+		return ""
+	}
+	return string(runes[:low]) + "..."
 }
 
 func clamp01(v float64) float64 {

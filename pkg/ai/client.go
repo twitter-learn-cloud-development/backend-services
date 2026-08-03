@@ -5,8 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"strings"
+
+	platformTrace "twitter-clone/pkg/trace"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -18,12 +21,23 @@ type Client struct {
 
 // NewClient 初始化 AI 客户端连接，支持传入 cheapBaseURL，并从环境变量自适应 premium 配置
 func NewClient(cheapBaseURL string) *Client {
+	return NewClientWithConfig(cheapBaseURL, "", nil)
+}
+
+// NewClientWithConfig creates an OpenAI-compatible client with an explicit
+// token and HTTP client. The default constructor remains intentionally
+// compatible with existing local LM Studio callers.
+func NewClientWithConfig(cheapBaseURL, cheapToken string, httpClient *http.Client) *Client {
 	// 1. 初始化廉价模型客户端 (本地 LM Studio 或免费 API)
-	cheapConfig := openai.DefaultConfig("lm-studio")
+	cheapConfig := openai.DefaultConfig(cheapToken)
 	if cheapBaseURL == "" {
 		cheapBaseURL = "http://localhost:1234/v1"
 	}
 	cheapConfig.BaseURL = cheapBaseURL
+	if httpClient == nil {
+		httpClient = platformTrace.InstrumentHTTPClient(nil, "agent.provider.http", nil)
+	}
+	cheapConfig.HTTPClient = httpClient
 	cheapAPI := openai.NewClientWithConfig(cheapConfig)
 
 	// 2. 初始化高端/昂贵模型客户端 (如百炼、OpenAI)
@@ -40,6 +54,7 @@ func NewClient(cheapBaseURL string) *Client {
 	if premiumBaseURL != "" && premiumToken != "" {
 		premiumConfig := openai.DefaultConfig(premiumToken)
 		premiumConfig.BaseURL = premiumBaseURL
+		premiumConfig.HTTPClient = httpClient
 		premiumAPI = openai.NewClientWithConfig(premiumConfig)
 	} else {
 		// 若未配置 premium, 则回退使用 cheapAPI 作为 fallback
@@ -62,7 +77,7 @@ func (c *Client) GetEmbedding(ctx context.Context, text string, model string) ([
 			hash = ((hash << 5) + hash) + uint32(text[i])
 		}
 		for i := 0; i < 1024; i++ {
-			val := float32((hash + uint32(i*17))%100)/1000.0 + 0.01
+			val := float32((hash+uint32(i*17))%100)/1000.0 + 0.01
 			mockVec[i] = val
 		}
 		return mockVec, nil

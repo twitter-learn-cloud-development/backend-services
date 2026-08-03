@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -25,16 +26,26 @@ type SearchResult struct {
 
 // NewClient 实例化 Qdrant 客户端，注入高并发池化 HTTPClient
 func NewClient(url string) *Client {
-	return &Client{
-		url: url,
-		client: &http.Client{
-			Timeout: 3000 * time.Millisecond, // 限制最大查询时间 3s
+	return NewClientWithHTTPClient(url, nil)
+}
+
+// NewClientWithHTTPClient creates a client with a caller-owned HTTP policy.
+// Callers that connect to user-configured endpoints should inject a restricted
+// client rather than bypassing the shared outbound security boundary.
+func NewClientWithHTTPClient(url string, httpClient *http.Client) *Client {
+	if httpClient == nil {
+		httpClient = &http.Client{
+			Timeout: 3000 * time.Millisecond,
 			Transport: &http.Transport{
 				MaxIdleConns:        100,
 				MaxIdleConnsPerHost: 20,
 				IdleConnTimeout:     90 * time.Second,
 			},
-		},
+		}
+	}
+	return &Client{
+		url:    url,
+		client: httpClient,
 	}
 }
 
@@ -99,19 +110,29 @@ func (c *Client) CreateCollection(ctx context.Context, name string, dim int) err
 
 // UpsertPoint 插入或覆盖向量点，同时写入 metadata Payload
 func (c *Client) UpsertPoint(ctx context.Context, collection string, pointID uint64, vector []float32, payload map[string]interface{}) error {
-	uuidStr := ConvertSnowflakeToQdrantID(pointID)
+	return c.UpsertPointWithID(ctx, collection, ConvertSnowflakeToQdrantID(pointID), vector, payload, fmt.Sprintf("%d", pointID))
+}
+
+// UpsertPointWithID writes a point using an existing Qdrant point ID. It is
+// used by migrations so a retry can overwrite the same source point.
+func (c *Client) UpsertPointWithID(ctx context.Context, collection string, pointID string, vector []float32, payload map[string]interface{}, legacyTweetID string) error {
+	if strings.TrimSpace(pointID) == "" {
+		return fmt.Errorf("qdrant point id is empty")
+	}
 	upsertURL := fmt.Sprintf("%s/collections/%s/points?wait=true", c.url, collection)
 
 	// 将真正的推文 ID 作为字符串塞入 payload 中，方便检索端直接无精度损耗拉取
 	if payload == nil {
 		payload = make(map[string]interface{})
 	}
-	payload["tweet_id"] = fmt.Sprintf("%d", pointID)
+	if strings.TrimSpace(legacyTweetID) != "" {
+		payload["tweet_id"] = legacyTweetID
+	}
 
 	body := map[string]interface{}{
 		"points": []map[string]interface{}{
 			{
-				"id":      uuidStr,
+				"id":      pointID,
 				"vector":  vector,
 				"payload": payload,
 			},
@@ -142,13 +163,33 @@ func (c *Client) UpsertPoint(ctx context.Context, collection string, pointID uin
 			dim := len(vector)
 			if dim > 0 {
 				if errCreate := c.CreateCollection(ctx, collection, dim); errCreate == nil {
-					return c.UpsertPoint(ctx, collection, pointID, vector, payload)
+					return c.UpsertPointWithID(ctx, collection, pointID, vector, payload, legacyTweetID)
 				}
 			}
 		}
 		return fmt.Errorf("failed to upsert point, status: %d, response: %s", resp.StatusCode, string(respBytes))
 	}
 
+	return nil
+}
+
+// DeleteCollection removes a collection after an explicit migration has been
+// verified. Callers should never use this as part of a request path.
+func (c *Client) DeleteCollection(ctx context.Context, name string) error {
+	deleteURL := fmt.Sprintf("%s/collections/%s", c.url, name)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, deleteURL, nil)
+	if err != nil {
+		return fmt.Errorf("create delete collection request failed: %w", err)
+	}
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("execute delete collection failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("delete collection failed, status: %d, response: %s", resp.StatusCode, string(body))
+	}
 	return nil
 }
 
@@ -162,12 +203,22 @@ type qdrantSearchResponse struct {
 
 // Search 进行向量相似度检索
 func (c *Client) Search(ctx context.Context, collection string, vector []float32, limit int) ([]SearchResult, error) {
+	return c.SearchWithFilter(ctx, collection, vector, limit, nil)
+}
+
+// SearchWithFilter performs vector search with an optional Qdrant filter. The
+// filter is sent to Qdrant instead of filtering after retrieval, which makes
+// tenant isolation part of the storage query contract.
+func (c *Client) SearchWithFilter(ctx context.Context, collection string, vector []float32, limit int, filter map[string]interface{}) ([]SearchResult, error) {
 	searchURL := fmt.Sprintf("%s/collections/%s/points/search", c.url, collection)
 
 	body := map[string]interface{}{
 		"vector":       vector,
 		"limit":        limit,
 		"with_payload": true,
+	}
+	if len(filter) > 0 {
+		body["filter"] = filter
 	}
 
 	jsonBytes, err := json.Marshal(body)
@@ -220,4 +271,74 @@ func (c *Client) Search(ctx context.Context, collection string, vector []float32
 	}
 
 	return results, nil
+}
+
+// Point is the subset of a Qdrant point required by the bounded migration
+// command. Vector and payload are returned explicitly so migration does not
+// re-embed historical summaries.
+type Point struct {
+	ID      string                 `json:"id"`
+	Vector  []float32              `json:"vector"`
+	Payload map[string]interface{} `json:"payload"`
+}
+
+type scrollResponse struct {
+	Result struct {
+		Points       []Point     `json:"points"`
+		NextPageMark interface{} `json:"next_page_offset"`
+	} `json:"result"`
+}
+
+// Scroll reads one bounded page from a collection. The caller owns the page
+// cursor and decides when to stop or retry.
+func (c *Client) Scroll(ctx context.Context, collection string, limit int, offset interface{}) ([]Point, interface{}, error) {
+	return c.ScrollWithFilter(ctx, collection, limit, offset, nil)
+}
+
+// ScrollWithFilter reads one bounded page and optionally applies a Qdrant
+// payload filter on the server. Keeping the filter in the storage request is
+// important for migration verification: the verifier must observe the same
+// tenant boundary used by production retrieval.
+func (c *Client) ScrollWithFilter(ctx context.Context, collection string, limit int, offset interface{}, filter map[string]interface{}) ([]Point, interface{}, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	scrollURL := fmt.Sprintf("%s/collections/%s/points/scroll", c.url, collection)
+	body := map[string]interface{}{
+		"limit":        limit,
+		"with_payload": true,
+		"with_vector":  true,
+	}
+	if len(filter) > 0 {
+		body["filter"] = filter
+	}
+	if offset != nil {
+		body["offset"] = offset
+	}
+	jsonBytes, err := json.Marshal(body)
+	if err != nil {
+		return nil, nil, fmt.Errorf("marshal scroll body failed: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, scrollURL, bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		return nil, nil, fmt.Errorf("create scroll request failed: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, nil, fmt.Errorf("execute scroll failed: %w", err)
+	}
+	defer resp.Body.Close()
+	respBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, nil, fmt.Errorf("read scroll response body failed: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, nil, fmt.Errorf("scroll failed, status: %d, response: %s", resp.StatusCode, string(respBytes))
+	}
+	var result scrollResponse
+	if err := json.Unmarshal(respBytes, &result); err != nil {
+		return nil, nil, fmt.Errorf("unmarshal scroll response failed: %w", err)
+	}
+	return result.Result.Points, result.Result.NextPageMark, nil
 }
