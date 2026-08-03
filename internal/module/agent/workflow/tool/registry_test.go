@@ -2,28 +2,24 @@ package tool
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"twitter-clone/internal/module/agent/workflow/engine"
 	"twitter-clone/internal/module/agent/workflow/guardrails"
 )
 
 type recordingTool struct {
-	name   string
+	spec   ToolSpec
 	called bool
 	inputs map[string]interface{}
 }
 
-func (t *recordingTool) Name() string {
-	return t.name
-}
-
-func (t *recordingTool) Description() string {
-	return "recording test tool"
-}
-
-func (t *recordingTool) InputSchema() string {
-	return `{}`
+func (t *recordingTool) Spec() ToolSpec {
+	return t.spec
 }
 
 func (t *recordingTool) Execute(ctx context.Context, inputs map[string]interface{}) (map[string]interface{}, error) {
@@ -32,39 +28,67 @@ func (t *recordingTool) Execute(ctx context.Context, inputs map[string]interface
 	return map[string]interface{}{"ok": true}, nil
 }
 
-func TestToolNode_BlocksUnauthenticatedSensitiveTool(t *testing.T) {
-	recorder := &recordingTool{name: "PublishTweet"}
-	GetRegistry().Register(recorder)
+type approvalGateFunc func(context.Context, ApprovalCheck) (ApprovalGrant, error)
 
-	node := NewToolNode("publish_node", "PublishTweet")
-	_, err := node.Execute(context.Background(), engine.NewBlackboard(), map[string]interface{}{
-		"content": "hello",
-	})
-	if err == nil {
-		t.Fatal("expected guardrail error for unauthenticated PublishTweet")
-	}
-	if recorder.called {
-		t.Fatal("sensitive tool should not be executed when guardrail blocks it")
-	}
+func (f approvalGateFunc) Authorize(ctx context.Context, check ApprovalCheck) (ApprovalGrant, error) {
+	return f(ctx, check)
 }
 
-func TestToolNode_InjectsAuthenticatedUserID(t *testing.T) {
-	recorder := &recordingTool{name: "PublishTweet"}
-	GetRegistry().Register(recorder)
+func newRecordingPublishTool() *recordingTool {
+	return &recordingTool{spec: ToolSpec{
+		Name: "PublishTweet", Description: "test write",
+		InputSchema: json.RawMessage(`{"type":"object","properties":{"content":{"type":"string"}},"required":["content"]}`),
+		Category:    CategoryWrite, Permission: PermissionAuthenticated,
+		Approval: ApprovalRequired, Idempotency: IdempotencyPolicy{Required: true},
+		Timeout: time.Second,
+	}}
+}
+
+func TestToolNodeBlocksUnauthenticatedSensitiveTool(t *testing.T) {
+	recorder := newRecordingPublishTool()
+	registry := NewRegistry()
+	require.NoError(t, registry.Register(recorder))
+	executor := NewExecutor(registry)
+
+	node := NewToolNode("publish_node", "PublishTweet", executor)
+	_, err := node.Execute(context.Background(), engine.NewBlackboard(), map[string]interface{}{"content": "hello"})
+
+	require.ErrorIs(t, err, ErrUnauthenticated)
+	require.False(t, recorder.called)
+}
+
+func TestToolNodeInjectsAuthenticatedUserID(t *testing.T) {
+	recorder := newRecordingPublishTool()
+	registry := NewRegistry()
+	require.NoError(t, registry.Register(recorder))
+	executor := NewExecutor(registry, WithApprovalGate(approvalGateFunc(
+		func(context.Context, ApprovalCheck) (ApprovalGrant, error) {
+			return ApprovalGrant{ApprovalID: "approval-1"}, nil
+		},
+	)))
 
 	ctx := guardrails.InjectUserContext(context.Background(), 42)
-	node := NewToolNode("publish_node", "PublishTweet")
+	ctx = InjectExecutionMetadata(ctx, ExecutionMetadata{RunID: "run-1", Source: SourceWorkflow})
+	node := NewToolNode("publish_node", "PublishTweet", executor)
 	_, err := node.Execute(ctx, engine.NewBlackboard(), map[string]interface{}{
-		"content": "hello",
-		"user_id": uint64(7),
+		"content": "hello", "user_id": uint64(7),
 	})
-	if err != nil {
-		t.Fatalf("unexpected guardrail error: %v", err)
-	}
-	if !recorder.called {
-		t.Fatal("tool should be executed after authenticated user_id injection")
-	}
-	if got := recorder.inputs["user_id"]; got != uint64(42) {
-		t.Fatalf("expected guardrail to inject authenticated user_id 42, got %v", got)
-	}
+
+	require.NoError(t, err)
+	require.True(t, recorder.called)
+	require.Equal(t, uint64(42), recorder.inputs["user_id"])
+}
+
+func TestRegistryRejectsDuplicateToolNames(t *testing.T) {
+	registry := NewRegistry()
+	require.NoError(t, registry.Register(newRecordingPublishTool()))
+	require.ErrorContains(t, registry.Register(newRecordingPublishTool()), "duplicate name")
+}
+
+func TestRegistriesAreIsolated(t *testing.T) {
+	first := NewRegistry()
+	second := NewRegistry()
+	require.NoError(t, first.Register(newRecordingPublishTool()))
+	_, exists := second.Get("PublishTweet")
+	require.False(t, exists)
 }

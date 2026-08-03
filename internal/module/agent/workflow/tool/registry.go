@@ -1,128 +1,174 @@
 package tool
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"sort"
 	"sync"
+
+	"github.com/santhosh-tekuri/jsonschema/v6"
 
 	"twitter-clone/internal/module/agent/workflow/engine"
 	"twitter-clone/internal/module/agent/workflow/guardrails"
 )
 
-// AgentTool 定义了所有可被工作流节点调用的业务工具标准接口
-type AgentTool interface {
-	Name() string
-	Description() string
-	InputSchema() string // 参数 JSON Schema，描述该工具需要哪些输入
-	Execute(ctx context.Context, inputs map[string]interface{}) (map[string]interface{}, error)
+type inputValidator func(inputs map[string]interface{}) error
+
+type RegisteredTool struct {
+	Spec     ToolSpec
+	Handler  ToolHandler
+	validate inputValidator
 }
 
-// InputGuardrail 在工具执行前校验与改写入参，例如注入认证态 user_id。
-type InputGuardrail interface {
-	ValidateAndInjectToolInputs(ctx context.Context, toolName string, inputs map[string]interface{}) (map[string]interface{}, error)
-}
-
-// ToolRegistry 工具自注册中心
+// ToolRegistry is an injected catalog. It has no package-global mutable
+// instance, so tests and service roles cannot leak registrations into each
+// other.
 type ToolRegistry struct {
 	mu    sync.RWMutex
-	tools map[string]AgentTool
+	tools map[string]RegisteredTool
 }
 
-var (
-	globalRegistry *ToolRegistry
-	once           sync.Once
-)
-
-// GetRegistry 获取全局唯一的工具注册中心实例
-func GetRegistry() *ToolRegistry {
-	once.Do(func() {
-		globalRegistry = &ToolRegistry{
-			tools: make(map[string]AgentTool),
-		}
-	})
-	return globalRegistry
+func NewRegistry() *ToolRegistry {
+	return &ToolRegistry{tools: make(map[string]RegisteredTool)}
 }
 
-// Register 注册一个工具
-func (r *ToolRegistry) Register(t AgentTool) {
+func (r *ToolRegistry) Register(tool AgentTool) error {
+	if tool == nil {
+		return fmt.Errorf("register tool: handler is nil")
+	}
+	return r.RegisterHandler(tool.Spec(), tool)
+}
+
+func (r *ToolRegistry) RegisterHandler(spec ToolSpec, handler ToolHandler) error {
+	if r == nil {
+		return fmt.Errorf("register tool: registry is nil")
+	}
+	if handler == nil {
+		return fmt.Errorf("register tool: handler is nil")
+	}
+	normalized, err := spec.Normalize()
+	if err != nil {
+		return fmt.Errorf("register tool: %w", err)
+	}
+	validator, err := compileInputSchema(normalized)
+	if err != nil {
+		return fmt.Errorf("register tool %s schema: %w", normalized.Name, err)
+	}
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.tools[t.Name()] = t
+	if _, exists := r.tools[normalized.Name]; exists {
+		return fmt.Errorf("register tool %s: duplicate name", normalized.Name)
+	}
+	r.tools[normalized.Name] = RegisteredTool{
+		Spec: normalized, Handler: handler, validate: validator,
+	}
+	return nil
 }
 
-// Get 依据名字装载工具
-func (r *ToolRegistry) Get(name string) (AgentTool, bool) {
+func (r *ToolRegistry) Get(name string) (RegisteredTool, bool) {
+	if r == nil {
+		return RegisteredTool{}, false
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	t, ok := r.tools[name]
-	return t, ok
+	registered, ok := r.tools[name]
+	return registered, ok
 }
 
-// ToolNode 是一个适配器，将标准的 AgentTool 包装为可供调度引擎调用的 WorkflowNode
+func (r *ToolRegistry) Specs() []ToolSpec {
+	if r == nil {
+		return nil
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	specs := make([]ToolSpec, 0, len(r.tools))
+	for _, registered := range r.tools {
+		specs = append(specs, registered.Spec)
+	}
+	sort.Slice(specs, func(i, j int) bool { return specs[i].Name < specs[j].Name })
+	return specs
+}
+
+func compileInputSchema(spec ToolSpec) (inputValidator, error) {
+	value, err := jsonschema.UnmarshalJSON(bytes.NewReader(spec.InputSchema))
+	if err != nil {
+		return nil, fmt.Errorf("decode JSON schema: %w", err)
+	}
+	compiler := jsonschema.NewCompiler()
+	location := "mem://agent-tool/" + spec.Name + ".json"
+	if err := compiler.AddResource(location, value); err != nil {
+		return nil, fmt.Errorf("add JSON schema resource: %w", err)
+	}
+	compiled, err := compiler.Compile(location)
+	if err != nil {
+		return nil, fmt.Errorf("compile JSON schema: %w", err)
+	}
+	return func(inputs map[string]interface{}) error {
+		return compiled.Validate(inputs)
+	}, nil
+}
+
+// ToolNode adapts a governed registered tool to WorkflowNode.
 type ToolNode struct {
-	id        string
-	toolName  string
-	guardrail InputGuardrail
+	id       string
+	toolName string
+	executor *Executor
 }
 
-// NewToolNode 实例化一个工具节点
-func NewToolNode(id, toolName string) *ToolNode {
-	return &ToolNode{
-		id:        id,
-		toolName:  toolName,
-		guardrail: guardrails.NewSecurityGuardrail(),
-	}
+func NewToolNode(id, toolName string, executor *Executor) *ToolNode {
+	return &ToolNode{id: id, toolName: toolName, executor: executor}
 }
 
-// NewToolNodeWithGuardrail 实例化一个带自定义护栏的工具节点，主要用于测试或灰度替换策略。
-func NewToolNodeWithGuardrail(id, toolName string, guardrail InputGuardrail) *ToolNode {
-	return &ToolNode{
-		id:        id,
-		toolName:  toolName,
-		guardrail: guardrail,
-	}
-}
-
-// ID 返回节点 ID
 func (tn *ToolNode) ID() string {
 	return tn.id
 }
 
-// Type 返回节点类型
 func (tn *ToolNode) Type() string {
 	return "tool"
 }
 
-// Execute 适配执行方法，自动从注册中心装载对应的 AgentTool 并触发运行
-func (tn *ToolNode) Execute(ctx context.Context, blackboard *engine.Blackboard, inputs map[string]interface{}) (map[string]interface{}, error) {
-	reg := GetRegistry()
-	tool, ok := reg.Get(tn.toolName)
-	if !ok {
-		return nil, fmt.Errorf("agent tool %s not registered in global registry", tn.toolName)
+func (tn *ToolNode) Execute(ctx context.Context, state engine.StateView, inputs map[string]interface{}) (map[string]interface{}, error) {
+	if tn.executor == nil {
+		return nil, fmt.Errorf("tool %s executor is not configured", tn.toolName)
 	}
-
-	guardedInputs := inputs
-	if tn.guardrail != nil {
-		var err error
-		guardedInputs, err = tn.guardrail.ValidateAndInjectToolInputs(ctx, tn.toolName, cloneInputs(inputs))
-		if err != nil {
-			return nil, fmt.Errorf("tool %s blocked by security guardrail: %w", tn.toolName, err)
-		}
+	userID, _ := guardrails.AuthenticatedUserID(ctx)
+	metadata := ExecutionMetadataFromContext(ctx)
+	outputs, err := tn.executor.ExecuteRegistered(ctx, ExecutionRequest{
+		ToolName:       tn.toolName,
+		Inputs:         inputs,
+		Identity:       CallerIdentity{UserID: userID},
+		RunID:          metadata.RunID,
+		StepID:         tn.id,
+		Source:         firstExecutionSource(metadata.Source, SourceWorkflow),
+		IdempotencyKey: workflowIdempotencyKey(metadata.RunID, tn.id, tn.toolName),
+	})
+	if err == nil {
+		return outputs, nil
 	}
-
-	// 触发工具执行
-	outputs, err := tool.Execute(ctx, guardedInputs)
-	if err != nil {
-		return nil, fmt.Errorf("tool %s execution error: %w", tn.toolName, err)
+	var pending *ApprovalPendingError
+	if errors.As(err, &pending) {
+		return nil, engine.NewSuspensionErrorWithCause(tn.id, "tool approval required", "", map[string]interface{}{
+			"approval_request_id": pending.ApprovalID,
+			"tool_name":           tn.toolName,
+			"idempotency_key":     workflowIdempotencyKey(metadata.RunID, tn.id, tn.toolName),
+		}, err)
 	}
-
-	return outputs, nil
+	return nil, err
 }
 
-func cloneInputs(inputs map[string]interface{}) map[string]interface{} {
-	cloned := make(map[string]interface{}, len(inputs))
-	for k, v := range inputs {
-		cloned[k] = v
+func firstExecutionSource(value, fallback ExecutionSource) ExecutionSource {
+	if value != "" {
+		return value
 	}
-	return cloned
+	return fallback
+}
+
+func workflowIdempotencyKey(runID, stepID, toolName string) string {
+	if runID == "" || stepID == "" || toolName == "" {
+		return ""
+	}
+	return runID + ":" + stepID + ":" + toolName
 }
