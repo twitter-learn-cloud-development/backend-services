@@ -4,6 +4,17 @@
 
 ---
 
+# Evidence & Truthfulness Rules
+
+- 架构、进度和能力声明必须能指向当前代码、配置或测试证据。
+- 明确区分：`Implemented`、`Partial`、`Planned`、`Missing`、`Historical`。
+- 设计文档、注释、截图和旧审计不能覆盖当前代码事实。
+- 不得把实验性 Bridge、未注册代码、未启用 Feature Flag 或只有接口无实现的能力描述为已上线。
+- 不得把规模目标（百万 DAU、百亿数据）描述为当前压测结果。
+- 发现项目地图与代码冲突时，以代码为准并同步更新 `.agents/context/project_map.md`。
+
+---
+
 # File Permission Constraints
 
 - 只能在当前项目根目录及其子目录内创建、修改、删除文件
@@ -19,7 +30,8 @@
 # Repository Scanning Constraints
 
 - 禁止无边界扫描整个仓库
-- 分析前必须优先读取 `.agent/context/*`
+- 每个请求先读 `.agents/context/project_map.md`，再按任务定位表读取相关 Context/Skill
+- 禁止为了“完整了解项目”每次重读所有 Context、Docs 或递归输出整个目录树
 - 大规模分析任务必须分阶段进行
 - 单次任务必须限制在明确模块范围内
 - 避免 recursive deep analysis 导致 context explosion
@@ -273,6 +285,12 @@ Redis 使用必须考虑：
 - ANN latency
 - index size growth
 
+当前项目职责边界：
+
+- Elasticsearch：BM25 / 全文检索
+- Qdrant：推文向量与 Episodic Memory
+- RRF/Rerank：Agent RAG 融合层
+
 embedding pipeline 默认：
 
 - 异步化
@@ -282,10 +300,10 @@ embedding pipeline 默认：
 
 必须分析：
 
-- ES 是否适合长期向量检索
-- 是否需要独立 Vector DB
-- HNSW 内存增长风险
-- retrieval latency
+- Qdrant Collection/Payload 隔离和 HNSW 内存增长
+- ES 与 Qdrant 双索引一致性、重放和对账
+- embedding dimension/version 与迁移策略
+- retrieval latency、recall、rerank 成本
 
 禁止：
 
@@ -304,6 +322,9 @@ Agent 系统必须：
 - Agent 调用可审计
 - Tool 调用可回放
 - Prompt 可追踪
+- Runtime/Service/Provider/Tool/Repository 依赖方向清晰
+- Token Usage 明确区分 Provider 精确值与 Estimated 值
+- Legacy/Runtime v2 迁移具备灰度与回滚
 
 必须考虑：
 
@@ -326,6 +347,17 @@ Multi-Agent 必须：
 - Agent 直接越权调用数据库
 - Agent 绕过 service boundary
 - Agent 操作未审计资源
+- 在 DSL、Mongo、Trace、日志中保存明文 API Key
+- 用 Prompt 代替 Tool 权限、Budget、审批或幂等校验
+- 把 Temporal 风控/热点后台 Workflow 描述为当前用户 DAG 主路径
+
+Agent 包边界：
+
+- `runtime` 不依赖 Service、数据库、Redis、MCP SDK 或具体 Provider
+- `model` 承担 Provider Adapter/Catalog/Endpoint Policy
+- `message` 承担上下文优先级和 Token Budget
+- `repository` 只持久化，不调用 LLM/Tool
+- 写工具默认 fail-closed，Assist 不能隐式发布
 
 ---
 
@@ -333,7 +365,7 @@ Multi-Agent 必须：
 
 ## 1. 规划与实现跟踪（docs/PROJECT_PROGRESS.md）
 
-- 每次完成功能模块后，自动更新对应任务状态（⬜→✅）
+- 每次完成功能模块后，沿用文件当前 Markdown Checkbox/状态格式更新
 - 新增阶段时沿用现有表格格式
 - 如果实现方案与原计划有偏差，必须记录偏差原因
 
@@ -418,6 +450,19 @@ Multi-Agent 必须：
 - 跳过错误
 - 忽略失败测试
 - 忽略编译警告
+
+验证必须区分环境失败与代码失败；沙箱权限、外部工具链、网络或冷缓存问题记录真实原因，不得伪装成测试通过或业务编译失败。
+
+---
+
+# Frontend & Cross-Client Rules
+
+- Web 与 Mobile 是独立客户端；用户可见契约变化分别确认影响。
+- Server State 以 API/持久化为事实源，不用前端临时状态掩盖保存/加载缺陷。
+- 列表使用稳定 Cursor、去重、Loading/Error/End 状态；禁止一次加载全量模拟无限滚动。
+- Agent Dialogue 列表与 Message 详情必须使用同一 Dialogue ID。
+- Workflow Node/Edge/Properties 保存后重新加载必须一致；Edge 必须可选中和删除。
+- Model Selector 只展示对应 Capability 的模型；Credential 只显示 Reference，不回显密钥。
 
 ---
 

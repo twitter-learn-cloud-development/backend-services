@@ -36,3 +36,10 @@ go.work.sum
 
 # Build Output
 /bin/
+
+# Local build, evaluation, and render artifacts
+/.cache/
+/.gocache/
+/.codex-tmp/
+/.tmp/
+/tmp/
