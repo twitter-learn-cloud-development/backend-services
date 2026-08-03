@@ -3,7 +3,6 @@ package guardrails
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"strings"
 )
@@ -11,31 +10,6 @@ import (
 type contextKey string
 
 const UserIDKey contextKey = "workflow_user_id"
-
-// RunawayLimit 限制单个工作流最大执行节点数，防御死循环与 Token 爆炸
-const RunawayLimit = 50
-
-// WorkflowTracker 用于跟踪当前工作流的执行指标
-type WorkflowTracker struct {
-	nodeCount int
-	maxNodes  int
-}
-
-func NewWorkflowTracker() *WorkflowTracker {
-	return &WorkflowTracker{
-		nodeCount: 0,
-		maxNodes:  RunawayLimit,
-	}
-}
-
-// IncrementAndCheck 累加执行节点数，若超过阈值则熔断
-func (t *WorkflowTracker) IncrementAndCheck() error {
-	t.nodeCount++
-	if t.nodeCount > t.maxNodes {
-		return fmt.Errorf("workflow execution aborted: exceeded maximum allowed node count (%d), possible runaway loop detected", t.maxNodes)
-	}
-	return nil
-}
 
 // SecurityGuardrail 负责工作流执行期间的安全审计与权限硬性注入
 type SecurityGuardrail struct{}
@@ -72,13 +46,15 @@ func (g *SecurityGuardrail) ValidateAndInjectToolInputs(ctx context.Context, too
 	if !ok {
 		return nil, errors.New("security audit failure: corrupted user_id context type")
 	}
+	// Every workflow tool receives the authenticated owner. This is also the
+	// tenant boundary for resolving user-managed provider configurations.
+	inputs["user_id"] = userID
 
 	// 2. 拦截 PublishTweet，强行覆写
 	if isSensitiveWriteTool(toolName) {
 		log.Printf("🔒 Security Guardrail activated for %s. Forcing user_id parameter injection: %d", toolName, userID)
 
 		// 强制覆盖或注入只读 user_id，无视大模型/前端传递的伪造 user_id
-		inputs["user_id"] = userID
 	}
 
 	return inputs, nil
