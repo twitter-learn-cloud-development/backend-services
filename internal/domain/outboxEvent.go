@@ -7,7 +7,10 @@ type OutboxEvent struct {
 	ID        uint64 `gorm:"primaryKey;column:id;comment:主键ID (Snowflake)"`
 	EventType string `gorm:"type:varchar(100);not null;column:event_type;comment:事件类型(例如: TWEET_CREATED)"`
 	Payload   string `gorm:"type:json;not null;column:payload;comment:事件全景载荷(JSON)"` // 建议使用 json 类型
-	CreatedAt int64  `gorm:"index;not null;column:created_at;comment:创建时间戳(用于定期清理)"`
+	// DedupKey is nullable so ordinary append-only events can omit it while
+	// command-style events opt into database-enforced idempotency.
+	DedupKey  *string `gorm:"type:varchar(191);column:dedup_key;uniqueIndex:uk_outbox_events_dedup_key"`
+	CreatedAt int64   `gorm:"index;not null;column:created_at;comment:创建时间戳(用于定期清理)"`
 }
 
 func (OutboxEvent) TableName() string {
@@ -18,6 +21,10 @@ func (OutboxEvent) TableName() string {
 type OutboxEventRepository interface {
 	// 只有一个核心方法：创建！在 UoW 事务中调用
 	Create(ctx context.Context, event *OutboxEvent) error
+
+	// CreateIdempotent inserts only when the non-empty dedup key has not
+	// already been committed. It participates in the caller's UoW.
+	CreateIdempotent(ctx context.Context, event *OutboxEvent) (created bool, err error)
 
 	// 提供一个供后台清理脚本调用的方法即可
 	DeleteExpired(ctx context.Context, beforeTimestamp int64) error
@@ -36,4 +43,3 @@ type OutboxTweetCreatedPayload struct {
 	HasPoll     bool     `json:"has_poll"`
 	Poll        *Poll    `json:"poll,omitempty"`
 }
-

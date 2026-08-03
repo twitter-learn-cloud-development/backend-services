@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 	"twitter-clone/internal/domain"
+	"twitter-clone/internal/pkg/database/uow"
 	"twitter-clone/pkg/pkg/snowflake"
 
 	"gorm.io/gorm"
@@ -51,7 +52,8 @@ func (r *tweetRepo) Create(ctx context.Context, tweet *domain.Tweet) error {
 	}
 
 	// 4. 存入数据库
-	if err := r.db.WithContext(ctx).Create(tweet).Error; err != nil {
+	db := uow.ExtractTx(ctx, r.db)
+	if err := db.WithContext(ctx).Create(tweet).Error; err != nil {
 		return fmt.Errorf("failed to create tweet: %w", err)
 	}
 
@@ -89,6 +91,22 @@ func (r *tweetRepo) GetByID(ctx context.Context, id uint64) (*domain.Tweet, erro
 }
 
 // ListByUserID 查询某个用户的推文（游标分页）
+func (r *tweetRepo) UpdateVisibleType(ctx context.Context, id uint64, authorID uint64, visibleType int) (bool, error) {
+	now := time.Now().UnixMilli()
+	db := uow.ExtractTx(ctx, r.db)
+	result := db.WithContext(ctx).
+		Model(&domain.Tweet{}).
+		Where("id = ? AND user_id = ? AND deleted_at = 0 AND visible_type <> ?", id, authorID, visibleType).
+		Updates(map[string]interface{}{
+			"visible_type": visibleType,
+			"updated_at":   now,
+		})
+	if result.Error != nil {
+		return false, fmt.Errorf("failed to update tweet visibility: %w", result.Error)
+	}
+	return result.RowsAffected > 0, nil
+}
+
 func (r *tweetRepo) ListByUserID(ctx context.Context, userID uint64, cursor uint64, limit int) ([]*domain.Tweet, error) {
 	//参数验证
 	if limit <= 0 {

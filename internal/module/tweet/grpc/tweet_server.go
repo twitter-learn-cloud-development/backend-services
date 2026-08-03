@@ -2,7 +2,10 @@ package grpc
 
 import (
 	"context"
+	"errors"
 	"log"
+	"time"
+	"unicode/utf8"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -25,13 +28,24 @@ func NewTweetServer(svc *service.TweetService) *TweetServer {
 
 // CreateTweet 发布推文
 func (s *TweetServer) CreateTweet(ctx context.Context, req *tweetv1.CreateTweetRequest) (*tweetv1.CreateTweetResponse, error) {
-	log.Printf("gRPC: CreateTweet - user_id=%d, content=%s", req.UserId, req.Content)
+	log.Printf("gRPC: CreateTweet - user_id=%d, content_chars=%d, idempotent=%t", req.UserId, utf8.RuneCountInString(req.Content), req.IdempotencyKey != "")
 
 	// 调用 Service 层
-	tweet, err := s.svc.CreateTweet(ctx, req.UserId, req.Content, req.MediaUrls, req.ParentId, req.PollOptions, req.PollDurationMinutes)
+	tweet, err := s.svc.CreateTweetIdempotent(ctx, req.UserId, req.Content, req.MediaUrls, req.ParentId, req.PollOptions, req.PollDurationMinutes, req.IdempotencyKey)
 	if err != nil {
 		log.Printf("❌ CreateTweet error: %v", err)
-		return nil, status.Errorf(codes.Internal, "failed to create tweet: %v", err)
+		code := codes.Internal
+		switch {
+		case errors.Is(err, service.ErrInvalidContent), errors.Is(err, service.ErrContentTooLong),
+			errors.Is(err, service.ErrInvalidMediaURL), errors.Is(err, service.ErrTooManyMedia),
+			errors.Is(err, service.ErrInvalidIdempotencyKey):
+			code = codes.InvalidArgument
+		case errors.Is(err, service.ErrIdempotencyConflict):
+			code = codes.AlreadyExists
+		case errors.Is(err, service.ErrIdempotencyUnavailable):
+			code = codes.FailedPrecondition
+		}
+		return nil, status.Errorf(code, "failed to create tweet: %v", err)
 	}
 
 	// 转换为 Protobuf 消息
@@ -71,6 +85,78 @@ func (s *TweetServer) DeleteTweet(ctx context.Context, req *tweetv1.DeleteTweetR
 }
 
 // GetUserTimeline 获取用户时间线
+func (s *TweetServer) GetAuthorPostingStats(ctx context.Context, req *tweetv1.GetAuthorPostingStatsRequest) (*tweetv1.GetAuthorPostingStatsResponse, error) {
+	if req.AuthorId == 0 {
+		return nil, status.Error(codes.InvalidArgument, "author_id is required")
+	}
+	if req.LookbackSeconds > int64((24*time.Hour)/time.Second) {
+		return nil, status.Error(codes.InvalidArgument, "lookback_seconds exceeds 24 hours")
+	}
+
+	stats, err := s.svc.GetAuthorPostingStats(ctx, req.AuthorId, time.Duration(req.LookbackSeconds)*time.Second)
+	if err != nil {
+		code := codes.Internal
+		if errors.Is(err, service.ErrInvalidAuthorID) {
+			code = codes.InvalidArgument
+		}
+		return nil, status.Errorf(code, "failed to get author posting stats: %v", err)
+	}
+	return &tweetv1.GetAuthorPostingStatsResponse{
+		SampleCount:       int32(stats.SampleCount),
+		LatestCreatedAt:   stats.LatestCreatedAt,
+		PreviousCreatedAt: stats.PreviousCreatedAt,
+	}, nil
+}
+
+func (s *TweetServer) ApplyTweetModeration(ctx context.Context, req *tweetv1.ApplyTweetModerationRequest) (*tweetv1.ApplyTweetModerationResponse, error) {
+	if req.TweetId == 0 || req.AuthorId == 0 {
+		return nil, status.Error(codes.InvalidArgument, "tweet_id and author_id are required")
+	}
+	if len(req.ReasonCode) > 128 {
+		return nil, status.Error(codes.InvalidArgument, "reason_code exceeds 128 characters")
+	}
+
+	var action service.TweetModerationAction
+	switch req.Action {
+	case tweetv1.TweetModerationAction_TWEET_MODERATION_ACTION_SHADOWBAN:
+		action = service.TweetModerationActionShadowban
+	default:
+		return nil, status.Error(codes.InvalidArgument, "unsupported moderation action")
+	}
+
+	result, err := s.svc.ApplyTweetModeration(ctx, req.TweetId, req.AuthorId, action)
+	if err != nil {
+		code := codes.Internal
+		switch {
+		case errors.Is(err, service.ErrInvalidTweetID), errors.Is(err, service.ErrInvalidAuthorID), errors.Is(err, service.ErrInvalidModerationAction):
+			code = codes.InvalidArgument
+		case errors.Is(err, service.ErrTweetNotFound):
+			code = codes.NotFound
+		case errors.Is(err, service.ErrUnauthorized):
+			code = codes.PermissionDenied
+		case errors.Is(err, service.ErrModerationUnavailable):
+			code = codes.FailedPrecondition
+		}
+		return nil, status.Errorf(code, "failed to apply tweet moderation: %v", err)
+	}
+
+	log.Printf(
+		"gRPC: ApplyTweetModeration - tweet_id=%d author_id=%d action=%s reason_code=%q applied=%t cleanup_queued=%t timelines_cleaned=%d",
+		req.TweetId,
+		req.AuthorId,
+		req.Action.String(),
+		req.ReasonCode,
+		result.Applied,
+		result.CleanupQueued,
+		result.TimelinesCleaned,
+	)
+	return &tweetv1.ApplyTweetModerationResponse{
+		Applied:          result.Applied,
+		TimelinesCleaned: int32(result.TimelinesCleaned),
+		CleanupQueued:    result.CleanupQueued,
+	}, nil
+}
+
 func (s *TweetServer) GetUserTimeline(ctx context.Context, req *tweetv1.GetUserTimelineRequest) (*tweetv1.GetUserTimelineResponse, error) {
 	log.Printf("gRPC: GetUserTimeline - user_id=%d, cursor=%d, limit=%d", req.UserId, req.Cursor, req.Limit)
 

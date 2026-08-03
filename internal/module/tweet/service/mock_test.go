@@ -32,6 +32,11 @@ func (m *MockTweetRepository) GetByID(ctx context.Context, id uint64) (*domain.T
 	return args.Get(0).(*domain.Tweet), args.Error(1)
 }
 
+func (m *MockTweetRepository) UpdateVisibleType(ctx context.Context, id uint64, authorID uint64, visibleType int) (bool, error) {
+	args := m.Called(ctx, id, authorID, visibleType)
+	return args.Bool(0), args.Error(1)
+}
+
 func (m *MockTweetRepository) ListByUserID(ctx context.Context, userID uint64, cursor uint64, limit int) ([]*domain.Tweet, error) {
 	args := m.Called(ctx, userID, cursor, limit)
 	if args.Get(0) == nil {
@@ -129,6 +134,11 @@ type MockOutboxEventRepository struct {
 func (m *MockOutboxEventRepository) Create(ctx context.Context, event *domain.OutboxEvent) error {
 	args := m.Called(ctx, event)
 	return args.Error(0)
+}
+
+func (m *MockOutboxEventRepository) CreateIdempotent(ctx context.Context, event *domain.OutboxEvent) (bool, error) {
+	args := m.Called(ctx, event)
+	return args.Bool(0), args.Error(1)
 }
 
 func (m *MockOutboxEventRepository) DeleteExpired(ctx context.Context, beforeTimestamp int64) error {

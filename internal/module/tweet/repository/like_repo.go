@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm"
 
 	"twitter-clone/internal/domain"
+	"twitter-clone/internal/pkg/database/uow"
 	"twitter-clone/pkg/pkg/snowflake"
 )
 
@@ -25,8 +26,9 @@ func NewLikeRepository(db *gorm.DB) domain.LikeRepository {
 
 // Like 点赞（幂等）
 func (r *likeRepo) Like(ctx context.Context, userID, tweetID uint64) error {
+	db := uow.ExtractTx(ctx, r.db)
 	var existing domain.Like
-	err := r.db.WithContext(ctx).
+	err := db.WithContext(ctx).
 		Where("user_id = ? AND tweet_id = ?", userID, tweetID).
 		First(&existing).Error
 	if err == nil {
@@ -49,7 +51,7 @@ func (r *likeRepo) Like(ctx context.Context, userID, tweetID uint64) error {
 		CreatedAt: time.Now().UnixMilli(),
 	}
 
-	if err := r.db.WithContext(ctx).Create(like).Error; err != nil {
+	if err := db.WithContext(ctx).Create(like).Error; err != nil {
 		// If another concurrent insert succeeded in the meantime, ignore the duplicate entry error
 		// to maintain idempotency
 		if strings.Contains(err.Error(), "1062") || strings.Contains(err.Error(), "Duplicate entry") || strings.Contains(err.Error(), "duplicate key") {

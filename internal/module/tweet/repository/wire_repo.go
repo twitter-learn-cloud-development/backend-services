@@ -11,4 +11,5 @@ var ProviderRepoSet = wire.NewSet(
 	NewRetweetRepository, // Assuming these exist
 	NewBookmarkRepository,
 	NewMysqlOutboxEventRepo,
+	NewTweetCreateIdempotencyRepository,
 )

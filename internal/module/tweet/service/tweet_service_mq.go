@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -33,6 +35,8 @@ const (
 
 	// MaxMediaCount 最大媒体数量
 	MaxMediaCount = 4
+
+	maxTweetIdempotencyKeyLength = 160
 )
 
 // EventProducer 事件生产者接口
@@ -58,7 +62,16 @@ type TweetService struct {
 	requestGroup    singleflight.Group
 	uow             uow.Manager
 	outboxEventRepo domain.OutboxEventRepository
+	createIdemRepo  domain.TweetCreateIdempotencyRepository
 	maxContentLen   int
+}
+
+type TweetServiceOption func(*TweetService)
+
+func WithTweetCreateIdempotencyRepository(repo domain.TweetCreateIdempotencyRepository) TweetServiceOption {
+	return func(service *TweetService) {
+		service.createIdemRepo = repo
+	}
 }
 
 // NewTweetService 创建推文服务
@@ -75,8 +88,9 @@ func NewTweetService(
 	l1Cache *cache.L1Cache,
 	outboxEventRepo domain.OutboxEventRepository,
 	uowManager uow.Manager, // 🆕 新增工作单元管理器注入
+	options ...TweetServiceOption,
 ) *TweetService {
-	return &TweetService{
+	service := &TweetService{
 		repo:            repo,
 		followRepo:      followRepo,
 		likeRepo:        likeRepo,
@@ -91,10 +105,22 @@ func NewTweetService(
 		maxContentLen:   resolveMaxContentLength(),
 		uow:             uowManager, // 🆕 赋值
 	}
+	for _, option := range options {
+		if option != nil {
+			option(service)
+		}
+	}
+	return service
 }
 
 // CreateTweet 发布推文（使用消息队列）
 func (s *TweetService) CreateTweet(ctx context.Context, userID uint64, content string, mediaURLs []string, parentID uint64, pollOptions []string, pollDuration int32) (*domain.Tweet, error) {
+	return s.CreateTweetIdempotent(ctx, userID, content, mediaURLs, parentID, pollOptions, pollDuration, "")
+}
+
+// CreateTweetIdempotent publishes a tweet and binds an optional caller key to
+// the committed tweet in the same transaction as the outbox event.
+func (s *TweetService) CreateTweetIdempotent(ctx context.Context, userID uint64, content string, mediaURLs []string, parentID uint64, pollOptions []string, pollDuration int32, idempotencyKey string) (*domain.Tweet, error) {
 	// 🔍 启动 Span
 	tr := otel.Tracer("tweet-service")
 	ctx, span := tr.Start(ctx, "TweetService.CreateTweet")
@@ -113,6 +139,25 @@ func (s *TweetService) CreateTweet(ctx context.Context, userID uint64, content s
 		return nil, err
 	}
 
+	content = strings.TrimSpace(content)
+	idempotencyKey = strings.TrimSpace(idempotencyKey)
+	if len(idempotencyKey) > maxTweetIdempotencyKeyLength {
+		return nil, ErrInvalidIdempotencyKey
+	}
+	inputDigest := tweetCreateInputDigest(content, mediaURLs, parentID, pollOptions, pollDuration)
+	if idempotencyKey != "" {
+		if s.createIdemRepo == nil {
+			return nil, ErrIdempotencyUnavailable
+		}
+		replayed, err := s.replayCreatedTweet(ctx, userID, idempotencyKey, inputDigest)
+		if err == nil {
+			return replayed, nil
+		}
+		if !errors.Is(err, domain.ErrTweetCreateIdempotencyNotFound) {
+			return nil, err
+		}
+	}
+
 	// 1.5 验证父推文是否存在 (如果是回复)
 	if parentID > 0 {
 		_, err := s.GetBaseTweetWithCache(ctx, parentID)
@@ -128,7 +173,7 @@ func (s *TweetService) CreateTweet(ctx context.Context, userID uint64, content s
 	tweet := &domain.Tweet{
 		UserID:      userID,
 		ParentID:    parentID,
-		Content:     strings.TrimSpace(content),
+		Content:     content,
 		MediaURLs:   mediaURLs,
 		Type:        tweetType,
 		VisibleType: domain.VisiblePublic,
@@ -193,12 +238,26 @@ func (s *TweetService) CreateTweet(ctx context.Context, userID uint64, content s
 		if err := s.outboxEventRepo.Create(txCtx, outboxEvent); err != nil {
 			return fmt.Errorf("failed to create outbox event: %w", err)
 		}
+		if idempotencyKey != "" {
+			record := &domain.TweetCreateIdempotency{
+				UserID: userID, IdempotencyKey: idempotencyKey,
+				InputDigest: inputDigest, TweetID: tweet.ID,
+			}
+			if err := s.createIdemRepo.Create(txCtx, record); err != nil {
+				return fmt.Errorf("failed to bind tweet idempotency key: %w", err)
+			}
+		}
 
 		return nil
 	})
 
 	if err != nil {
 		dbSpan.RecordError(err)
+		dbSpan.End()
+		if idempotencyKey != "" && errors.Is(err, domain.ErrTweetCreateIdempotencyExists) {
+			return s.replayCreatedTweet(ctx, userID, idempotencyKey, inputDigest)
+		}
+		return nil, err
 	}
 	dbSpan.End()
 
@@ -207,6 +266,45 @@ func (s *TweetService) CreateTweet(ctx context.Context, userID uint64, content s
 		zap.Uint64("user_id", tweet.UserID))
 
 	return tweet, nil
+}
+
+func (s *TweetService) replayCreatedTweet(ctx context.Context, userID uint64, idempotencyKey, inputDigest string) (*domain.Tweet, error) {
+	record, err := s.createIdemRepo.Get(ctx, userID, idempotencyKey)
+	if err != nil {
+		return nil, err
+	}
+	if record.InputDigest != inputDigest {
+		return nil, ErrIdempotencyConflict
+	}
+	tweet, err := s.repo.GetByID(ctx, record.TweetID)
+	if err != nil {
+		return nil, fmt.Errorf("load idempotent tweet %d: %w", record.TweetID, err)
+	}
+	return tweet, nil
+}
+
+func tweetCreateInputDigest(content string, mediaURLs []string, parentID uint64, pollOptions []string, pollDuration int32) string {
+	mediaURLs = normalizedStringSlice(mediaURLs)
+	pollOptions = normalizedStringSlice(pollOptions)
+	payload, _ := json.Marshal(struct {
+		Content      string   `json:"content"`
+		MediaURLs    []string `json:"media_urls"`
+		ParentID     uint64   `json:"parent_id"`
+		PollOptions  []string `json:"poll_options"`
+		PollDuration int32    `json:"poll_duration_minutes"`
+	}{
+		Content: content, MediaURLs: mediaURLs, ParentID: parentID,
+		PollOptions: pollOptions, PollDuration: pollDuration,
+	})
+	digest := sha256.Sum256(payload)
+	return fmt.Sprintf("%x", digest[:])
+}
+
+func normalizedStringSlice(values []string) []string {
+	if len(values) == 0 {
+		return []string{}
+	}
+	return values
 }
 
 // DeleteTweet 删除推文（使用消息队列）并失效多级缓存
@@ -1134,8 +1232,12 @@ func (s *TweetService) LikeTweet(ctx context.Context, userID, tweetID uint64) (i
 	}
 
 	// 2. 数据库点赞 (幂等)
-	if err := s.likeRepo.Like(ctx, userID, tweetID); err != nil {
-		return 0, fmt.Errorf("failed to like tweet: %w", err)
+	event := &events.TweetLikedEvent{
+		TweetID: tweetID, UserID: userID, TweetUser: tweet.UserID,
+		OccurredAtUnixMS: time.Now().UnixMilli(),
+	}
+	if err := s.persistTweetLiked(ctx, event); err != nil {
+		return 0, err
 	}
 
 	// 3. (可选)Redis 计数 +1
@@ -1150,16 +1252,31 @@ func (s *TweetService) LikeTweet(ctx context.Context, userID, tweetID uint64) (i
 	}
 
 	// 5. 发送点赞事件 (用于通知系统)
-	event := &events.TweetLikedEvent{
-		TweetID:   tweetID,
-		UserID:    userID,
-		TweetUser: tweet.UserID,
-	}
-	if err := s.eventProducer.PublishTweetLiked(ctx, event); err != nil {
-		logger.Warn(ctx, "failed to publish tweet liked event", zap.Error(err))
-	}
-
 	return count, nil
+}
+
+func (s *TweetService) persistTweetLiked(ctx context.Context, event *events.TweetLikedEvent) error {
+	if event == nil || event.TweetID == 0 || event.UserID == 0 || event.TweetUser == 0 {
+		return errors.New("valid tweet liked event is required")
+	}
+	payload, err := json.Marshal(event)
+	if err != nil {
+		return fmt.Errorf("marshal tweet liked event: %w", err)
+	}
+	if s.uow == nil || s.outboxEventRepo == nil {
+		return errors.New("tweet engagement outbox is unavailable")
+	}
+	return s.uow.Do(ctx, func(txCtx context.Context) error {
+		if err := s.likeRepo.Like(txCtx, event.UserID, event.TweetID); err != nil {
+			return fmt.Errorf("failed to like tweet: %w", err)
+		}
+		if err := s.outboxEventRepo.Create(txCtx, &domain.OutboxEvent{
+			EventType: "TWEET_LIKED", Payload: string(payload),
+		}); err != nil {
+			return fmt.Errorf("failed to create tweet liked outbox event: %w", err)
+		}
+		return nil
+	})
 }
 
 // UnlikeTweet 取消点赞
@@ -1195,25 +1312,39 @@ func (s *TweetService) CreateComment(ctx context.Context, userID, tweetID uint64
 		ParentID: parentID,
 	}
 
-	// 2. 创建评论
-	if err := s.commentRepo.Create(ctx, comment); err != nil {
+	if err := s.persistCommentCreated(ctx, comment, tweet.UserID); err != nil {
 		return nil, err
 	}
 
-	// 3. 发送事件
-	event := &events.CommentCreatedEvent{
-		CommentID: comment.ID,
-		TweetID:   tweetID,
-		UserID:    userID,
-		Content:   content,
-		TweetUser: tweet.UserID, // 推文作者 ID
-		ParentID:  parentID,
-	}
-	if err := s.eventProducer.PublishCommentCreated(ctx, event); err != nil {
-		logger.Warn(ctx, "failed to publish comment created event", zap.Error(err))
-	}
-
 	return comment, nil
+}
+
+func (s *TweetService) persistCommentCreated(ctx context.Context, comment *domain.Comment, tweetAuthorID uint64) error {
+	if comment == nil || comment.UserID == 0 || comment.TweetID == 0 || tweetAuthorID == 0 {
+		return errors.New("valid comment event identity is required")
+	}
+	if s.uow == nil || s.outboxEventRepo == nil {
+		return errors.New("comment outbox is unavailable")
+	}
+	return s.uow.Do(ctx, func(txCtx context.Context) error {
+		if err := s.commentRepo.Create(txCtx, comment); err != nil {
+			return err
+		}
+		event := &events.CommentCreatedEvent{
+			CommentID: comment.ID, TweetID: comment.TweetID, UserID: comment.UserID, Content: comment.Content,
+			TweetUser: tweetAuthorID, ParentID: comment.ParentID, OccurredAtUnixMS: comment.CreatedAt,
+		}
+		payload, err := json.Marshal(event)
+		if err != nil {
+			return fmt.Errorf("marshal comment created event: %w", err)
+		}
+		if err := s.outboxEventRepo.Create(txCtx, &domain.OutboxEvent{
+			EventType: "COMMENT_CREATED", Payload: string(payload),
+		}); err != nil {
+			return fmt.Errorf("failed to create comment outbox event: %w", err)
+		}
+		return nil
+	})
 }
 
 // DeleteComment 删除评论

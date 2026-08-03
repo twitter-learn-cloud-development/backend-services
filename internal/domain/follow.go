@@ -45,3 +45,15 @@ type FollowRepository interface {
 	// GetCelebrities 查询数据库中粉丝数 >= threshold 的大V ID 列表 (用于后台对账任务)
 	GetCelebrities(ctx context.Context, threshold int64) ([]uint64, error)
 }
+
+// FollowerPage keeps the relation cursor separate from follower user IDs.
+// Internal replayable jobs need this contract for correct keyset pagination.
+type FollowerPage struct {
+	FollowerIDs []uint64
+	NextCursor  uint64
+	HasMore     bool
+}
+
+type FollowerPageRepository interface {
+	ListFollowerPage(ctx context.Context, userID uint64, cursor uint64, limit int) (FollowerPage, error)
+}

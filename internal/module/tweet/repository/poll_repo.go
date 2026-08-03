@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"twitter-clone/internal/domain"
+	"twitter-clone/internal/pkg/database/uow"
 	"twitter-clone/pkg/pkg/snowflake"
 
 	"gorm.io/gorm"
@@ -38,7 +39,8 @@ func (r *pollRepo) Create(ctx context.Context, poll *domain.Poll) error {
 		poll.Options[i].PollID = poll.ID
 	}
 
-	return r.db.WithContext(ctx).Create(poll).Error
+	db := uow.ExtractTx(ctx, r.db)
+	return db.WithContext(ctx).Create(poll).Error
 }
 
 func (r *pollRepo) GetByTweetID(ctx context.Context, tweetID uint64) (*domain.Poll, error) {

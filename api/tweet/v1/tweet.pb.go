@@ -21,6 +21,52 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type TweetModerationAction int32
+
+const (
+	TweetModerationAction_TWEET_MODERATION_ACTION_UNSPECIFIED TweetModerationAction = 0
+	TweetModerationAction_TWEET_MODERATION_ACTION_SHADOWBAN   TweetModerationAction = 1
+)
+
+// Enum value maps for TweetModerationAction.
+var (
+	TweetModerationAction_name = map[int32]string{
+		0: "TWEET_MODERATION_ACTION_UNSPECIFIED",
+		1: "TWEET_MODERATION_ACTION_SHADOWBAN",
+	}
+	TweetModerationAction_value = map[string]int32{
+		"TWEET_MODERATION_ACTION_UNSPECIFIED": 0,
+		"TWEET_MODERATION_ACTION_SHADOWBAN":   1,
+	}
+)
+
+func (x TweetModerationAction) Enum() *TweetModerationAction {
+	p := new(TweetModerationAction)
+	*p = x
+	return p
+}
+
+func (x TweetModerationAction) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (TweetModerationAction) Descriptor() protoreflect.EnumDescriptor {
+	return file_api_tweet_v1_tweet_proto_enumTypes[0].Descriptor()
+}
+
+func (TweetModerationAction) Type() protoreflect.EnumType {
+	return &file_api_tweet_v1_tweet_proto_enumTypes[0]
+}
+
+func (x TweetModerationAction) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use TweetModerationAction.Descriptor instead.
+func (TweetModerationAction) EnumDescriptor() ([]byte, []int) {
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{0}
+}
+
 // Tweet 推文
 type Tweet struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
@@ -563,8 +609,10 @@ type CreateTweetRequest struct {
 	// 投票数据 (可选)
 	PollOptions         []string `protobuf:"bytes,5,rep,name=poll_options,json=pollOptions,proto3" json:"poll_options,omitempty"`
 	PollDurationMinutes int32    `protobuf:"varint,6,opt,name=poll_duration_minutes,json=pollDurationMinutes,proto3" json:"poll_duration_minutes,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// 调用方生成的用户级幂等键；省略时保持旧客户端行为。
+	IdempotencyKey string `protobuf:"bytes,7,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *CreateTweetRequest) Reset() {
@@ -637,6 +685,13 @@ func (x *CreateTweetRequest) GetPollDurationMinutes() int32 {
 		return x.PollDurationMinutes
 	}
 	return 0
+}
+
+func (x *CreateTweetRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
 }
 
 type CreateTweetResponse struct {
@@ -875,6 +930,247 @@ func (x *DeleteTweetResponse) GetMessage() string {
 	return ""
 }
 
+type GetAuthorPostingStatsRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	AuthorId        uint64                 `protobuf:"varint,1,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"`
+	LookbackSeconds int64                  `protobuf:"varint,2,opt,name=lookback_seconds,json=lookbackSeconds,proto3" json:"lookback_seconds,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *GetAuthorPostingStatsRequest) Reset() {
+	*x = GetAuthorPostingStatsRequest{}
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAuthorPostingStatsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAuthorPostingStatsRequest) ProtoMessage() {}
+
+func (x *GetAuthorPostingStatsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAuthorPostingStatsRequest.ProtoReflect.Descriptor instead.
+func (*GetAuthorPostingStatsRequest) Descriptor() ([]byte, []int) {
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *GetAuthorPostingStatsRequest) GetAuthorId() uint64 {
+	if x != nil {
+		return x.AuthorId
+	}
+	return 0
+}
+
+func (x *GetAuthorPostingStatsRequest) GetLookbackSeconds() int64 {
+	if x != nil {
+		return x.LookbackSeconds
+	}
+	return 0
+}
+
+type GetAuthorPostingStatsResponse struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	SampleCount       int32                  `protobuf:"varint,1,opt,name=sample_count,json=sampleCount,proto3" json:"sample_count,omitempty"`
+	LatestCreatedAt   int64                  `protobuf:"varint,2,opt,name=latest_created_at,json=latestCreatedAt,proto3" json:"latest_created_at,omitempty"`
+	PreviousCreatedAt int64                  `protobuf:"varint,3,opt,name=previous_created_at,json=previousCreatedAt,proto3" json:"previous_created_at,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *GetAuthorPostingStatsResponse) Reset() {
+	*x = GetAuthorPostingStatsResponse{}
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAuthorPostingStatsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAuthorPostingStatsResponse) ProtoMessage() {}
+
+func (x *GetAuthorPostingStatsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAuthorPostingStatsResponse.ProtoReflect.Descriptor instead.
+func (*GetAuthorPostingStatsResponse) Descriptor() ([]byte, []int) {
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *GetAuthorPostingStatsResponse) GetSampleCount() int32 {
+	if x != nil {
+		return x.SampleCount
+	}
+	return 0
+}
+
+func (x *GetAuthorPostingStatsResponse) GetLatestCreatedAt() int64 {
+	if x != nil {
+		return x.LatestCreatedAt
+	}
+	return 0
+}
+
+func (x *GetAuthorPostingStatsResponse) GetPreviousCreatedAt() int64 {
+	if x != nil {
+		return x.PreviousCreatedAt
+	}
+	return 0
+}
+
+type ApplyTweetModerationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TweetId       uint64                 `protobuf:"varint,1,opt,name=tweet_id,json=tweetId,proto3" json:"tweet_id,omitempty"`
+	AuthorId      uint64                 `protobuf:"varint,2,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"`
+	Action        TweetModerationAction  `protobuf:"varint,3,opt,name=action,proto3,enum=tweet.v1.TweetModerationAction" json:"action,omitempty"`
+	ReasonCode    string                 `protobuf:"bytes,4,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ApplyTweetModerationRequest) Reset() {
+	*x = ApplyTweetModerationRequest{}
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApplyTweetModerationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApplyTweetModerationRequest) ProtoMessage() {}
+
+func (x *ApplyTweetModerationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApplyTweetModerationRequest.ProtoReflect.Descriptor instead.
+func (*ApplyTweetModerationRequest) Descriptor() ([]byte, []int) {
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ApplyTweetModerationRequest) GetTweetId() uint64 {
+	if x != nil {
+		return x.TweetId
+	}
+	return 0
+}
+
+func (x *ApplyTweetModerationRequest) GetAuthorId() uint64 {
+	if x != nil {
+		return x.AuthorId
+	}
+	return 0
+}
+
+func (x *ApplyTweetModerationRequest) GetAction() TweetModerationAction {
+	if x != nil {
+		return x.Action
+	}
+	return TweetModerationAction_TWEET_MODERATION_ACTION_UNSPECIFIED
+}
+
+func (x *ApplyTweetModerationRequest) GetReasonCode() string {
+	if x != nil {
+		return x.ReasonCode
+	}
+	return ""
+}
+
+type ApplyTweetModerationResponse struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Applied bool                   `protobuf:"varint,1,opt,name=applied,proto3" json:"applied,omitempty"`
+	// Kept for wire compatibility. Asynchronous cleanup reports zero here.
+	TimelinesCleaned int32 `protobuf:"varint,2,opt,name=timelines_cleaned,json=timelinesCleaned,proto3" json:"timelines_cleaned,omitempty"`
+	CleanupQueued    bool  `protobuf:"varint,3,opt,name=cleanup_queued,json=cleanupQueued,proto3" json:"cleanup_queued,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ApplyTweetModerationResponse) Reset() {
+	*x = ApplyTweetModerationResponse{}
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApplyTweetModerationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApplyTweetModerationResponse) ProtoMessage() {}
+
+func (x *ApplyTweetModerationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApplyTweetModerationResponse.ProtoReflect.Descriptor instead.
+func (*ApplyTweetModerationResponse) Descriptor() ([]byte, []int) {
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ApplyTweetModerationResponse) GetApplied() bool {
+	if x != nil {
+		return x.Applied
+	}
+	return false
+}
+
+func (x *ApplyTweetModerationResponse) GetTimelinesCleaned() int32 {
+	if x != nil {
+		return x.TimelinesCleaned
+	}
+	return 0
+}
+
+func (x *ApplyTweetModerationResponse) GetCleanupQueued() bool {
+	if x != nil {
+		return x.CleanupQueued
+	}
+	return false
+}
+
 type GetUserTimelineRequest struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	UserId           uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -887,7 +1183,7 @@ type GetUserTimelineRequest struct {
 
 func (x *GetUserTimelineRequest) Reset() {
 	*x = GetUserTimelineRequest{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[11]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -899,7 +1195,7 @@ func (x *GetUserTimelineRequest) String() string {
 func (*GetUserTimelineRequest) ProtoMessage() {}
 
 func (x *GetUserTimelineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[11]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -912,7 +1208,7 @@ func (x *GetUserTimelineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserTimelineRequest.ProtoReflect.Descriptor instead.
 func (*GetUserTimelineRequest) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{11}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetUserTimelineRequest) GetUserId() uint64 {
@@ -954,7 +1250,7 @@ type GetUserTimelineResponse struct {
 
 func (x *GetUserTimelineResponse) Reset() {
 	*x = GetUserTimelineResponse{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[12]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -966,7 +1262,7 @@ func (x *GetUserTimelineResponse) String() string {
 func (*GetUserTimelineResponse) ProtoMessage() {}
 
 func (x *GetUserTimelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[12]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -979,7 +1275,7 @@ func (x *GetUserTimelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserTimelineResponse.ProtoReflect.Descriptor instead.
 func (*GetUserTimelineResponse) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{12}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GetUserTimelineResponse) GetTweets() []*Tweet {
@@ -1015,7 +1311,7 @@ type GetFeedsRequest struct {
 
 func (x *GetFeedsRequest) Reset() {
 	*x = GetFeedsRequest{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[13]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1027,7 +1323,7 @@ func (x *GetFeedsRequest) String() string {
 func (*GetFeedsRequest) ProtoMessage() {}
 
 func (x *GetFeedsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[13]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1040,7 +1336,7 @@ func (x *GetFeedsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFeedsRequest.ProtoReflect.Descriptor instead.
 func (*GetFeedsRequest) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{13}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetFeedsRequest) GetUserId() uint64 {
@@ -1082,7 +1378,7 @@ type GetFeedsResponse struct {
 
 func (x *GetFeedsResponse) Reset() {
 	*x = GetFeedsResponse{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[14]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1094,7 +1390,7 @@ func (x *GetFeedsResponse) String() string {
 func (*GetFeedsResponse) ProtoMessage() {}
 
 func (x *GetFeedsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[14]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1107,7 +1403,7 @@ func (x *GetFeedsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFeedsResponse.ProtoReflect.Descriptor instead.
 func (*GetFeedsResponse) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{14}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GetFeedsResponse) GetTweets() []*Tweet {
@@ -1141,7 +1437,7 @@ type LikeTweetRequest struct {
 
 func (x *LikeTweetRequest) Reset() {
 	*x = LikeTweetRequest{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[15]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1153,7 +1449,7 @@ func (x *LikeTweetRequest) String() string {
 func (*LikeTweetRequest) ProtoMessage() {}
 
 func (x *LikeTweetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[15]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1166,7 +1462,7 @@ func (x *LikeTweetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LikeTweetRequest.ProtoReflect.Descriptor instead.
 func (*LikeTweetRequest) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{15}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *LikeTweetRequest) GetUserId() uint64 {
@@ -1192,7 +1488,7 @@ type LikeTweetResponse struct {
 
 func (x *LikeTweetResponse) Reset() {
 	*x = LikeTweetResponse{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[16]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1204,7 +1500,7 @@ func (x *LikeTweetResponse) String() string {
 func (*LikeTweetResponse) ProtoMessage() {}
 
 func (x *LikeTweetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[16]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1217,7 +1513,7 @@ func (x *LikeTweetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LikeTweetResponse.ProtoReflect.Descriptor instead.
 func (*LikeTweetResponse) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{16}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *LikeTweetResponse) GetLikeCount() int32 {
@@ -1237,7 +1533,7 @@ type UnlikeTweetRequest struct {
 
 func (x *UnlikeTweetRequest) Reset() {
 	*x = UnlikeTweetRequest{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[17]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1249,7 +1545,7 @@ func (x *UnlikeTweetRequest) String() string {
 func (*UnlikeTweetRequest) ProtoMessage() {}
 
 func (x *UnlikeTweetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[17]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1262,7 +1558,7 @@ func (x *UnlikeTweetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnlikeTweetRequest.ProtoReflect.Descriptor instead.
 func (*UnlikeTweetRequest) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{17}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *UnlikeTweetRequest) GetUserId() uint64 {
@@ -1288,7 +1584,7 @@ type UnlikeTweetResponse struct {
 
 func (x *UnlikeTweetResponse) Reset() {
 	*x = UnlikeTweetResponse{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[18]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1300,7 +1596,7 @@ func (x *UnlikeTweetResponse) String() string {
 func (*UnlikeTweetResponse) ProtoMessage() {}
 
 func (x *UnlikeTweetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[18]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1313,7 +1609,7 @@ func (x *UnlikeTweetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnlikeTweetResponse.ProtoReflect.Descriptor instead.
 func (*UnlikeTweetResponse) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{18}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *UnlikeTweetResponse) GetLikeCount() int32 {
@@ -1335,7 +1631,7 @@ type CreateCommentRequest struct {
 
 func (x *CreateCommentRequest) Reset() {
 	*x = CreateCommentRequest{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[19]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1347,7 +1643,7 @@ func (x *CreateCommentRequest) String() string {
 func (*CreateCommentRequest) ProtoMessage() {}
 
 func (x *CreateCommentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[19]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1360,7 +1656,7 @@ func (x *CreateCommentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateCommentRequest.ProtoReflect.Descriptor instead.
 func (*CreateCommentRequest) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{19}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *CreateCommentRequest) GetUserId() uint64 {
@@ -1400,7 +1696,7 @@ type CreateCommentResponse struct {
 
 func (x *CreateCommentResponse) Reset() {
 	*x = CreateCommentResponse{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[20]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1412,7 +1708,7 @@ func (x *CreateCommentResponse) String() string {
 func (*CreateCommentResponse) ProtoMessage() {}
 
 func (x *CreateCommentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[20]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1425,7 +1721,7 @@ func (x *CreateCommentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateCommentResponse.ProtoReflect.Descriptor instead.
 func (*CreateCommentResponse) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{20}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *CreateCommentResponse) GetComment() *Comment {
@@ -1445,7 +1741,7 @@ type DeleteCommentRequest struct {
 
 func (x *DeleteCommentRequest) Reset() {
 	*x = DeleteCommentRequest{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[21]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1457,7 +1753,7 @@ func (x *DeleteCommentRequest) String() string {
 func (*DeleteCommentRequest) ProtoMessage() {}
 
 func (x *DeleteCommentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[21]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1470,7 +1766,7 @@ func (x *DeleteCommentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteCommentRequest.ProtoReflect.Descriptor instead.
 func (*DeleteCommentRequest) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{21}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *DeleteCommentRequest) GetCommentId() uint64 {
@@ -1496,7 +1792,7 @@ type DeleteCommentResponse struct {
 
 func (x *DeleteCommentResponse) Reset() {
 	*x = DeleteCommentResponse{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[22]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1508,7 +1804,7 @@ func (x *DeleteCommentResponse) String() string {
 func (*DeleteCommentResponse) ProtoMessage() {}
 
 func (x *DeleteCommentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[22]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1521,7 +1817,7 @@ func (x *DeleteCommentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteCommentResponse.ProtoReflect.Descriptor instead.
 func (*DeleteCommentResponse) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{22}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *DeleteCommentResponse) GetMessage() string {
@@ -1542,7 +1838,7 @@ type GetTweetCommentsRequest struct {
 
 func (x *GetTweetCommentsRequest) Reset() {
 	*x = GetTweetCommentsRequest{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[23]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1554,7 +1850,7 @@ func (x *GetTweetCommentsRequest) String() string {
 func (*GetTweetCommentsRequest) ProtoMessage() {}
 
 func (x *GetTweetCommentsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[23]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1567,7 +1863,7 @@ func (x *GetTweetCommentsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTweetCommentsRequest.ProtoReflect.Descriptor instead.
 func (*GetTweetCommentsRequest) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{23}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *GetTweetCommentsRequest) GetTweetId() uint64 {
@@ -1602,7 +1898,7 @@ type GetTweetCommentsResponse struct {
 
 func (x *GetTweetCommentsResponse) Reset() {
 	*x = GetTweetCommentsResponse{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[24]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1614,7 +1910,7 @@ func (x *GetTweetCommentsResponse) String() string {
 func (*GetTweetCommentsResponse) ProtoMessage() {}
 
 func (x *GetTweetCommentsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[24]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1627,7 +1923,7 @@ func (x *GetTweetCommentsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTweetCommentsResponse.ProtoReflect.Descriptor instead.
 func (*GetTweetCommentsResponse) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{24}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *GetTweetCommentsResponse) GetComments() []*Comment {
@@ -1663,7 +1959,7 @@ type SearchTweetsRequest struct {
 
 func (x *SearchTweetsRequest) Reset() {
 	*x = SearchTweetsRequest{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[25]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1675,7 +1971,7 @@ func (x *SearchTweetsRequest) String() string {
 func (*SearchTweetsRequest) ProtoMessage() {}
 
 func (x *SearchTweetsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[25]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1688,7 +1984,7 @@ func (x *SearchTweetsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchTweetsRequest.ProtoReflect.Descriptor instead.
 func (*SearchTweetsRequest) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{25}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *SearchTweetsRequest) GetQuery() string {
@@ -1730,7 +2026,7 @@ type SearchTweetsResponse struct {
 
 func (x *SearchTweetsResponse) Reset() {
 	*x = SearchTweetsResponse{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[26]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1742,7 +2038,7 @@ func (x *SearchTweetsResponse) String() string {
 func (*SearchTweetsResponse) ProtoMessage() {}
 
 func (x *SearchTweetsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[26]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1755,7 +2051,7 @@ func (x *SearchTweetsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchTweetsResponse.ProtoReflect.Descriptor instead.
 func (*SearchTweetsResponse) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{26}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *SearchTweetsResponse) GetTweets() []*Tweet {
@@ -1788,7 +2084,7 @@ type GetTrendingTopicsRequest struct {
 
 func (x *GetTrendingTopicsRequest) Reset() {
 	*x = GetTrendingTopicsRequest{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[27]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1800,7 +2096,7 @@ func (x *GetTrendingTopicsRequest) String() string {
 func (*GetTrendingTopicsRequest) ProtoMessage() {}
 
 func (x *GetTrendingTopicsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[27]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1813,7 +2109,7 @@ func (x *GetTrendingTopicsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTrendingTopicsRequest.ProtoReflect.Descriptor instead.
 func (*GetTrendingTopicsRequest) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{27}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *GetTrendingTopicsRequest) GetLimit() int32 {
@@ -1832,7 +2128,7 @@ type GetTrendingTopicsResponse struct {
 
 func (x *GetTrendingTopicsResponse) Reset() {
 	*x = GetTrendingTopicsResponse{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[28]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1844,7 +2140,7 @@ func (x *GetTrendingTopicsResponse) String() string {
 func (*GetTrendingTopicsResponse) ProtoMessage() {}
 
 func (x *GetTrendingTopicsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[28]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1857,7 +2153,7 @@ func (x *GetTrendingTopicsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTrendingTopicsResponse.ProtoReflect.Descriptor instead.
 func (*GetTrendingTopicsResponse) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{28}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *GetTrendingTopicsResponse) GetTopics() []*TrendingTopic {
@@ -1878,7 +2174,7 @@ type ListTweetsRequest struct {
 
 func (x *ListTweetsRequest) Reset() {
 	*x = ListTweetsRequest{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[29]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1890,7 +2186,7 @@ func (x *ListTweetsRequest) String() string {
 func (*ListTweetsRequest) ProtoMessage() {}
 
 func (x *ListTweetsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[29]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1903,7 +2199,7 @@ func (x *ListTweetsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTweetsRequest.ProtoReflect.Descriptor instead.
 func (*ListTweetsRequest) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{29}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *ListTweetsRequest) GetCursor() uint64 {
@@ -1938,7 +2234,7 @@ type ListTweetsResponse struct {
 
 func (x *ListTweetsResponse) Reset() {
 	*x = ListTweetsResponse{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[30]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1950,7 +2246,7 @@ func (x *ListTweetsResponse) String() string {
 func (*ListTweetsResponse) ProtoMessage() {}
 
 func (x *ListTweetsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[30]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1963,7 +2259,7 @@ func (x *ListTweetsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTweetsResponse.ProtoReflect.Descriptor instead.
 func (*ListTweetsResponse) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{30}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *ListTweetsResponse) GetTweets() []*Tweet {
@@ -1999,7 +2295,7 @@ type GetTweetRepliesRequest struct {
 
 func (x *GetTweetRepliesRequest) Reset() {
 	*x = GetTweetRepliesRequest{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[31]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2011,7 +2307,7 @@ func (x *GetTweetRepliesRequest) String() string {
 func (*GetTweetRepliesRequest) ProtoMessage() {}
 
 func (x *GetTweetRepliesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[31]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2024,7 +2320,7 @@ func (x *GetTweetRepliesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTweetRepliesRequest.ProtoReflect.Descriptor instead.
 func (*GetTweetRepliesRequest) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{31}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *GetTweetRepliesRequest) GetTweetId() uint64 {
@@ -2066,7 +2362,7 @@ type GetTweetRepliesResponse struct {
 
 func (x *GetTweetRepliesResponse) Reset() {
 	*x = GetTweetRepliesResponse{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[32]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2078,7 +2374,7 @@ func (x *GetTweetRepliesResponse) String() string {
 func (*GetTweetRepliesResponse) ProtoMessage() {}
 
 func (x *GetTweetRepliesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[32]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2091,7 +2387,7 @@ func (x *GetTweetRepliesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTweetRepliesResponse.ProtoReflect.Descriptor instead.
 func (*GetTweetRepliesResponse) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{32}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *GetTweetRepliesResponse) GetReplies() []*Tweet {
@@ -2126,7 +2422,7 @@ type VotePollRequest struct {
 
 func (x *VotePollRequest) Reset() {
 	*x = VotePollRequest{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[33]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2138,7 +2434,7 @@ func (x *VotePollRequest) String() string {
 func (*VotePollRequest) ProtoMessage() {}
 
 func (x *VotePollRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[33]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2151,7 +2447,7 @@ func (x *VotePollRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VotePollRequest.ProtoReflect.Descriptor instead.
 func (*VotePollRequest) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{33}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *VotePollRequest) GetUserId() uint64 {
@@ -2184,7 +2480,7 @@ type VotePollResponse struct {
 
 func (x *VotePollResponse) Reset() {
 	*x = VotePollResponse{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[34]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2196,7 +2492,7 @@ func (x *VotePollResponse) String() string {
 func (*VotePollResponse) ProtoMessage() {}
 
 func (x *VotePollResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[34]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2209,7 +2505,7 @@ func (x *VotePollResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VotePollResponse.ProtoReflect.Descriptor instead.
 func (*VotePollResponse) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{34}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *VotePollResponse) GetPoll() *Poll {
@@ -2229,7 +2525,7 @@ type BookmarkTweetRequest struct {
 
 func (x *BookmarkTweetRequest) Reset() {
 	*x = BookmarkTweetRequest{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[35]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2241,7 +2537,7 @@ func (x *BookmarkTweetRequest) String() string {
 func (*BookmarkTweetRequest) ProtoMessage() {}
 
 func (x *BookmarkTweetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[35]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2254,7 +2550,7 @@ func (x *BookmarkTweetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BookmarkTweetRequest.ProtoReflect.Descriptor instead.
 func (*BookmarkTweetRequest) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{35}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *BookmarkTweetRequest) GetUserId() uint64 {
@@ -2280,7 +2576,7 @@ type BookmarkTweetResponse struct {
 
 func (x *BookmarkTweetResponse) Reset() {
 	*x = BookmarkTweetResponse{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[36]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2292,7 +2588,7 @@ func (x *BookmarkTweetResponse) String() string {
 func (*BookmarkTweetResponse) ProtoMessage() {}
 
 func (x *BookmarkTweetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[36]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2305,7 +2601,7 @@ func (x *BookmarkTweetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BookmarkTweetResponse.ProtoReflect.Descriptor instead.
 func (*BookmarkTweetResponse) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{36}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *BookmarkTweetResponse) GetMessage() string {
@@ -2325,7 +2621,7 @@ type UnbookmarkTweetRequest struct {
 
 func (x *UnbookmarkTweetRequest) Reset() {
 	*x = UnbookmarkTweetRequest{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[37]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2337,7 +2633,7 @@ func (x *UnbookmarkTweetRequest) String() string {
 func (*UnbookmarkTweetRequest) ProtoMessage() {}
 
 func (x *UnbookmarkTweetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[37]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2350,7 +2646,7 @@ func (x *UnbookmarkTweetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnbookmarkTweetRequest.ProtoReflect.Descriptor instead.
 func (*UnbookmarkTweetRequest) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{37}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *UnbookmarkTweetRequest) GetUserId() uint64 {
@@ -2376,7 +2672,7 @@ type UnbookmarkTweetResponse struct {
 
 func (x *UnbookmarkTweetResponse) Reset() {
 	*x = UnbookmarkTweetResponse{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[38]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2388,7 +2684,7 @@ func (x *UnbookmarkTweetResponse) String() string {
 func (*UnbookmarkTweetResponse) ProtoMessage() {}
 
 func (x *UnbookmarkTweetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[38]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2401,7 +2697,7 @@ func (x *UnbookmarkTweetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnbookmarkTweetResponse.ProtoReflect.Descriptor instead.
 func (*UnbookmarkTweetResponse) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{38}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *UnbookmarkTweetResponse) GetMessage() string {
@@ -2422,7 +2718,7 @@ type GetUserBookmarksRequest struct {
 
 func (x *GetUserBookmarksRequest) Reset() {
 	*x = GetUserBookmarksRequest{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[39]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2434,7 +2730,7 @@ func (x *GetUserBookmarksRequest) String() string {
 func (*GetUserBookmarksRequest) ProtoMessage() {}
 
 func (x *GetUserBookmarksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[39]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2447,7 +2743,7 @@ func (x *GetUserBookmarksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserBookmarksRequest.ProtoReflect.Descriptor instead.
 func (*GetUserBookmarksRequest) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{39}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *GetUserBookmarksRequest) GetUserId() uint64 {
@@ -2482,7 +2778,7 @@ type GetUserBookmarksResponse struct {
 
 func (x *GetUserBookmarksResponse) Reset() {
 	*x = GetUserBookmarksResponse{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[40]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2494,7 +2790,7 @@ func (x *GetUserBookmarksResponse) String() string {
 func (*GetUserBookmarksResponse) ProtoMessage() {}
 
 func (x *GetUserBookmarksResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[40]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2507,7 +2803,7 @@ func (x *GetUserBookmarksResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserBookmarksResponse.ProtoReflect.Descriptor instead.
 func (*GetUserBookmarksResponse) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{40}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *GetUserBookmarksResponse) GetTweets() []*Tweet {
@@ -2541,7 +2837,7 @@ type RetweetTweetRequest struct {
 
 func (x *RetweetTweetRequest) Reset() {
 	*x = RetweetTweetRequest{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[41]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2553,7 +2849,7 @@ func (x *RetweetTweetRequest) String() string {
 func (*RetweetTweetRequest) ProtoMessage() {}
 
 func (x *RetweetTweetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[41]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2566,7 +2862,7 @@ func (x *RetweetTweetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetweetTweetRequest.ProtoReflect.Descriptor instead.
 func (*RetweetTweetRequest) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{41}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *RetweetTweetRequest) GetUserId() uint64 {
@@ -2592,7 +2888,7 @@ type RetweetTweetResponse struct {
 
 func (x *RetweetTweetResponse) Reset() {
 	*x = RetweetTweetResponse{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[42]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2604,7 +2900,7 @@ func (x *RetweetTweetResponse) String() string {
 func (*RetweetTweetResponse) ProtoMessage() {}
 
 func (x *RetweetTweetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[42]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2617,7 +2913,7 @@ func (x *RetweetTweetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetweetTweetResponse.ProtoReflect.Descriptor instead.
 func (*RetweetTweetResponse) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{42}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *RetweetTweetResponse) GetRetweetCount() int64 {
@@ -2637,7 +2933,7 @@ type UnretweetTweetRequest struct {
 
 func (x *UnretweetTweetRequest) Reset() {
 	*x = UnretweetTweetRequest{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[43]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2649,7 +2945,7 @@ func (x *UnretweetTweetRequest) String() string {
 func (*UnretweetTweetRequest) ProtoMessage() {}
 
 func (x *UnretweetTweetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[43]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2662,7 +2958,7 @@ func (x *UnretweetTweetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnretweetTweetRequest.ProtoReflect.Descriptor instead.
 func (*UnretweetTweetRequest) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{43}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *UnretweetTweetRequest) GetUserId() uint64 {
@@ -2688,7 +2984,7 @@ type UnretweetTweetResponse struct {
 
 func (x *UnretweetTweetResponse) Reset() {
 	*x = UnretweetTweetResponse{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[44]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2700,7 +2996,7 @@ func (x *UnretweetTweetResponse) String() string {
 func (*UnretweetTweetResponse) ProtoMessage() {}
 
 func (x *UnretweetTweetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[44]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2713,7 +3009,7 @@ func (x *UnretweetTweetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnretweetTweetResponse.ProtoReflect.Descriptor instead.
 func (*UnretweetTweetResponse) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{44}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *UnretweetTweetResponse) GetRetweetCount() int64 {
@@ -2735,7 +3031,7 @@ type GetUserLikesRequest struct {
 
 func (x *GetUserLikesRequest) Reset() {
 	*x = GetUserLikesRequest{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[45]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2747,7 +3043,7 @@ func (x *GetUserLikesRequest) String() string {
 func (*GetUserLikesRequest) ProtoMessage() {}
 
 func (x *GetUserLikesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[45]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2760,7 +3056,7 @@ func (x *GetUserLikesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserLikesRequest.ProtoReflect.Descriptor instead.
 func (*GetUserLikesRequest) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{45}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *GetUserLikesRequest) GetUserId() uint64 {
@@ -2802,7 +3098,7 @@ type GetUserLikesResponse struct {
 
 func (x *GetUserLikesResponse) Reset() {
 	*x = GetUserLikesResponse{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[46]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2814,7 +3110,7 @@ func (x *GetUserLikesResponse) String() string {
 func (*GetUserLikesResponse) ProtoMessage() {}
 
 func (x *GetUserLikesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[46]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2827,7 +3123,7 @@ func (x *GetUserLikesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserLikesResponse.ProtoReflect.Descriptor instead.
 func (*GetUserLikesResponse) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{46}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *GetUserLikesResponse) GetTweets() []*Tweet {
@@ -2863,7 +3159,7 @@ type GetUserRepliesRequest struct {
 
 func (x *GetUserRepliesRequest) Reset() {
 	*x = GetUserRepliesRequest{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[47]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2875,7 +3171,7 @@ func (x *GetUserRepliesRequest) String() string {
 func (*GetUserRepliesRequest) ProtoMessage() {}
 
 func (x *GetUserRepliesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[47]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2888,7 +3184,7 @@ func (x *GetUserRepliesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserRepliesRequest.ProtoReflect.Descriptor instead.
 func (*GetUserRepliesRequest) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{47}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *GetUserRepliesRequest) GetUserId() uint64 {
@@ -2931,7 +3227,7 @@ type GetUserRepliesResponse struct {
 
 func (x *GetUserRepliesResponse) Reset() {
 	*x = GetUserRepliesResponse{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[48]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2943,7 +3239,7 @@ func (x *GetUserRepliesResponse) String() string {
 func (*GetUserRepliesResponse) ProtoMessage() {}
 
 func (x *GetUserRepliesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[48]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2956,7 +3252,7 @@ func (x *GetUserRepliesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserRepliesResponse.ProtoReflect.Descriptor instead.
 func (*GetUserRepliesResponse) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{48}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *GetUserRepliesResponse) GetReplies() []*Tweet {
@@ -2992,7 +3288,7 @@ type GetUserMediaRequest struct {
 
 func (x *GetUserMediaRequest) Reset() {
 	*x = GetUserMediaRequest{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[49]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3004,7 +3300,7 @@ func (x *GetUserMediaRequest) String() string {
 func (*GetUserMediaRequest) ProtoMessage() {}
 
 func (x *GetUserMediaRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[49]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3017,7 +3313,7 @@ func (x *GetUserMediaRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserMediaRequest.ProtoReflect.Descriptor instead.
 func (*GetUserMediaRequest) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{49}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *GetUserMediaRequest) GetUserId() uint64 {
@@ -3059,7 +3355,7 @@ type GetUserMediaResponse struct {
 
 func (x *GetUserMediaResponse) Reset() {
 	*x = GetUserMediaResponse{}
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[50]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3071,7 +3367,7 @@ func (x *GetUserMediaResponse) String() string {
 func (*GetUserMediaResponse) ProtoMessage() {}
 
 func (x *GetUserMediaResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_tweet_v1_tweet_proto_msgTypes[50]
+	mi := &file_api_tweet_v1_tweet_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3084,7 +3380,7 @@ func (x *GetUserMediaResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserMediaResponse.ProtoReflect.Descriptor instead.
 func (*GetUserMediaResponse) Descriptor() ([]byte, []int) {
-	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{50}
+	return file_api_tweet_v1_tweet_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *GetUserMediaResponse) GetTweets() []*Tweet {
@@ -3174,7 +3470,7 @@ const file_api_tweet_v1_tweet_proto_rawDesc = "" +
 	"avatar_url\x18\b \x01(\tR\tavatarUrl\";\n" +
 	"\rTrendingTopic\x12\x14\n" +
 	"\x05topic\x18\x01 \x01(\tR\x05topic\x12\x14\n" +
-	"\x05score\x18\x02 \x01(\x05R\x05score\"\xda\x01\n" +
+	"\x05score\x18\x02 \x01(\x05R\x05score\"\x83\x02\n" +
 	"\x12CreateTweetRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x18\n" +
 	"\acontent\x18\x02 \x01(\tR\acontent\x12\x1d\n" +
@@ -3182,7 +3478,8 @@ const file_api_tweet_v1_tweet_proto_rawDesc = "" +
 	"media_urls\x18\x03 \x03(\tR\tmediaUrls\x12\x1b\n" +
 	"\tparent_id\x18\x04 \x01(\x04R\bparentId\x12!\n" +
 	"\fpoll_options\x18\x05 \x03(\tR\vpollOptions\x122\n" +
-	"\x15poll_duration_minutes\x18\x06 \x01(\x05R\x13pollDurationMinutes\"<\n" +
+	"\x15poll_duration_minutes\x18\x06 \x01(\x05R\x13pollDurationMinutes\x12'\n" +
+	"\x0fidempotency_key\x18\a \x01(\tR\x0eidempotencyKey\"<\n" +
 	"\x13CreateTweetResponse\x12%\n" +
 	"\x05tweet\x18\x01 \x01(\v2\x0f.tweet.v1.TweetR\x05tweet\"Z\n" +
 	"\x0fGetTweetRequest\x12\x19\n" +
@@ -3194,7 +3491,24 @@ const file_api_tweet_v1_tweet_proto_rawDesc = "" +
 	"\btweet_id\x18\x01 \x01(\x04R\atweetId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x04R\x06userId\"/\n" +
 	"\x13DeleteTweetResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage\"\x8d\x01\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"f\n" +
+	"\x1cGetAuthorPostingStatsRequest\x12\x1b\n" +
+	"\tauthor_id\x18\x01 \x01(\x04R\bauthorId\x12)\n" +
+	"\x10lookback_seconds\x18\x02 \x01(\x03R\x0flookbackSeconds\"\x9e\x01\n" +
+	"\x1dGetAuthorPostingStatsResponse\x12!\n" +
+	"\fsample_count\x18\x01 \x01(\x05R\vsampleCount\x12*\n" +
+	"\x11latest_created_at\x18\x02 \x01(\x03R\x0flatestCreatedAt\x12.\n" +
+	"\x13previous_created_at\x18\x03 \x01(\x03R\x11previousCreatedAt\"\xaf\x01\n" +
+	"\x1bApplyTweetModerationRequest\x12\x19\n" +
+	"\btweet_id\x18\x01 \x01(\x04R\atweetId\x12\x1b\n" +
+	"\tauthor_id\x18\x02 \x01(\x04R\bauthorId\x127\n" +
+	"\x06action\x18\x03 \x01(\x0e2\x1f.tweet.v1.TweetModerationActionR\x06action\x12\x1f\n" +
+	"\vreason_code\x18\x04 \x01(\tR\n" +
+	"reasonCode\"\x8c\x01\n" +
+	"\x1cApplyTweetModerationResponse\x12\x18\n" +
+	"\aapplied\x18\x01 \x01(\bR\aapplied\x12+\n" +
+	"\x11timelines_cleaned\x18\x02 \x01(\x05R\x10timelinesCleaned\x12%\n" +
+	"\x0ecleanup_queued\x18\x03 \x01(\bR\rcleanupQueued\"\x8d\x01\n" +
 	"\x16GetUserTimelineRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x16\n" +
 	"\x06cursor\x18\x02 \x01(\x04R\x06cursor\x12\x14\n" +
@@ -3346,11 +3660,16 @@ const file_api_tweet_v1_tweet_proto_rawDesc = "" +
 	"\x06tweets\x18\x01 \x03(\v2\x0f.tweet.v1.TweetR\x06tweets\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\x04R\n" +
 	"nextCursor\x12\x19\n" +
-	"\bhas_more\x18\x03 \x01(\bR\ahasMore2\xc2\x0e\n" +
+	"\bhas_more\x18\x03 \x01(\bR\ahasMore*g\n" +
+	"\x15TweetModerationAction\x12'\n" +
+	"#TWEET_MODERATION_ACTION_UNSPECIFIED\x10\x00\x12%\n" +
+	"!TWEET_MODERATION_ACTION_SHADOWBAN\x10\x012\x93\x10\n" +
 	"\fTweetService\x12J\n" +
 	"\vCreateTweet\x12\x1c.tweet.v1.CreateTweetRequest\x1a\x1d.tweet.v1.CreateTweetResponse\x12A\n" +
 	"\bGetTweet\x12\x19.tweet.v1.GetTweetRequest\x1a\x1a.tweet.v1.GetTweetResponse\x12J\n" +
-	"\vDeleteTweet\x12\x1c.tweet.v1.DeleteTweetRequest\x1a\x1d.tweet.v1.DeleteTweetResponse\x12V\n" +
+	"\vDeleteTweet\x12\x1c.tweet.v1.DeleteTweetRequest\x1a\x1d.tweet.v1.DeleteTweetResponse\x12h\n" +
+	"\x15GetAuthorPostingStats\x12&.tweet.v1.GetAuthorPostingStatsRequest\x1a'.tweet.v1.GetAuthorPostingStatsResponse\x12e\n" +
+	"\x14ApplyTweetModeration\x12%.tweet.v1.ApplyTweetModerationRequest\x1a&.tweet.v1.ApplyTweetModerationResponse\x12V\n" +
 	"\x0fGetUserTimeline\x12 .tweet.v1.GetUserTimelineRequest\x1a!.tweet.v1.GetUserTimelineResponse\x12A\n" +
 	"\bGetFeeds\x12\x19.tweet.v1.GetFeedsRequest\x1a\x1a.tweet.v1.GetFeedsResponse\x12D\n" +
 	"\tLikeTweet\x12\x1a.tweet.v1.LikeTweetRequest\x1a\x1b.tweet.v1.LikeTweetResponse\x12J\n" +
@@ -3385,129 +3704,140 @@ func file_api_tweet_v1_tweet_proto_rawDescGZIP() []byte {
 	return file_api_tweet_v1_tweet_proto_rawDescData
 }
 
-var file_api_tweet_v1_tweet_proto_msgTypes = make([]protoimpl.MessageInfo, 51)
+var file_api_tweet_v1_tweet_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_api_tweet_v1_tweet_proto_msgTypes = make([]protoimpl.MessageInfo, 55)
 var file_api_tweet_v1_tweet_proto_goTypes = []any{
-	(*Tweet)(nil),                     // 0: tweet.v1.Tweet
-	(*Poll)(nil),                      // 1: tweet.v1.Poll
-	(*PollOption)(nil),                // 2: tweet.v1.PollOption
-	(*Comment)(nil),                   // 3: tweet.v1.Comment
-	(*TrendingTopic)(nil),             // 4: tweet.v1.TrendingTopic
-	(*CreateTweetRequest)(nil),        // 5: tweet.v1.CreateTweetRequest
-	(*CreateTweetResponse)(nil),       // 6: tweet.v1.CreateTweetResponse
-	(*GetTweetRequest)(nil),           // 7: tweet.v1.GetTweetRequest
-	(*GetTweetResponse)(nil),          // 8: tweet.v1.GetTweetResponse
-	(*DeleteTweetRequest)(nil),        // 9: tweet.v1.DeleteTweetRequest
-	(*DeleteTweetResponse)(nil),       // 10: tweet.v1.DeleteTweetResponse
-	(*GetUserTimelineRequest)(nil),    // 11: tweet.v1.GetUserTimelineRequest
-	(*GetUserTimelineResponse)(nil),   // 12: tweet.v1.GetUserTimelineResponse
-	(*GetFeedsRequest)(nil),           // 13: tweet.v1.GetFeedsRequest
-	(*GetFeedsResponse)(nil),          // 14: tweet.v1.GetFeedsResponse
-	(*LikeTweetRequest)(nil),          // 15: tweet.v1.LikeTweetRequest
-	(*LikeTweetResponse)(nil),         // 16: tweet.v1.LikeTweetResponse
-	(*UnlikeTweetRequest)(nil),        // 17: tweet.v1.UnlikeTweetRequest
-	(*UnlikeTweetResponse)(nil),       // 18: tweet.v1.UnlikeTweetResponse
-	(*CreateCommentRequest)(nil),      // 19: tweet.v1.CreateCommentRequest
-	(*CreateCommentResponse)(nil),     // 20: tweet.v1.CreateCommentResponse
-	(*DeleteCommentRequest)(nil),      // 21: tweet.v1.DeleteCommentRequest
-	(*DeleteCommentResponse)(nil),     // 22: tweet.v1.DeleteCommentResponse
-	(*GetTweetCommentsRequest)(nil),   // 23: tweet.v1.GetTweetCommentsRequest
-	(*GetTweetCommentsResponse)(nil),  // 24: tweet.v1.GetTweetCommentsResponse
-	(*SearchTweetsRequest)(nil),       // 25: tweet.v1.SearchTweetsRequest
-	(*SearchTweetsResponse)(nil),      // 26: tweet.v1.SearchTweetsResponse
-	(*GetTrendingTopicsRequest)(nil),  // 27: tweet.v1.GetTrendingTopicsRequest
-	(*GetTrendingTopicsResponse)(nil), // 28: tweet.v1.GetTrendingTopicsResponse
-	(*ListTweetsRequest)(nil),         // 29: tweet.v1.ListTweetsRequest
-	(*ListTweetsResponse)(nil),        // 30: tweet.v1.ListTweetsResponse
-	(*GetTweetRepliesRequest)(nil),    // 31: tweet.v1.GetTweetRepliesRequest
-	(*GetTweetRepliesResponse)(nil),   // 32: tweet.v1.GetTweetRepliesResponse
-	(*VotePollRequest)(nil),           // 33: tweet.v1.VotePollRequest
-	(*VotePollResponse)(nil),          // 34: tweet.v1.VotePollResponse
-	(*BookmarkTweetRequest)(nil),      // 35: tweet.v1.BookmarkTweetRequest
-	(*BookmarkTweetResponse)(nil),     // 36: tweet.v1.BookmarkTweetResponse
-	(*UnbookmarkTweetRequest)(nil),    // 37: tweet.v1.UnbookmarkTweetRequest
-	(*UnbookmarkTweetResponse)(nil),   // 38: tweet.v1.UnbookmarkTweetResponse
-	(*GetUserBookmarksRequest)(nil),   // 39: tweet.v1.GetUserBookmarksRequest
-	(*GetUserBookmarksResponse)(nil),  // 40: tweet.v1.GetUserBookmarksResponse
-	(*RetweetTweetRequest)(nil),       // 41: tweet.v1.RetweetTweetRequest
-	(*RetweetTweetResponse)(nil),      // 42: tweet.v1.RetweetTweetResponse
-	(*UnretweetTweetRequest)(nil),     // 43: tweet.v1.UnretweetTweetRequest
-	(*UnretweetTweetResponse)(nil),    // 44: tweet.v1.UnretweetTweetResponse
-	(*GetUserLikesRequest)(nil),       // 45: tweet.v1.GetUserLikesRequest
-	(*GetUserLikesResponse)(nil),      // 46: tweet.v1.GetUserLikesResponse
-	(*GetUserRepliesRequest)(nil),     // 47: tweet.v1.GetUserRepliesRequest
-	(*GetUserRepliesResponse)(nil),    // 48: tweet.v1.GetUserRepliesResponse
-	(*GetUserMediaRequest)(nil),       // 49: tweet.v1.GetUserMediaRequest
-	(*GetUserMediaResponse)(nil),      // 50: tweet.v1.GetUserMediaResponse
+	(TweetModerationAction)(0),            // 0: tweet.v1.TweetModerationAction
+	(*Tweet)(nil),                         // 1: tweet.v1.Tweet
+	(*Poll)(nil),                          // 2: tweet.v1.Poll
+	(*PollOption)(nil),                    // 3: tweet.v1.PollOption
+	(*Comment)(nil),                       // 4: tweet.v1.Comment
+	(*TrendingTopic)(nil),                 // 5: tweet.v1.TrendingTopic
+	(*CreateTweetRequest)(nil),            // 6: tweet.v1.CreateTweetRequest
+	(*CreateTweetResponse)(nil),           // 7: tweet.v1.CreateTweetResponse
+	(*GetTweetRequest)(nil),               // 8: tweet.v1.GetTweetRequest
+	(*GetTweetResponse)(nil),              // 9: tweet.v1.GetTweetResponse
+	(*DeleteTweetRequest)(nil),            // 10: tweet.v1.DeleteTweetRequest
+	(*DeleteTweetResponse)(nil),           // 11: tweet.v1.DeleteTweetResponse
+	(*GetAuthorPostingStatsRequest)(nil),  // 12: tweet.v1.GetAuthorPostingStatsRequest
+	(*GetAuthorPostingStatsResponse)(nil), // 13: tweet.v1.GetAuthorPostingStatsResponse
+	(*ApplyTweetModerationRequest)(nil),   // 14: tweet.v1.ApplyTweetModerationRequest
+	(*ApplyTweetModerationResponse)(nil),  // 15: tweet.v1.ApplyTweetModerationResponse
+	(*GetUserTimelineRequest)(nil),        // 16: tweet.v1.GetUserTimelineRequest
+	(*GetUserTimelineResponse)(nil),       // 17: tweet.v1.GetUserTimelineResponse
+	(*GetFeedsRequest)(nil),               // 18: tweet.v1.GetFeedsRequest
+	(*GetFeedsResponse)(nil),              // 19: tweet.v1.GetFeedsResponse
+	(*LikeTweetRequest)(nil),              // 20: tweet.v1.LikeTweetRequest
+	(*LikeTweetResponse)(nil),             // 21: tweet.v1.LikeTweetResponse
+	(*UnlikeTweetRequest)(nil),            // 22: tweet.v1.UnlikeTweetRequest
+	(*UnlikeTweetResponse)(nil),           // 23: tweet.v1.UnlikeTweetResponse
+	(*CreateCommentRequest)(nil),          // 24: tweet.v1.CreateCommentRequest
+	(*CreateCommentResponse)(nil),         // 25: tweet.v1.CreateCommentResponse
+	(*DeleteCommentRequest)(nil),          // 26: tweet.v1.DeleteCommentRequest
+	(*DeleteCommentResponse)(nil),         // 27: tweet.v1.DeleteCommentResponse
+	(*GetTweetCommentsRequest)(nil),       // 28: tweet.v1.GetTweetCommentsRequest
+	(*GetTweetCommentsResponse)(nil),      // 29: tweet.v1.GetTweetCommentsResponse
+	(*SearchTweetsRequest)(nil),           // 30: tweet.v1.SearchTweetsRequest
+	(*SearchTweetsResponse)(nil),          // 31: tweet.v1.SearchTweetsResponse
+	(*GetTrendingTopicsRequest)(nil),      // 32: tweet.v1.GetTrendingTopicsRequest
+	(*GetTrendingTopicsResponse)(nil),     // 33: tweet.v1.GetTrendingTopicsResponse
+	(*ListTweetsRequest)(nil),             // 34: tweet.v1.ListTweetsRequest
+	(*ListTweetsResponse)(nil),            // 35: tweet.v1.ListTweetsResponse
+	(*GetTweetRepliesRequest)(nil),        // 36: tweet.v1.GetTweetRepliesRequest
+	(*GetTweetRepliesResponse)(nil),       // 37: tweet.v1.GetTweetRepliesResponse
+	(*VotePollRequest)(nil),               // 38: tweet.v1.VotePollRequest
+	(*VotePollResponse)(nil),              // 39: tweet.v1.VotePollResponse
+	(*BookmarkTweetRequest)(nil),          // 40: tweet.v1.BookmarkTweetRequest
+	(*BookmarkTweetResponse)(nil),         // 41: tweet.v1.BookmarkTweetResponse
+	(*UnbookmarkTweetRequest)(nil),        // 42: tweet.v1.UnbookmarkTweetRequest
+	(*UnbookmarkTweetResponse)(nil),       // 43: tweet.v1.UnbookmarkTweetResponse
+	(*GetUserBookmarksRequest)(nil),       // 44: tweet.v1.GetUserBookmarksRequest
+	(*GetUserBookmarksResponse)(nil),      // 45: tweet.v1.GetUserBookmarksResponse
+	(*RetweetTweetRequest)(nil),           // 46: tweet.v1.RetweetTweetRequest
+	(*RetweetTweetResponse)(nil),          // 47: tweet.v1.RetweetTweetResponse
+	(*UnretweetTweetRequest)(nil),         // 48: tweet.v1.UnretweetTweetRequest
+	(*UnretweetTweetResponse)(nil),        // 49: tweet.v1.UnretweetTweetResponse
+	(*GetUserLikesRequest)(nil),           // 50: tweet.v1.GetUserLikesRequest
+	(*GetUserLikesResponse)(nil),          // 51: tweet.v1.GetUserLikesResponse
+	(*GetUserRepliesRequest)(nil),         // 52: tweet.v1.GetUserRepliesRequest
+	(*GetUserRepliesResponse)(nil),        // 53: tweet.v1.GetUserRepliesResponse
+	(*GetUserMediaRequest)(nil),           // 54: tweet.v1.GetUserMediaRequest
+	(*GetUserMediaResponse)(nil),          // 55: tweet.v1.GetUserMediaResponse
 }
 var file_api_tweet_v1_tweet_proto_depIdxs = []int32{
-	1,  // 0: tweet.v1.Tweet.poll:type_name -> tweet.v1.Poll
-	2,  // 1: tweet.v1.Poll.options:type_name -> tweet.v1.PollOption
-	0,  // 2: tweet.v1.CreateTweetResponse.tweet:type_name -> tweet.v1.Tweet
-	0,  // 3: tweet.v1.GetTweetResponse.tweet:type_name -> tweet.v1.Tweet
-	0,  // 4: tweet.v1.GetUserTimelineResponse.tweets:type_name -> tweet.v1.Tweet
-	0,  // 5: tweet.v1.GetFeedsResponse.tweets:type_name -> tweet.v1.Tweet
-	3,  // 6: tweet.v1.CreateCommentResponse.comment:type_name -> tweet.v1.Comment
-	3,  // 7: tweet.v1.GetTweetCommentsResponse.comments:type_name -> tweet.v1.Comment
-	0,  // 8: tweet.v1.SearchTweetsResponse.tweets:type_name -> tweet.v1.Tweet
-	4,  // 9: tweet.v1.GetTrendingTopicsResponse.topics:type_name -> tweet.v1.TrendingTopic
-	0,  // 10: tweet.v1.ListTweetsResponse.tweets:type_name -> tweet.v1.Tweet
-	0,  // 11: tweet.v1.GetTweetRepliesResponse.replies:type_name -> tweet.v1.Tweet
-	1,  // 12: tweet.v1.VotePollResponse.poll:type_name -> tweet.v1.Poll
-	0,  // 13: tweet.v1.GetUserBookmarksResponse.tweets:type_name -> tweet.v1.Tweet
-	0,  // 14: tweet.v1.GetUserLikesResponse.tweets:type_name -> tweet.v1.Tweet
-	0,  // 15: tweet.v1.GetUserRepliesResponse.replies:type_name -> tweet.v1.Tweet
-	0,  // 16: tweet.v1.GetUserMediaResponse.tweets:type_name -> tweet.v1.Tweet
-	5,  // 17: tweet.v1.TweetService.CreateTweet:input_type -> tweet.v1.CreateTweetRequest
-	7,  // 18: tweet.v1.TweetService.GetTweet:input_type -> tweet.v1.GetTweetRequest
-	9,  // 19: tweet.v1.TweetService.DeleteTweet:input_type -> tweet.v1.DeleteTweetRequest
-	11, // 20: tweet.v1.TweetService.GetUserTimeline:input_type -> tweet.v1.GetUserTimelineRequest
-	13, // 21: tweet.v1.TweetService.GetFeeds:input_type -> tweet.v1.GetFeedsRequest
-	15, // 22: tweet.v1.TweetService.LikeTweet:input_type -> tweet.v1.LikeTweetRequest
-	17, // 23: tweet.v1.TweetService.UnlikeTweet:input_type -> tweet.v1.UnlikeTweetRequest
-	19, // 24: tweet.v1.TweetService.CreateComment:input_type -> tweet.v1.CreateCommentRequest
-	21, // 25: tweet.v1.TweetService.DeleteComment:input_type -> tweet.v1.DeleteCommentRequest
-	23, // 26: tweet.v1.TweetService.GetTweetComments:input_type -> tweet.v1.GetTweetCommentsRequest
-	25, // 27: tweet.v1.TweetService.SearchTweets:input_type -> tweet.v1.SearchTweetsRequest
-	27, // 28: tweet.v1.TweetService.GetTrendingTopics:input_type -> tweet.v1.GetTrendingTopicsRequest
-	29, // 29: tweet.v1.TweetService.ListTweets:input_type -> tweet.v1.ListTweetsRequest
-	31, // 30: tweet.v1.TweetService.GetTweetReplies:input_type -> tweet.v1.GetTweetRepliesRequest
-	33, // 31: tweet.v1.TweetService.VotePoll:input_type -> tweet.v1.VotePollRequest
-	35, // 32: tweet.v1.TweetService.BookmarkTweet:input_type -> tweet.v1.BookmarkTweetRequest
-	37, // 33: tweet.v1.TweetService.UnbookmarkTweet:input_type -> tweet.v1.UnbookmarkTweetRequest
-	39, // 34: tweet.v1.TweetService.GetUserBookmarks:input_type -> tweet.v1.GetUserBookmarksRequest
-	41, // 35: tweet.v1.TweetService.RetweetTweet:input_type -> tweet.v1.RetweetTweetRequest
-	43, // 36: tweet.v1.TweetService.UnretweetTweet:input_type -> tweet.v1.UnretweetTweetRequest
-	45, // 37: tweet.v1.TweetService.GetUserLikes:input_type -> tweet.v1.GetUserLikesRequest
-	47, // 38: tweet.v1.TweetService.GetUserReplies:input_type -> tweet.v1.GetUserRepliesRequest
-	49, // 39: tweet.v1.TweetService.GetUserMedia:input_type -> tweet.v1.GetUserMediaRequest
-	6,  // 40: tweet.v1.TweetService.CreateTweet:output_type -> tweet.v1.CreateTweetResponse
-	8,  // 41: tweet.v1.TweetService.GetTweet:output_type -> tweet.v1.GetTweetResponse
-	10, // 42: tweet.v1.TweetService.DeleteTweet:output_type -> tweet.v1.DeleteTweetResponse
-	12, // 43: tweet.v1.TweetService.GetUserTimeline:output_type -> tweet.v1.GetUserTimelineResponse
-	14, // 44: tweet.v1.TweetService.GetFeeds:output_type -> tweet.v1.GetFeedsResponse
-	16, // 45: tweet.v1.TweetService.LikeTweet:output_type -> tweet.v1.LikeTweetResponse
-	18, // 46: tweet.v1.TweetService.UnlikeTweet:output_type -> tweet.v1.UnlikeTweetResponse
-	20, // 47: tweet.v1.TweetService.CreateComment:output_type -> tweet.v1.CreateCommentResponse
-	22, // 48: tweet.v1.TweetService.DeleteComment:output_type -> tweet.v1.DeleteCommentResponse
-	24, // 49: tweet.v1.TweetService.GetTweetComments:output_type -> tweet.v1.GetTweetCommentsResponse
-	26, // 50: tweet.v1.TweetService.SearchTweets:output_type -> tweet.v1.SearchTweetsResponse
-	28, // 51: tweet.v1.TweetService.GetTrendingTopics:output_type -> tweet.v1.GetTrendingTopicsResponse
-	30, // 52: tweet.v1.TweetService.ListTweets:output_type -> tweet.v1.ListTweetsResponse
-	32, // 53: tweet.v1.TweetService.GetTweetReplies:output_type -> tweet.v1.GetTweetRepliesResponse
-	34, // 54: tweet.v1.TweetService.VotePoll:output_type -> tweet.v1.VotePollResponse
-	36, // 55: tweet.v1.TweetService.BookmarkTweet:output_type -> tweet.v1.BookmarkTweetResponse
-	38, // 56: tweet.v1.TweetService.UnbookmarkTweet:output_type -> tweet.v1.UnbookmarkTweetResponse
-	40, // 57: tweet.v1.TweetService.GetUserBookmarks:output_type -> tweet.v1.GetUserBookmarksResponse
-	42, // 58: tweet.v1.TweetService.RetweetTweet:output_type -> tweet.v1.RetweetTweetResponse
-	44, // 59: tweet.v1.TweetService.UnretweetTweet:output_type -> tweet.v1.UnretweetTweetResponse
-	46, // 60: tweet.v1.TweetService.GetUserLikes:output_type -> tweet.v1.GetUserLikesResponse
-	48, // 61: tweet.v1.TweetService.GetUserReplies:output_type -> tweet.v1.GetUserRepliesResponse
-	50, // 62: tweet.v1.TweetService.GetUserMedia:output_type -> tweet.v1.GetUserMediaResponse
-	40, // [40:63] is the sub-list for method output_type
-	17, // [17:40] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	2,  // 0: tweet.v1.Tweet.poll:type_name -> tweet.v1.Poll
+	3,  // 1: tweet.v1.Poll.options:type_name -> tweet.v1.PollOption
+	1,  // 2: tweet.v1.CreateTweetResponse.tweet:type_name -> tweet.v1.Tweet
+	1,  // 3: tweet.v1.GetTweetResponse.tweet:type_name -> tweet.v1.Tweet
+	0,  // 4: tweet.v1.ApplyTweetModerationRequest.action:type_name -> tweet.v1.TweetModerationAction
+	1,  // 5: tweet.v1.GetUserTimelineResponse.tweets:type_name -> tweet.v1.Tweet
+	1,  // 6: tweet.v1.GetFeedsResponse.tweets:type_name -> tweet.v1.Tweet
+	4,  // 7: tweet.v1.CreateCommentResponse.comment:type_name -> tweet.v1.Comment
+	4,  // 8: tweet.v1.GetTweetCommentsResponse.comments:type_name -> tweet.v1.Comment
+	1,  // 9: tweet.v1.SearchTweetsResponse.tweets:type_name -> tweet.v1.Tweet
+	5,  // 10: tweet.v1.GetTrendingTopicsResponse.topics:type_name -> tweet.v1.TrendingTopic
+	1,  // 11: tweet.v1.ListTweetsResponse.tweets:type_name -> tweet.v1.Tweet
+	1,  // 12: tweet.v1.GetTweetRepliesResponse.replies:type_name -> tweet.v1.Tweet
+	2,  // 13: tweet.v1.VotePollResponse.poll:type_name -> tweet.v1.Poll
+	1,  // 14: tweet.v1.GetUserBookmarksResponse.tweets:type_name -> tweet.v1.Tweet
+	1,  // 15: tweet.v1.GetUserLikesResponse.tweets:type_name -> tweet.v1.Tweet
+	1,  // 16: tweet.v1.GetUserRepliesResponse.replies:type_name -> tweet.v1.Tweet
+	1,  // 17: tweet.v1.GetUserMediaResponse.tweets:type_name -> tweet.v1.Tweet
+	6,  // 18: tweet.v1.TweetService.CreateTweet:input_type -> tweet.v1.CreateTweetRequest
+	8,  // 19: tweet.v1.TweetService.GetTweet:input_type -> tweet.v1.GetTweetRequest
+	10, // 20: tweet.v1.TweetService.DeleteTweet:input_type -> tweet.v1.DeleteTweetRequest
+	12, // 21: tweet.v1.TweetService.GetAuthorPostingStats:input_type -> tweet.v1.GetAuthorPostingStatsRequest
+	14, // 22: tweet.v1.TweetService.ApplyTweetModeration:input_type -> tweet.v1.ApplyTweetModerationRequest
+	16, // 23: tweet.v1.TweetService.GetUserTimeline:input_type -> tweet.v1.GetUserTimelineRequest
+	18, // 24: tweet.v1.TweetService.GetFeeds:input_type -> tweet.v1.GetFeedsRequest
+	20, // 25: tweet.v1.TweetService.LikeTweet:input_type -> tweet.v1.LikeTweetRequest
+	22, // 26: tweet.v1.TweetService.UnlikeTweet:input_type -> tweet.v1.UnlikeTweetRequest
+	24, // 27: tweet.v1.TweetService.CreateComment:input_type -> tweet.v1.CreateCommentRequest
+	26, // 28: tweet.v1.TweetService.DeleteComment:input_type -> tweet.v1.DeleteCommentRequest
+	28, // 29: tweet.v1.TweetService.GetTweetComments:input_type -> tweet.v1.GetTweetCommentsRequest
+	30, // 30: tweet.v1.TweetService.SearchTweets:input_type -> tweet.v1.SearchTweetsRequest
+	32, // 31: tweet.v1.TweetService.GetTrendingTopics:input_type -> tweet.v1.GetTrendingTopicsRequest
+	34, // 32: tweet.v1.TweetService.ListTweets:input_type -> tweet.v1.ListTweetsRequest
+	36, // 33: tweet.v1.TweetService.GetTweetReplies:input_type -> tweet.v1.GetTweetRepliesRequest
+	38, // 34: tweet.v1.TweetService.VotePoll:input_type -> tweet.v1.VotePollRequest
+	40, // 35: tweet.v1.TweetService.BookmarkTweet:input_type -> tweet.v1.BookmarkTweetRequest
+	42, // 36: tweet.v1.TweetService.UnbookmarkTweet:input_type -> tweet.v1.UnbookmarkTweetRequest
+	44, // 37: tweet.v1.TweetService.GetUserBookmarks:input_type -> tweet.v1.GetUserBookmarksRequest
+	46, // 38: tweet.v1.TweetService.RetweetTweet:input_type -> tweet.v1.RetweetTweetRequest
+	48, // 39: tweet.v1.TweetService.UnretweetTweet:input_type -> tweet.v1.UnretweetTweetRequest
+	50, // 40: tweet.v1.TweetService.GetUserLikes:input_type -> tweet.v1.GetUserLikesRequest
+	52, // 41: tweet.v1.TweetService.GetUserReplies:input_type -> tweet.v1.GetUserRepliesRequest
+	54, // 42: tweet.v1.TweetService.GetUserMedia:input_type -> tweet.v1.GetUserMediaRequest
+	7,  // 43: tweet.v1.TweetService.CreateTweet:output_type -> tweet.v1.CreateTweetResponse
+	9,  // 44: tweet.v1.TweetService.GetTweet:output_type -> tweet.v1.GetTweetResponse
+	11, // 45: tweet.v1.TweetService.DeleteTweet:output_type -> tweet.v1.DeleteTweetResponse
+	13, // 46: tweet.v1.TweetService.GetAuthorPostingStats:output_type -> tweet.v1.GetAuthorPostingStatsResponse
+	15, // 47: tweet.v1.TweetService.ApplyTweetModeration:output_type -> tweet.v1.ApplyTweetModerationResponse
+	17, // 48: tweet.v1.TweetService.GetUserTimeline:output_type -> tweet.v1.GetUserTimelineResponse
+	19, // 49: tweet.v1.TweetService.GetFeeds:output_type -> tweet.v1.GetFeedsResponse
+	21, // 50: tweet.v1.TweetService.LikeTweet:output_type -> tweet.v1.LikeTweetResponse
+	23, // 51: tweet.v1.TweetService.UnlikeTweet:output_type -> tweet.v1.UnlikeTweetResponse
+	25, // 52: tweet.v1.TweetService.CreateComment:output_type -> tweet.v1.CreateCommentResponse
+	27, // 53: tweet.v1.TweetService.DeleteComment:output_type -> tweet.v1.DeleteCommentResponse
+	29, // 54: tweet.v1.TweetService.GetTweetComments:output_type -> tweet.v1.GetTweetCommentsResponse
+	31, // 55: tweet.v1.TweetService.SearchTweets:output_type -> tweet.v1.SearchTweetsResponse
+	33, // 56: tweet.v1.TweetService.GetTrendingTopics:output_type -> tweet.v1.GetTrendingTopicsResponse
+	35, // 57: tweet.v1.TweetService.ListTweets:output_type -> tweet.v1.ListTweetsResponse
+	37, // 58: tweet.v1.TweetService.GetTweetReplies:output_type -> tweet.v1.GetTweetRepliesResponse
+	39, // 59: tweet.v1.TweetService.VotePoll:output_type -> tweet.v1.VotePollResponse
+	41, // 60: tweet.v1.TweetService.BookmarkTweet:output_type -> tweet.v1.BookmarkTweetResponse
+	43, // 61: tweet.v1.TweetService.UnbookmarkTweet:output_type -> tweet.v1.UnbookmarkTweetResponse
+	45, // 62: tweet.v1.TweetService.GetUserBookmarks:output_type -> tweet.v1.GetUserBookmarksResponse
+	47, // 63: tweet.v1.TweetService.RetweetTweet:output_type -> tweet.v1.RetweetTweetResponse
+	49, // 64: tweet.v1.TweetService.UnretweetTweet:output_type -> tweet.v1.UnretweetTweetResponse
+	51, // 65: tweet.v1.TweetService.GetUserLikes:output_type -> tweet.v1.GetUserLikesResponse
+	53, // 66: tweet.v1.TweetService.GetUserReplies:output_type -> tweet.v1.GetUserRepliesResponse
+	55, // 67: tweet.v1.TweetService.GetUserMedia:output_type -> tweet.v1.GetUserMediaResponse
+	43, // [43:68] is the sub-list for method output_type
+	18, // [18:43] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_api_tweet_v1_tweet_proto_init() }
@@ -3520,13 +3850,14 @@ func file_api_tweet_v1_tweet_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_tweet_v1_tweet_proto_rawDesc), len(file_api_tweet_v1_tweet_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   51,
+			NumEnums:      1,
+			NumMessages:   55,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_api_tweet_v1_tweet_proto_goTypes,
 		DependencyIndexes: file_api_tweet_v1_tweet_proto_depIdxs,
+		EnumInfos:         file_api_tweet_v1_tweet_proto_enumTypes,
 		MessageInfos:      file_api_tweet_v1_tweet_proto_msgTypes,
 	}.Build()
 	File_api_tweet_v1_tweet_proto = out.File

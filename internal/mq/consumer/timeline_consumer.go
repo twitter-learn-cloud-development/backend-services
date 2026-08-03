@@ -6,19 +6,19 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"regexp"
 	"strings"
+	"sync"
 	"time"
+	"unicode/utf8"
 
 	"twitter-clone/pkg/es"
-	"twitter-clone/pkg/logger"
 	"twitter-clone/pkg/qdrant"
 
 	"twitter-clone/pkg/ai"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
-	"go.uber.org/zap"
 
 	"twitter-clone/internal/domain"
 	"twitter-clone/internal/events"
@@ -31,17 +31,11 @@ const (
 	// ExchangeEvents 业务事件交换机
 	ExchangeEvents = "twitter.events"
 
-	// ExchangeRetry 重试交换机
-	ExchangeRetry = "retry.events.exchange"
-
 	// ExchangeDLX 死信交换机
 	ExchangeDLX = "dlx.events.exchange"
 
 	// QueueTweetFanout 推文扇出队列
 	QueueTweetFanout = "queue.tweet.fanout"
-
-	// QueueTweetFanoutRetry 推文扇出重试队列
-	QueueTweetFanoutRetry = "queue.tweet.fanout.retry"
 
 	// QueueTweetFanoutDLQ 推文扇出死信队列
 	QueueTweetFanoutDLQ = "queue.tweet.fanout.dlq"
@@ -49,14 +43,11 @@ const (
 	// QueueTweetDelete 推文删除队列
 	QueueTweetDelete = "queue.tweet.delete"
 
-	// QueueTweetDeleteRetry 推文删除重试队列
-	QueueTweetDeleteRetry = "queue.tweet.delete.retry"
-
 	// QueueTweetDeleteDLQ 推文删除死信队列
 	QueueTweetDeleteDLQ = "queue.tweet.delete.dlq"
 
-	// QueueTweetRisk 🆕 推文风控旁路队列
-	QueueTweetRisk = "queue.tweet.risk"
+	QueueTweetModerationCleanup    = "queue.tweet.moderation.cleanup"
+	QueueTweetModerationCleanupDLQ = "queue.tweet.moderation.cleanup.dlq"
 
 	// RoutingKeyTweetCreated 正常发推路由键
 	RoutingKeyTweetCreated = "tweet.created"
@@ -64,8 +55,7 @@ const (
 	// RoutingKeyTweetDeleted 正常删推路由键
 	RoutingKeyTweetDeleted = "tweet.deleted"
 
-	// RoutingKeyTweetRisk 🆕 推文风控旁路路由键
-	RoutingKeyTweetRisk = "risk.checking"
+	RoutingKeyTweetModerated = "tweet.moderated"
 
 	// CelebrityMinFollowers 大V粉丝数判定阈值
 	CelebrityMinFollowers = 5000
@@ -92,18 +82,45 @@ const (
 	RoutingKeyCommentCreated = "comment.created"
 )
 
+const (
+	syncESOutboxTaskType     = "sync_es"
+	syncESOutboxDedupVersion = "v1"
+	outboxSuccessRetention   = 72 * time.Hour
+	outboxCleanupInterval    = time.Minute
+	outboxCleanupBatchSize   = 1000
+	outboxCleanupMaxBatches  = 10
+	outboxWorkerInterval     = 5 * time.Second
+	outboxClaimBatchSize     = 10
+	outboxRecoveryBatchSize  = 100
+	outboxLeaseDuration      = 90 * time.Second
+	outboxTaskTimeout        = 60 * time.Second
+	outboxFinalizeTimeout    = 5 * time.Second
+	tweetCreatedStageTimeout = 30 * time.Second
+)
+
 // TimelineConsumer Timeline 消费者
 type TimelineConsumer struct {
-	mq              *mq.RabbitMQ
-	followRepo      domain.FollowRepository
-	timelineCache   *tweetCache.TimelineCache
-	redisClient     *redis.Client
-	esClient        *es.Client
-	qdrantClient    *qdrant.Client // 🆕 注入 Qdrant 客户端
-	aiClient        *ai.Client
-	outboxRepo      domain.OutboxRepository // 🆕 注入 Outbox 仓储
-	hashtagBatcher  *HashtagBatcher         // 🆕 注入 Hashtag 批量计数缓冲器
-	trendsProcessor *TrendsProcessor        // 🆕 注入趋势话题处理器
+	mq                   *mq.RabbitMQ
+	followRepo           domain.FollowRepository
+	followerPager        domain.FollowerPageRepository
+	timelineCache        *tweetCache.TimelineCache
+	redisClient          *redis.Client
+	esClient             *es.Client
+	qdrantClient         *qdrant.Client // 🆕 注入 Qdrant 客户端
+	aiClient             *ai.Client
+	outboxRepo           domain.OutboxRepository // 🆕 注入 Outbox 仓储
+	hashtagBatcher       *HashtagBatcher         // 🆕 注入 Hashtag 批量计数缓冲器
+	trendsProcessor      *TrendsProcessor        // 🆕 注入趋势话题处理器
+	moderationObserver   ModerationCleanupObserver
+	tweetCreatedObserver TweetCreatedObserver
+	outboxObserver       OutboxWorkerObserver
+	trendProjector       *tweetCreatedTrendProjector
+	newOutboxTaskID      func() (uint64, error)
+	newOutboxLeaseToken  func() string
+	outboxWorkerID       string
+	outboxNow            func() time.Time
+	searchSyncExecutor   func(context.Context, *events.TweetCreatedEvent) error
+	failureRouter        *timelineFailureRouter
 }
 
 // NewTimelineConsumer 创建 Timeline 消费者
@@ -117,18 +134,25 @@ func NewTimelineConsumer(
 	aiClient *ai.Client,
 	outboxRepo domain.OutboxRepository, // 🆕 注入 Outbox 仓储
 	trendsProcessor *TrendsProcessor, // 🆕 注入趋势话题处理器
+	failurePublisher timelineFailurePublisher,
 ) (*TimelineConsumer, error) {
+	followerPager, ok := followRepo.(domain.FollowerPageRepository)
+	if !ok {
+		return nil, fmt.Errorf("follow repository does not support stable follower pagination")
+	}
+	failureRouter, err := newTimelineFailureRouter(failurePublisher)
+	if err != nil {
+		return nil, err
+	}
+
 	// 1. 声明 Exchanges
 	if err := mqClient.DeclareExchange(ExchangeEvents, "topic", true); err != nil {
 		return nil, fmt.Errorf("failed to declare events exchange: %w", err)
 	}
-	if err := mqClient.DeclareExchange(ExchangeRetry, "topic", true); err != nil {
-		return nil, fmt.Errorf("failed to declare retry exchange: %w", err)
-	}
 	if err := mqClient.DeclareExchange(ExchangeDLX, "topic", true); err != nil {
 		return nil, fmt.Errorf("failed to declare dlx exchange: %w", err)
 	}
-	log.Println("✅ Exchanges declared: events, retry, dlx")
+	log.Println("✅ Exchanges declared: events, dlx")
 
 	// 2. 声明业务队列
 	if _, err := mqClient.DeclareQueue(QueueTweetFanout, true); err != nil {
@@ -137,8 +161,8 @@ func NewTimelineConsumer(
 	if _, err := mqClient.DeclareQueue(QueueTweetDelete, true); err != nil {
 		return nil, fmt.Errorf("failed to declare delete queue: %w", err)
 	}
-	if _, err := mqClient.DeclareQueue(QueueTweetRisk, true); err != nil {
-		return nil, fmt.Errorf("failed to declare risk queue: %w", err)
+	if _, err := mqClient.DeclareQueue(QueueTweetModerationCleanup, true); err != nil {
+		return nil, fmt.Errorf("failed to declare moderation cleanup queue: %w", err)
 	}
 	if _, err := mqClient.DeclareQueue(QueueTweetLiked, true); err != nil {
 		return nil, fmt.Errorf("failed to declare liked queue: %w", err)
@@ -147,41 +171,27 @@ func NewTimelineConsumer(
 		return nil, fmt.Errorf("failed to declare comment queue: %w", err)
 	}
 
-	// 3. 声明重试队列（配置 Dead Letter 参数以在 TTL 到期时重新发回到业务队列）
-	fanoutRetryArgs := amqp.Table{
-		"x-dead-letter-exchange":    ExchangeEvents,
-		"x-dead-letter-routing-key": RoutingKeyTweetCreated,
-	}
-	if _, err := mqClient.DeclareQueueWithArgs(QueueTweetFanoutRetry, true, fanoutRetryArgs); err != nil {
-		return nil, fmt.Errorf("failed to declare fanout retry queue: %w", err)
-	}
-
-	deleteRetryArgs := amqp.Table{
-		"x-dead-letter-exchange":    ExchangeEvents,
-		"x-dead-letter-routing-key": RoutingKeyTweetDeleted,
-	}
-	if _, err := mqClient.DeclareQueueWithArgs(QueueTweetDeleteRetry, true, deleteRetryArgs); err != nil {
-		return nil, fmt.Errorf("failed to declare delete retry queue: %w", err)
-	}
-
-	// 4. 声明死信队列（DLQ）
+	// 3. 声明死信队列（DLQ）
 	if _, err := mqClient.DeclareQueue(QueueTweetFanoutDLQ, true); err != nil {
 		return nil, fmt.Errorf("failed to declare fanout dlq: %w", err)
 	}
 	if _, err := mqClient.DeclareQueue(QueueTweetDeleteDLQ, true); err != nil {
 		return nil, fmt.Errorf("failed to declare delete dlq: %w", err)
 	}
-	log.Println("✅ Queues declared: business, retry, dlq, risk, liked, comment")
+	if _, err := mqClient.DeclareQueue(QueueTweetModerationCleanupDLQ, true); err != nil {
+		return nil, fmt.Errorf("failed to declare moderation cleanup dlq: %w", err)
+	}
+	log.Println("✅ Queues declared: business, retry, dlq, liked, comment")
 
-	// 5. 绑定正常业务队列
+	// 4. 绑定正常业务队列
 	if err := mqClient.BindQueue(QueueTweetFanout, RoutingKeyTweetCreated, ExchangeEvents); err != nil {
 		return nil, fmt.Errorf("failed to bind fanout queue: %w", err)
 	}
 	if err := mqClient.BindQueue(QueueTweetDelete, RoutingKeyTweetDeleted, ExchangeEvents); err != nil {
 		return nil, fmt.Errorf("failed to bind delete queue: %w", err)
 	}
-	if err := mqClient.BindQueue(QueueTweetRisk, RoutingKeyTweetRisk, ExchangeEvents); err != nil {
-		return nil, fmt.Errorf("failed to bind risk queue: %w", err)
+	if err := mqClient.BindQueue(QueueTweetModerationCleanup, RoutingKeyTweetModerated, ExchangeEvents); err != nil {
+		return nil, fmt.Errorf("failed to bind moderation cleanup queue: %w", err)
 	}
 	if err := mqClient.BindQueue(QueueTweetLiked, RoutingKeyTweetLiked, ExchangeEvents); err != nil {
 		return nil, fmt.Errorf("failed to bind liked queue: %w", err)
@@ -190,20 +200,18 @@ func NewTimelineConsumer(
 		return nil, fmt.Errorf("failed to bind comment queue: %w", err)
 	}
 
-	// 6. 绑定重试队列
-	if err := mqClient.BindQueue(QueueTweetFanoutRetry, RoutingKeyTweetCreated+".retry", ExchangeRetry); err != nil {
-		return nil, fmt.Errorf("failed to bind fanout retry queue: %w", err)
-	}
-	if err := mqClient.BindQueue(QueueTweetDeleteRetry, RoutingKeyTweetDeleted+".retry", ExchangeRetry); err != nil {
-		return nil, fmt.Errorf("failed to bind delete retry queue: %w", err)
-	}
-
-	// 7. 绑定死信队列（DLQ）
+	// 5. 绑定死信队列（DLQ）
 	if err := mqClient.BindQueue(QueueTweetFanoutDLQ, RoutingKeyTweetCreated+".dlq", ExchangeDLX); err != nil {
 		return nil, fmt.Errorf("failed to bind fanout dlq: %w", err)
 	}
 	if err := mqClient.BindQueue(QueueTweetDeleteDLQ, RoutingKeyTweetDeleted+".dlq", ExchangeDLX); err != nil {
 		return nil, fmt.Errorf("failed to bind delete dlq: %w", err)
+	}
+	if err := mqClient.BindQueue(QueueTweetModerationCleanupDLQ, RoutingKeyTweetModerated+".dlq", ExchangeDLX); err != nil {
+		return nil, fmt.Errorf("failed to bind moderation cleanup dlq: %w", err)
+	}
+	if err := DeclareTimelineRecoveryTopology(mqClient); err != nil {
+		return nil, err
 	}
 	log.Println("✅ Bindings created successfully")
 
@@ -217,17 +225,43 @@ func NewTimelineConsumer(
 	hashtagBatcher := NewHashtagBatcher(redisClient, 500*time.Millisecond)
 
 	return &TimelineConsumer{
-		mq:              mqClient,
-		followRepo:      followRepo,
-		timelineCache:   timelineCache,
-		redisClient:     redisClient,
-		esClient:        esClient,
-		qdrantClient:    qdrantClient, // 🆕 注入 Qdrant
-		aiClient:        aiClient,
-		outboxRepo:      outboxRepo, // 🆕 注入 Outbox 仓储
-		hashtagBatcher:  hashtagBatcher,
-		trendsProcessor: trendsProcessor,
+		mq:                   mqClient,
+		followRepo:           followRepo,
+		followerPager:        followerPager,
+		timelineCache:        timelineCache,
+		redisClient:          redisClient,
+		esClient:             esClient,
+		qdrantClient:         qdrantClient, // 🆕 注入 Qdrant
+		aiClient:             aiClient,
+		outboxRepo:           outboxRepo, // 🆕 注入 Outbox 仓储
+		hashtagBatcher:       hashtagBatcher,
+		trendsProcessor:      trendsProcessor,
+		moderationObserver:   noopModerationCleanupObserver{},
+		tweetCreatedObserver: noopTweetCreatedObserver{},
+		outboxObserver:       noopOutboxWorkerObserver{},
+		trendProjector:       newTweetCreatedTrendProjector(redisClient),
+		newOutboxTaskID:      snowflake.GenerateID,
+		newOutboxLeaseToken:  uuid.NewString,
+		outboxWorkerID:       newTimelineOutboxWorkerID(),
+		outboxNow:            time.Now,
+		failureRouter:        failureRouter,
 	}, nil
+}
+
+func (c *TimelineConsumer) SetTweetCreatedObserver(observer TweetCreatedObserver) {
+	if observer == nil {
+		c.tweetCreatedObserver = noopTweetCreatedObserver{}
+		return
+	}
+	c.tweetCreatedObserver = observer
+}
+
+func (c *TimelineConsumer) SetOutboxWorkerObserver(observer OutboxWorkerObserver) {
+	if observer == nil {
+		c.outboxObserver = noopOutboxWorkerObserver{}
+		return
+	}
+	c.outboxObserver = observer
 }
 
 // Start 启动消费者
@@ -243,6 +277,8 @@ func (c *TimelineConsumer) Start(ctx context.Context) error {
 
 	// 启动删除消费者
 	go c.consumeDelete(ctx)
+
+	go c.consumeModerationCleanup(ctx)
 
 	// 🆕 监听点赞与评论事件以计算热度分值
 	go c.consumeTweetLiked(ctx)
@@ -299,126 +335,116 @@ func (c *TimelineConsumer) consumeFanout(ctx context.Context) {
 
 // handleFanoutMessage 处理扇出消息
 func (c *TimelineConsumer) handleFanoutMessage(msg amqp.Delivery) {
-	// 解析事件
-	var event events.TweetCreatedEvent
-	if err := json.Unmarshal(msg.Body, &event); err != nil {
+	event, err := decodeTimelineTweetCreatedEvent(msg.Body)
+	if err != nil {
 		log.Printf("❌ Failed to unmarshal fanout event: %v", err)
-		msg.Nack(false, false) // 格式错误直接丢弃
+		disposition := c.handlePermanentFailure(msg, RoutingKeyTweetCreated)
+		c.observeTweetCreatedStage(tweetCreatedStageAck, string(disposition))
 		return
 	}
 
 	log.Printf("📨 Received: tweet.created (tweet_id=%d, author_id=%d)", event.TweetID, event.AuthorID)
+	ctx, cancel := context.WithTimeout(context.Background(), tweetCreatedStageTimeout)
+	defer cancel()
 
-	// 执行扇出
-	if err := c.fanoutToFollowers(event.AuthorID, event.TweetID); err != nil {
+	if err := c.fanoutToFollowers(ctx, event.AuthorID, event.TweetID); err != nil {
+		c.observeTweetCreatedStage(tweetCreatedStageFanout, "failed")
 		log.Printf("❌ Fanout failed: %v", err)
-		c.handleFailure(msg, RoutingKeyTweetCreated)
+		disposition := c.handleFailure(msg, RoutingKeyTweetCreated)
+		c.observeTweetCreatedStage(tweetCreatedStageAck, string(disposition))
 		return
 	}
+	c.observeTweetCreatedStage(tweetCreatedStageFanout, "applied")
 
-	// 确认消息
-	if err := msg.Ack(false); err != nil {
-		log.Printf("❌ Failed to ack message: %v", err)
-	}
-
-	// 提取并更新 Hashtags 及实体词映射用于热门话题
-	go c.processHashtags(context.Background(), event)
-
-	// 🆕 将 ES 向量同步操作作为 Outbox 任务持久化写入数据库，保障高可用与最终一致性
-	payloadBytes, err := json.Marshal(event)
+	trendApplied, err := c.processHashtags(ctx, event)
 	if err != nil {
-		log.Printf("❌ Failed to marshal ES outbox payload: %v", err)
+		c.observeTweetCreatedStage(tweetCreatedStageTrends, "failed")
+		log.Printf("❌ Trend projection failed: %v", err)
+		disposition := c.handleFailure(msg, RoutingKeyTweetCreated)
+		c.observeTweetCreatedStage(tweetCreatedStageAck, string(disposition))
+		return
+	}
+	if trendApplied {
+		c.observeTweetCreatedStage(tweetCreatedStageTrends, "applied")
 	} else {
-		id, err := snowflake.GenerateID()
-		if err != nil {
-			return
-		}
-
-		task := &domain.OutboxTask{
-			ID:         id,
-			TaskType:   "sync_es",
-			Payload:    string(payloadBytes),
-			Status:     domain.OutboxStatusPending,
-			MaxRetries: 5,
-		}
-		if err := c.outboxRepo.Create(context.Background(), task); err != nil {
-			log.Printf("❌ Failed to create ES sync outbox task: %v", err)
-		} else {
-			log.Printf("📦 ES sync outbox task created: task_id=%d", task.ID)
-		}
+		c.observeTweetCreatedStage(tweetCreatedStageTrends, "duplicate")
 	}
 
-	// 🆕 异步广播发帖到风控旁路检测队列
-	go func() {
-		riskCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
-		if err := c.mq.Publish(riskCtx, ExchangeEvents, RoutingKeyTweetRisk, msg.Body); err != nil {
-			log.Printf("❌ Failed to broadcast to risk queue: %v", err)
-		} else {
-			log.Printf("⚡ Broadcasted to risk queue for tweet_id=%d", event.TweetID)
-		}
-	}()
+	outboxCreated, err := c.enqueueSearchSync(ctx, event)
+	if err != nil {
+		c.observeTweetCreatedStage(tweetCreatedStageOutbox, "failed")
+		log.Printf("❌ Failed to enqueue search sync: %v", err)
+		disposition := c.handleFailure(msg, RoutingKeyTweetCreated)
+		c.observeTweetCreatedStage(tweetCreatedStageAck, string(disposition))
+		return
+	}
+	if outboxCreated {
+		c.observeTweetCreatedStage(tweetCreatedStageOutbox, "applied")
+	} else {
+		c.observeTweetCreatedStage(tweetCreatedStageOutbox, "duplicate")
+	}
+
+	if err := msg.Ack(false); err != nil {
+		c.observeTweetCreatedStage(tweetCreatedStageAck, "acknowledgement_uncertain")
+		log.Printf("❌ Failed to ack message: %v", err)
+		return
+	}
+	c.observeTweetCreatedStage(tweetCreatedStageAck, "completed")
 
 	log.Printf("✅ Fanout completed: tweet_id=%d", event.TweetID)
 }
 
 // processHashtags 提取并给发帖增加热度，同时建立推文到实体的 48小时 Redis TTL 预映射
-func (c *TimelineConsumer) processHashtags(ctx context.Context, event events.TweetCreatedEvent) {
+func (c *TimelineConsumer) processHashtags(ctx context.Context, event events.TweetCreatedEvent) (bool, error) {
+	if c.trendProjector == nil {
+		return false, fmt.Errorf("tweet created trend projector is unavailable")
+	}
+	var topics map[string]int64
 	if c.trendsProcessor == nil {
-		// 降级：仅提取 Hashtag
-		re := regexp.MustCompile(`#([\p{Han}A-Za-z0-9_][\p{Han}A-Za-z0-9_-]{0,63})`)
-		matches := re.FindAllStringSubmatch(event.Content, -1)
-		if len(matches) == 0 {
-			return
-		}
-		for _, match := range matches {
-			if len(match) > 1 {
-				tag := normalizeTrendTopic(match[1])
-				if tag != "" {
-					c.hashtagBatcher.Add(tag)
-				}
-			}
-		}
-		return
+		topics = extractFallbackTweetTopics(event.Content)
+	} else {
+		topics = c.trendsProcessor.ExtractTopics(event.Content)
 	}
+	return c.trendProjector.Project(ctx, event.TweetID, event.AuthorID, topics)
+}
 
-	topics := c.trendsProcessor.ExtractTopics(event.Content)
-	if len(topics) == 0 {
-		return
+func (c *TimelineConsumer) enqueueSearchSync(ctx context.Context, event events.TweetCreatedEvent) (bool, error) {
+	if c.outboxRepo == nil {
+		return false, fmt.Errorf("outbox repository is unavailable")
 	}
-
-	// 1. 构建逗号拼接的实体词字符串列表并写入 Redis，设定 48 小时 TTL
-	var tagList []string
-	for tag := range topics {
-		tagList = append(tagList, tag)
+	if c.newOutboxTaskID == nil {
+		return false, fmt.Errorf("outbox task ID generator is unavailable")
 	}
-	tagsStr := strings.Join(tagList, ",")
-	tagsKey := fmt.Sprintf("tweet_tags:%d", event.TweetID)
-
-	if err := c.redisClient.Set(ctx, tagsKey, tagsStr, 48*time.Hour).Err(); err != nil {
-		log.Printf("⚠️  Failed to set tweet tags mapping in Redis: %v", err)
+	payloadBytes, err := json.Marshal(event)
+	if err != nil {
+		return false, fmt.Errorf("marshal search sync outbox payload: %w", err)
 	}
-
-	// 2. 对每个提取出的实体词给趋势榜加分，这里应用发推的防刷限频（W_p = 10，我们使用 topics 预设好的分值，Hashtag=30，NER=10）
-	for tag, baseScore := range topics {
-		limitKey := fmt.Sprintf("lock:user_tag_count:%d:%s", event.AuthorID, tag)
-		count, err := c.redisClient.Incr(ctx, limitKey).Result()
-		if err != nil {
-			log.Printf("⚠️  Failed to increment user tag limit: %v", err)
-			continue
-		}
-
-		if count == 1 {
-			_ = c.redisClient.Expire(ctx, limitKey, 1*time.Hour)
-		}
-
-		if count > 3 {
-			continue
-		}
-
-		c.hashtagBatcher.AddWithScore(tag, baseScore)
+	taskID, err := c.newOutboxTaskID()
+	if err != nil {
+		return false, fmt.Errorf("generate search sync outbox task ID: %w", err)
 	}
-	log.Printf("🔥 Processed new tweet topics mapping for tweet_id=%d: %v", event.TweetID, topics)
+	dedupKey := fmt.Sprintf("timeline:%s:tweet:%d:%s", syncESOutboxTaskType, event.TweetID, syncESOutboxDedupVersion)
+	task := &domain.OutboxTask{
+		ID:         taskID,
+		DedupKey:   &dedupKey,
+		TaskType:   syncESOutboxTaskType,
+		Payload:    string(payloadBytes),
+		Status:     domain.OutboxStatusPending,
+		MaxRetries: 5,
+	}
+	created, err := c.outboxRepo.CreateIdempotent(ctx, task)
+	if err != nil {
+		return false, fmt.Errorf("create idempotent search sync outbox task: %w", err)
+	}
+	return created, nil
+}
+
+func (c *TimelineConsumer) observeTweetCreatedStage(stage, result string) {
+	observer := c.tweetCreatedObserver
+	if observer == nil {
+		observer = noopTweetCreatedObserver{}
+	}
+	observer.ObserveStage(stage, result)
 }
 
 // consumeTweetLiked 监听推文点赞事件
@@ -588,9 +614,7 @@ func (c *TimelineConsumer) decayTrends(ctx context.Context) {
 }
 
 // fanoutToFollowers 扇出到粉丝
-func (c *TimelineConsumer) fanoutToFollowers(authorID uint64, tweetID uint64) error {
-	ctx := context.Background()
-
+func (c *TimelineConsumer) fanoutToFollowers(ctx context.Context, authorID uint64, tweetID uint64) error {
 	// 1. 检查是否为大V (获取发推人粉丝数)
 	isCelebrity, err := c.timelineCache.IsCelebrity(ctx, authorID)
 	if err != nil {
@@ -600,7 +624,7 @@ func (c *TimelineConsumer) fanoutToFollowers(authorID uint64, tweetID uint64) er
 		log.Printf("📢 [Celebrity Push Avoided] Author %d is a celebrity. Skipping write-diffusion fanout.", authorID)
 		// 🆕 将推文写入大V个人时间线缓存，以供粉丝拉取使用 (L2 Pull 缓存)
 		if cacheErr := c.timelineCache.AddToUserTimeline(ctx, authorID, tweetID); cacheErr != nil {
-			log.Printf("⚠️  Failed to add to celebrity timeline cache for user %d: %v", authorID, cacheErr)
+			return fmt.Errorf("add celebrity tweet to user timeline: %w", cacheErr)
 		}
 		return nil // 略过写扩散，大V通过拉模式（读扩散）提供数据
 	}
@@ -630,8 +654,7 @@ func (c *TimelineConsumer) fanoutToFollowers(authorID uint64, tweetID uint64) er
 
 		// 批量添加到 Timeline
 		if err := c.timelineCache.BatchAddToTimeline(ctx, batch, tweetID); err != nil {
-			log.Printf("⚠️  Failed to fanout batch %d-%d: %v", i, end, err)
-			continue
+			return fmt.Errorf("fanout batch %d-%d: %w", i, end, err)
 		}
 
 		log.Printf("✅ Fanout batch %d-%d completed", i, end)
@@ -675,11 +698,10 @@ func (c *TimelineConsumer) consumeDelete(ctx context.Context) {
 
 // handleDeleteMessage 处理删除消息
 func (c *TimelineConsumer) handleDeleteMessage(msg amqp.Delivery) {
-	// 解析事件
-	var event events.TweetDeletedEvent
-	if err := json.Unmarshal(msg.Body, &event); err != nil {
+	event, err := decodeTimelineTweetDeletedEvent(msg.Body)
+	if err != nil {
 		log.Printf("❌ Failed to unmarshal delete event: %v", err)
-		msg.Nack(false, false)
+		c.handlePermanentFailure(msg, RoutingKeyTweetDeleted)
 		return
 	}
 
@@ -745,167 +767,263 @@ func (c *TimelineConsumer) removeFromFollowersTimeline(authorID uint64, tweetID 
 	return nil
 }
 
-// getRetryCount 获取重试次数
-func getRetryCount(headers amqp.Table) int {
-	if headers == nil {
-		return 0
+// handleFailure 消息消费失败通用处理函数：实现指数退避重试或路由到死信队列
+func (c *TimelineConsumer) handleFailure(msg amqp.Delivery, routingKeySuffix string) failureDisposition {
+	if c.failureRouter == nil {
+		log.Printf("timeline failure router unavailable: routing_key=%s", routingKeySuffix)
+		time.Sleep(time.Second)
+		if err := msg.Nack(false, true); err != nil {
+			log.Printf("timeline failure fallback requeue failed: error=%v", err)
+		}
+		return failureDispositionRequeued
 	}
-
-	// rabbitmq Header 解出来可能是 int32 或 int，这里做一个防御性类型断言
-	if count, ok := headers["x-retry-count"].(int32); ok {
-		return int(count)
-	}
-	if count, ok := headers["x-retry-count"].(int); ok {
-		return count
-	}
-
-	return 0
+	return c.failureRouter.route(msg, routingKeySuffix, false)
 }
 
-// handleFailure 消息消费失败通用处理函数：实现指数退避重试或路由到死信队列
-func (c *TimelineConsumer) handleFailure(msg amqp.Delivery, routingKeySuffix string) {
-	ctx := context.Background()
-	retryCount := getRetryCount(msg.Headers)
-
-	// 初始化/复制 Headers
-	headers := msg.Headers
-	if headers == nil {
-		headers = amqp.Table{}
+func (c *TimelineConsumer) handlePermanentFailure(msg amqp.Delivery, routingKeySuffix string) failureDisposition {
+	if c.failureRouter == nil {
+		return c.handleFailure(msg, routingKeySuffix)
 	}
-
-	if retryCount < MaxRetries {
-		delaySeconds := 1 << retryCount // 1s, 2s, 4s...
-		headers["x-retry-count"] = int32(retryCount + 1)
-
-		log.Printf("🔄 Retrying message (attempt %d/%d) in %ds. RoutingKey: %s.retry", retryCount+1, MaxRetries, delaySeconds, routingKeySuffix)
-
-		err := c.mq.GetChannel().PublishWithContext(
-			ctx,
-			ExchangeRetry,
-			routingKeySuffix+".retry",
-			false, // mandatory
-			false, // immediate
-			amqp.Publishing{
-				ContentType:  msg.ContentType,
-				DeliveryMode: amqp.Persistent,
-				Headers:      headers,
-				Body:         msg.Body,
-				Expiration:   fmt.Sprintf("%d", delaySeconds*1000), // TTL in ms (string)
-				Timestamp:    time.Now(),
-			},
-		)
-		if err != nil {
-			log.Printf("❌ Failed to publish retry message: %v", err)
-			// 万一重试队列发布失败，则 requeue 退回原队列，防止丢数据
-			msg.Nack(false, true)
-			return
-		}
-	} else {
-		log.Printf("💀 Max retries (%d) exceeded, routing to DLQ: %s.dlq", MaxRetries, routingKeySuffix)
-
-		err := c.mq.GetChannel().PublishWithContext(
-			ctx,
-			ExchangeDLX,
-			routingKeySuffix+".dlq",
-			false,
-			false,
-			amqp.Publishing{
-				ContentType:  msg.ContentType,
-				DeliveryMode: amqp.Persistent,
-				Headers:      headers,
-				Body:         msg.Body,
-				Timestamp:    time.Now(),
-			},
-		)
-		if err != nil {
-			log.Printf("❌ Failed to publish to DLQ: %v. Message will be silently lost!", err)
-			msg.Nack(false, true) // 退回原队列挂起
-			return
-		}
-
-		// 结构化日志报警
-		logger.Error(ctx, "Message exceeded max retries and routed to DLQ",
-			zap.String("routing_key", msg.RoutingKey),
-			zap.Int("retry_count", retryCount),
-			zap.ByteString("message_body", msg.Body),
-		)
-	}
-
-	// 无论是发送到重试队列还是死信队列，成功后都需要对原消息进行确认（从当前队列移出）
-	if err := msg.Ack(false); err != nil {
-		log.Printf("❌ Failed to ack handled failure message: %v", err)
-	}
+	return c.failureRouter.route(msg, routingKeySuffix, true)
 }
 
 // StartOutboxWorker 启动发件箱后台对账守护协程
 func (c *TimelineConsumer) StartOutboxWorker(ctx context.Context) {
 	log.Println("🚀 Outbox worker daemon started")
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
+	workerTicker := time.NewTicker(outboxWorkerInterval)
+	cleanupTicker := time.NewTicker(outboxCleanupInterval)
+	defer workerTicker.Stop()
+	defer cleanupTicker.Stop()
+	c.processOutboxTasks(ctx)
 
 	for {
 		select {
 		case <-ctx.Done():
 			log.Println("⏹️  Outbox worker daemon stopped")
 			return
-		case <-ticker.C:
+		case <-workerTicker.C:
 			c.processOutboxTasks(ctx)
+		case <-cleanupTicker.C:
+			c.cleanupCompletedOutboxTasks(ctx)
 		}
 	}
 }
 
-// processOutboxTasks 批量处理待同步的发件箱任务
+// processOutboxTasks recovers expired attempts, atomically claims work, and executes the batch concurrently.
 func (c *TimelineConsumer) processOutboxTasks(ctx context.Context) {
-	tasks, err := c.outboxRepo.GetPendingTasks(ctx, 10)
+	if c.outboxRepo == nil {
+		log.Println("Outbox worker: repository is unavailable")
+		c.observeOutbox(outboxOperationClaim, "failed", 1)
+		return
+	}
+
+	now := c.outboxCurrentTime().UnixMilli()
+	recovery, err := c.outboxRepo.RecoverExpiredClaims(ctx, now, outboxRecoveryBatchSize)
 	if err != nil {
-		log.Printf("⚠️  Outbox worker: failed to query pending tasks: %v", err)
+		log.Printf("Outbox worker: failed to recover expired claims: %v", err)
+		c.observeOutbox(outboxOperationRecover, "failed", 1)
+		return
+	}
+	c.observeOutbox(outboxOperationRecover, "retryable", int(recovery.Retryable))
+	c.observeOutbox(outboxOperationRecover, "exhausted", int(recovery.Exhausted))
+
+	claimedAt := c.outboxCurrentTime()
+	tasks, err := c.outboxRepo.Claim(ctx, domain.OutboxClaimRequest{
+		LeaseOwner:          c.outboxWorkerIdentity(),
+		LeaseToken:          c.outboxLeaseToken(),
+		ClaimedAtUnixMilli:  claimedAt.UnixMilli(),
+		LeaseUntilUnixMilli: claimedAt.Add(outboxLeaseDuration).UnixMilli(),
+		Limit:               outboxClaimBatchSize,
+	})
+	if err != nil {
+		log.Printf("Outbox worker: failed to claim tasks: %v", err)
+		c.observeOutbox(outboxOperationClaim, "failed", 1)
 		return
 	}
 
 	if len(tasks) == 0 {
+		c.observeOutbox(outboxOperationClaim, "empty", 1)
+		return
+	}
+	c.observeOutbox(outboxOperationClaim, "claimed", len(tasks))
+
+	log.Printf("Outbox worker: processing %d claimed tasks", len(tasks))
+
+	var workers sync.WaitGroup
+	for _, task := range tasks {
+		claimedTask := task
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			c.processClaimedOutboxTask(ctx, claimedTask)
+		}()
+	}
+	workers.Wait()
+}
+
+func (c *TimelineConsumer) processClaimedOutboxTask(ctx context.Context, task *domain.OutboxTask) {
+	if task == nil {
+		c.observeOutbox(outboxOperationExecute, "failed", 1)
+		return
+	}
+	if task.TaskType != syncESOutboxTaskType {
+		log.Printf("Outbox worker: unknown task type %s for task %d", task.TaskType, task.ID)
+		c.observeOutbox(outboxOperationExecute, "failed", 1)
+		c.failOutboxClaim(ctx, task, "unknown outbox task type", true)
 		return
 	}
 
-	log.Printf("📦 Outbox worker: processing %d pending tasks...", len(tasks))
+	var event events.TweetCreatedEvent
+	if err := json.Unmarshal([]byte(task.Payload), &event); err != nil {
+		log.Printf("Outbox worker: invalid payload for task %d: %v", task.ID, err)
+		c.observeOutbox(outboxOperationExecute, "failed", 1)
+		c.failOutboxClaim(ctx, task, "invalid outbox payload", true)
+		return
+	}
 
-	for _, task := range tasks {
-		if task.TaskType != "sync_es" {
-			log.Printf("⚠️  Outbox worker: unknown task type %s for task %d", task.TaskType, task.ID)
-			continue
-		}
+	taskCtx, cancel := context.WithTimeout(ctx, outboxTaskTimeout)
+	executor := c.executeESIndex
+	if c.searchSyncExecutor != nil {
+		executor = c.searchSyncExecutor
+	}
+	err := executor(taskCtx, &event)
+	cancel()
+	if err != nil {
+		log.Printf("Outbox worker: search sync failed for task %d: %v", task.ID, err)
+		c.observeOutbox(outboxOperationExecute, "failed", 1)
+		c.failOutboxClaim(ctx, task, err.Error(), task.Retries >= task.MaxRetries)
+		return
+	}
 
-		var event events.TweetCreatedEvent
-		if err := json.Unmarshal([]byte(task.Payload), &event); err != nil {
-			log.Printf("❌ Outbox worker: failed to unmarshal payload for task %d: %v", task.ID, err)
-			// 格式非法直接物理删除，避免卡死通道
-			_ = c.outboxRepo.Delete(ctx, task.ID)
-			continue
-		}
+	c.observeOutbox(outboxOperationExecute, "succeeded", 1)
+	c.completeOutboxClaim(ctx, task)
+}
 
-		// 同步执行 ES 写入
-		err = c.executeESIndex(ctx, &event)
+func (c *TimelineConsumer) completeOutboxClaim(parent context.Context, task *domain.OutboxTask) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), outboxFinalizeTimeout)
+	defer cancel()
+	committed, err := c.outboxRepo.CompleteClaim(ctx, domain.OutboxClaimCompletion{
+		TaskID:               task.ID,
+		LeaseOwner:           task.LeaseOwner,
+		LeaseToken:           task.LeaseToken,
+		CompletedAtUnixMilli: c.outboxCurrentTime().UnixMilli(),
+	})
+	if err != nil {
+		log.Printf("Outbox worker: failed to complete claim for task %d: %v", task.ID, err)
+		c.observeOutbox(outboxOperationFinalize, "failed", 1)
+		return
+	}
+	if !committed {
+		log.Printf("Outbox worker: ignored stale completion for task %d", task.ID)
+		c.observeOutbox(outboxOperationFinalize, "stale", 1)
+		return
+	}
+	c.observeOutbox(outboxOperationFinalize, "succeeded", 1)
+	log.Printf("Outbox worker: successfully synced search indexes for task %d", task.ID)
+}
+
+func (c *TimelineConsumer) failOutboxClaim(parent context.Context, task *domain.OutboxTask, reason string, terminal bool) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), outboxFinalizeTimeout)
+	defer cancel()
+	released, err := c.outboxRepo.FailClaim(ctx, domain.OutboxClaimFailure{
+		TaskID:            task.ID,
+		LeaseOwner:        task.LeaseOwner,
+		LeaseToken:        task.LeaseToken,
+		FailedAtUnixMilli: c.outboxCurrentTime().UnixMilli(),
+		ErrorMsg:          reason,
+		Terminal:          terminal,
+	})
+	if err != nil {
+		log.Printf("Outbox worker: failed to release claim for task %d: %v", task.ID, err)
+		c.observeOutbox(outboxOperationFinalize, "failed", 1)
+		return
+	}
+	if !released {
+		log.Printf("Outbox worker: ignored stale failure for task %d", task.ID)
+		c.observeOutbox(outboxOperationFinalize, "stale", 1)
+		return
+	}
+	c.observeOutbox(outboxOperationFinalize, "released", 1)
+}
+
+func (c *TimelineConsumer) cleanupCompletedOutboxTasks(ctx context.Context) {
+	if c.outboxRepo == nil {
+		c.observeOutbox(outboxOperationCleanup, "failed", 1)
+		return
+	}
+	cutoff := c.outboxCurrentTime().Add(-outboxSuccessRetention).UnixMilli()
+	var total int64
+	for batch := 0; batch < outboxCleanupMaxBatches; batch++ {
+		deleted, err := c.outboxRepo.DeleteCompletedBefore(ctx, cutoff, outboxCleanupBatchSize)
 		if err != nil {
-			log.Printf("❌ Outbox worker: failed to sync ES for task %d: %v", task.ID, err)
-			task.Retries++
-			task.ErrorMsg = err.Error()
-			if task.Retries >= task.MaxRetries {
-				task.Status = domain.OutboxStatusFailed
-				log.Printf("🚨 Outbox worker: task %d reached max retries (%d), marked as Failed", task.ID, task.MaxRetries)
-			} else {
-				task.Status = domain.OutboxStatusFailed // status=2 触发指数级退避
-			}
-
-			if updateErr := c.outboxRepo.Update(ctx, task); updateErr != nil {
-				log.Printf("❌ Outbox worker: failed to update task %d status: %v", task.ID, updateErr)
-			}
-		} else {
-			log.Printf("✅ Outbox worker: successfully synced ES for task %d, deleting task", task.ID)
-			// 执行成功直接物理删除记录，释放数据库表空间
-			if deleteErr := c.outboxRepo.Delete(ctx, task.ID); deleteErr != nil {
-				log.Printf("❌ Outbox worker: failed to delete task %d: %v", task.ID, deleteErr)
-			}
+			log.Printf("⚠️  Outbox worker: failed to clean completed receipts: %v", err)
+			c.observeOutbox(outboxOperationCleanup, "failed", 1)
+			return
+		}
+		total += deleted
+		if deleted < outboxCleanupBatchSize {
+			break
 		}
 	}
+	if total > 0 {
+		c.observeOutbox(outboxOperationCleanup, "deleted", int(total))
+		log.Printf("🧹 Outbox worker: deleted %d expired success receipts", total)
+		return
+	}
+	c.observeOutbox(outboxOperationCleanup, "empty", 1)
+}
+
+func (c *TimelineConsumer) outboxWorkerIdentity() string {
+	if strings.TrimSpace(c.outboxWorkerID) == "" {
+		c.outboxWorkerID = newTimelineOutboxWorkerID()
+	}
+	return c.outboxWorkerID
+}
+
+func (c *TimelineConsumer) outboxLeaseToken() string {
+	if c.newOutboxLeaseToken == nil {
+		return uuid.NewString()
+	}
+	return c.newOutboxLeaseToken()
+}
+
+func (c *TimelineConsumer) outboxCurrentTime() time.Time {
+	if c.outboxNow == nil {
+		return time.Now()
+	}
+	return c.outboxNow()
+}
+
+func (c *TimelineConsumer) observeOutbox(operation, result string, count int) {
+	if c.outboxObserver == nil {
+		return
+	}
+	c.outboxObserver.ObserveOutbox(operation, result, count)
+}
+
+func newTimelineOutboxWorkerID() string {
+	if configured := strings.TrimSpace(os.Getenv("TIMELINE_OUTBOX_WORKER_ID")); configured != "" {
+		return boundedOutboxWorkerID(configured)
+	}
+	hostname, err := os.Hostname()
+	if err != nil || strings.TrimSpace(hostname) == "" {
+		hostname = "unknown-host"
+	}
+	identity := fmt.Sprintf("%s:%s:%d:%s", ConsumerName, hostname, os.Getpid(), uuid.NewString())
+	return boundedOutboxWorkerID(identity)
+}
+
+func boundedOutboxWorkerID(value string) string {
+	const maxBytes = 191
+	value = strings.TrimSpace(value)
+	if len(value) <= maxBytes {
+		return value
+	}
+	end := maxBytes
+	for end > 0 && !utf8.RuneStart(value[end]) {
+		end--
+	}
+	return value[:end]
 }
 
 // executeESIndex 核心向量计算与 ES 索引逻辑

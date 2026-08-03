@@ -21,4 +21,21 @@ var (
 
 	// ErrTooManyMedia 媒体过多
 	ErrTooManyMedia = errors.New("too many media (max 4)")
+
+	// ErrInvalidIdempotencyKey 幂等键格式无效
+	ErrInvalidIdempotencyKey = errors.New("invalid tweet idempotency key")
+
+	// ErrIdempotencyConflict 同一幂等键被用于不同的发布输入
+	ErrIdempotencyConflict = errors.New("tweet idempotency key conflicts with a different request")
+
+	// ErrIdempotencyUnavailable 调用方要求幂等，但服务未配置持久化仓储
+	ErrIdempotencyUnavailable = errors.New("tweet idempotency repository is unavailable")
+
+	ErrInvalidAuthorID = errors.New("invalid author id")
+
+	ErrInvalidTweetID = errors.New("invalid tweet id")
+
+	ErrInvalidModerationAction = errors.New("invalid tweet moderation action")
+
+	ErrModerationUnavailable = errors.New("tweet moderation dependencies are unavailable")
 )

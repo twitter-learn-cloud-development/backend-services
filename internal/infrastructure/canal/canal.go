@@ -31,6 +31,18 @@ var routeRegistry = map[string]RouteConfig{
 		Exchange:   "twitter.events",
 		RoutingKey: "tweet.deleted",
 	},
+	"TWEET_MODERATED": {
+		Exchange:   "twitter.events",
+		RoutingKey: "tweet.moderated",
+	},
+	"TWEET_LIKED": {
+		Exchange:   "twitter.events",
+		RoutingKey: "tweet.liked",
+	},
+	"COMMENT_CREATED": {
+		Exchange:   "twitter.events",
+		RoutingKey: "comment.created",
+	},
 }
 
 // PositionStore Binlog 消费位点存储接口

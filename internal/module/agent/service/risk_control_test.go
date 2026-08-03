@@ -2,106 +2,338 @@ package service
 
 import (
 	"context"
-	"fmt"
-	"sync"
+	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
-	"github.com/alicebob/miniredis/v2"
-	"github.com/go-redis/redis/v8"
-	"github.com/stretchr/testify/assert"
+	amqp "github.com/rabbitmq/amqp091-go"
+	enumspb "go.temporal.io/api/enums/v1"
+	"go.temporal.io/api/serviceerror"
+	"go.temporal.io/sdk/client"
 
-	"twitter-clone/internal/domain"
+	"twitter-clone/internal/events"
 )
 
-func TestLuaCleanUpScript(t *testing.T) {
-	s, err := miniredis.Run()
-	if err != nil {
-		t.Fatalf("failed to run miniredis: %v", err)
-	}
-	defer s.Close()
-
-	rClient := redis.NewClient(&redis.Options{
-		Addr: s.Addr(),
-	})
-
-	ctx := context.Background()
-	zsetKey := "timeline:123"
-	unreadKey := "unread:timeline:123"
-	tweetID := uint64(55555)
-
-	// 情况 1: 用户原本有未读数 > 0
-	rClient.Del(ctx, zsetKey, unreadKey)
-	rClient.ZAdd(ctx, zsetKey, &redis.Z{Score: float64(tweetID), Member: tweetID})
-	rClient.Set(ctx, unreadKey, "5", 0)
-
-	// 执行 Lua 脚本
-	res, err := rClient.Eval(ctx, cleanUpScript, []string{zsetKey, unreadKey}, tweetID).Result()
-	assert.NoError(t, err)
-	assert.Equal(t, int64(1), res.(int64)) // 应该成功移除了 1 个元素
-
-	// 验证垃圾 ID 消失，未读数从 5 变为 4
-	exists, err := rClient.ZScore(ctx, zsetKey, fmt.Sprintf("%d", tweetID)).Result()
-	assert.Error(t, err) // ZScore returns redis.Nil when member not found
-	assert.Equal(t, redis.Nil, err)
-	_ = exists
-
-	unreadVal, err := rClient.Get(ctx, unreadKey).Result()
-	assert.NoError(t, err)
-	assert.Equal(t, "4", unreadVal)
-
-	// 情况 2: 未读数为 0，扣减后不应该溢出（保持 0）
-	rClient.Del(ctx, zsetKey, unreadKey)
-	rClient.ZAdd(ctx, zsetKey, &redis.Z{Score: float64(tweetID), Member: tweetID})
-	rClient.Set(ctx, unreadKey, "0", 0)
-
-	res, err = rClient.Eval(ctx, cleanUpScript, []string{zsetKey, unreadKey}, tweetID).Result()
-	assert.NoError(t, err)
-	assert.Equal(t, int64(1), res.(int64))
-
-	unreadVal, err = rClient.Get(ctx, unreadKey).Result()
-	assert.NoError(t, err)
-	assert.Equal(t, "0", unreadVal) // 依然是 0，未发生负数溢出
-
-	// 情况 3: 未读数 Key 不存在，不应该报错
-	rClient.Del(ctx, zsetKey, unreadKey)
-	rClient.ZAdd(ctx, zsetKey, &redis.Z{Score: float64(tweetID), Member: tweetID})
-
-	res, err = rClient.Eval(ctx, cleanUpScript, []string{zsetKey, unreadKey}, tweetID).Result()
-	assert.NoError(t, err)
-	assert.Equal(t, int64(1), res.(int64))
-
-	_, err = rClient.Get(ctx, unreadKey).Result()
-	assert.Equal(t, redis.Nil, err) // key依然不存在，没有被意外创建
+type riskControlBrokerFake struct {
+	exchanges    []string
+	queues       []string
+	queueArgs    map[string]amqp.Table
+	bindings     [][3]string
+	qos          int
+	confirmCalls int
+	confirmErr   error
+	publishErr   error
+	published    []riskControlPublished
+	operations   *[]string
 }
 
-// 内存隔离与深拷贝 Data Race 单测
-func TestRiskControl_DeepCopyRace(t *testing.T) {
-	// 模拟并发读写推文切片场景下，执行 checkSpam
-	// 我们起 10 个 goroutine 并发执行对同一批推文的读取/操作，如果没做深拷贝，go test -race 会检测到 Data Race
-	tweets := []*domain.Tweet{
-		{ID: 1, UserID: 10, Content: "Hello 1", CreatedAt: time.Now().UnixMilli()},
-		{ID: 2, UserID: 10, Content: "Hello 2", CreatedAt: time.Now().UnixMilli() + 1000},
+type riskControlPublished struct {
+	exchange   string
+	routingKey string
+	message    amqp.Publishing
+}
+
+func (b *riskControlBrokerFake) DeclareExchange(name, _ string, _ bool) error {
+	b.exchanges = append(b.exchanges, name)
+	return nil
+}
+
+func (b *riskControlBrokerFake) DeclareQueue(name string, _ bool) (amqp.Queue, error) {
+	b.queues = append(b.queues, name)
+	return amqp.Queue{Name: name}, nil
+}
+
+func (b *riskControlBrokerFake) DeclareQueueWithArgs(name string, _ bool, args amqp.Table) (amqp.Queue, error) {
+	if b.queueArgs == nil {
+		b.queueArgs = make(map[string]amqp.Table)
 	}
+	b.queueArgs[name] = args
+	return amqp.Queue{Name: name}, nil
+}
 
-	var wg sync.WaitGroup
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func(idx int) {
-			defer wg.Done()
+func (b *riskControlBrokerFake) BindQueue(queueName, routingKey, exchangeName string) error {
+	b.bindings = append(b.bindings, [3]string{queueName, routingKey, exchangeName})
+	return nil
+}
 
-			// 🆕 显式在协程内部深拷贝隔离数据
-			copiedTweets := make([]domain.Tweet, len(tweets))
-			for j, t := range tweets {
-				copiedTweets[j] = *t
-			}
+func (b *riskControlBrokerFake) SetQoS(prefetchCount int) error {
+	b.qos = prefetchCount
+	return nil
+}
 
-			// 对深拷贝的副本进行修改，如果未进行深拷贝直接读取原 tweets 并在修改，会触发 Data Race
-			for j := range copiedTweets {
-				copiedTweets[j].Content = fmt.Sprintf("Modified %d in goroutine %d", j, idx)
-				copiedTweets[j].CreatedAt = copiedTweets[j].CreatedAt + int64(idx)
-			}
-		}(i)
+func (b *riskControlBrokerFake) EnablePublisherConfirms() error {
+	b.confirmCalls++
+	if b.operations != nil {
+		*b.operations = append(*b.operations, "confirm")
 	}
-	wg.Wait()
+	return b.confirmErr
+}
+
+func (b *riskControlBrokerFake) Consume(string, string) (<-chan amqp.Delivery, error) {
+	return nil, errors.New("not used")
+}
+
+func (b *riskControlBrokerFake) PublishMessageConfirmed(
+	_ context.Context,
+	exchange string,
+	routingKey string,
+	message amqp.Publishing,
+) error {
+	if b.operations != nil {
+		*b.operations = append(*b.operations, "publish")
+	}
+	if b.publishErr != nil {
+		return b.publishErr
+	}
+	b.published = append(b.published, riskControlPublished{
+		exchange: exchange, routingKey: routingKey, message: message,
+	})
+	return nil
+}
+
+type riskWorkflowClientFake struct {
+	err     error
+	options client.StartWorkflowOptions
+	event   events.TweetCreatedEvent
+	calls   int
+}
+
+func (c *riskWorkflowClientFake) ExecuteWorkflow(
+	_ context.Context,
+	options client.StartWorkflowOptions,
+	_ interface{},
+	args ...interface{},
+) (client.WorkflowRun, error) {
+	c.calls++
+	c.options = options
+	if len(args) == 1 {
+		c.event, _ = args[0].(events.TweetCreatedEvent)
+	}
+	return nil, c.err
+}
+
+type riskControlObserverFake struct {
+	results map[string]int
+}
+
+func (o *riskControlObserverFake) Observe(result string) {
+	if o.results == nil {
+		o.results = make(map[string]int)
+	}
+	o.results[result]++
+}
+
+type riskControlAcknowledgerFake struct {
+	acked      int
+	nacked     int
+	requeue    bool
+	ackErr     error
+	nackErr    error
+	operations *[]string
+}
+
+func (a *riskControlAcknowledgerFake) Ack(uint64, bool) error {
+	a.acked++
+	if a.operations != nil {
+		*a.operations = append(*a.operations, "ack")
+	}
+	return a.ackErr
+}
+
+func (a *riskControlAcknowledgerFake) Nack(_ uint64, _ bool, requeue bool) error {
+	a.nacked++
+	a.requeue = requeue
+	if a.operations != nil {
+		*a.operations = append(*a.operations, "nack")
+	}
+	return a.nackErr
+}
+
+func (a *riskControlAcknowledgerFake) Reject(_ uint64, requeue bool) error {
+	return a.Nack(0, false, requeue)
+}
+
+func TestDeclareRiskControlTopologyUsesDedicatedRetryIngress(t *testing.T) {
+	broker := &riskControlBrokerFake{}
+	if err := DeclareRiskControlTopology(broker); err != nil {
+		t.Fatal(err)
+	}
+	args := broker.queueArgs[riskControlRetryQueue]
+	if args["x-dead-letter-exchange"] != riskControlIngressExchange ||
+		args["x-dead-letter-routing-key"] != riskControlIngressRoutingKey {
+		t.Fatalf("retry args = %+v", args)
+	}
+	if !containsRiskControlBinding(broker.bindings, [3]string{
+		riskControlQueue, riskControlSourceRoutingKey, riskControlEventsExchange,
+	}) || !containsRiskControlBinding(broker.bindings, [3]string{
+		riskControlQueue, riskControlIngressRoutingKey, riskControlIngressExchange,
+	}) {
+		t.Fatalf("bindings = %+v", broker.bindings)
+	}
+	if broker.qos != riskControlPrefetch {
+		t.Fatalf("qos = %d", broker.qos)
+	}
+}
+
+func TestRiskControlDispatchesWorkflowAndAcknowledges(t *testing.T) {
+	operations := make([]string, 0, 2)
+	broker := &riskControlBrokerFake{operations: &operations}
+	workflowClient := &riskWorkflowClientFake{}
+	observer := &riskControlObserverFake{}
+	riskControl, err := NewRiskControl(broker, workflowClient, observer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	operations = operations[:0]
+	ack := &riskControlAcknowledgerFake{operations: &operations}
+
+	riskControl.handle(context.Background(), riskControlDelivery(ack, validRiskControlBody(9001, 42), nil))
+	if workflowClient.calls != 1 || workflowClient.options.ID != "RiskControl-Tweet-9001" ||
+		workflowClient.options.TaskQueue != "AGENT_TASK_QUEUE" || workflowClient.event.AuthorID != 42 ||
+		workflowClient.options.WorkflowIDReusePolicy != enumspb.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE ||
+		!workflowClient.options.WorkflowExecutionErrorWhenAlreadyStarted {
+		t.Fatalf("calls=%d options=%+v event=%+v", workflowClient.calls, workflowClient.options, workflowClient.event)
+	}
+	if ack.acked != 1 || ack.nacked != 0 || observer.results["dispatched"] != 1 {
+		t.Fatalf("ack=%+v results=%+v", ack, observer.results)
+	}
+}
+
+func TestRiskControlConfirmsRetryBeforeAcknowledgement(t *testing.T) {
+	operations := make([]string, 0, 3)
+	broker := &riskControlBrokerFake{operations: &operations}
+	workflowClient := &riskWorkflowClientFake{err: errors.New("temporal unavailable")}
+	riskControl, err := NewRiskControl(broker, workflowClient, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	operations = operations[:0]
+	ack := &riskControlAcknowledgerFake{operations: &operations}
+
+	riskControl.handle(context.Background(), riskControlDelivery(ack, validRiskControlBody(9001, 42), nil))
+	if len(broker.published) != 1 || ack.acked != 1 || ack.nacked != 0 {
+		t.Fatalf("published=%+v ack=%+v", broker.published, ack)
+	}
+	if len(operations) != 2 || operations[0] != "publish" || operations[1] != "ack" {
+		t.Fatalf("operation order = %v", operations)
+	}
+	published := broker.published[0]
+	if published.exchange != riskControlRetryExchange || published.routingKey != riskControlRetryRoutingKey ||
+		published.message.Expiration != "1000" || published.message.Headers[riskControlRetryHeader] != int32(1) {
+		t.Fatalf("published retry = %+v", published)
+	}
+}
+
+func TestRiskControlRoutesMalformedAndExhaustedEventsToDLQ(t *testing.T) {
+	for _, testCase := range []struct {
+		name    string
+		body    string
+		headers amqp.Table
+	}{
+		{name: "malformed", body: "{"},
+		{name: "exhausted", body: validRiskControlBody(9001, 42), headers: amqp.Table{riskControlRetryHeader: int32(3)}},
+		{name: "invalid retry header", body: validRiskControlBody(9001, 42), headers: amqp.Table{riskControlRetryHeader: "invalid"}},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			broker := &riskControlBrokerFake{}
+			workflowClient := &riskWorkflowClientFake{err: errors.New("temporal unavailable")}
+			riskControl, err := NewRiskControl(broker, workflowClient, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ack := &riskControlAcknowledgerFake{}
+			riskControl.handle(context.Background(), riskControlDelivery(ack, testCase.body, testCase.headers))
+			if len(broker.published) != 1 || ack.acked != 1 {
+				t.Fatalf("published=%+v ack=%+v", broker.published, ack)
+			}
+			published := broker.published[0]
+			if published.exchange != riskControlDLX || published.routingKey != riskControlDLQRoutingKey ||
+				published.message.Expiration != "" {
+				t.Fatalf("published dlq = %+v", published)
+			}
+		})
+	}
+}
+
+func TestRiskControlAcknowledgesAlreadyStartedWorkflow(t *testing.T) {
+	broker := &riskControlBrokerFake{}
+	workflowClient := &riskWorkflowClientFake{
+		err: serviceerror.NewWorkflowExecutionAlreadyStarted("already started", "workflow-id", "run-id"),
+	}
+	observer := &riskControlObserverFake{}
+	riskControl, err := NewRiskControl(broker, workflowClient, observer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ack := &riskControlAcknowledgerFake{}
+
+	riskControl.handle(context.Background(), riskControlDelivery(ack, validRiskControlBody(9001, 42), nil))
+	if ack.acked != 1 || len(broker.published) != 0 || observer.results["duplicate"] != 1 {
+		t.Fatalf("ack=%+v published=%+v results=%+v", ack, broker.published, observer.results)
+	}
+}
+
+func TestRiskControlPublishFailureWaitsThenRequeues(t *testing.T) {
+	broker := &riskControlBrokerFake{publishErr: errors.New("broker unavailable")}
+	workflowClient := &riskWorkflowClientFake{err: errors.New("temporal unavailable")}
+	riskControl, err := NewRiskControl(broker, workflowClient, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var waited time.Duration
+	riskControl.wait = func(_ context.Context, delay time.Duration) bool {
+		waited = delay
+		return true
+	}
+	ack := &riskControlAcknowledgerFake{}
+
+	riskControl.handle(context.Background(), riskControlDelivery(
+		ack,
+		validRiskControlBody(9001, 42),
+		amqp.Table{riskControlRetryHeader: int32(1)},
+	))
+	if waited != 4*time.Second || ack.acked != 0 || ack.nacked != 1 || !ack.requeue {
+		t.Fatalf("waited=%s ack=%+v", waited, ack)
+	}
+}
+
+func TestNewRiskControlRequiresPublisherConfirms(t *testing.T) {
+	_, err := NewRiskControl(
+		&riskControlBrokerFake{confirmErr: errors.New("confirm unavailable")},
+		&riskWorkflowClientFake{},
+		nil,
+	)
+	if err == nil {
+		t.Fatal("expected publisher confirm initialization failure")
+	}
+}
+
+func riskControlDelivery(ack amqp.Acknowledger, body string, headers amqp.Table) amqp.Delivery {
+	return amqp.Delivery{
+		Acknowledger: ack,
+		DeliveryTag:  1,
+		RoutingKey:   riskControlSourceRoutingKey,
+		ContentType:  "application/json",
+		Headers:      headers,
+		Body:         []byte(body),
+		Timestamp:    time.UnixMilli(1_700_000_000_000),
+	}
+}
+
+func validRiskControlBody(tweetID, authorID uint64) string {
+	body, err := json.Marshal(events.TweetCreatedEvent{TweetID: tweetID, AuthorID: authorID, Content: "content"})
+	if err != nil {
+		panic(err)
+	}
+	return string(body)
+}
+
+func containsRiskControlBinding(bindings [][3]string, expected [3]string) bool {
+	for _, binding := range bindings {
+		if binding == expected {
+			return true
+		}
+	}
+	return false
 }

@@ -10,44 +10,26 @@ import (
 	"github.com/go-redis/redis/v8"
 	"go.temporal.io/sdk/activity"
 	"golang.org/x/sync/errgroup"
-	"gorm.io/gorm"
+	"google.golang.org/grpc"
 
 	tweetv1 "twitter-clone/api/tweet/v1"
-	"twitter-clone/internal/domain"
 	"twitter-clone/pkg/ai"
 	"twitter-clone/pkg/es"
 	"twitter-clone/pkg/qdrant"
 )
 
-const cleanUpScript = `
-local zset_key = KEYS[1]
-local unread_key = KEYS[2]
-local member = ARGV[1]
-
--- 1. 从 ZSet 中移除垃圾推文
-local removed = redis.call('ZREM', zset_key, member)
-
--- 2. 如果成功移除，且 unread 计数器存在，则扣减计数器
-if removed > 0 then
-    local exists = redis.call('EXISTS', unread_key)
-    if exists == 1 then
-        local current = tonumber(redis.call('GET', unread_key))
-        if current and current > 0 then
-            redis.call('DECR', unread_key)
-        end
-    end
-end
-return removed
-`
+type tweetActivityClient interface {
+	CreateTweet(context.Context, *tweetv1.CreateTweetRequest, ...grpc.CallOption) (*tweetv1.CreateTweetResponse, error)
+	GetAuthorPostingStats(context.Context, *tweetv1.GetAuthorPostingStatsRequest, ...grpc.CallOption) (*tweetv1.GetAuthorPostingStatsResponse, error)
+	ApplyTweetModeration(context.Context, *tweetv1.ApplyTweetModerationRequest, ...grpc.CallOption) (*tweetv1.ApplyTweetModerationResponse, error)
+}
 
 type AgentActivities struct {
-	db               *gorm.DB
 	redisClient      *redis.Client
 	esClient         *es.Client
 	qdrantClient     *qdrant.Client
 	aiClient         *ai.Client
-	tweetClient      tweetv1.TweetServiceClient
-	followRepo       domain.FollowRepository
+	tweetClient      tweetActivityClient
 	embeddingModel   string
 	chatModelCheap   string
 	chatModelPremium string
@@ -55,26 +37,22 @@ type AgentActivities struct {
 }
 
 func NewAgentActivities(
-	db *gorm.DB,
 	redisClient *redis.Client,
 	esClient *es.Client,
 	qdrantClient *qdrant.Client,
 	aiClient *ai.Client,
-	tweetClient tweetv1.TweetServiceClient,
-	followRepo domain.FollowRepository,
+	tweetClient tweetActivityClient,
 	embeddingModel string,
 	chatModelCheap string,
 	chatModelPremium string,
 	botUserID uint64,
 ) *AgentActivities {
 	return &AgentActivities{
-		db:               db,
 		redisClient:      redisClient,
 		esClient:         esClient,
 		qdrantClient:     qdrantClient,
 		aiClient:         aiClient,
 		tweetClient:      tweetClient,
-		followRepo:       followRepo,
 		embeddingModel:   embeddingModel,
 		chatModelCheap:   chatModelCheap,
 		chatModelPremium: chatModelPremium,
@@ -84,33 +62,23 @@ func NewAgentActivities(
 
 // CheckSpamFrequencyActivity 频率风控检测
 func (a *AgentActivities) CheckSpamFrequencyActivity(ctx context.Context, authorID uint64) (bool, error) {
-	tenMinutesAgo := time.Now().Add(-10 * time.Minute).UnixMilli()
-	var tweets []*domain.Tweet
-	err := a.db.WithContext(ctx).
-		Where("user_id = ? AND created_at > ? AND deleted_at = 0", authorID, tenMinutesAgo).
-		Order("id DESC").
-		Find(&tweets).Error
+	stats, err := a.tweetClient.GetAuthorPostingStats(ctx, &tweetv1.GetAuthorPostingStatsRequest{
+		AuthorId:        authorID,
+		LookbackSeconds: int64((10 * time.Minute) / time.Second),
+	})
 	if err != nil {
-		return false, fmt.Errorf("failed to query author past tweets: %w", err)
+		return false, fmt.Errorf("failed to get author posting stats: %w", err)
 	}
-
-	// 内存深拷贝隔离，防止并发 Data Race
-	copiedTweets := make([]domain.Tweet, len(tweets))
-	for i, t := range tweets {
-		copiedTweets[i] = *t
+	if stats == nil {
+		return false, fmt.Errorf("failed to get author posting stats: empty response")
 	}
-
-	if len(copiedTweets) < 2 {
+	if stats.SampleCount < 2 {
 		return false, nil
 	}
-
-	latest := copiedTweets[0].CreatedAt
-	previous := copiedTweets[1].CreatedAt
-	interval := latest - previous
-	if interval >= 5000 {
+	interval := stats.LatestCreatedAt - stats.PreviousCreatedAt
+	if interval < 0 || interval >= 5000 {
 		return false, nil
 	}
-
 	return true, nil
 }
 
@@ -145,56 +113,25 @@ func (a *AgentActivities) QdrantSearchSimilarityActivity(ctx context.Context, co
 
 // ExecuteShadowbanActivity 影子封禁并对粉丝的 Timeline 进行原子清洗
 func (a *AgentActivities) ExecuteShadowbanActivity(ctx context.Context, tweetID uint64, authorID uint64) error {
-	// 1. 更新数据库visible_type为4 (VisibleShadowban)
-	err := a.db.WithContext(ctx).Model(&domain.Tweet{}).
-		Where("id = ? and deleted_at = 0", tweetID).
-		Update("visible_type", domain.VisibleShadowban).Error
+	result, err := a.tweetClient.ApplyTweetModeration(ctx, &tweetv1.ApplyTweetModerationRequest{
+		TweetId:    tweetID,
+		AuthorId:   authorID,
+		Action:     tweetv1.TweetModerationAction_TWEET_MODERATION_ACTION_SHADOWBAN,
+		ReasonCode: "agent_risk_control",
+	})
 	if err != nil {
-		return fmt.Errorf("failed to update visible_type in DB: %w", err)
+		return fmt.Errorf("failed to apply tweet moderation: %w", err)
 	}
-	log.Printf("💾 DB updated: tweet_id=%d visible_type=%d", tweetID, domain.VisibleShadowban)
-
-	// 2. 获取粉丝列表
-	followerIDs, err := a.followRepo.GetActiveFollowers(ctx, authorID, 5000)
-	if err != nil {
-		return fmt.Errorf("failed to get active followers: %w", err)
+	if result == nil {
+		return fmt.Errorf("failed to apply tweet moderation: empty response")
 	}
-
-	if len(followerIDs) == 0 {
-		return nil
-	}
-
-	log.Printf("🧹 Found %d active followers, starting timeline cleaning...", len(followerIDs))
-
-	// 3. 分批进行 Redis Pipeline 清洗
-	const batchSize = 500
-	for i := 0; i < len(followerIDs); i += batchSize {
-		end := i + batchSize
-		if end > len(followerIDs) {
-			end = len(followerIDs)
-		}
-		batch := followerIDs[i:end]
-
-		copiedBatch := make([]uint64, len(batch))
-		copy(copiedBatch, batch)
-
-		pipe := a.redisClient.Pipeline()
-		for _, followerID := range copiedBatch {
-			zsetKey := fmt.Sprintf("timeline:%d", followerID)
-			unreadKey := fmt.Sprintf("unread:timeline:%d", followerID)
-			pipe.Eval(ctx, cleanUpScript, []string{zsetKey, unreadKey}, tweetID)
-		}
-
-		_, err := pipe.Exec(ctx)
-		if err != nil {
-			log.Printf("⚠️ Pipeline exec failed for batch index %d: %v", i, err)
-			return fmt.Errorf("redis pipeline clean timeline failed: %w", err)
-		}
-
-		time.Sleep(10 * time.Millisecond)
-	}
-
-	log.Printf("✨ Completed timeline cleaning for tweet_id=%d across %d followers", tweetID, len(followerIDs))
+	log.Printf(
+		"Tweet moderation accepted: tweet_id=%d applied=%t cleanup_queued=%t timelines_cleaned=%d",
+		tweetID,
+		result.Applied,
+		result.CleanupQueued,
+		result.TimelinesCleaned,
+	)
 	return nil
 }
 
@@ -357,7 +294,7 @@ func (a *AgentActivities) PublishTweetActivity(ctx context.Context, summary stri
 		if err == nil && cachedTweetIDStr != "" {
 			var cachedTweetID uint64
 			if _, errScan := fmt.Sscanf(cachedTweetIDStr, "%d", &cachedTweetID); errScan == nil {
-				log.Printf("ℹ️ Idempotency hit: Tweet already published previously. Key: %s, Returned TweetID: %d", 
+				log.Printf("ℹ️ Idempotency hit: Tweet already published previously. Key: %s, Returned TweetID: %d",
 					idempotencyKey, cachedTweetID)
 				return cachedTweetID, nil
 			}
@@ -365,8 +302,9 @@ func (a *AgentActivities) PublishTweetActivity(ctx context.Context, summary stri
 	}
 
 	createReq := &tweetv1.CreateTweetRequest{
-		UserId:  a.botUserID,
-		Content: summary,
+		UserId:         a.botUserID,
+		Content:        summary,
+		IdempotencyKey: idempotencyKey,
 	}
 
 	resp, err := a.tweetClient.CreateTweet(reqCtx, createReq)
@@ -387,4 +325,3 @@ func (a *AgentActivities) PublishTweetActivity(ctx context.Context, summary stri
 	log.Printf("✅ Trending report published successfully via Activity! TweetID: %d", resp.Tweet.Id)
 	return resp.Tweet.Id, nil
 }
-

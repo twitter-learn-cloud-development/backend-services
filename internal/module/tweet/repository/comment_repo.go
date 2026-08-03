@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"twitter-clone/internal/domain"
+	"twitter-clone/internal/pkg/database/uow"
 	"twitter-clone/pkg/pkg/snowflake"
 )
 
@@ -32,7 +33,8 @@ func (r *commentRepo) Create(ctx context.Context, comment *domain.Comment) error
 	comment.CreatedAt = time.Now().UnixMilli()
 	comment.DeletedAt = 0
 
-	if err := r.db.WithContext(ctx).Create(comment).Error; err != nil {
+	db := uow.ExtractTx(ctx, r.db)
+	if err := db.WithContext(ctx).Create(comment).Error; err != nil {
 		return fmt.Errorf("failed to create comment: %w", err)
 	}
 	return nil

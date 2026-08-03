@@ -14,9 +14,9 @@ import (
 	"gorm.io/gorm"
 
 	"twitter-clone/internal/infrastructure/cache"
+	canalRelay "twitter-clone/internal/infrastructure/canal"
 	"twitter-clone/internal/infrastructure/mq"
 	"twitter-clone/internal/infrastructure/persistence"
-	canalRelay "twitter-clone/internal/infrastructure/canal"
 )
 
 func main() {

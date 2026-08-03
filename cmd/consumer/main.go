@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 
 	"github.com/joho/godotenv"
@@ -20,6 +21,7 @@ import (
 	ai "twitter-clone/pkg/ai"
 	"twitter-clone/pkg/es"
 	"twitter-clone/pkg/logger"
+	"twitter-clone/pkg/metric"
 	"twitter-clone/pkg/pkg/snowflake"
 	"twitter-clone/pkg/qdrant"
 )
@@ -76,7 +78,12 @@ func main() {
 		log.Fatalf("❌ Failed to connect rabbitmq: %v", err)
 	}
 	defer mqClient.Close()
-	log.Println("✅ RabbitMQ connected")
+	failureMQClient, err := mq.NewRabbitMQ(mqConfig)
+	if err != nil {
+		log.Fatalf("❌ Failed to connect dedicated RabbitMQ failure publisher: %v", err)
+	}
+	defer failureMQClient.Close()
+	log.Println("✅ RabbitMQ consumer and confirmed failure publisher connected")
 
 	// 6. ES 初始化
 	var esClient *es.Client
@@ -121,10 +128,29 @@ func main() {
 	}
 
 	// 8. 创建 Consumer
-	timelineConsumer, err := consumer.NewTimelineConsumer(mqClient, followRepo, timelineCache, redisClient, esClient, qdrantClient, aiClient, outboxRepo, trendsProcessor)
+	timelineConsumer, err := consumer.NewTimelineConsumer(
+		mqClient, followRepo, timelineCache, redisClient, esClient, qdrantClient,
+		aiClient, outboxRepo, trendsProcessor, failureMQClient,
+	)
 	if err != nil {
 		log.Fatalf("❌ Failed to create consumer: %v", err)
 	}
+	moderationObserver, err := consumer.NewPrometheusModerationCleanupObserver(nil)
+	if err != nil {
+		log.Fatalf("failed to initialize moderation cleanup metrics: %v", err)
+	}
+	timelineConsumer.SetModerationCleanupObserver(moderationObserver)
+	tweetCreatedObserver, err := consumer.NewPrometheusTweetCreatedObserver(nil)
+	if err != nil {
+		log.Fatalf("failed to initialize tweet-created metrics: %v", err)
+	}
+	timelineConsumer.SetTweetCreatedObserver(tweetCreatedObserver)
+	outboxObserver, err := consumer.NewPrometheusOutboxWorkerObserver(nil)
+	if err != nil {
+		log.Fatalf("failed to initialize timeline outbox worker metrics: %v", err)
+	}
+	timelineConsumer.SetOutboxWorkerObserver(outboxObserver)
+	metric.StartMetricsServer(getEnvPositiveInt("CONSUMER_METRICS_PORT", 2116))
 
 	// 9. 启动 Consumer
 	ctx, cancel := context.WithCancel(context.Background())
@@ -146,6 +172,7 @@ func main() {
 	log.Println("📥 Listening for events:")
 	log.Println("   - tweet.created")
 	log.Println("   - tweet.deleted")
+	log.Println("   - tweet.moderated")
 	log.Println("Press Ctrl+C to stop")
 	log.Println("========================================")
 
@@ -155,4 +182,13 @@ func main() {
 
 	cancel()
 	log.Println("✅ Consumer stopped gracefully")
+}
+
+func getEnvPositiveInt(key string, fallback int) int {
+	raw := os.Getenv(key)
+	value, err := strconv.Atoi(raw)
+	if err != nil || value <= 0 {
+		return fallback
+	}
+	return value
 }

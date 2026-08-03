@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/joho/godotenv"
@@ -31,6 +32,7 @@ import (
 	"twitter-clone/pkg/pkg/snowflake"
 	"twitter-clone/pkg/profiler"
 	"twitter-clone/pkg/registry"
+	"twitter-clone/pkg/serviceauth"
 	"twitter-clone/pkg/trace"
 
 	"twitter-clone/internal/pkg/database/uow"
@@ -57,7 +59,7 @@ func main() {
 	}
 
 	// 🔍 初始化链路追踪
-	jaegerEndpoint := getEnv("JAEGER_COLLECTOR_ENDPOINT", "http://localhost:14268/api/traces")
+	jaegerEndpoint := getEnv("JAEGER_COLLECTOR_ENDPOINT", "localhost:4317")
 	trace.InitTracer("tweet-service", jaegerEndpoint)
 
 	// 📊 初始化 Prometheus 指标 (Tweet Service uses 2112)
@@ -92,7 +94,7 @@ func main() {
 	log.Println("✅ Database connected")
 
 	// 3. 自动迁移
-	if err := db.AutoMigrate(&domain.Tweet{}, &domain.Follow{}, &domain.Like{}, &domain.Comment{}, &domain.Retweet{}, &domain.Poll{}, &domain.PollOption{}, &domain.PollVote{}, &domain.Bookmark{}, &domain.OutboxTask{}, &domain.OutboxEvent{}); err != nil {
+	if err := db.AutoMigrate(&domain.Tweet{}, &domain.TweetCreateIdempotency{}, &domain.Follow{}, &domain.Like{}, &domain.Comment{}, &domain.Retweet{}, &domain.Poll{}, &domain.PollOption{}, &domain.PollVote{}, &domain.Bookmark{}, &domain.OutboxTask{}, &domain.OutboxEvent{}); err != nil {
 		log.Fatalf("❌ Failed to migrate database: %v", err)
 	}
 	log.Println("✅ Database migrated")
@@ -135,12 +137,13 @@ func main() {
 	// 6. 创建依赖
 	tweetRepo := tweetRepository.NewTweetRepository(db)
 	followRepo := followRepository.NewFollowRepository(db)
-	likeRepo := tweetRepository.NewLikeRepository(db)         // 点赞仓储
-	commentRepo := tweetRepository.NewCommentRepository(db)   // 🆕 评论仓储
-	pollRepo := tweetRepository.NewPollRepository(db)         // 🆕 投票仓储
-	bookmarkRepo := tweetRepository.NewBookmarkRepository(db) // 🆕 书签仓储
-	retweetRepo := tweetRepository.NewRetweetRepository(db)   // 🆕 转发仓储
+	likeRepo := tweetRepository.NewLikeRepository(db)              // 点赞仓储
+	commentRepo := tweetRepository.NewCommentRepository(db)        // 🆕 评论仓储
+	pollRepo := tweetRepository.NewPollRepository(db)              // 🆕 投票仓储
+	bookmarkRepo := tweetRepository.NewBookmarkRepository(db)      // 🆕 书签仓储
+	retweetRepo := tweetRepository.NewRetweetRepository(db)        // 🆕 转发仓储
 	outboxEventRepo := tweetRepository.NewMysqlOutboxEventRepo(db) // 🆕 发件箱仓储
+	tweetCreateIdempotencyRepo := tweetRepository.NewTweetCreateIdempotencyRepository(db)
 	timelineCache := tweetCache.NewTimelineCache(redisClient)
 	l1Cache, err := tweetCache.NewL1Cache(redisClient, 256) // 256MB 分配给 L1 缓存
 	if err != nil {
@@ -169,6 +172,7 @@ func main() {
 		l1Cache,
 		outboxEventRepo, // 🆕 注入发件箱仓储
 		uowManager,      // 🆕 注入工作单元管理器
+		tweetService.WithTweetCreateIdempotencyRepository(tweetCreateIdempotencyRepo),
 	)
 
 	// 8. 初始化 Consul 注册中心
@@ -203,10 +207,46 @@ func main() {
 	}
 
 	// 9. 创建 gRPC Server
+	riskControlMethods := []string{
+		tweetv1.TweetService_GetAuthorPostingStats_FullMethodName,
+		tweetv1.TweetService_ApplyTweetModeration_FullMethodName,
+	}
+	authObserver := func(decision serviceauth.Decision) {
+		if decision.Outcome != serviceauth.OutcomeAllowed {
+			log.Printf("internal service authentication denied method=%q outcome=%q", decision.Method, decision.Outcome)
+		}
+	}
+	internalServiceIdentity := getEnv("TWEET_INTERNAL_SERVICE_IDENTITY", "agent-service")
+	internalServiceToken := getEnv("TWEET_INTERNAL_SERVICE_TOKEN", "")
+	var riskControlAuthInterceptor grpc.UnaryServerInterceptor
+	if strings.TrimSpace(internalServiceToken) == "" {
+		guard, guardErr := serviceauth.NewFailClosedUnaryServerInterceptor(riskControlMethods, authObserver)
+		if guardErr != nil {
+			log.Fatalf("configure Tweet risk-control RPC guard: %v", guardErr)
+		}
+		riskControlAuthInterceptor = guard
+		log.Println("Tweet risk-control RPCs are unavailable until TWEET_INTERNAL_SERVICE_TOKEN is configured")
+	} else {
+		credential, credentialErr := serviceauth.NewStaticCredential(
+			internalServiceIdentity,
+			internalServiceToken,
+			riskControlMethods,
+			serviceauth.WithObserver(authObserver),
+		)
+		if credentialErr != nil {
+			log.Fatalf("configure Tweet risk-control RPC authentication: %v", credentialErr)
+		}
+		riskControlAuthInterceptor = credential.UnaryServerInterceptor()
+		log.Printf("Tweet risk-control RPC authentication enabled for identity %q", internalServiceIdentity)
+	}
+
 	grpcServer := grpc.NewServer(
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
-		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
+		grpc.ChainUnaryInterceptor(
+			grpc_prometheus.UnaryServerInterceptor,
+			riskControlAuthInterceptor,
+		),
 	)
 	tweetv1.RegisterTweetServiceServer(grpcServer, tweetGrpc.NewTweetServer(tweetSvc))
 
@@ -245,7 +285,6 @@ func main() {
 	<-quit
 
 	log.Println("🛑 Shutting down server...")
-
 
 	grpcServer.GracefulStop()
 	log.Println("✅ Server exited")

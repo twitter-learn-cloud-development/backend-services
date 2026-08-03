@@ -83,10 +83,10 @@ type Tweet struct {
 	IsLiked bool `gorm:"-" test_data:"is_liked"`
 
 	// 新增交互状态与转发显示字段
-	IsBookmarked       bool  `gorm:"-"`
-	IsRetweeted        bool  `gorm:"-"`
-	IsRetweetedDisplay bool  `gorm:"-"`
-	RetweetedAt        int64 `gorm:"-"`
+	IsBookmarked       bool   `gorm:"-"`
+	IsRetweeted        bool   `gorm:"-"`
+	IsRetweetedDisplay bool   `gorm:"-"`
+	RetweetedAt        int64  `gorm:"-"`
 	SortID             uint64 `gorm:"-"`
 
 	// 投票信息 (聚合)
@@ -109,6 +109,10 @@ type TweetRepository interface {
 
 	//GetByID 查单条
 	GetByID(ctx context.Context, id uint64) (*Tweet, error)
+
+	// UpdateVisibleType updates tweet visibility when the tweet still belongs to authorID.
+	// The bool reports whether this call changed the stored value.
+	UpdateVisibleType(ctx context.Context, id uint64, authorID uint64, visibleType int) (bool, error)
 
 	// ListByUserID 查某个人的时间线 (游标分页)
 	// cursor: 上一页最后一条 tweet 的 ID (Snowflake ID 自带时间属性，天然适合做 cursor)
@@ -142,16 +146,16 @@ type TrendingTopic struct {
 
 // TweetCreatedPayload 对应发件箱中 TWEET_CREATED 事件的 JSON 结构
 type TweetCreatedPayload struct {
-	TweetID     uint64             `json:"tweet_id"`
-	AuthorID    uint64             `json:"author_id"`
-	ParentID    uint64             `json:"parent_id,omitempty"`    // 回复父推文时需要
-	Content     string             `json:"content"`
-	MediaURLs   []string           `json:"media_urls,omitempty"`   // 附带的媒体流
-	Type        int   `json:"type"`
-	VisibleType int `json:"visible_type"`           // 控制下游是否推送到公网
-	CreatedAt   int64              `json:"created_at"`             // 发生时间的时间戳
-	
+	TweetID     uint64   `json:"tweet_id"`
+	AuthorID    uint64   `json:"author_id"`
+	ParentID    uint64   `json:"parent_id,omitempty"` // 回复父推文时需要
+	Content     string   `json:"content"`
+	MediaURLs   []string `json:"media_urls,omitempty"` // 附带的媒体流
+	Type        int      `json:"type"`
+	VisibleType int      `json:"visible_type"` // 控制下游是否推送到公网
+	CreatedAt   int64    `json:"created_at"`   // 发生时间的时间戳
+
 	// 投票等聚合子实体
-	HasPoll     bool               `json:"has_poll"`
-	Poll        *Poll       `json:"poll,omitempty"`
+	HasPoll bool  `json:"has_poll"`
+	Poll    *Poll `json:"poll,omitempty"`
 }

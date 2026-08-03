@@ -124,6 +124,52 @@ func (r *followRepo) GetFollowers(ctx context.Context, userID uint64, cursor uin
 	return followerIDs, nil
 }
 
+// ListFollowerPage exposes the follow relation cursor needed by internal
+// replayable jobs. The public GetFollowers method intentionally stays intact.
+func (r *followRepo) ListFollowerPage(ctx context.Context, userID uint64, cursor uint64, limit int) (domain.FollowerPage, error) {
+	if limit <= 0 {
+		limit = 500
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
+
+	query := r.db.WithContext(ctx).
+		Model(&domain.Follow{}).
+		Where("followee_id = ? AND deleted_at = 0", userID)
+	if cursor > 0 {
+		query = query.Where("id < ?", cursor)
+	}
+
+	var follows []domain.Follow
+	if err := query.Order("id DESC").Limit(limit + 1).Find(&follows).Error; err != nil {
+		return domain.FollowerPage{}, fmt.Errorf("failed to list follower page: %w", err)
+	}
+
+	return buildFollowerPage(follows, limit), nil
+}
+
+func buildFollowerPage(follows []domain.Follow, limit int) domain.FollowerPage {
+	hasMore := limit > 0 && len(follows) > limit
+	if hasMore {
+		follows = follows[:limit]
+	}
+	followerIDs := make([]uint64, len(follows))
+	for index, follow := range follows {
+		followerIDs[index] = follow.FollowerID
+	}
+
+	var nextCursor uint64
+	if hasMore && len(follows) > 0 {
+		nextCursor = follows[len(follows)-1].ID
+	}
+	return domain.FollowerPage{
+		FollowerIDs: followerIDs,
+		NextCursor:  nextCursor,
+		HasMore:     hasMore,
+	}
+}
+
 // GetFollowees 获取关注列表
 func (r *followRepo) GetFollowees(ctx context.Context, userID uint64, cursor uint64, limit int) ([]uint64, error) {
 	if limit <= 0 {

@@ -29,6 +29,19 @@ const (
 
 	// UserCelebrityKeyPrefix 用户关注大V集合Key前缀
 	UserCelebrityKeyPrefix = "user:celebrities:"
+
+	UnreadTimelineKeyPrefix = "unread:timeline:"
+
+	removeTimelineAndUnreadScript = `
+local removed = redis.call('ZREM', KEYS[1], ARGV[1])
+if removed > 0 then
+    local unread = tonumber(redis.call('GET', KEYS[2]))
+    if unread and unread > 0 then
+        redis.call('DECR', KEYS[2])
+    end
+end
+return removed
+`
 )
 
 type localCacheItem struct {
@@ -197,6 +210,43 @@ func (c *TimelineCache) BatchRemoveFromTimeline(ctx context.Context, userIDs []u
 }
 
 // ClearTimeline 清空用户的 Timeline
+// BatchRemoveFromTimelineAndUnread atomically removes a tweet and adjusts each
+// user's unread counter. Repeating the call is safe because the counter changes
+// only when ZREM actually removes the tweet.
+func (c *TimelineCache) BatchRemoveFromTimelineAndUnread(ctx context.Context, userIDs []uint64, tweetID uint64) (int, error) {
+	if len(userIDs) == 0 {
+		return 0, nil
+	}
+
+	pipe := c.redis.Pipeline()
+	commands := make([]*redis.Cmd, 0, len(userIDs))
+	for _, userID := range userIDs {
+		commands = append(commands, pipe.Eval(
+			ctx,
+			removeTimelineAndUnreadScript,
+			[]string{
+				c.getTimelineKey(userID),
+				fmt.Sprintf("%s%d", UnreadTimelineKeyPrefix, userID),
+			},
+			tweetID,
+		))
+	}
+
+	if _, err := pipe.Exec(ctx); err != nil {
+		return 0, fmt.Errorf("failed to remove moderated tweet from timelines: %w", err)
+	}
+
+	removed := 0
+	for _, command := range commands {
+		value, err := command.Int64()
+		if err != nil {
+			return removed, fmt.Errorf("failed to read timeline cleanup result: %w", err)
+		}
+		removed += int(value)
+	}
+	return removed, nil
+}
+
 func (c *TimelineCache) ClearTimeline(ctx context.Context, userID uint64) error {
 	key := c.getTimelineKey(userID)
 
@@ -651,7 +701,3 @@ func (c *TimelineCache) PipelineGetCelebrityTweets(ctx context.Context, celebrit
 
 	return results, missingIDs, nil
 }
-
-
-
-

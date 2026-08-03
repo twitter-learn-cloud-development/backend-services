@@ -2,6 +2,7 @@ package mq
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -128,7 +129,6 @@ func (r *RabbitMQ) DeclareQueueWithArgs(name string, durable bool, args amqp.Tab
 	)
 }
 
-
 // BindQueue 绑定 Queue 到 Exchange
 func (r *RabbitMQ) BindQueue(queueName, routingKey, exchangeName string) error {
 	return r.channel.QueueBind(
@@ -172,6 +172,56 @@ func (r *RabbitMQ) PublishRawJSON(ctx context.Context, exchange string, routingK
 			Timestamp:    time.Now(),
 		},
 	)
+}
+
+// PublishMessage publishes a fully described AMQP message. It is used by
+// consumers that must preserve bounded retry headers and the original time.
+func (r *RabbitMQ) PublishMessage(ctx context.Context, exchange, routingKey string, message amqp.Publishing) error {
+	return r.channel.PublishWithContext(ctx, exchange, routingKey, false, false, message)
+}
+
+// EnablePublisherConfirms puts this channel into confirm mode. Callers that
+// depend on broker acknowledgement must use a dedicated RabbitMQ instance.
+func (r *RabbitMQ) EnablePublisherConfirms() error {
+	return r.channel.Confirm(false)
+}
+
+// PublishMessageConfirmed waits for RabbitMQ to acknowledge the individual
+// publish. A negative or missing confirmation is treated as a failure.
+func (r *RabbitMQ) PublishMessageConfirmed(
+	ctx context.Context,
+	exchange string,
+	routingKey string,
+	message amqp.Publishing,
+) error {
+	confirmation, err := r.channel.PublishWithDeferredConfirmWithContext(
+		ctx,
+		exchange,
+		routingKey,
+		false,
+		false,
+		message,
+	)
+	if err != nil {
+		return err
+	}
+	if confirmation == nil {
+		return errors.New("rabbitmq publisher confirm mode is not enabled")
+	}
+	acknowledged, err := confirmation.WaitContext(ctx)
+	if err != nil {
+		return err
+	}
+	if !acknowledged {
+		return errors.New("rabbitmq negatively acknowledged publish")
+	}
+	return nil
+}
+
+// GetMessage retrieves at most one message without starting a long-lived consumer.
+// Operational tools use it for bounded DLQ inspection and replay.
+func (r *RabbitMQ) GetMessage(queueName string, autoAck bool) (amqp.Delivery, bool, error) {
+	return r.channel.Get(queueName, autoAck)
 }
 
 // Consume 消费消息

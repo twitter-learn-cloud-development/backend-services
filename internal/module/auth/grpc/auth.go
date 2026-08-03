@@ -41,7 +41,6 @@ func NewAuthService(userClient userv1.UserServiceClient, cfg *service.JWTConfig)
 		userClient: userClient,
 		jwtConfig:  cfg,
 	}, nil
-	return &AuthService{userClient: userClient, jwtConfig: cfg}, nil
 }
 
 func (a *AuthService) Login(ctx context.Context, req *authV1.LoginRequest) (*authV1.LoginResponse, error) {
