@@ -1,0 +1,34 @@
+{
+  "schema_version": "agent-mcp-acceptance-config/v1",
+  "target": "local-conformance",
+  "transport": "streamable_http",
+  "endpoint": "http://127.0.0.1:9320/mcp",
+  "allowed_hosts": [
+    "127.0.0.1"
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer_token_env": "AGENT_MCP_CONFORMANCE_TOKEN"
+  },
+  "read_probe": {
+    "tool": "read_echo",
+    "arguments": {
+      "query": "twitter-clone-mcp-acceptance"
+    }
+  },
+  "idempotency_probe": {
+    "tool": "idempotent_write",
+    "arguments": {
+      "value": "twitter-clone-mcp-acceptance"
+    },
+    "key_argument": "idempotency_key",
+    "receipt_json_pointer": "/receipt",
+    "state_verification": {
+      "tool": "write_status",
+      "arguments": {},
+      "key_argument": "idempotency_key",
+      "effect_count_json_pointer": "/effect_count",
+      "expected_effect_count": 1
+    }
+  }
+}
