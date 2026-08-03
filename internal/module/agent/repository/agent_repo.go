@@ -74,19 +74,41 @@ type AgentRepository interface {
 
 // MongoAgentRepository MongoDB 实现的对话仓储
 type MongoAgentRepository struct {
-	dialogueColl *mongo.Collection
-	messageColl  *mongo.Collection
-	workflowColl *mongo.Collection
-	runColl      *mongo.Collection
+	dialogueColl             *mongo.Collection
+	messageColl              *mongo.Collection
+	workflowColl             *mongo.Collection
+	workflowRevisionColl     *mongo.Collection
+	runColl                  *mongo.Collection
+	workflowStateEventColl   *mongo.Collection
+	workflowSnapshotColl     *mongo.Collection
+	workflowCompensationColl *mongo.Collection
+	providerConfigColl       *mongo.Collection
+	agentProjectColl         *mongo.Collection
+	mcpConnectionColl        *mongo.Collection
+	mcpToolSnapshotColl      *mongo.Collection
+	approvalColl             *mongo.Collection
+	executionColl            *mongo.Collection
+	agentExecutionRunColl    *mongo.Collection
 }
 
 // NewMongoAgentRepository 创建 MongoDB 对话仓储
 func NewMongoAgentRepository(db *mongo.Database) *MongoAgentRepository {
 	return &MongoAgentRepository{
-		dialogueColl: db.Collection(CollectionDialogues),
-		messageColl:  db.Collection(CollectionMessages),
-		workflowColl: db.Collection(CollectionWorkflows),
-		runColl:      db.Collection(CollectionRuns),
+		dialogueColl:             db.Collection(CollectionDialogues),
+		messageColl:              db.Collection(CollectionMessages),
+		workflowColl:             db.Collection(CollectionWorkflows),
+		workflowRevisionColl:     db.Collection(CollectionWorkflowRevisions),
+		runColl:                  db.Collection(CollectionRuns),
+		workflowStateEventColl:   db.Collection(CollectionWorkflowStateEvents),
+		workflowSnapshotColl:     db.Collection(CollectionWorkflowSnapshots),
+		workflowCompensationColl: db.Collection(CollectionWorkflowCompensations),
+		providerConfigColl:       db.Collection(CollectionProviderConfigs),
+		agentProjectColl:         db.Collection(CollectionAgentProjects),
+		mcpConnectionColl:        db.Collection(CollectionMCPConnections),
+		mcpToolSnapshotColl:      db.Collection(CollectionMCPToolSnapshots),
+		approvalColl:             db.Collection(CollectionToolApprovals),
+		executionColl:            db.Collection(CollectionToolExecutions),
+		agentExecutionRunColl:    db.Collection(CollectionAgentExecutionRuns),
 	}
 }
 
@@ -338,6 +360,14 @@ func (r *MongoAgentRepository) EnsureIndexes(ctx context.Context) error {
 			Keys:    bson.D{{Key: "user_id", Value: 1}, {Key: "updated_at", Value: -1}},
 			Options: options.Index().SetName("idx_user_updated"),
 		},
+		{
+			Keys: bson.D{
+				{Key: "user_id", Value: 1},
+				{Key: "summary_status", Value: 1},
+				{Key: "summary_lease_until", Value: 1},
+			},
+			Options: options.Index().SetName("idx_user_summary_lease"),
+		},
 	}
 	if _, err := r.dialogueColl.Indexes().CreateMany(ctx, dialogueIndexes); err != nil {
 		return fmt.Errorf("create dialogue indexes failed: %w", err)
@@ -364,6 +394,20 @@ func (r *MongoAgentRepository) EnsureIndexes(ctx context.Context) error {
 		return fmt.Errorf("create workflow indexes failed: %w", err)
 	}
 
+	workflowRevisionIndexes := []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "workflow_id", Value: 1}, {Key: "revision_number", Value: 1}},
+			Options: options.Index().SetName("uniq_workflow_revision_number").SetUnique(true),
+		},
+		{
+			Keys:    bson.D{{Key: "user_id", Value: 1}, {Key: "workflow_id", Value: 1}, {Key: "created_at", Value: -1}},
+			Options: options.Index().SetName("idx_workflow_revision_user_created"),
+		},
+	}
+	if _, err := r.workflowRevisionColl.Indexes().CreateMany(ctx, workflowRevisionIndexes); err != nil {
+		return fmt.Errorf("create workflow revision indexes failed: %w", err)
+	}
+
 	runIndexes := []mongo.IndexModel{
 		{
 			Keys:    bson.D{{Key: "user_id", Value: 1}, {Key: "started_at", Value: -1}},
@@ -377,47 +421,203 @@ func (r *MongoAgentRepository) EnsureIndexes(ctx context.Context) error {
 			Keys:    bson.D{{Key: "user_id", Value: 1}, {Key: "status", Value: 1}, {Key: "suspended_at", Value: -1}},
 			Options: options.Index().SetName("idx_workflow_run_user_status_suspended"),
 		},
+		{
+			Keys:    bson.D{{Key: "user_id", Value: 1}, {Key: "workflow_id", Value: 1}, {Key: "started_at", Value: -1}},
+			Options: options.Index().SetName("idx_workflow_run_user_workflow_started"),
+		},
+		{
+			Keys: bson.D{
+				{Key: "user_id", Value: 1}, {Key: "parent_run_id", Value: 1},
+				{Key: "started_at", Value: 1}, {Key: "_id", Value: 1},
+			},
+			Options: options.Index().SetName("idx_workflow_run_user_parent_started"),
+		},
 	}
 	if _, err := r.runColl.Indexes().CreateMany(ctx, runIndexes); err != nil {
 		return fmt.Errorf("create workflow run indexes failed: %w", err)
+	}
+
+	workflowStateEventIndexes := []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "run_id", Value: 1}, {Key: "sequence", Value: 1}},
+			Options: options.Index().SetName("uniq_workflow_state_event_sequence").SetUnique(true),
+		},
+		{
+			Keys:    bson.D{{Key: "user_id", Value: 1}, {Key: "run_id", Value: 1}, {Key: "sequence", Value: 1}},
+			Options: options.Index().SetName("idx_workflow_state_event_user_sequence"),
+		},
+	}
+	if _, err := r.workflowStateEventColl.Indexes().CreateMany(ctx, workflowStateEventIndexes); err != nil {
+		return fmt.Errorf("create workflow state event indexes failed: %w", err)
+	}
+
+	workflowSnapshotIndexes := []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "run_id", Value: 1}, {Key: "state_version", Value: 1}},
+			Options: options.Index().SetName("uniq_workflow_state_snapshot_version").SetUnique(true),
+		},
+		{
+			Keys:    bson.D{{Key: "user_id", Value: 1}, {Key: "run_id", Value: 1}, {Key: "state_version", Value: -1}},
+			Options: options.Index().SetName("idx_workflow_state_snapshot_user_version"),
+		},
+	}
+	if _, err := r.workflowSnapshotColl.Indexes().CreateMany(ctx, workflowSnapshotIndexes); err != nil {
+		return fmt.Errorf("create workflow state snapshot indexes failed: %w", err)
+	}
+
+	workflowCompensationIndexes := []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "run_id", Value: 1}, {Key: "sequence", Value: 1}},
+			Options: options.Index().SetName("uniq_workflow_compensation_sequence").SetUnique(true),
+		},
+		{
+			Keys: bson.D{
+				{Key: "user_id", Value: 1}, {Key: "run_id", Value: 1},
+				{Key: "status", Value: 1}, {Key: "sequence", Value: 1},
+			},
+			Options: options.Index().SetName("idx_workflow_compensation_user_status_sequence"),
+		},
+		{
+			Keys:    bson.D{{Key: "status", Value: 1}, {Key: "lease_until", Value: 1}},
+			Options: options.Index().SetName("idx_workflow_compensation_status_lease"),
+		},
+	}
+	if _, err := r.workflowCompensationColl.Indexes().CreateMany(ctx, workflowCompensationIndexes); err != nil {
+		return fmt.Errorf("create workflow compensation indexes failed: %w", err)
+	}
+
+	providerConfigIndexes := []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "user_id", Value: 1}, {Key: "status", Value: 1}, {Key: "updated_at", Value: -1}},
+			Options: options.Index().SetName("idx_provider_config_user_status_updated"),
+		},
+		{
+			Keys:    bson.D{{Key: "user_id", Value: 1}, {Key: "kind", Value: 1}, {Key: "updated_at", Value: -1}},
+			Options: options.Index().SetName("idx_provider_config_user_kind_updated"),
+		},
+	}
+	if _, err := r.providerConfigColl.Indexes().CreateMany(ctx, providerConfigIndexes); err != nil {
+		return fmt.Errorf("create provider config indexes failed: %w", err)
+	}
+
+	agentProjectIndexes := []mongo.IndexModel{
+		{
+			Keys: bson.D{
+				{Key: "members.user_id", Value: 1}, {Key: "updated_at", Value: -1}, {Key: "_id", Value: 1},
+			},
+			Options: options.Index().SetName("idx_agent_project_member_updated"),
+		},
+		{
+			Keys:    bson.D{{Key: "owner_id", Value: 1}, {Key: "created_at", Value: -1}},
+			Options: options.Index().SetName("idx_agent_project_owner_created"),
+		},
+	}
+	if _, err := r.agentProjectColl.Indexes().CreateMany(ctx, agentProjectIndexes); err != nil {
+		return fmt.Errorf("create Agent project indexes failed: %w", err)
+	}
+
+	mcpConnectionIndexes := []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "server_id", Value: 1}},
+			Options: options.Index().SetName("uniq_mcp_connection_server").SetUnique(true),
+		},
+		{
+			Keys:    bson.D{{Key: "user_id", Value: 1}, {Key: "server_id", Value: 1}},
+			Options: options.Index().SetName("uniq_mcp_connection_user_server").SetUnique(true),
+		},
+		{
+			Keys:    bson.D{{Key: "user_id", Value: 1}, {Key: "status", Value: 1}, {Key: "updated_at", Value: -1}},
+			Options: options.Index().SetName("idx_mcp_connection_user_status_updated"),
+		},
+		{
+			Keys: bson.D{
+				{Key: "project_id", Value: 1}, {Key: "status", Value: 1}, {Key: "updated_at", Value: -1},
+			},
+			Options: options.Index().SetName("idx_mcp_connection_project_status_updated"),
+		},
+		{
+			Keys: bson.D{
+				{Key: "status", Value: 1}, {Key: "next_health_check_at", Value: 1},
+				{Key: "health_lease_until", Value: 1},
+			},
+			Options: options.Index().SetName("idx_mcp_connection_health_due_lease"),
+		},
+	}
+	if _, err := r.mcpConnectionColl.Indexes().CreateMany(ctx, mcpConnectionIndexes); err != nil {
+		return fmt.Errorf("create external MCP connection indexes failed: %w", err)
+	}
+
+	mcpSnapshotIndexes := []mongo.IndexModel{
+		{
+			Keys: bson.D{
+				{Key: "user_id", Value: 1}, {Key: "connection_id", Value: 1},
+				{Key: "schema_hash", Value: 1},
+			},
+			Options: options.Index().SetName("uniq_mcp_snapshot_user_connection_hash").SetUnique(true),
+		},
+		{
+			Keys:    bson.D{{Key: "user_id", Value: 1}, {Key: "connection_id", Value: 1}, {Key: "created_at", Value: -1}},
+			Options: options.Index().SetName("idx_mcp_snapshot_user_connection_created"),
+		},
+	}
+	if _, err := r.mcpToolSnapshotColl.Indexes().CreateMany(ctx, mcpSnapshotIndexes); err != nil {
+		return fmt.Errorf("create external MCP snapshot indexes failed: %w", err)
+	}
+
+	approvalIndexes := []mongo.IndexModel{
+		{
+			Keys: bson.D{
+				{Key: "user_id", Value: 1}, {Key: "run_id", Value: 1}, {Key: "step_id", Value: 1},
+				{Key: "tool_name", Value: 1}, {Key: "idempotency_key", Value: 1}, {Key: "input_digest", Value: 1},
+			},
+			Options: options.Index().SetName("uniq_tool_approval_invocation").SetUnique(true),
+		},
+		{
+			Keys:    bson.D{{Key: "user_id", Value: 1}, {Key: "status", Value: 1}, {Key: "created_at", Value: -1}},
+			Options: options.Index().SetName("idx_tool_approval_user_status_created"),
+		},
+		{
+			Keys:    bson.D{{Key: "status", Value: 1}, {Key: "expires_at", Value: 1}},
+			Options: options.Index().SetName("idx_tool_approval_status_expiry"),
+		},
+		{
+			Keys:    bson.D{{Key: "status", Value: 1}, {Key: "execution_lease_until", Value: 1}},
+			Options: options.Index().SetName("idx_tool_approval_status_lease"),
+		},
+		{
+			Keys:    bson.D{{Key: "status", Value: 1}, {Key: "run_reconciled_at", Value: 1}},
+			Options: options.Index().SetName("idx_tool_approval_run_reconcile"),
+		},
+	}
+	if _, err := r.approvalColl.Indexes().CreateMany(ctx, approvalIndexes); err != nil {
+		return fmt.Errorf("create tool approval indexes failed: %w", err)
+	}
+
+	executionIndexes := []mongo.IndexModel{
+		{
+			Keys: bson.D{
+				{Key: "user_id", Value: 1}, {Key: "tool_name", Value: 1}, {Key: "idempotency_key", Value: 1},
+			},
+			Options: options.Index().SetName("uniq_tool_execution_key").SetUnique(true),
+		},
+		{
+			Keys:    bson.D{{Key: "status", Value: 1}, {Key: "lease_until", Value: 1}},
+			Options: options.Index().SetName("idx_tool_execution_status_lease"),
+		},
+	}
+	if _, err := r.executionColl.Indexes().CreateMany(ctx, executionIndexes); err != nil {
+		return fmt.Errorf("create tool execution indexes failed: %w", err)
 	}
 
 	return nil
 }
 
 func (r *MongoAgentRepository) CreateWorkflow(ctx context.Context, workflow *WorkflowDefinition) error {
-	now := time.Now()
-	if workflow.ID.IsZero() {
-		workflow.ID = primitive.NewObjectID()
-	}
-	if workflow.CreatedAt.IsZero() {
-		workflow.CreatedAt = now
-	}
-	workflow.UpdatedAt = now
-
-	if _, err := r.workflowColl.InsertOne(ctx, workflow); err != nil {
-		return fmt.Errorf("insert workflow failed: %w", err)
-	}
-	return nil
+	return r.createWorkflowWithRevision(ctx, workflow)
 }
 
 func (r *MongoAgentRepository) UpdateWorkflow(ctx context.Context, workflow *WorkflowDefinition) error {
-	workflow.UpdatedAt = time.Now()
-	res, err := r.workflowColl.UpdateOne(ctx,
-		bson.M{"_id": workflow.ID, "user_id": workflow.UserID},
-		bson.M{"$set": bson.M{
-			"name":       workflow.Name,
-			"dsl_json":   workflow.DSLJSON,
-			"updated_at": workflow.UpdatedAt,
-		}},
-	)
-	if err != nil {
-		return fmt.Errorf("update workflow failed: %w", err)
-	}
-	if res.MatchedCount == 0 {
-		return fmt.Errorf("workflow not found or not owned by user")
-	}
-	return nil
+	return r.updateWorkflowWithRevision(ctx, workflow)
 }
 
 func (r *MongoAgentRepository) ListWorkflows(ctx context.Context, userID uint64, page, pageSize int) ([]*WorkflowDefinition, int64, error) {
@@ -471,6 +671,9 @@ func (r *MongoAgentRepository) CreateWorkflowRun(ctx context.Context, run *Workf
 	if run.StartedAt.IsZero() {
 		run.StartedAt = now
 	}
+	if run.Revision <= 0 {
+		run.Revision = 1
+	}
 
 	if _, err := r.runColl.InsertOne(ctx, run); err != nil {
 		return fmt.Errorf("insert workflow run failed: %w", err)
@@ -482,15 +685,33 @@ func (r *MongoAgentRepository) UpdateWorkflowRun(ctx context.Context, run *Workf
 	res, err := r.runColl.UpdateOne(ctx,
 		bson.M{"_id": run.ID, "user_id": run.UserID},
 		bson.M{"$set": bson.M{
-			"status":          run.Status,
-			"output_json":     run.OutputJSON,
-			"checkpoint_json": run.CheckpointJSON,
-			"waiting_node_id": run.WaitingNodeID,
-			"resume_token":    run.ResumeToken,
-			"error_message":   run.ErrorMessage,
-			"suspended_at":    run.SuspendedAt,
-			"finished_at":     run.FinishedAt,
-		}},
+			"status":                    run.Status,
+			"output_json":               run.OutputJSON,
+			"checkpoint_json":           run.CheckpointJSON,
+			"waiting_node_id":           run.WaitingNodeID,
+			"approval_request_id":       run.ApprovalRequestID,
+			"resume_token":              run.ResumeToken,
+			"resume_token_hash":         run.ResumeTokenHash,
+			"resume_attempt_id":         run.ResumeAttemptID,
+			"resume_grant_issued_at":    run.ResumeGrantIssuedAt,
+			"resume_grant_expires_at":   run.ResumeGrantExpiresAt,
+			"state_version":             run.StateVersion,
+			"node_executions":           run.NodeExecutions,
+			"input_tokens":              run.InputTokens,
+			"output_tokens":             run.OutputTokens,
+			"total_tokens":              run.TotalTokens,
+			"usage_estimated":           run.UsageEstimated,
+			"estimated_cost_micros":     run.EstimatedCostMicros,
+			"cost_estimated":            run.CostEstimated,
+			"pricing_version":           run.PricingVersion,
+			"max_steps":                 run.MaxSteps,
+			"max_total_tokens":          run.MaxTotalTokens,
+			"max_estimated_cost_micros": run.MaxEstimatedCostMicros,
+			"accounting_version":        run.AccountingVersion,
+			"error_message":             run.ErrorMessage,
+			"suspended_at":              run.SuspendedAt,
+			"finished_at":               run.FinishedAt,
+		}, "$inc": bson.M{"revision": 1}},
 	)
 	if err != nil {
 		return fmt.Errorf("update workflow run failed: %w", err)
@@ -498,6 +719,7 @@ func (r *MongoAgentRepository) UpdateWorkflowRun(ctx context.Context, run *Workf
 	if res.MatchedCount == 0 {
 		return fmt.Errorf("workflow run not found or not owned by user")
 	}
+	run.Revision++
 	return nil
 }
 
