@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	tweetv1 "twitter-clone/api/tweet/v1"
+	externalmcp "twitter-clone/internal/module/agent/mcp/remote"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -15,11 +17,25 @@ import (
 func RegisterCreateTweet(srv *server.MCPServer, tweetClient tweetv1.TweetServiceClient) {
 	tool := mcp.NewTool("create_tweet",
 		mcp.WithDescription("代替用户发布一条推文"),
+		mcp.WithReadOnlyHintAnnotation(false),
+		mcp.WithDestructiveHintAnnotation(true),
+		mcp.WithIdempotentHintAnnotation(true),
+		mcp.WithString("user_id",
+			mcp.Required(),
+			mcp.Description("由受信任调用方注入的用户ID"),
+		),
 		mcp.WithString("content",
 			mcp.Required(),
 			mcp.Description("推文内容，长度由 TweetService 配置控制"),
 		),
+		mcp.WithString("idempotency_key",
+			mcp.Required(),
+			mcp.Description("调用方生成的稳定幂等键；Agent Runtime 会自动注入"),
+		),
 	)
+	tool.Meta = mcp.NewMetaFromMap(map[string]any{
+		externalmcp.IdempotencyKeyArgumentMetaField: "idempotency_key",
+	})
 
 	srv.AddTool(tool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args, ok := req.Params.Arguments.(map[string]any)
@@ -41,13 +57,19 @@ func RegisterCreateTweet(srv *server.MCPServer, tweetClient tweetv1.TweetService
 		if err != nil {
 			return mcp.NewToolResultError("user_id 格式错误"), nil
 		}
+		idempotencyKey, _ := args["idempotency_key"].(string)
+		idempotencyKey = strings.TrimSpace(idempotencyKey)
+		if idempotencyKey == "" || len(idempotencyKey) > 160 {
+			return mcp.NewToolResultError("idempotency_key 必须包含 1-160 个字节"), nil
+		}
 
 		resp, err := tweetClient.CreateTweet(ctx, &tweetv1.CreateTweetRequest{
-			UserId:  userID,
-			Content: content,
+			UserId:         userID,
+			Content:        content,
+			IdempotencyKey: idempotencyKey,
 		})
 		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("发推失败: %v", err)), nil
+			return mcp.NewToolResultError("发推失败"), nil
 		}
 
 		return mcp.NewToolResultText(fmt.Sprintf("发推成功！推文ID: %d，内容: %s", resp.Tweet.Id, resp.Tweet.Content)), nil

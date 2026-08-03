@@ -9,6 +9,7 @@ import (
 	"time"
 
 	tweetv1 "twitter-clone/api/tweet/v1"
+	agentEvidence "twitter-clone/internal/module/agent/evidence"
 	"twitter-clone/pkg/ai"
 	"twitter-clone/pkg/es"
 	"twitter-clone/pkg/qdrant"
@@ -21,6 +22,7 @@ import (
 // RegisterSearchTweets 注册语义搜索推文工具 (升级加固版，包含 Reranker 精排与回表延迟加载)
 func RegisterSearchTweets(srv *server.MCPServer, aiClient *ai.Client, esClient *es.Client, qdrantClient *qdrant.Client, reranker ai.Reranker, tweetClient tweetv1.TweetServiceClient, model string) {
 	tool := mcp.NewTool("search_tweets_by_semantic",
+		mcp.WithOutputSchema[agentEvidence.PlatformTweetSearchResult](),
 		mcp.WithDescription("根据用户输入的语义描述，搜索最相关的推文列表"),
 		mcp.WithString("query",
 			mcp.Required(),
@@ -110,7 +112,10 @@ func RegisterSearchTweets(srv *server.MCPServer, aiClient *ai.Client, esClient *
 
 		// 4. 终极防御：返回文本而非 Error，防止 LLM 对话树崩溃
 		if len(tweets) == 0 {
-			return mcp.NewToolResultText("系统知识库中目前没有找到与该主题相关的推文，请尝试更换关键词搜索，或结合已有知识进行回答。"), nil
+			return mcp.NewToolResultStructured(
+				newPlatformTweetSearchEvidence(query, nil),
+				"系统知识库中目前没有找到与该主题相关的推文，请尝试更换关键词搜索，或结合已有知识进行回答。",
+			), nil
 		}
 
 		// 🎯 优化：精排重排序阶段
@@ -180,13 +185,17 @@ func RegisterSearchTweets(srv *server.MCPServer, aiClient *ai.Client, esClient *
 				i+1, t.Id, t.UserId, t.Content, t.CreatedAt, t.LikeCount)
 		}
 
-		return mcp.NewToolResultText(result), nil
+		return mcp.NewToolResultStructured(
+			newPlatformTweetSearchEvidence(query, enrichedTweets),
+			result,
+		), nil
 	})
 }
 
 // RegisterHybridSearchTweets 注册混合搜索推文工具 (升级加固版)
 func RegisterHybridSearchTweets(srv *server.MCPServer, aiClient *ai.Client, esClient *es.Client, qdrantClient *qdrant.Client, reranker ai.Reranker, tweetClient tweetv1.TweetServiceClient, model string) {
 	tool := mcp.NewTool("hybrid_search_tweets",
+		mcp.WithOutputSchema[agentEvidence.PlatformTweetSearchResult](),
 		mcp.WithDescription("混合搜索：同时基于关键词和语义向量搜索推文，结果更精准"),
 		mcp.WithString("query",
 			mcp.Required(),
@@ -307,7 +316,10 @@ func RegisterHybridSearchTweets(srv *server.MCPServer, aiClient *ai.Client, esCl
 		mu.Unlock()
 
 		if len(tweets) == 0 {
-			return mcp.NewToolResultText("没有找到相关推文"), nil
+			return mcp.NewToolResultStructured(
+				newPlatformTweetSearchEvidence(query, nil),
+				"没有找到相关推文",
+			), nil
 		}
 
 		// 🎯 优化：精排重排序阶段
@@ -375,11 +387,36 @@ func RegisterHybridSearchTweets(srv *server.MCPServer, aiClient *ai.Client, esCl
 				i+1, t.Id, t.UserId, t.Content, t.CreatedAt, t.LikeCount)
 		}
 
-		return mcp.NewToolResultText(result), nil
+		return mcp.NewToolResultStructured(
+			newPlatformTweetSearchEvidence(query, enrichedTweets),
+			result,
+		), nil
 	})
 }
 
 // 辅助方法：把字符串解析为 uint64
+func newPlatformTweetSearchEvidence(
+	query string,
+	tweets []*tweetv1.Tweet,
+) agentEvidence.PlatformTweetSearchResult {
+	items := make([]agentEvidence.PlatformTweetSearchEvidence, 0, len(tweets))
+	for _, tweet := range tweets {
+		if tweet == nil || tweet.Id == 0 {
+			continue
+		}
+		items = append(items, agentEvidence.PlatformTweetSearchEvidence{
+			TweetID:   strconv.FormatUint(tweet.Id, 10),
+			Content:   tweet.Content,
+			CreatedAt: tweet.CreatedAt,
+		})
+	}
+	return agentEvidence.PlatformTweetSearchResult{
+		Schema: agentEvidence.PlatformTweetSearchSchema,
+		Query:  query,
+		Items:  items,
+	}
+}
+
 func parseUintOrDefault(s string, fallback uint64) uint64 {
 	val, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
