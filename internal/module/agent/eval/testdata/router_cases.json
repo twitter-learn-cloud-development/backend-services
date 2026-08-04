@@ -1,0 +1,40 @@
+[
+  {"id":"p-01","query":"What are my preferences?","category":"persona","expected_intent":"persona_memory","expected_layer":"l1_persona"},
+  {"id":"p-02","query":"Show my technical stack","category":"persona","expected_intent":"persona_memory","expected_layer":"l1_persona"},
+  {"id":"p-03","query":"Remember me as a Go developer","category":"persona","expected_intent":"persona_memory","expected_layer":"l1_persona"},
+  {"id":"p-04","query":"What is in my profile?","category":"persona","expected_intent":"persona_memory","expected_layer":"l1_persona"},
+  {"id":"p-05","query":"我的偏好是什么？","category":"persona","expected_intent":"persona_memory","expected_layer":"l1_persona"},
+  {"id":"p-06","query":"我喜欢简洁回答","category":"persona","expected_intent":"persona_memory","expected_layer":"l1_persona"},
+  {"id":"p-07","query":"I use Go and Kubernetes in my technical stack","category":"persona","expected_intent":"persona_memory","expected_layer":"l1_persona"},
+  {"id":"p-08","query":"What do I usually code in?","category":"persona","expected_intent":"persona_memory","expected_layer":"l1_persona"},
+
+  {"id":"m-01","query":"What did we decide last time?","category":"episodic","expected_intent":"episodic","expected_layer":"l2_episodic"},
+  {"id":"m-02","query":"Recall our previous workflow decision","category":"episodic","expected_intent":"episodic","expected_layer":"l2_episodic"},
+  {"id":"m-03","query":"Earlier you mentioned a retry policy","category":"episodic","expected_intent":"episodic","expected_layer":"l2_episodic"},
+  {"id":"m-04","query":"上次我们讨论的缓存方案是什么？","category":"episodic","expected_intent":"episodic","expected_layer":"l2_episodic"},
+  {"id":"m-05","query":"刚才提到的 embedding 模型是什么？","category":"episodic","expected_intent":"episodic","expected_layer":"l2_episodic"},
+  {"id":"m-06","query":"记得吗，我们之前聊过 ReAct","category":"episodic","expected_intent":"episodic","expected_layer":"l2_episodic"},
+  {"id":"m-07","query":"What was our conclusion about provider fallback?","category":"episodic","expected_intent":"episodic","expected_layer":"l2_episodic"},
+  {"id":"m-08","query":"Can you recall what we discussed?","category":"episodic","expected_intent":"episodic","expected_layer":"l2_episodic"},
+
+  {"id":"k-01","query":"What is workflow backoff?","category":"knowledge","expected_intent":"global","expected_layer":"l3_global"},
+  {"id":"k-02","query":"Define reciprocal rank fusion","category":"knowledge","expected_intent":"global","expected_layer":"l3_global"},
+  {"id":"k-03","query":"Search the workflow docs","category":"knowledge","expected_intent":"global","expected_layer":"l3_global"},
+  {"id":"k-04","query":"Go context cancellation 原理","category":"knowledge","expected_intent":"global","expected_layer":"l3_global"},
+  {"id":"k-05","query":"最新的云原生资料","category":"knowledge","expected_intent":"global","expected_layer":"l3_global"},
+  {"id":"k-06","query":"How does a Qdrant tenant filter work?","category":"knowledge","expected_intent":"global","expected_layer":"l3_global"},
+  {"id":"k-07","query":"Compare BM25 and vector search","category":"knowledge","expected_intent":"global","expected_layer":"l3_global"},
+  {"id":"k-08","query":"Explain distributed systems","category":"knowledge","expected_intent":"global","expected_layer":"l3_global"},
+
+  {"id":"a-01","query":"Publish this draft","category":"action","expected_intent":"direct_action","expected_layer":"action"},
+  {"id":"a-02","query":"Create tweet about Go","category":"action","expected_intent":"direct_action","expected_layer":"action"},
+  {"id":"a-03","query":"Run workflow daily-summary","category":"action","expected_intent":"direct_action","expected_layer":"action"},
+  {"id":"a-04","query":"保存这份草稿","category":"action","expected_intent":"direct_action","expected_layer":"action"},
+  {"id":"a-05","query":"执行工作流 report","category":"action","expected_intent":"direct_action","expected_layer":"action"},
+  {"id":"a-06","query":"Create a tweet after our previous discussion","category":"action","expected_intent":"episodic","expected_layer":"l2_episodic"},
+
+  {"id":"u-01","query":"Which language do I normally use?","category":"ambiguous","expected_intent":"persona_memory","expected_layer":"l1_persona"},
+  {"id":"u-02","query":"Tell me about the project","category":"ambiguous","expected_intent":"global","expected_layer":"l3_global"},
+  {"id":"u-03","query":"帮我看看这个问题","category":"ambiguous","expected_intent":"global","expected_layer":"l3_global"},
+  {"id":"u-04","query":"Need help with the next step","category":"ambiguous","expected_intent":"global","expected_layer":"l3_global"}
+]

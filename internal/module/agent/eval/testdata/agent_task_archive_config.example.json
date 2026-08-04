@@ -1,0 +1,9 @@
+{
+  "schema_version": "agent-task-eval-archive-config/v1",
+  "endpoint": "localhost:9000",
+  "secure": false,
+  "bucket": "agent-task-eval-reports",
+  "access_key_env": "AGENT_TASK_EVAL_ARCHIVE_ACCESS_KEY",
+  "secret_key_env": "AGENT_TASK_EVAL_ARCHIVE_SECRET_KEY",
+  "retention_days": 365
+}

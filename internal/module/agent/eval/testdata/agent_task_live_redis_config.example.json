@@ -1,0 +1,12 @@
+{
+  "schema_version": "agent-task-live-authorization-redis-config/v1",
+  "address": "redis.example.internal:6380",
+  "username_env": "AGENT_TASK_EVAL_REDIS_USERNAME",
+  "password_env": "AGENT_TASK_EVAL_REDIS_PASSWORD",
+  "database": 0,
+  "key_prefix": "agent-task-eval:live-authorization",
+  "tls_enabled": true,
+  "tls_server_name": "redis.example.internal",
+  "connect_timeout_ms": 3000,
+  "operation_timeout_ms": 3000
+}

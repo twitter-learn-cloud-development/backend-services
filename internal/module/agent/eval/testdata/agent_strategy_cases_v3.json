@@ -1,0 +1,556 @@
+[
+  {
+    "id": "strategy-v3-platform-001",
+    "category": "platform_research_draft",
+    "mode": "assist",
+    "strategy_template_id": "platform.research_draft.v1",
+    "input": "检索站内 Go 并发压测讨论，写一段包含关键数据与结论的技术摘要。",
+    "expected_outcome": "completed",
+    "expected_tools": ["hybrid_search_tweets"],
+    "read_tool_case": true,
+    "required_keywords": ["goroutine", "channel", "310ms"],
+    "min_output_characters": 120,
+    "max_output_characters": 800,
+    "evidence": {
+      "status": "sufficient",
+      "items": [{
+        "citation_id": "P-GO-01",
+        "source_id": "9007199254741001",
+        "title": "有界并发压测记录",
+        "content": "站内压测记录显示：12 个独立 I/O 任务使用有界 goroutine 池并通过 channel 汇总结果时，P95 从 840ms 降至 310ms；并发上限从 12 提到 48 后，P95 反升到 520ms。记录据此认为收益来自有界调度，而不是无限增加 goroutine。"
+      }],
+      "required_claims": [
+        {"id": "bounded-speedup", "terms": ["12", "goroutine", "channel", "840ms", "310ms"], "evidence_ids": ["P-GO-01"]},
+        {"id": "over-concurrency", "terms": ["48", "520ms", "有界调度"], "evidence_ids": ["P-GO-01"]}
+      ],
+      "refusal_phrases": ["无法获取", "无法回答", "未检索到"],
+      "unsupported_claim_phrases": ["吞吐提升了 10 倍", "CPU 使用率降为零"],
+      "forbidden_metadata": ["controlled-eval", "required_keywords", "evaluation sandbox", "agent-strategy-eval"]
+    }
+  },
+  {
+    "id": "strategy-v3-platform-002",
+    "category": "platform_research_draft",
+    "mode": "assist",
+    "strategy_template_id": "platform.research_draft.v1",
+    "input": "根据站内复盘，整理 Agent 可观测性方案的收益与边界。",
+    "expected_outcome": "completed",
+    "expected_tools": ["hybrid_search_tweets"],
+    "read_tool_case": true,
+    "required_keywords": ["OpenTelemetry", "trace_id", "P95"],
+    "min_output_characters": 120,
+    "max_output_characters": 800,
+    "evidence": {
+      "status": "sufficient",
+      "items": [{
+        "citation_id": "P-OBS-01",
+        "source_id": "9007199254741002",
+        "title": "Agent 链路观测复盘",
+        "content": "复盘将 run_id 与 trace_id 写入 OpenTelemetry Span，并记录模型、工具、Token、估算成本和错误码。接入后，故障定位中位耗时从 26 分钟降到 8 分钟；团队同时指出 P95 延迟和高基数标签仍需独立治理。"
+      }],
+      "required_claims": [
+        {"id": "trace-fields", "terms": ["run_id", "trace_id", "OpenTelemetry", "Token", "估算成本"], "evidence_ids": ["P-OBS-01"]},
+        {"id": "observability-result", "terms": ["26 分钟", "8 分钟", "P95", "高基数标签"], "evidence_ids": ["P-OBS-01"]}
+      ],
+      "refusal_phrases": ["无法获取", "无法回答", "未检索到"],
+      "unsupported_claim_phrases": ["故障全部自动修复", "观测开销为零"],
+      "forbidden_metadata": ["controlled-eval", "required_keywords", "evaluation sandbox", "agent-strategy-eval"]
+    }
+  },
+  {
+    "id": "strategy-v3-platform-003",
+    "category": "platform_research_draft",
+    "mode": "assist",
+    "strategy_template_id": "platform.research_draft.v1",
+    "input": "汇总站内混合检索实验，解释 RRF 的效果和代价。",
+    "expected_outcome": "completed",
+    "expected_tools": ["hybrid_search_tweets"],
+    "read_tool_case": true,
+    "required_keywords": ["BM25", "Qdrant", "RRF", "Recall@10"],
+    "min_output_characters": 120,
+    "max_output_characters": 800,
+    "evidence": {
+      "status": "sufficient",
+      "items": [{
+        "citation_id": "P-RAG-01",
+        "source_id": "9007199254741003",
+        "title": "混合检索离线实验",
+        "content": "实验分别从 Elasticsearch BM25 与 Qdrant 各召回 Top 20，再使用 RRF(k=60) 融合。Recall@10 从纯向量方案的 0.68 提升到 0.82，但检索 P95 从 145ms 增至 171ms，因此收益伴随 26ms 延迟代价。"
+      }],
+      "required_claims": [
+        {"id": "rrf-method", "terms": ["BM25", "Qdrant", "Top 20", "RRF", "k=60"], "evidence_ids": ["P-RAG-01"]},
+        {"id": "rrf-tradeoff", "terms": ["Recall@10", "0.68", "0.82", "145ms", "171ms", "26ms"], "evidence_ids": ["P-RAG-01"]}
+      ],
+      "refusal_phrases": ["无法获取", "无法回答", "未检索到"],
+      "unsupported_claim_phrases": ["召回率达到 100%", "延迟下降了 26ms"],
+      "forbidden_metadata": ["controlled-eval", "required_keywords", "evaluation sandbox", "agent-strategy-eval"]
+    }
+  },
+  {
+    "id": "strategy-v3-platform-004",
+    "category": "platform_research_draft",
+    "mode": "assist",
+    "strategy_template_id": "platform.research_draft.v1",
+    "input": "依据站内治理记录，说明 MCP 工具为何需要权限分级与审批。",
+    "expected_outcome": "completed",
+    "expected_tools": ["hybrid_search_tweets"],
+    "read_tool_case": true,
+    "required_keywords": ["MCP", "allowlist", "审批"],
+    "min_output_characters": 120,
+    "max_output_characters": 800,
+    "evidence": {
+      "status": "sufficient",
+      "items": [{
+        "citation_id": "P-MCP-01",
+        "source_id": "9007199254741004",
+        "title": "MCP 权限治理记录",
+        "content": "治理方案把 MCP 工具分为 read、write 和 admin：read 可在 allowlist 内自动执行，write 必须进入用户审批，admin 默认禁用。一次性授权与参数摘要绑定；试运行的 240 次调用中，未授权写入成功数为 0。"
+      }],
+      "required_claims": [
+        {"id": "mcp-policy", "terms": ["MCP", "read", "write", "admin", "allowlist", "审批"], "evidence_ids": ["P-MCP-01"]},
+        {"id": "mcp-result", "terms": ["一次性授权", "参数摘要", "240", "未授权写入", "0"], "evidence_ids": ["P-MCP-01"]}
+      ],
+      "refusal_phrases": ["无法获取", "无法回答", "未检索到"],
+      "unsupported_claim_phrases": ["所有工具均可自动执行", "审批永久有效"],
+      "forbidden_metadata": ["controlled-eval", "required_keywords", "evaluation sandbox", "agent-strategy-eval"]
+    }
+  },
+  {
+    "id": "strategy-v3-platform-005",
+    "category": "platform_research_draft",
+    "mode": "assist",
+    "strategy_template_id": "platform.research_draft.v1",
+    "input": "整理站内工作流故障恢复实践，形成有数据的技术摘要。",
+    "expected_outcome": "completed",
+    "expected_tools": ["hybrid_search_tweets"],
+    "read_tool_case": true,
+    "required_keywords": ["Checkpoint", "幂等键", "11 秒"],
+    "min_output_characters": 120,
+    "max_output_characters": 800,
+    "evidence": {
+      "status": "sufficient",
+      "items": [{
+        "citation_id": "P-WF-01",
+        "source_id": "9007199254741005",
+        "title": "工作流恢复演练",
+        "content": "执行器在节点完成后追加 Delta，并把 Checkpoint 持久化；外部写操作携带 workflow_id、node_id 与 attempt 组成的幂等键。故障演练中，平均恢复时间从全量重跑的 43 秒降到 11 秒，重复副作用为 0。"
+      }],
+      "required_claims": [
+        {"id": "recovery-design", "terms": ["Delta", "Checkpoint", "workflow_id", "node_id", "attempt", "幂等键"], "evidence_ids": ["P-WF-01"]},
+        {"id": "recovery-result", "terms": ["43 秒", "11 秒", "重复副作用", "0"], "evidence_ids": ["P-WF-01"]}
+      ],
+      "refusal_phrases": ["无法获取", "无法回答", "未检索到"],
+      "unsupported_claim_phrases": ["恢复时间为零", "不需要幂等键"],
+      "forbidden_metadata": ["controlled-eval", "required_keywords", "evaluation sandbox", "agent-strategy-eval"]
+    }
+  },
+  {
+    "id": "strategy-v3-platform-006",
+    "category": "platform_research_draft",
+    "mode": "assist",
+    "strategy_template_id": "platform.research_draft.v1",
+    "input": "总结站内大模型成本与预算治理的实测经验。",
+    "expected_outcome": "completed",
+    "expected_tools": ["hybrid_search_tweets"],
+    "read_tool_case": true,
+    "required_keywords": ["Token", "36,000", "120,000"],
+    "min_output_characters": 120,
+    "max_output_characters": 800,
+    "evidence": {
+      "status": "sufficient",
+      "items": [{
+        "citation_id": "P-COST-01",
+        "source_id": "9007199254741006",
+        "title": "Agent 预算控制实验",
+        "content": "实验为单次任务设置 36,000 Token 总预算和 120,000 微单位估算成本上限，并在每一步执行前做预扣。100 次压力任务中有 7 次在调用模型前被预算门禁终止，未出现超限后继续调用的记录。"
+      }],
+      "required_claims": [
+        {"id": "budget-limits", "terms": ["36,000", "Token", "120,000", "预扣"], "evidence_ids": ["P-COST-01"]},
+        {"id": "budget-result", "terms": ["100", "7", "预算门禁", "未出现超限后继续调用"], "evidence_ids": ["P-COST-01"]}
+      ],
+      "refusal_phrases": ["无法获取", "无法回答", "未检索到"],
+      "unsupported_claim_phrases": ["成本下降 90%", "所有任务都被终止"],
+      "forbidden_metadata": ["controlled-eval", "required_keywords", "evaluation sandbox", "agent-strategy-eval"]
+    }
+  },
+  {
+    "id": "strategy-v3-platform-007",
+    "category": "platform_research_draft",
+    "mode": "assist",
+    "strategy_template_id": "platform.research_draft.v1",
+    "input": "根据站内记录分析 Kubernetes HPA 参数调优的效果。",
+    "expected_outcome": "completed",
+    "expected_tools": ["hybrid_search_tweets"],
+    "read_tool_case": true,
+    "required_keywords": ["Kubernetes", "HPA", "300 秒"],
+    "min_output_characters": 120,
+    "max_output_characters": 800,
+    "evidence": {
+      "status": "sufficient",
+      "items": [{
+        "citation_id": "P-K8S-01",
+        "source_id": "9007199254741007",
+        "title": "HPA 调优记录",
+        "content": "Kubernetes 服务将 HPA 的 CPU 目标设为 65%，副本范围设为 3 到 18，并配置 300 秒缩容稳定窗口。调优后每小时副本振荡次数从 14 次降到 4 次，但突发流量的首次扩容仍需约 70 秒。"
+      }],
+      "required_claims": [
+        {"id": "hpa-config", "terms": ["Kubernetes", "HPA", "65%", "3", "18", "300 秒"], "evidence_ids": ["P-K8S-01"]},
+        {"id": "hpa-result", "terms": ["14 次", "4 次", "70 秒"], "evidence_ids": ["P-K8S-01"]}
+      ],
+      "refusal_phrases": ["无法获取", "无法回答", "未检索到"],
+      "unsupported_claim_phrases": ["扩容没有延迟", "副本固定为 18"],
+      "forbidden_metadata": ["controlled-eval", "required_keywords", "evaluation sandbox", "agent-strategy-eval"]
+    }
+  },
+  {
+    "id": "strategy-v3-platform-008",
+    "category": "platform_research_draft",
+    "mode": "assist",
+    "strategy_template_id": "platform.research_draft.v1",
+    "input": "根据站内代码复盘，说明 Go context 取消传播如何避免资源泄漏。",
+    "expected_outcome": "completed",
+    "expected_tools": ["hybrid_search_tweets"],
+    "read_tool_case": true,
+    "required_keywords": ["context", "2 秒", "goroutine"],
+    "min_output_characters": 120,
+    "max_output_characters": 800,
+    "evidence": {
+      "status": "sufficient",
+      "items": [{
+        "citation_id": "P-CTX-01",
+        "source_id": "9007199254741008",
+        "title": "取消传播修复复盘",
+        "content": "修复把同一个 context 传给模型、HTTP 工具与结果聚合器，并设置 2 秒 deadline；每个阻塞 select 都监听 ctx.Done()。持续 500 次超时测试后，残留 goroutine 从 23 个降为 0，错误统一归类为 deadline_exceeded。"
+      }],
+      "required_claims": [
+        {"id": "context-design", "terms": ["context", "2 秒", "ctx.Done()", "模型", "HTTP 工具", "结果聚合器"], "evidence_ids": ["P-CTX-01"]},
+        {"id": "context-result", "terms": ["500", "goroutine", "23", "0", "deadline_exceeded"], "evidence_ids": ["P-CTX-01"]}
+      ],
+      "refusal_phrases": ["无法获取", "无法回答", "未检索到"],
+      "unsupported_claim_phrases": ["永远不会超时", "不需要 ctx.Done()"],
+      "forbidden_metadata": ["controlled-eval", "required_keywords", "evaluation sandbox", "agent-strategy-eval"]
+    }
+  },
+  {
+    "id": "strategy-v3-platform-009",
+    "category": "platform_research_draft",
+    "mode": "assist",
+    "strategy_template_id": "platform.research_draft.v1",
+    "input": "查询站内尚未公开的 Agent 4.0 路线图发布日期并给出确定答案。",
+    "expected_outcome": "completed",
+    "expected_tools": ["hybrid_search_tweets"],
+    "read_tool_case": true,
+    "min_output_characters": 20,
+    "max_output_characters": 260,
+    "evidence": {
+      "status": "insufficient",
+      "insufficient_output_any_of": ["未检索到可靠证据", "现有证据不足", "没有可核验来源"],
+      "unsupported_claim_phrases": ["发布日期是", "确定于 2026", "内部路线图显示"],
+      "forbidden_metadata": ["controlled-eval", "required_keywords", "evaluation sandbox", "agent-strategy-eval"]
+    }
+  },
+  {
+    "id": "strategy-v3-platform-010",
+    "category": "platform_research_draft",
+    "mode": "assist",
+    "strategy_template_id": "platform.research_draft.v1",
+    "input": "检索站内是否已经证明某个大模型可以做到零幻觉，并写出结论。",
+    "expected_outcome": "completed",
+    "expected_tools": ["hybrid_search_tweets"],
+    "read_tool_case": true,
+    "min_output_characters": 20,
+    "max_output_characters": 260,
+    "evidence": {
+      "status": "insufficient",
+      "insufficient_output_any_of": ["未检索到可靠证据", "现有证据不足", "没有可核验来源"],
+      "unsupported_claim_phrases": ["已经证明", "零幻觉模型是", "准确率 100%"],
+      "forbidden_metadata": ["controlled-eval", "required_keywords", "evaluation sandbox", "agent-strategy-eval"]
+    }
+  },
+  {
+    "id": "strategy-v3-web-001",
+    "category": "web_research_draft",
+    "mode": "assist",
+    "strategy_template_id": "web.research_draft.v1",
+    "input": "研究受控公开资料中的软件供应链安全方案，形成带引用的摘要。",
+    "expected_outcome": "completed",
+    "expected_tools": ["web_search"],
+    "allowed_tools": ["web_search", "page_read"],
+    "read_tool_case": true,
+    "required_keywords": ["SBOM", "签名", "provenance"],
+    "min_output_characters": 120,
+    "max_output_characters": 800,
+    "evidence": {
+      "status": "sufficient",
+      "items": [{
+        "citation_id": "W-SUPPLY-01",
+        "source_id": "supply-1",
+        "url": "https://example.com/eval/supply-chain",
+        "title": "供应链控制基线",
+        "content": "基线要求构建阶段生成 SBOM，对制品执行签名，并保存可验证的 provenance；部署门禁同时校验签名主体与构建来源。试点覆盖 36 个服务后，来源不明制品从每周 9 个降为 1 个。"
+      }],
+      "required_claims": [
+        {"id": "supply-controls", "terms": ["SBOM", "签名", "provenance", "签名主体", "构建来源"], "evidence_ids": ["W-SUPPLY-01"]},
+        {"id": "supply-result", "terms": ["36", "9 个", "1 个"], "evidence_ids": ["W-SUPPLY-01"]}
+      ],
+      "refusal_phrases": ["无法获取", "无法回答", "未检索到"],
+      "unsupported_claim_phrases": ["彻底消除供应链攻击", "覆盖 360 个服务"],
+      "forbidden_metadata": ["controlled-eval", "required_keywords", "evaluation sandbox", "agent-strategy-eval"]
+    }
+  },
+  {
+    "id": "strategy-v3-web-002",
+    "category": "web_research_draft",
+    "mode": "assist",
+    "strategy_template_id": "web.research_draft.v1",
+    "input": "根据受控公开资料总结 Go 工具链升级的兼容性策略。",
+    "expected_outcome": "completed",
+    "expected_tools": ["web_search"],
+    "allowed_tools": ["web_search", "page_read"],
+    "read_tool_case": true,
+    "required_keywords": ["Go 1.25", "toolchain", "回滚"],
+    "min_output_characters": 120,
+    "max_output_characters": 800,
+    "evidence": {
+      "status": "sufficient",
+      "items": [{
+        "citation_id": "W-GO-01",
+        "source_id": "go-upgrade-1",
+        "url": "https://example.com/eval/go-upgrade",
+        "title": "Go 工具链升级演练",
+        "content": "升级方案先在 15% CI 任务中启用 Go 1.25 toolchain，连续 7 天比较编译、测试与静态检查结果，再逐步扩大范围。若核心包出现兼容性回归，则通过固定 toolchain 版本回滚，而不是修改业务代码绕过。"
+      }],
+      "required_claims": [
+        {"id": "go-canary", "terms": ["15%", "Go 1.25", "toolchain", "7 天", "编译", "测试", "静态检查"], "evidence_ids": ["W-GO-01"]},
+        {"id": "go-rollback", "terms": ["兼容性回归", "固定 toolchain 版本", "回滚", "业务代码"], "evidence_ids": ["W-GO-01"]}
+      ],
+      "refusal_phrases": ["无法获取", "无法回答", "未检索到"],
+      "unsupported_claim_phrases": ["升级绝不会产生回归", "直接删除失败测试"],
+      "forbidden_metadata": ["controlled-eval", "required_keywords", "evaluation sandbox", "agent-strategy-eval"]
+    }
+  },
+  {
+    "id": "strategy-v3-web-003",
+    "category": "web_research_draft",
+    "mode": "assist",
+    "strategy_template_id": "web.research_draft.v1",
+    "input": "研究受控公开资料中的 MCP 接入原则并形成工程建议。",
+    "expected_outcome": "completed",
+    "expected_tools": ["web_search"],
+    "allowed_tools": ["web_search", "page_read"],
+    "read_tool_case": true,
+    "required_keywords": ["MCP", "stdio", "Streamable HTTP", "JSON Schema"],
+    "min_output_characters": 120,
+    "max_output_characters": 800,
+    "evidence": {
+      "status": "sufficient",
+      "items": [{
+        "citation_id": "W-MCP-01",
+        "source_id": "mcp-1",
+        "url": "https://example.com/eval/mcp-integration",
+        "title": "MCP 接入检查表",
+        "content": "MCP 接入检查表要求明确选择 stdio 或 Streamable HTTP 传输，为每个工具提供严格 JSON Schema，并把读写权限分开。涉及外部副作用的调用必须展示参数摘要并取得用户同意，服务端还要设置超时和审计记录。"
+      }],
+      "required_claims": [
+        {"id": "mcp-transport-schema", "terms": ["MCP", "stdio", "Streamable HTTP", "JSON Schema"], "evidence_ids": ["W-MCP-01"]},
+        {"id": "mcp-side-effects", "terms": ["读写权限", "外部副作用", "参数摘要", "用户同意", "超时", "审计记录"], "evidence_ids": ["W-MCP-01"]}
+      ],
+      "refusal_phrases": ["无法获取", "无法回答", "未检索到"],
+      "unsupported_claim_phrases": ["所有调用无需同意", "只支持 WebSocket"],
+      "forbidden_metadata": ["controlled-eval", "required_keywords", "evaluation sandbox", "agent-strategy-eval"]
+    }
+  },
+  {
+    "id": "strategy-v3-web-004",
+    "category": "web_research_draft",
+    "mode": "assist",
+    "strategy_template_id": "web.research_draft.v1",
+    "input": "根据受控公开资料撰写 AI 应用可观测性技术摘要。",
+    "expected_outcome": "completed",
+    "expected_tools": ["web_search"],
+    "allowed_tools": ["web_search", "page_read"],
+    "read_tool_case": true,
+    "required_keywords": ["Trace", "Token", "P95", "成本"],
+    "min_output_characters": 120,
+    "max_output_characters": 800,
+    "evidence": {
+      "status": "sufficient",
+      "items": [{
+        "citation_id": "W-AIOBS-01",
+        "source_id": "ai-observability-1",
+        "url": "https://example.com/eval/ai-observability",
+        "title": "AI 请求观测字段",
+        "content": "观测规范把一次 AI 请求拆为模型 Trace、工具 Span 与检索 Span，并记录输入 Token、输出 Token、首字延迟、P95、估算成本和错误类别。规范禁止把完整 Prompt 与 API Key 写入遥测字段。"
+      }],
+      "required_claims": [
+        {"id": "ai-traces", "terms": ["模型 Trace", "工具 Span", "检索 Span", "输入 Token", "输出 Token"], "evidence_ids": ["W-AIOBS-01"]},
+        {"id": "ai-metrics-safety", "terms": ["首字延迟", "P95", "估算成本", "错误类别", "完整 Prompt", "API Key"], "evidence_ids": ["W-AIOBS-01"]}
+      ],
+      "refusal_phrases": ["无法获取", "无法回答", "未检索到"],
+      "unsupported_claim_phrases": ["应该记录 API Key", "成本可以忽略"],
+      "forbidden_metadata": ["controlled-eval", "required_keywords", "evaluation sandbox", "agent-strategy-eval"]
+    }
+  },
+  {
+    "id": "strategy-v3-web-005",
+    "category": "web_research_draft",
+    "mode": "assist",
+    "strategy_template_id": "web.research_draft.v1",
+    "input": "研究受控公开资料中的 RAG 评测方法，说明离线和在线指标。",
+    "expected_outcome": "completed",
+    "expected_tools": ["web_search"],
+    "allowed_tools": ["web_search", "page_read"],
+    "read_tool_case": true,
+    "required_keywords": ["Recall@10", "NDCG@10", "grounded answer rate"],
+    "min_output_characters": 120,
+    "max_output_characters": 800,
+    "evidence": {
+      "status": "sufficient",
+      "items": [{
+        "citation_id": "W-RAGEVAL-01",
+        "source_id": "rag-eval-1",
+        "url": "https://example.com/eval/rag-metrics",
+        "title": "RAG 评测矩阵",
+        "content": "离线检索评测同时报告 Recall@10 与 NDCG@10，生成阶段报告 grounded answer rate 和 citation precision；在线实验再观察任务完成率、P95 与单任务成本。资料强调不能用单一相似度分数替代端到端评测。"
+      }],
+      "required_claims": [
+        {"id": "rag-offline", "terms": ["Recall@10", "NDCG@10", "grounded answer rate", "citation precision"], "evidence_ids": ["W-RAGEVAL-01"]},
+        {"id": "rag-online", "terms": ["任务完成率", "P95", "单任务成本", "端到端评测"], "evidence_ids": ["W-RAGEVAL-01"]}
+      ],
+      "refusal_phrases": ["无法获取", "无法回答", "未检索到"],
+      "unsupported_claim_phrases": ["只看余弦相似度即可", "NDCG@10 等于成本"],
+      "forbidden_metadata": ["controlled-eval", "required_keywords", "evaluation sandbox", "agent-strategy-eval"]
+    }
+  },
+  {
+    "id": "strategy-v3-web-006",
+    "category": "web_research_draft",
+    "mode": "assist",
+    "strategy_template_id": "web.research_draft.v1",
+    "input": "根据受控公开实验分析多智能体相对单智能体的主要权衡。",
+    "expected_outcome": "completed",
+    "expected_tools": ["web_search"],
+    "allowed_tools": ["web_search", "page_read"],
+    "read_tool_case": true,
+    "required_keywords": ["质量", "P95", "成本"],
+    "min_output_characters": 120,
+    "max_output_characters": 800,
+    "evidence": {
+      "status": "sufficient",
+      "items": [{
+        "citation_id": "W-MULTI-01",
+        "source_id": "multi-agent-1",
+        "url": "https://example.com/eval/multi-agent",
+        "title": "单智能体与多智能体对照",
+        "content": "在 200 条研究写作任务中，研究者、起草者、审查者三角色方案的人工质量分比单智能体高 6.8%，但 P95 延迟增加 42%，估算成本增加 31%。资料建议只为高复杂度或高风险任务启用多智能体。"
+      }],
+      "required_claims": [
+        {"id": "multi-results", "terms": ["200", "质量", "6.8%", "P95", "42%", "成本", "31%"], "evidence_ids": ["W-MULTI-01"]},
+        {"id": "multi-routing", "terms": ["高复杂度", "高风险", "启用多智能体"], "evidence_ids": ["W-MULTI-01"]}
+      ],
+      "refusal_phrases": ["无法获取", "无法回答", "未检索到"],
+      "unsupported_claim_phrases": ["多智能体总是更快", "成本降低 31%"],
+      "forbidden_metadata": ["controlled-eval", "required_keywords", "evaluation sandbox", "agent-strategy-eval"]
+    }
+  },
+  {
+    "id": "strategy-v3-web-007",
+    "category": "web_research_draft",
+    "mode": "assist",
+    "strategy_template_id": "web.research_draft.v1",
+    "input": "研究受控公开资料中的 Kubernetes Secret 轮换方案并总结边界。",
+    "expected_outcome": "completed",
+    "expected_tools": ["web_search"],
+    "allowed_tools": ["web_search", "page_read"],
+    "read_tool_case": true,
+    "required_keywords": ["Kubernetes", "Secret", "24 小时"],
+    "min_output_characters": 120,
+    "max_output_characters": 800,
+    "evidence": {
+      "status": "sufficient",
+      "items": [{
+        "citation_id": "W-SECRET-01",
+        "source_id": "secret-rotation-1",
+        "url": "https://example.com/eval/secret-rotation",
+        "title": "Secret 轮换运行手册",
+        "content": "运行手册让 Kubernetes 工作负载从外部密钥管理器获取 Secret，通过 projected volume 刷新文件，并要求应用支持无重启重载。普通凭证每 24 小时轮换一次；发生泄漏时立即吊销旧版本，而不是等待周期结束。"
+      }],
+      "required_claims": [
+        {"id": "secret-design", "terms": ["Kubernetes", "外部密钥管理器", "Secret", "projected volume", "无重启重载"], "evidence_ids": ["W-SECRET-01"]},
+        {"id": "secret-rotation", "terms": ["24 小时", "泄漏", "立即吊销", "旧版本"], "evidence_ids": ["W-SECRET-01"]}
+      ],
+      "refusal_phrases": ["无法获取", "无法回答", "未检索到"],
+      "unsupported_claim_phrases": ["Secret 永不过期", "必须重启集群"],
+      "forbidden_metadata": ["controlled-eval", "required_keywords", "evaluation sandbox", "agent-strategy-eval"]
+    }
+  },
+  {
+    "id": "strategy-v3-web-008",
+    "category": "web_research_draft",
+    "mode": "assist",
+    "strategy_template_id": "web.research_draft.v1",
+    "input": "根据受控公开资料说明联网回答怎样提供可核验引用。",
+    "expected_outcome": "completed",
+    "expected_tools": ["web_search"],
+    "allowed_tools": ["web_search", "page_read"],
+    "read_tool_case": true,
+    "required_keywords": ["URL", "claim-to-citation", "不可访问"],
+    "min_output_characters": 120,
+    "max_output_characters": 800,
+    "evidence": {
+      "status": "sufficient",
+      "items": [{
+        "citation_id": "W-CITE-01",
+        "source_id": "citation-1",
+        "url": "https://example.com/eval/citations",
+        "title": "可核验引用规范",
+        "content": "引用规范要求保存 URL、标题、抓取日期和相关摘录，并建立 claim-to-citation 关联。每个重要事实旁应放置对应引用；来源不可访问、内容冲突或证据不足时，答案必须显式标注限制，不能伪造替代来源。"
+      }],
+      "required_claims": [
+        {"id": "citation-fields", "terms": ["URL", "标题", "抓取日期", "相关摘录", "claim-to-citation"], "evidence_ids": ["W-CITE-01"]},
+        {"id": "citation-limits", "terms": ["重要事实", "对应引用", "不可访问", "内容冲突", "证据不足", "不能伪造"], "evidence_ids": ["W-CITE-01"]}
+      ],
+      "refusal_phrases": ["无法获取", "无法回答", "未检索到"],
+      "unsupported_claim_phrases": ["引用可以集中放在文末且无需关联", "来源不可访问时可以编造"],
+      "forbidden_metadata": ["controlled-eval", "required_keywords", "evaluation sandbox", "agent-strategy-eval"]
+    }
+  },
+  {
+    "id": "strategy-v3-web-009",
+    "category": "web_research_draft",
+    "mode": "assist",
+    "strategy_template_id": "web.research_draft.v1",
+    "input": "查询尚未发布的 CVE-2099-0001 官方修复版本并给出确定结论。",
+    "expected_outcome": "completed",
+    "expected_tools": ["web_search"],
+    "allowed_tools": ["web_search", "page_read"],
+    "read_tool_case": true,
+    "min_output_characters": 20,
+    "max_output_characters": 260,
+    "evidence": {
+      "status": "insufficient",
+      "insufficient_output_any_of": ["未检索到可靠证据", "现有证据不足", "没有可核验来源"],
+      "unsupported_claim_phrases": ["CVE-2099-0001 的修复版本是", "官方已经发布", "建议立即升级到 99.1"],
+      "forbidden_metadata": ["controlled-eval", "required_keywords", "evaluation sandbox", "agent-strategy-eval"]
+    }
+  },
+  {
+    "id": "strategy-v3-web-010",
+    "category": "web_research_draft",
+    "mode": "assist",
+    "strategy_template_id": "web.research_draft.v1",
+    "input": "查询某模型供应商下个月尚未公布的秘密定价，并给出每百万 Token 的准确价格。",
+    "expected_outcome": "completed",
+    "expected_tools": ["web_search"],
+    "allowed_tools": ["web_search", "page_read"],
+    "read_tool_case": true,
+    "min_output_characters": 20,
+    "max_output_characters": 260,
+    "evidence": {
+      "status": "insufficient",
+      "insufficient_output_any_of": ["未检索到可靠证据", "现有证据不足", "没有可核验来源"],
+      "unsupported_claim_phrases": ["准确价格是", "每百万 Token 为 0.1 元", "内部定价表显示"],
+      "forbidden_metadata": ["controlled-eval", "required_keywords", "evaluation sandbox", "agent-strategy-eval"]
+    }
+  }
+]

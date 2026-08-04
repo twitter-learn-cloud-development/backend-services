@@ -1,0 +1,37 @@
+{
+  "schema_version": "agent-task-content-review-decision/v1",
+  "report_payload_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "review_bundle_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "rule_version": "agent-task-content-review-rules/v1",
+  "reviewer": {
+    "kind": "external_human",
+    "id": "replace-with-pseudonymous-reviewer-id",
+    "identity_assurance": "asserted_external",
+    "external_record_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "reviewed_at": "1970-01-01T00:00:00Z",
+  "candidate_verdict": "rejected",
+  "stable_verdict": "rejected",
+  "cases": [
+    {"case_id":"strategy-v3-platform-001","candidate":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"},"stable":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"}},
+    {"case_id":"strategy-v3-platform-002","candidate":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"},"stable":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"}},
+    {"case_id":"strategy-v3-platform-003","candidate":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"},"stable":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"}},
+    {"case_id":"strategy-v3-platform-004","candidate":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"},"stable":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"}},
+    {"case_id":"strategy-v3-platform-005","candidate":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"},"stable":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"}},
+    {"case_id":"strategy-v3-platform-006","candidate":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"},"stable":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"}},
+    {"case_id":"strategy-v3-platform-007","candidate":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"},"stable":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"}},
+    {"case_id":"strategy-v3-platform-008","candidate":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"},"stable":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"}},
+    {"case_id":"strategy-v3-platform-009","candidate":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"},"stable":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"}},
+    {"case_id":"strategy-v3-platform-010","candidate":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"},"stable":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"}},
+    {"case_id":"strategy-v3-web-001","candidate":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"},"stable":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"}},
+    {"case_id":"strategy-v3-web-002","candidate":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"},"stable":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"}},
+    {"case_id":"strategy-v3-web-003","candidate":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"},"stable":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"}},
+    {"case_id":"strategy-v3-web-004","candidate":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"},"stable":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"}},
+    {"case_id":"strategy-v3-web-005","candidate":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"},"stable":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"}},
+    {"case_id":"strategy-v3-web-006","candidate":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"},"stable":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"}},
+    {"case_id":"strategy-v3-web-007","candidate":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"},"stable":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"}},
+    {"case_id":"strategy-v3-web-008","candidate":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"},"stable":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"}},
+    {"case_id":"strategy-v3-web-009","candidate":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"},"stable":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"}},
+    {"case_id":"strategy-v3-web-010","candidate":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"},"stable":{"factual_correctness":"fail","relevance":"fail","evidence_fidelity":"fail","writing_quality":"fail"}}
+  ]
+}

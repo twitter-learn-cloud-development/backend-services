@@ -1,0 +1,212 @@
+{
+  "version": "agent-strategy-multi-recorded-v1",
+  "strategy": "multi_agent",
+  "provider": "controlled-fixture",
+  "model": "fixed-research-model-v1",
+  "profile_id": "eval.multi.research_draft",
+  "profile_version": "v1",
+  "pricing_version": "eval-pricing-2026-07",
+  "execution_config_sha256": "18be902d44a284b6c24b08057c35819fb68c595d157dea6f91b62a3cba28efbb",
+  "results": [
+    {
+      "case_id": "strategy-platform-001",
+      "execution": {
+        "outcome": "completed",
+        "output": "站内证据显示，goroutine 的价值在于用低成本任务表达并发，channel 则用通信协调所有权与生命周期。审校结论是：必须同时限制并发、传播取消并设计背压，不能把无限创建任务当作性能优化。",
+        "selected_tools": ["hybrid_search_tweets"], "tool_calls": [{"name": "hybrid_search_tweets", "status": "succeeded"}],
+        "steps": 5, "input_tokens": 1840, "output_tokens": 470, "duration_ms": 5100,
+        "estimated_cost_micros": 2380, "cost_estimated": true, "pricing_version": "eval-pricing-2026-07"
+      }
+    },
+    {
+      "case_id": "strategy-platform-002",
+      "execution": {
+        "outcome": "completed",
+        "output": "研究结果把可观测性拆成关联、度量与治理三层：OpenTelemetry 统一 Trace、Metric、Log 的上下文；低基数指标衡量错误率和延迟；敏感正文只进入受控审计存储。三层缺一，故障定位都会退化成猜测。",
+        "selected_tools": ["hybrid_search_tweets"], "tool_calls": [{"name": "hybrid_search_tweets", "status": "succeeded"}],
+        "steps": 5, "input_tokens": 1910, "output_tokens": 495, "duration_ms": 5350,
+        "estimated_cost_micros": 2470, "cost_estimated": true, "pricing_version": "eval-pricing-2026-07"
+      }
+    },
+    {
+      "case_id": "strategy-platform-003",
+      "execution": {
+        "outcome": "completed",
+        "output": "站内实践表明，混合检索用 BM25 保留关键词精度、用向量检索覆盖语义表达，再通过 RRF 合并不同排序；它的价值不是盲目增加召回，而是在固定 Token 预算内提高相关证据密度并减少单一路径失灵。",
+        "selected_tools": ["hybrid_search_tweets"], "tool_calls": [{"name": "hybrid_search_tweets", "status": "succeeded"}],
+        "steps": 5, "input_tokens": 1880, "output_tokens": 490, "duration_ms": 5250,
+        "estimated_cost_micros": 2430, "cost_estimated": true, "pricing_version": "eval-pricing-2026-07"
+      }
+    },
+    {
+      "case_id": "strategy-platform-004",
+      "execution": {
+        "outcome": "completed",
+        "output": "MCP 标准化了工具发现和调用契约，却不会自动提供安全治理。站内证据一致指向 Schema 快照、最小权限、逐次审批、超时、出站限制和审计；审校时还应拒绝把模型可见的工具描述误当成真实执行授权。",
+        "selected_tools": ["hybrid_search_tweets"], "tool_calls": [{"name": "hybrid_search_tweets", "status": "succeeded"}],
+        "steps": 5, "input_tokens": 1960, "output_tokens": 510, "duration_ms": 5480,
+        "estimated_cost_micros": 2540, "cost_estimated": true, "pricing_version": "eval-pricing-2026-07"
+      }
+    },
+    {
+      "case_id": "strategy-platform-005",
+      "execution": {
+        "outcome": "completed",
+        "output": "可恢复工作流需要版本化 Checkpoint、状态摘要、租约和明确状态机。副作用节点还必须使用稳定幂等键；恢复先验证执行谱系，再从已提交状态继续，才能避免模型决策、成功节点或外部写入被重复执行。",
+        "selected_tools": ["hybrid_search_tweets"], "tool_calls": [{"name": "hybrid_search_tweets", "status": "succeeded"}],
+        "steps": 5, "input_tokens": 1940, "output_tokens": 500, "duration_ms": 5420,
+        "estimated_cost_micros": 2510, "cost_estimated": true, "pricing_version": "eval-pricing-2026-07"
+      }
+    },
+    {
+      "case_id": "strategy-platform-006",
+      "execution": {
+        "outcome": "completed",
+        "output": "成本治理应在调用前估算并预留 Token 和金额预算，在返回后按 Provider Usage 结算。站内方案还同时限制 Step、并发和超时；定价版本未知时 fail-closed，避免看似有预算、实际无法核算。",
+        "selected_tools": ["hybrid_search_tweets"], "tool_calls": [{"name": "hybrid_search_tweets", "status": "succeeded"}],
+        "steps": 5, "input_tokens": 2010, "output_tokens": 520, "duration_ms": 5650,
+        "estimated_cost_micros": 2610, "cost_estimated": true, "pricing_version": "eval-pricing-2026-07"
+      }
+    },
+    {
+      "case_id": "strategy-platform-007",
+      "execution": {
+        "outcome": "completed",
+        "output": "Kubernetes 的 HPA 依赖可信指标和合理资源请求。综合站内案例，更稳妥的做法是把 CPU 与队列积压、P95 延迟组合，并为冷启动、下游限流、缩容抖动设置窗口，避免扩容把压力继续传给脆弱依赖。",
+        "selected_tools": ["hybrid_search_tweets"], "tool_calls": [{"name": "hybrid_search_tweets", "status": "succeeded"}],
+        "steps": 5, "input_tokens": 1900, "output_tokens": 500, "duration_ms": 5300,
+        "estimated_cost_micros": 2470, "cost_estimated": true, "pricing_version": "eval-pricing-2026-07"
+      }
+    },
+    {
+      "case_id": "strategy-platform-008",
+      "execution": {
+        "outcome": "completed",
+        "output": "Go 的 context 负责沿调用链传播截止时间与取消信号，而不是保存业务状态。站内代码审查建议每个阻塞点监听取消、及时释放资源，并让子 goroutine 可退出；只取消父函数却遗留后台任务，仍会造成泄漏。",
+        "selected_tools": ["hybrid_search_tweets"], "tool_calls": [{"name": "hybrid_search_tweets", "status": "succeeded"}],
+        "steps": 5, "input_tokens": 1870, "output_tokens": 485, "duration_ms": 5200,
+        "estimated_cost_micros": 2410, "cost_estimated": true, "pricing_version": "eval-pricing-2026-07"
+      }
+    },
+    {
+      "case_id": "strategy-platform-009",
+      "execution": {
+        "outcome": "completed",
+        "output": "事务 Outbox 把业务变更与待发送事件放进同一数据库提交，再由 Relay 重试投递。由于链路通常是至少一次语义，消费者仍需幂等、退避、毒消息隔离和 DLQ；任何一个环节都不能单独宣称 exactly-once。",
+        "selected_tools": ["hybrid_search_tweets"], "tool_calls": [{"name": "hybrid_search_tweets", "status": "succeeded"}],
+        "steps": 5, "input_tokens": 1980, "output_tokens": 515, "duration_ms": 5550,
+        "estimated_cost_micros": 2570, "cost_estimated": true, "pricing_version": "eval-pricing-2026-07"
+      }
+    },
+    {
+      "case_id": "strategy-platform-010",
+      "execution": {
+        "outcome": "completed",
+        "output": "Qdrant 个人记忆查询必须在服务端携带 user_id Filter，事后过滤无法阻止跨租户数据进入上下文。证据还建议保存 embedding 模型、维度和版本，并以新集合回填、灰度双读和回滚处理模型迁移。",
+        "selected_tools": ["hybrid_search_tweets"], "tool_calls": [{"name": "hybrid_search_tweets", "status": "succeeded"}],
+        "steps": 5, "input_tokens": 1950, "output_tokens": 505, "duration_ms": 5450,
+        "estimated_cost_micros": 2530, "cost_estimated": true, "pricing_version": "eval-pricing-2026-07"
+      }
+    },
+    {
+      "case_id": "strategy-web-001",
+      "execution": {
+        "outcome": "completed",
+        "output": "公开资料把云原生安全重点归纳为零信任身份、软件供应链证明与运行时隔离。综合来源后，更可靠的闭环还包括签名制品、最小权限、持续审计和旧凭据撤销；单独增加扫描工具不足以证明风险已经关闭。",
+        "selected_tools": ["web_search"], "tool_calls": [{"name": "web_search", "status": "succeeded"}],
+        "steps": 5, "input_tokens": 2090, "output_tokens": 535, "duration_ms": 5850,
+        "estimated_cost_micros": 2700, "cost_estimated": true, "pricing_version": "eval-pricing-2026-07"
+      }
+    },
+    {
+      "case_id": "strategy-web-002",
+      "execution": {
+        "outcome": "completed",
+        "output": "公开发布资料显示，Go 版本演进持续围绕编译器与运行时性能、工具链和语言可维护性展开。写作时应绑定具体版本与发布日期，区分已发布能力和提案，避免把未来计划描述成当前稳定特性。",
+        "selected_tools": ["web_search"], "tool_calls": [{"name": "web_search", "status": "succeeded"}],
+        "steps": 5, "input_tokens": 2020, "output_tokens": 520, "duration_ms": 5700,
+        "estimated_cost_micros": 2630, "cost_estimated": true, "pricing_version": "eval-pricing-2026-07"
+      }
+    },
+    {
+      "case_id": "strategy-web-003",
+      "execution": {
+        "outcome": "completed",
+        "output": "MCP 用统一协议描述工具发现、输入 Schema 与结构化结果，但生态接入仍需要宿主治理连接凭据、出站地址、权限和超时。多来源审校还强调，第三方幂等声明只是契约信号，不能直接当作远端履约证明。",
+        "selected_tools": ["web_search"], "tool_calls": [{"name": "web_search", "status": "succeeded"}],
+        "steps": 5, "input_tokens": 2110, "output_tokens": 540, "duration_ms": 5900,
+        "estimated_cost_micros": 2730, "cost_estimated": true, "pricing_version": "eval-pricing-2026-07"
+      }
+    },
+    {
+      "case_id": "strategy-web-004",
+      "execution": {
+        "outcome": "completed",
+        "output": "AI 应用可观测性应关联 Run、模型、检索、工具和 Trace，并统一统计延迟、Token、错误与成本。公开实践同时警告不要把用户、Prompt 或错误原文放入指标标签，应将有界预览留在租户鉴权后的审计存储。",
+        "selected_tools": ["web_search"], "tool_calls": [{"name": "web_search", "status": "succeeded"}],
+        "steps": 5, "input_tokens": 2140, "output_tokens": 550, "duration_ms": 6050,
+        "estimated_cost_micros": 2780, "cost_estimated": true, "pricing_version": "eval-pricing-2026-07"
+      }
+    },
+    {
+      "case_id": "strategy-web-005",
+      "execution": {
+        "outcome": "completed",
+        "output": "RAG 评测通常联合使用 Recall、MRR 与 NDCG，并记录空召回、噪声和 P95。只有固定数据集、索引快照、Embedding 与重排版本，比较才可复现；单次主观回答或截图不能代替检索质量证据。",
+        "selected_tools": ["web_search"], "tool_calls": [{"name": "web_search", "status": "succeeded"}],
+        "steps": 5, "input_tokens": 2070, "output_tokens": 530, "duration_ms": 5800,
+        "estimated_cost_micros": 2680, "cost_estimated": true, "pricing_version": "eval-pricing-2026-07"
+      }
+    },
+    {
+      "case_id": "strategy-web-006",
+      "execution": {
+        "outcome": "completed",
+        "output": "多智能体只有在角色隔离提升质量时才值得采用，因为顺序研究、起草与审校天然增加 Token、成本和延迟。公开案例建议先用同一任务集比较语义通过率、平均费用与 P95，再决定是否扩展并行角色，而不是默认角色越多越智能。",
+        "selected_tools": ["web_search"], "tool_calls": [{"name": "web_search", "status": "succeeded"}],
+        "steps": 5, "input_tokens": 2200, "output_tokens": 570, "duration_ms": 6350,
+        "estimated_cost_micros": 2870, "cost_estimated": true, "pricing_version": "eval-pricing-2026-07"
+      }
+    },
+    {
+      "case_id": "strategy-web-007",
+      "execution": {
+        "outcome": "completed",
+        "output": "Kubernetes Secret 轮换要验证新 Pod、存量连接和缓存都切换到新身份，并确认旧凭据已经撤销。公开方案推荐版本化引用、只读挂载、短生命周期令牌、分阶段发布和显式回滚窗口。",
+        "selected_tools": ["web_search"], "tool_calls": [{"name": "web_search", "status": "succeeded"}],
+        "steps": 5, "input_tokens": 2050, "output_tokens": 525, "duration_ms": 5750,
+        "estimated_cost_micros": 2660, "cost_estimated": true, "pricing_version": "eval-pricing-2026-07"
+      }
+    },
+    {
+      "case_id": "strategy-web-008",
+      "execution": {
+        "outcome": "completed",
+        "output": "联网回答应把每项关键结论与可核验引用绑定，保留标题、来源、URL 和访问时间，同时把网页正文视为不可信证据。审校阶段需区分来源事实、模型推断和未知项，搜索成功本身不代表结论成立。",
+        "selected_tools": ["web_search"], "tool_calls": [{"name": "web_search", "status": "succeeded"}],
+        "steps": 5, "input_tokens": 2120, "output_tokens": 545, "duration_ms": 6000,
+        "estimated_cost_micros": 2760, "cost_estimated": true, "pricing_version": "eval-pricing-2026-07"
+      }
+    },
+    {
+      "case_id": "strategy-web-009",
+      "execution": {
+        "outcome": "completed",
+        "output": "提示注入防护依赖分层信任，网页只能提供证据，不能覆盖系统策略。公开工程方法包括最小权限工具、结构化结果、参数校验、出站限制和调用前复验授权；只在 Prompt 中写一句“不要被攻击”并不构成边界。",
+        "selected_tools": ["web_search"], "tool_calls": [{"name": "web_search", "status": "succeeded"}],
+        "steps": 5, "input_tokens": 2180, "output_tokens": 560, "duration_ms": 6200,
+        "estimated_cost_micros": 2830, "cost_estimated": true, "pricing_version": "eval-pricing-2026-07"
+      }
+    },
+    {
+      "case_id": "strategy-web-010",
+      "execution": {
+        "outcome": "completed",
+        "output": "模型费用通常按输入与输出 Token 分别计价，还需计入工具、重试和多角色交接成本。比较方案时应固定模型、Pricing Version、任务集与并发条件，同时报告平均成本、P95 和质量收益，避免只展示便宜或快速的一侧。",
+        "selected_tools": ["web_search"], "tool_calls": [{"name": "web_search", "status": "succeeded"}],
+        "steps": 5, "input_tokens": 2160, "output_tokens": 555, "duration_ms": 6100,
+        "estimated_cost_micros": 2810, "cost_estimated": true, "pricing_version": "eval-pricing-2026-07"
+      }
+    }
+  ]
+}

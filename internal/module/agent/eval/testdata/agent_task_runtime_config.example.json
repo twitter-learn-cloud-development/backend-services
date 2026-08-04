@@ -1,0 +1,31 @@
+{
+  "version": "agent-task-runtime-config/v1",
+  "provider": "lmstudio",
+  "base_url": "http://localhost:1234/v1",
+  "model": "qwen2.5-3b-instruct",
+  "credential_env": "AGENT_TASK_EVAL_PROVIDER_API_KEY",
+  "context_window": 8192,
+  "max_output_tokens": 1024,
+  "input_micros_per_million_tokens": 0,
+  "output_micros_per_million_tokens": 0,
+  "provider_timeout_ms": 30000,
+  "profile": {
+    "id": "eval.general-assistant",
+    "version": "v1",
+    "prompt_id": "eval.general-assistant.system",
+    "prompt_version": "v1",
+    "system_prompt": "你是一个可靠的通用 AI 助手。直接回答用户问题；需要平台推文数据时调用平台检索工具，需要外部实时信息时调用 Web 搜索；信息不足时先澄清；写作请求只生成完整草稿。任何发布操作都必须调用发布工具并接受系统审批，禁止声称未实际完成的工具结果。",
+    "allowed_tools": [
+      "hybrid_search_tweets",
+      "web_search",
+      "create_tweet",
+      "ask_human"
+    ],
+    "max_steps": 4,
+    "max_input_tokens": 4096,
+    "max_output_tokens": 1024,
+    "max_total_tokens": 12000,
+    "max_estimated_cost_micros": 0,
+    "timeout_ms": 120000
+  }
+}
