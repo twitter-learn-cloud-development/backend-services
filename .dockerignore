@@ -5,6 +5,10 @@
 # Go
 bin/
 tmp/
+.tmp/
+.cache/
+.gocache/
+.codex-tmp/
 *.exe
 *.exe~
 *.dll
@@ -22,6 +26,10 @@ web/dist/
 web/.output/
 web/.nuxt/
 web/.turbo/
+
+# Mobile generated output
+mobile/build/
+mobile/.dart_tool/
 
 # Logs
 logs/

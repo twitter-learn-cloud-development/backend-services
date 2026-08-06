@@ -50,6 +50,7 @@ services:  #开始搭建服务
     ports:
       - "16686:16686"
       - "6831:6831/udp"
+      - "4317:4317"
     environment:
       - COLLECTOR_ZIPKIN_HOST_PORT=:9411
       - COLLECTOR_OTLP_ENABLED=true
@@ -105,7 +106,7 @@ services:  #开始搭建服务
       - JAEGER_AGENT_HOST=jaeger
       - JAEGER_SAMPLER_TYPE=const
       - JAEGER_SAMPLER_PARAM=1
-      - JAEGER_COLLECTOR_ENDPOINT=http://jaeger:14268/api/traces
+      - JAEGER_COLLECTOR_ENDPOINT=jaeger:4317
       - JWT_SECRET=twitter_clone_secret_key_2023
     # ports:
     #   - "9091:9091"
@@ -140,7 +141,7 @@ services:  #开始搭建服务
       - JAEGER_AGENT_HOST=jaeger
       - JAEGER_SAMPLER_TYPE=const
       - JAEGER_SAMPLER_PARAM=1
-      - JAEGER_COLLECTOR_ENDPOINT=http://jaeger:14268/api/traces
+      - JAEGER_COLLECTOR_ENDPOINT=jaeger:4317
     # ports:
     #   - "9092:9092"
     restart: on-failure
@@ -176,7 +177,7 @@ services:  #开始搭建服务
       - JAEGER_AGENT_HOST=jaeger
       - JAEGER_SAMPLER_TYPE=const
       - JAEGER_SAMPLER_PARAM=1
-      - JAEGER_COLLECTOR_ENDPOINT=http://jaeger:14268/api/traces
+      - JAEGER_COLLECTOR_ENDPOINT=jaeger:4317
     # ports:
     #   - "9093:9093"
     restart: on-failure
@@ -208,7 +209,10 @@ services:  #开始搭建服务
       - JAEGER_AGENT_HOST=jaeger
       - JAEGER_SAMPLER_TYPE=const
       - JAEGER_SAMPLER_PARAM=1
-      - JAEGER_COLLECTOR_ENDPOINT=http://jaeger:14268/api/traces
+      - JAEGER_COLLECTOR_ENDPOINT=jaeger:4317
+      - CONSUMER_METRICS_PORT=2116
+    expose:
+      - "2116"
     restart: on-failure
     depends_on:
       mysql:
@@ -241,7 +245,7 @@ services:  #开始搭建服务
       - JAEGER_AGENT_HOST=jaeger
       - JAEGER_SAMPLER_TYPE=const
       - JAEGER_SAMPLER_PARAM=1
-      - JAEGER_COLLECTOR_ENDPOINT=http://jaeger:14268/api/traces
+      - JAEGER_COLLECTOR_ENDPOINT=jaeger:4317
       - JWT_SECRET=twitter_clone_secret_key_2023
     ports:
       - "9638:9638"
@@ -276,7 +280,7 @@ services:  #开始搭建服务
       - JAEGER_AGENT_HOST=jaeger
       - JAEGER_SAMPLER_TYPE=const
       - JAEGER_SAMPLER_PARAM=1
-      - JAEGER_COLLECTOR_ENDPOINT=http://jaeger:14268/api/traces
+      - JAEGER_COLLECTOR_ENDPOINT=jaeger:4317
     restart: on-failure
     depends_on:
       mysql:
@@ -306,7 +310,7 @@ services:  #开始搭建服务
       - JAEGER_AGENT_HOST=jaeger
       - JAEGER_SAMPLER_TYPE=const
       - JAEGER_SAMPLER_PARAM=1
-      - JAEGER_COLLECTOR_ENDPOINT=http://jaeger:14268/api/traces
+      - JAEGER_COLLECTOR_ENDPOINT=jaeger:4317
     restart: on-failure
     depends_on:
       mysql:

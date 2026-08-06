@@ -3,17 +3,34 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"strings"
 	"sync"
 	"time"
+	"twitter-clone/internal/module/agent/attribution"
+	agentCredential "twitter-clone/internal/module/agent/credential"
+	"twitter-clone/internal/module/agent/marketplace"
+	externalmcp "twitter-clone/internal/module/agent/mcp/remote"
+	agentMessage "twitter-clone/internal/module/agent/message"
+	agentModel "twitter-clone/internal/module/agent/model"
+	agentObservability "twitter-clone/internal/module/agent/observability"
+	agentProduct "twitter-clone/internal/module/agent/product"
+	"twitter-clone/internal/module/agent/profile"
+	agentProject "twitter-clone/internal/module/agent/project"
 	"twitter-clone/internal/module/agent/repository"
+	agentRuntime "twitter-clone/internal/module/agent/runtime"
+	agentStrategy "twitter-clone/internal/module/agent/strategy"
+	agentWebSearch "twitter-clone/internal/module/agent/websearch"
+	"twitter-clone/internal/module/agent/workflow/dsl"
 	"twitter-clone/internal/module/agent/workflow/rag"
+	workflowTool "twitter-clone/internal/module/agent/workflow/tool"
 	"twitter-clone/pkg/ai"
 	"twitter-clone/pkg/config"
 	"twitter-clone/pkg/logger"
+	platformTrace "twitter-clone/pkg/trace"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/mark3labs/mcp-go/client"
@@ -32,7 +49,8 @@ import (
 const (
 	// MaxContextMessages 多轮对话最多携带的历史消息数
 	// 控制 token 消耗，20 条消息约覆盖最近 10 轮对话
-	MaxContextMessages = 20
+	MaxContextMessages              = 20
+	defaultWorkflowSnapshotInterval = 16
 )
 
 // ========================== 返回结构体 ==========================
@@ -46,6 +64,8 @@ type TweetResult struct {
 // ChatResult 统一的对话返回结构
 type ChatResult struct {
 	DialogueID string        // 对话会话 ID（十六进制字符串）
+	RunID      string        // Runtime Run ID；Legacy 路径为空
+	RunStatus  string        // Runtime lifecycle status；Legacy 路径为空
 	Response   string        // AI 回复文本
 	Tweets     []TweetResult // 推文搜索结果（模式二时有值）
 }
@@ -54,12 +74,13 @@ type ChatResult struct {
 
 // AgentService AI Agent 服务
 type AgentService struct {
-	llmClient *openai.Client             // 对话模型客户端
-	repo      repository.AgentRepository // 对话持久化仓储
-	chatModel string                     // 对话模型名称
-	mcpAddr   string                     // MCP Server 地址
-	aiClient  *ai.Client                 // 降级路由 AI 客户端
-	rdb       *redis.Client              // 🎯 注入 Redis 客户端支持调优配置写入、广播和冷却锁
+	llmClient    *openai.Client             // 对话模型客户端
+	repo         repository.AgentRepository // 对话持久化仓储
+	chatModel    string                     // 对话模型名称
+	mcpAddr      string                     // MCP Server 地址
+	mcpAuthToken string
+	aiClient     *ai.Client    // 降级路由 AI 客户端
+	rdb          *redis.Client // 🎯 注入 Redis 客户端支持调优配置写入、广播和冷却锁
 
 	// 🆕 生命周期控制，防止 background context 导致的协程泄漏
 	serviceCtx context.Context
@@ -70,9 +91,541 @@ type AgentService struct {
 	mcpTools  []mcp.Tool
 	mcpMu     sync.RWMutex
 
-	memoryManager  *rag.MemoryManager
-	cascadeRouter  *rag.CascadeRouter
-	embeddingModel string
+	memoryManager                        *rag.MemoryManager
+	cascadeRouter                        *rag.CascadeRouter
+	embeddingModel                       string
+	runtimeRollout                       agentRuntime.Rollout
+	profileResolver                      profile.Resolver
+	runtimeRunner                        agentRuntime.AgentRunner
+	runtimeTools                         RuntimeToolCatalog
+	runtimeMessages                      agentMessage.Builder
+	runtimeTokens                        agentRuntime.TokenCounter
+	runtimeAdmission                     agentRuntime.AdmissionController
+	runtimeCostEstimator                 agentRuntime.CostEstimator
+	traceRecorder                        agentObservability.Recorder
+	traceReader                          agentObservability.Reader
+	traceEventReader                     agentObservability.EventReader
+	traceContentSampler                  agentObservability.ContentSampler
+	workflowToolExecutor                 *workflowTool.Executor
+	workflowToolPublicationStore         repository.WorkflowToolPublicationStore
+	workflowAsToolEnabled                bool
+	workflowToolCatalogLimit             int
+	workflowToolTimeout                  time.Duration
+	skillCatalogEnabled                  bool
+	skillCatalogLimit                    int
+	extensionCatalogEnabled              bool
+	extensionCatalogLimit                int
+	extensionSkillSource                 AgentExtensionSkillSource
+	extensionMCPSource                   AgentExtensionMCPSource
+	extensionMarketplaceEnabled          bool
+	extensionMarketplaceLimit            int
+	extensionMarketplaceStore            marketplace.CatalogStore
+	confirmedDraftPublisher              ConfirmedDraftPublisher
+	productOutcomeRecorder               ProductOutcomeRecorder
+	contentAttributionStore              attribution.Store
+	contentAttributionWindow             time.Duration
+	workflowSnapshotInterval             uint64
+	workflowBudgetDefaults               dsl.BudgetDSL
+	workflowCancelPoll                   time.Duration
+	workflowEventHeartbeat               time.Duration
+	workflowEventWindow                  time.Duration
+	providerConfigCipher                 agentCredential.SecretCipher
+	providerEndpointPolicy               *agentModel.EndpointPolicy
+	webSearchProviderFactory             *agentWebSearch.ProviderFactory
+	externalMCPManager                   *externalmcp.Manager
+	externalMCPEnabled                   bool
+	externalMCPProjectScopeEnabled       bool
+	externalMCPManagedCredentialsEnabled bool
+	externalMCPManagedCredentials        externalmcp.ManagedCredentialResolver
+	externalMCPEndpointPolicy            *agentModel.EndpointPolicy
+	externalMCPPoolConfig                externalmcp.ClientPoolConfig
+	externalMCPHealthConfig              externalmcp.HealthCheckConfig
+	externalMCPPoolObserver              externalmcp.PoolObserver
+	externalMCPHealthObserver            externalmcp.HealthObserver
+	capabilityCatalog                    AgentCapabilityCatalog
+	capabilityPlanner                    AgentCapabilityPlanner
+	executionStrategyPlanner             agentStrategy.Planner
+	multiAgentExecutionEnabled           bool
+	agentExecutionRunStore               repository.AgentExecutionRunStore
+	agentRunAccountingStore              repository.AgentRunAccountingStore
+	recoverableAgentRuns                 bool
+	agentTaskTemplateStore               repository.AgentTaskTemplateStore
+	agentTaskTemplatesEnabled            bool
+	agentTaskTemplateListLimit           int
+	unifiedAgentProductObserver          UnifiedAgentProductObserver
+	productEventStore                    agentProduct.Store
+	externalMCPProductObserver           externalmcp.ProductObserver
+	agentCheckpointCipher                agentCredential.SecretCipher
+	agentCheckpointMaxBytes              int
+	agentResumeLeaseDuration             time.Duration
+	unifiedAgentApprovalRecovery         bool
+	agentProjectManager                  *agentProject.Manager
+
+	summaryWriter        SessionSummaryWriter
+	summaryMinMessages   int64
+	summaryIdleDelay     time.Duration
+	summaryLeaseDuration time.Duration
+	summaryMu            sync.Mutex
+	summaryTimers        map[primitive.ObjectID]*time.Timer
+	summaryJobs          map[primitive.ObjectID]map[string]context.CancelFunc
+}
+
+// Option configures AgentService without expanding its infrastructure-heavy
+// constructor signature for every cross-cutting runtime concern.
+type Option func(*AgentService)
+
+// WithRuntimeRollout injects the immutable Runtime v2 rollout snapshot.
+func WithRuntimeRollout(rollout agentRuntime.Rollout) Option {
+	return func(service *AgentService) {
+		service.runtimeRollout = rollout
+	}
+}
+
+// WithProfileResolver injects an immutable Profile release snapshot. Profile
+// selection stays independent from model/provider routing and Runtime rollout.
+func WithProfileResolver(resolver profile.Resolver) Option {
+	return func(service *AgentService) {
+		service.profileResolver = resolver
+	}
+}
+
+// WithAgentRunner replaces the default Runtime runner. It is primarily used
+// for offline tests and allows future runners to be injected without changing
+// the service API.
+func WithAgentRunner(runner agentRuntime.AgentRunner) Option {
+	return func(service *AgentService) {
+		service.runtimeRunner = runner
+	}
+}
+
+// WithRuntimeToolCatalog replaces MCP tool discovery for tests or future
+// registry implementations without changing Runtime execution contracts.
+func WithRuntimeToolCatalog(catalog RuntimeToolCatalog) Option {
+	return func(service *AgentService) {
+		service.runtimeTools = catalog
+	}
+}
+
+// WithRuntimeMessageBuilder replaces context assembly independently from the
+// runner, allowing tokenizer- or provider-specific builders to be introduced.
+func WithRuntimeMessageBuilder(builder agentMessage.Builder) Option {
+	return func(service *AgentService) {
+		service.runtimeMessages = builder
+	}
+}
+
+// WithRuntimeAdmission replaces the run admission policy. Production uses a
+// process-local limiter; a shared Redis implementation can be injected later.
+func WithRuntimeAdmission(controller agentRuntime.AdmissionController) Option {
+	return func(service *AgentService) {
+		service.runtimeAdmission = controller
+	}
+}
+
+// WithExecutionTraceStore injects persistence independently from Runtime,
+// Workflow Engine and the Mongo-backed reader used by the control plane.
+func WithExecutionTraceStore(recorder agentObservability.Recorder, reader agentObservability.Reader) Option {
+	return func(service *AgentService) {
+		if recorder != nil {
+			service.traceRecorder = recorder
+		}
+		if reader != nil {
+			service.traceReader = reader
+		}
+	}
+}
+
+// WithTraceContentSampler injects the independently governed Prompt and
+// Completion preview policy. A nil sampler preserves hash-only tracing.
+func WithTraceContentSampler(sampler agentObservability.ContentSampler) Option {
+	return func(service *AgentService) {
+		service.traceContentSampler = sampler
+	}
+}
+
+// WithExecutionEventStore injects the bounded delivery channel used by run
+// monitors. Durable trace queries remain owned by the execution trace reader.
+func WithExecutionEventStore(reader agentObservability.EventReader) Option {
+	return func(service *AgentService) {
+		service.traceEventReader = reader
+	}
+}
+
+// WithWorkflowEventStreamPolicy configures idle heartbeats and the maximum
+// lifetime of one server stream. Clients resume with the last event cursor.
+func WithWorkflowEventStreamPolicy(heartbeat, window time.Duration) Option {
+	return func(service *AgentService) {
+		if heartbeat > 0 {
+			service.workflowEventHeartbeat = heartbeat
+		}
+		if window > 0 {
+			service.workflowEventWindow = window
+		}
+	}
+}
+
+// WithWorkflowToolExecutor injects the single governed tool boundary shared
+// by workflow nodes and model-driven MCP execution.
+func WithWorkflowToolExecutor(executor *workflowTool.Executor) Option {
+	return func(service *AgentService) {
+		service.workflowToolExecutor = executor
+	}
+}
+
+// WithWorkflowToolPublications configures the control-plane store separately
+// from Runtime exposure. Disabling the feature preserves publication metadata
+// so a rollback never mutates user configuration.
+func WithWorkflowToolPublications(
+	store repository.WorkflowToolPublicationStore,
+	enabled bool,
+	catalogLimit int,
+	timeout time.Duration,
+) Option {
+	return func(service *AgentService) {
+		service.workflowToolPublicationStore = store
+		service.workflowAsToolEnabled = enabled
+		if catalogLimit > 0 {
+			service.workflowToolCatalogLimit = catalogLimit
+		}
+		if timeout > 0 {
+			service.workflowToolTimeout = timeout
+		}
+	}
+}
+
+// WithWorkflowSkillCatalog exposes immutable Skill projections independently
+// from Workflow-as-Tool publication. Disabling it removes discovery and
+// execution routes without mutating any publication.
+func WithWorkflowSkillCatalog(enabled bool, catalogLimit int) Option {
+	return func(service *AgentService) {
+		service.skillCatalogEnabled = enabled
+		if catalogLimit > 0 {
+			service.skillCatalogLimit = catalogLimit
+		}
+	}
+}
+
+// WithAgentExtensionCatalog exposes one credential-free directory assembled
+// from the existing capability, Skill and governed MCP control planes. It does
+// not grant execution rights or change any source configuration.
+func WithAgentExtensionCatalog(enabled bool, catalogLimit int) Option {
+	return func(service *AgentService) {
+		service.extensionCatalogEnabled = enabled
+		if catalogLimit > 0 && catalogLimit <= maxAgentExtensionCatalogLimit {
+			service.extensionCatalogLimit = catalogLimit
+		}
+	}
+}
+
+// WithAgentExtensionSources replaces source adapters for isolated tests or a
+// future catalog backend. Runtime execution continues to resolve every Skill
+// and MCP tool through its authoritative service.
+func WithAgentExtensionSources(
+	skillSource AgentExtensionSkillSource,
+	mcpSource AgentExtensionMCPSource,
+) Option {
+	return func(service *AgentService) {
+		service.extensionSkillSource = skillSource
+		service.extensionMCPSource = mcpSource
+	}
+}
+
+// WithAgentExtensionMarketplace enables a credential-free public release
+// catalog. It does not install packages or grant any Runtime permission.
+func WithAgentExtensionMarketplace(
+	store marketplace.CatalogStore,
+	enabled bool,
+	catalogLimit int,
+) Option {
+	return func(service *AgentService) {
+		service.extensionMarketplaceStore = store
+		service.extensionMarketplaceEnabled = enabled
+		if catalogLimit > 0 && catalogLimit <= marketplace.MaxPageSize {
+			service.extensionMarketplaceLimit = catalogLimit
+		}
+	}
+}
+
+// WithConfirmedDraftPublisher injects the explicit, user-confirmed publish
+// boundary. It is intentionally separate from model-driven Tool execution.
+func WithConfirmedDraftPublisher(publisher ConfirmedDraftPublisher) Option {
+	return func(service *AgentService) {
+		service.confirmedDraftPublisher = publisher
+	}
+}
+
+// WithProductOutcomeRecorder connects explicit product actions to Profile
+// experiment observations without making normal publishing depend on experiments.
+func WithProductOutcomeRecorder(recorder ProductOutcomeRecorder) Option {
+	return func(service *AgentService) {
+		service.productOutcomeRecorder = recorder
+	}
+}
+
+// WithContentAttribution enables short-lived tweet-to-Run attribution for
+// trusted external engagement events. The store owns no tweet content.
+func WithContentAttribution(store attribution.Store, window time.Duration) Option {
+	return func(service *AgentService) {
+		if store != nil {
+			service.contentAttributionStore = store
+		}
+		if window > 0 {
+			service.contentAttributionWindow = window
+		}
+	}
+}
+
+// WithWorkflowSnapshotInterval configures periodic materialization by applied
+// state-event count. Zero disables periodic snapshots but final boundaries are
+// still persisted.
+func WithWorkflowSnapshotInterval(interval uint64) Option {
+	return func(service *AgentService) {
+		service.workflowSnapshotInterval = interval
+	}
+}
+
+func WithWorkflowBudgetDefaults(budget dsl.BudgetDSL) Option {
+	return func(service *AgentService) {
+		service.workflowBudgetDefaults = budget
+	}
+}
+
+func WithWorkflowCancellationPollInterval(interval time.Duration) Option {
+	return func(service *AgentService) {
+		if interval > 0 {
+			service.workflowCancelPoll = interval
+		}
+	}
+}
+
+func WithMCPAuthToken(token string) Option {
+	return func(service *AgentService) {
+		service.mcpAuthToken = strings.TrimSpace(token)
+	}
+}
+
+func WithProviderConfigCipher(cipher agentCredential.SecretCipher) Option {
+	return func(service *AgentService) {
+		service.providerConfigCipher = cipher
+	}
+}
+
+func WithProviderEndpointPolicy(policy *agentModel.EndpointPolicy) Option {
+	return func(service *AgentService) {
+		service.providerEndpointPolicy = policy
+	}
+}
+
+func WithWebSearchProviderFactory(factory *agentWebSearch.ProviderFactory) Option {
+	return func(service *AgentService) {
+		service.webSearchProviderFactory = factory
+	}
+}
+
+// WithExternalMCPEnabled controls only remote MCP discovery and execution.
+// Stored connection metadata remains available for rollback and inspection.
+func WithExternalMCPEnabled(enabled bool) Option {
+	return func(service *AgentService) {
+		service.externalMCPEnabled = enabled
+	}
+}
+
+func WithExternalMCPProjectScope(enabled bool) Option {
+	return func(service *AgentService) {
+		service.externalMCPProjectScopeEnabled = enabled
+	}
+}
+
+func WithExternalMCPManagedCredentials(
+	enabled bool,
+	resolver externalmcp.ManagedCredentialResolver,
+) Option {
+	return func(service *AgentService) {
+		service.externalMCPManagedCredentialsEnabled = enabled
+		service.externalMCPManagedCredentials = resolver
+	}
+}
+
+func WithAgentProjectManager(manager *agentProject.Manager) Option {
+	return func(service *AgentService) {
+		service.agentProjectManager = manager
+	}
+}
+
+func WithExternalMCPEndpointPolicy(policy *agentModel.EndpointPolicy) Option {
+	return func(service *AgentService) {
+		service.externalMCPEndpointPolicy = policy
+	}
+}
+
+func WithExternalMCPClientPool(config externalmcp.ClientPoolConfig, observer externalmcp.PoolObserver) Option {
+	return func(service *AgentService) {
+		service.externalMCPPoolConfig = config
+		service.externalMCPPoolObserver = observer
+	}
+}
+
+func WithExternalMCPHealthChecks(config externalmcp.HealthCheckConfig, observer externalmcp.HealthObserver) Option {
+	return func(service *AgentService) {
+		service.externalMCPHealthConfig = config
+		service.externalMCPHealthObserver = observer
+	}
+}
+
+// WithExternalMCPManager supports isolated tests and future connector
+// implementations without coupling AgentService to the MCP SDK.
+func WithExternalMCPManager(manager *externalmcp.Manager) Option {
+	return func(service *AgentService) {
+		service.externalMCPManager = manager
+	}
+}
+
+// WithSessionSummaryPolicy configures the incremental threshold and idle
+// boundary used to crystallize a dialogue. It is primarily useful for tests
+// and deployments with a different conversation cadence.
+func WithSessionSummaryPolicy(minPendingMessages int64, idleDelay time.Duration) Option {
+	return func(service *AgentService) {
+		if minPendingMessages > 0 {
+			service.summaryMinMessages = minPendingMessages
+		}
+		if idleDelay > 0 {
+			service.summaryIdleDelay = idleDelay
+		}
+	}
+}
+
+// WithSessionSummaryWriter replaces the memory sink independently from the
+// scheduler. Production uses MemoryManager; tests or future event adapters can
+// provide another implementation without changing dialogue persistence.
+func WithSessionSummaryWriter(writer SessionSummaryWriter) Option {
+	return func(service *AgentService) {
+		service.summaryWriter = writer
+	}
+}
+
+// WithAgentCapabilityPlanner replaces the conservative P8 migration planner.
+// Planner output remains a preference decision; tool authorization continues
+// to be enforced by the catalog, profile, policy, budget and approval layers.
+func WithAgentCapabilityPlanner(planner AgentCapabilityPlanner) Option {
+	return func(service *AgentService) {
+		service.capabilityPlanner = planner
+	}
+}
+
+// WithAgentExecutionStrategyPlanner replaces the deterministic strategy
+// admission planner. It cannot grant tools or bypass Runtime budgets.
+func WithAgentExecutionStrategyPlanner(planner agentStrategy.Planner) Option {
+	return func(service *AgentService) {
+		service.executionStrategyPlanner = planner
+	}
+}
+
+// WithMultiAgentExecution enables the bounded aggregate executor separately
+// from strategy admission. Disabling it leaves all requests on the existing
+// single-Agent execution paths.
+func WithMultiAgentExecution(enabled bool) Option {
+	return func(service *AgentService) {
+		service.multiAgentExecutionEnabled = enabled
+	}
+}
+
+// WithAgentCapabilityCatalog replaces the immutable product capability
+// snapshot. It controls executable routes, not tool authorization.
+func WithAgentCapabilityCatalog(catalog AgentCapabilityCatalog) Option {
+	return func(service *AgentService) {
+		service.capabilityCatalog = catalog
+	}
+}
+
+// WithAgentExecutionRunStore injects the authoritative lifecycle store used
+// by the Unified Agent. It is independent from trace and Workflow persistence.
+func WithAgentExecutionRunStore(store repository.AgentExecutionRunStore) Option {
+	return func(service *AgentService) {
+		service.agentExecutionRunStore = store
+	}
+}
+
+// WithAgentRunAccountingStore injects the narrow read model for direct child
+// Workflow runs without coupling lifecycle writes to Workflow persistence.
+func WithAgentRunAccountingStore(store repository.AgentRunAccountingStore) Option {
+	return func(service *AgentService) {
+		service.agentRunAccountingStore = store
+	}
+}
+
+// WithRecoverableAgentRuns enables durable Unified Agent lifecycle writes.
+// The first rollout persists lifecycle state only; resumable checkpoints stay
+// disabled until their versioned schema and replay authorization are enabled.
+func WithRecoverableAgentRuns(enabled bool) Option {
+	return func(service *AgentService) {
+		service.recoverableAgentRuns = enabled
+	}
+}
+
+// WithUnifiedAgentProductObserver connects low-cardinality product metrics to
+// successful authoritative Run transitions. Metrics remain outside lifecycle
+// persistence and cannot make a Run commit fail.
+func WithUnifiedAgentProductObserver(observer UnifiedAgentProductObserver) Option {
+	return func(service *AgentService) {
+		service.unifiedAgentProductObserver = observer
+	}
+}
+
+// WithAgentProductEvents connects append-only idempotent product facts to
+// their low-cardinality observers. Product persistence never grants runtime
+// permissions and remains independent from execution traces.
+func WithAgentProductEvents(
+	store agentProduct.Store,
+	externalMCPObserver externalmcp.ProductObserver,
+) Option {
+	return func(service *AgentService) {
+		service.productEventStore = store
+		service.externalMCPProductObserver = externalMCPObserver
+	}
+}
+
+// WithAgentTaskTemplates configures explicit reusable task presets separately
+// from Workflow DAGs. Disabling execution keeps stored templates available for
+// read-only listing and archival during rollback.
+func WithAgentTaskTemplates(
+	store repository.AgentTaskTemplateStore,
+	enabled bool,
+	listLimit int,
+) Option {
+	return func(service *AgentService) {
+		service.agentTaskTemplateStore = store
+		service.agentTaskTemplatesEnabled = enabled
+		if listLimit > 0 {
+			service.agentTaskTemplateListLimit = listLimit
+		}
+	}
+}
+
+// WithUnifiedAgentApprovalRecovery enables governed risky/write MCP tools in
+// the Unified Agent. It is deliberately independent and defaults to false so
+// deployments can roll back without changing stored approvals or checkpoints.
+func WithUnifiedAgentApprovalRecovery(enabled bool) Option {
+	return func(service *AgentService) {
+		service.unifiedAgentApprovalRecovery = enabled
+	}
+}
+
+// WithAgentRunRecovery configures durable Runtime Checkpoint encryption and
+// resume claims independently from Provider credential encryption.
+func WithAgentRunRecovery(
+	cipher agentCredential.SecretCipher,
+	maxCheckpointBytes int,
+	resumeLeaseDuration time.Duration,
+) Option {
+	return func(service *AgentService) {
+		service.agentCheckpointCipher = cipher
+		if maxCheckpointBytes > 0 {
+			service.agentCheckpointMaxBytes = maxCheckpointBytes
+		}
+		if resumeLeaseDuration > 0 {
+			service.agentResumeLeaseDuration = resumeLeaseDuration
+		}
+	}
 }
 
 // NewAgentService 创建 Agent 服务
@@ -84,28 +637,194 @@ func NewAgentService(
 	repo repository.AgentRepository,
 	aiClient *ai.Client,
 	rdb *redis.Client,
+	options ...Option,
 ) *AgentService {
 	config := openai.DefaultConfig(llmAPIKey)
 	config.BaseURL = llmBaseURL
+	config.HTTPClient = platformTrace.InstrumentHTTPClient(nil, "agent.provider.http", nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	return &AgentService{
-		llmClient:  openai.NewClientWithConfig(config),
-		chatModel:  chatModel,
-		mcpAddr:    mcpAddr,
-		repo:       repo,
-		aiClient:   aiClient,
-		rdb:        rdb,
-		serviceCtx: ctx,
-		cancelFunc: cancel,
+	service := &AgentService{
+		llmClient:            openai.NewClientWithConfig(config),
+		chatModel:            chatModel,
+		mcpAddr:              mcpAddr,
+		repo:                 repo,
+		aiClient:             aiClient,
+		rdb:                  rdb,
+		serviceCtx:           ctx,
+		cancelFunc:           cancel,
+		summaryMinMessages:   defaultSessionSummaryMinMessages,
+		summaryIdleDelay:     defaultSessionSummaryIdleDelay,
+		summaryLeaseDuration: defaultSessionSummaryLeaseDuration,
+		summaryTimers:        make(map[primitive.ObjectID]*time.Timer),
+		summaryJobs:          make(map[primitive.ObjectID]map[string]context.CancelFunc),
+		runtimeAdmission: agentRuntime.NewInMemoryConcurrencyLimiter(agentRuntime.ConcurrencyLimits{
+			MaxPerUser:     envPositiveInt("AGENT_MAX_CONCURRENT_RUNS_PER_USER", 4),
+			MaxPerWorkflow: envPositiveInt("AGENT_MAX_CONCURRENT_RUNS_PER_WORKFLOW", 2),
+		}),
+		workflowSnapshotInterval:   uint64(envPositiveInt("AGENT_WORKFLOW_SNAPSHOT_EVENT_INTERVAL", defaultWorkflowSnapshotInterval)),
+		workflowCancelPoll:         envWorkflowDuration("AGENT_WORKFLOW_CANCEL_POLL_INTERVAL", defaultWorkflowCancellationPollInterval),
+		workflowEventHeartbeat:     envWorkflowDuration("AGENT_WORKFLOW_EVENT_HEARTBEAT", defaultWorkflowEventHeartbeat),
+		workflowEventWindow:        envWorkflowDuration("AGENT_WORKFLOW_EVENT_STREAM_WINDOW", defaultWorkflowEventStreamWindow),
+		contentAttributionWindow:   DefaultContentAttributionWindow,
+		agentCheckpointMaxBytes:    DefaultAgentRunCheckpointMaxBytes,
+		agentResumeLeaseDuration:   DefaultAgentRunResumeLeaseDuration,
+		workflowToolCatalogLimit:   defaultWorkflowToolCatalogLimit,
+		workflowToolTimeout:        defaultWorkflowToolTimeout,
+		skillCatalogLimit:          defaultAgentSkillCatalogLimit,
+		extensionCatalogLimit:      defaultAgentExtensionCatalogLimit,
+		extensionMarketplaceLimit:  marketplace.DefaultPageSize,
+		agentTaskTemplateListLimit: defaultAgentTaskTemplateListLimit,
+		workflowBudgetDefaults: dsl.BudgetDSL{
+			MaxNodeExecutions:      envPositiveInt("AGENT_WORKFLOW_MAX_NODE_EXECUTIONS", 50),
+			MaxParallelNodes:       envPositiveInt("AGENT_WORKFLOW_MAX_PARALLEL_NODES", 8),
+			TimeoutSec:             envPositiveInt("AGENT_WORKFLOW_TIMEOUT_SEC", 300),
+			MaxTotalTokens:         envPositiveInt("AGENT_WORKFLOW_MAX_TOTAL_TOKENS", 120_000),
+			MaxEstimatedCostMicros: envNonNegativeInt64("AGENT_WORKFLOW_MAX_ESTIMATED_COST_MICROS", 0),
+		},
 	}
+	for _, option := range options {
+		if option != nil {
+			option(service)
+		}
+	}
+	if service.runtimeTokens == nil {
+		service.runtimeTokens = agentRuntime.NewHeuristicTokenCounter()
+	}
+	if service.profileResolver == nil {
+		resolver, err := NewBuiltInProfileResolver(nil)
+		if err != nil {
+			panic(fmt.Sprintf("invalid built-in agent profiles: %v", err))
+		}
+		service.profileResolver = resolver
+	}
+	if service.traceRecorder == nil {
+		service.traceRecorder = agentObservability.NoopRecorder{}
+	}
+	if service.unifiedAgentProductObserver == nil {
+		service.unifiedAgentProductObserver = noopUnifiedAgentProductObserver{}
+	}
+	if service.providerConfigCipher == nil {
+		service.providerConfigCipher, _ = agentCredential.NewAESGCMCipherFromEnv()
+	}
+	if service.providerEndpointPolicy == nil {
+		service.providerEndpointPolicy = agentModel.NewEndpointPolicy(strings.Split(os.Getenv("AGENT_LLM_ALLOWED_HOSTS"), ",")...)
+	}
+	if service.externalMCPManager == nil {
+		if store, ok := repo.(externalmcp.Store); ok {
+			if service.externalMCPEndpointPolicy == nil {
+				service.externalMCPEndpointPolicy = agentModel.NewEndpointPolicy(
+					strings.Split(os.Getenv("AGENT_EXTERNAL_MCP_ALLOWED_HOSTS"), ",")...,
+				)
+			}
+			service.externalMCPManager = externalmcp.NewManager(
+				store,
+				service.providerConfigCipher,
+				service.externalMCPEndpointPolicy,
+				externalmcp.NewSDKDiscoverer(
+					service.externalMCPEndpointPolicy,
+					20*time.Second,
+					externalmcp.WithClientPool(service.externalMCPPoolConfig),
+					externalmcp.WithPoolObserver(service.externalMCPPoolObserver),
+				),
+				externalmcp.WithEnabled(service.externalMCPEnabled),
+				externalmcp.WithProjectScope(service.externalMCPProjectScopeEnabled, service.agentProjectManager),
+				externalmcp.WithManagedCredentials(
+					service.externalMCPManagedCredentialsEnabled,
+					service.externalMCPManagedCredentials,
+				),
+				externalmcp.WithHealthChecks(service.externalMCPHealthConfig),
+				externalmcp.WithHealthObserver(service.externalMCPHealthObserver),
+			)
+		}
+	}
+	if service.capabilityCatalog == nil {
+		capabilityOptions := make([]BuiltInAgentCapabilityCatalogOption, 0, 1)
+		if service.externalMCPEnabled && service.externalMCPManager != nil {
+			capabilityOptions = append(capabilityOptions, WithAvailableExternalMCPCapability())
+		}
+		catalog, err := NewBuiltInAgentCapabilityCatalog(capabilityOptions...)
+		if err != nil {
+			panic(fmt.Sprintf("invalid built-in agent capability catalog: %v", err))
+		}
+		service.capabilityCatalog = catalog
+	}
+	if service.extensionSkillSource == nil {
+		service.extensionSkillSource = workflowSkillExtensionSource{service: service}
+	}
+	if service.extensionMCPSource == nil && service.externalMCPManager != nil {
+		service.extensionMCPSource = service.externalMCPManager
+	}
+	if service.capabilityPlanner == nil {
+		service.capabilityPlanner = NewConservativeCapabilityPlanner(service.capabilityCatalog)
+	}
+	if service.executionStrategyPlanner == nil {
+		planner, err := NewBuiltInAgentExecutionStrategyPlanner(agentStrategy.Policy{})
+		if err != nil {
+			panic(fmt.Sprintf("invalid built-in agent execution strategy planner: %v", err))
+		}
+		service.executionStrategyPlanner = planner
+	}
+	if service.runtimeMessages == nil {
+		service.runtimeMessages = agentMessage.NewBuilder(service.runtimeTokens, nil)
+	}
+	if service.workflowToolExecutor == nil {
+		service.workflowToolExecutor = workflowTool.NewExecutor(workflowTool.NewRegistry())
+	}
+	if service.runtimeTools == nil {
+		service.runtimeTools = &mcpRuntimeToolCatalog{service: service}
+	}
+	if service.runtimeRunner == nil {
+		modelClient := agentRuntime.ModelClient(agentModel.NewOpenAICompatibleClient(service.llmClient, chatModel, "openai-compatible"))
+		runnerOptions := []agentRuntime.ReActRunnerOption{
+			agentRuntime.WithTokenCounter(service.runtimeTokens),
+			agentRuntime.WithAdmissionController(service.runtimeAdmission),
+		}
+		if router, err := buildDefaultProviderRouter(service.llmClient, chatModel); err != nil {
+			log.Printf("warning: model catalog router unavailable, using compatibility client: %v", err)
+		} else {
+			modelClient = router
+			service.runtimeCostEstimator = router
+			runnerOptions = append(runnerOptions, agentRuntime.WithCostEstimator(router))
+		}
+		service.runtimeRunner = agentRuntime.NewReActRunner(
+			&tracingModelClient{
+				delegate: modelClient, recorder: service.traceRecorder,
+				sampler: service.traceContentSampler, now: time.Now,
+			},
+			&mcpRuntimeToolExecutor{service: service},
+			nil,
+			runnerOptions...,
+		)
+	}
+	if service.externalMCPManager != nil {
+		service.externalMCPManager.Start(service.serviceCtx)
+	}
+	return service
+}
+
+func (s *AgentService) RuntimeCostEstimator() agentRuntime.CostEstimator {
+	if s == nil {
+		return nil
+	}
+	return s.runtimeCostEstimator
+}
+
+// RuntimeV2Enabled is the migration seam used by entry points as they move to
+// the unified runtime. It is false for every mode unless explicitly enabled.
+func (s *AgentService) RuntimeV2Enabled(mode agentRuntime.Mode) bool {
+	return s != nil && s.runtimeRollout.Enabled(mode)
 }
 
 // Close 优雅关闭方法，通知所有绑定的长连接和协程安全退出
 func (s *AgentService) Close() {
 	if s.cancelFunc != nil {
 		s.cancelFunc()
+	}
+	s.stopSessionSummaryTimers()
+	if s.externalMCPManager != nil {
+		_ = s.externalMCPManager.Close()
 	}
 	s.resetMCPClient()
 }
@@ -194,7 +913,31 @@ func (s *AgentService) saveUserAndAssistantMessages(ctx context.Context, dialogu
 	if err := s.repo.TouchDialogue(ctx, dialogueID); err != nil {
 		logger.Warn(ctx, "touch dialogue failed", zap.Error(err))
 	}
+	s.scheduleSessionSummary(userID, dialogueID)
 
+	return nil
+}
+
+func (s *AgentService) saveAssistantMessage(
+	ctx context.Context,
+	dialogueID primitive.ObjectID,
+	userID uint64,
+	content string,
+	metadata map[string]any,
+) error {
+	if err := s.repo.SaveMessage(ctx, &repository.DialogueMessage{
+		DialogueID: dialogueID,
+		UserID:     userID,
+		Role:       repository.RoleAssistant,
+		Content:    content,
+		Metadata:   metadata,
+	}); err != nil {
+		return fmt.Errorf("save assistant message failed: %w", err)
+	}
+	if err := s.repo.TouchDialogue(ctx, dialogueID); err != nil {
+		logger.Warn(ctx, "touch dialogue failed", zap.Error(err))
+	}
+	s.scheduleSessionSummary(userID, dialogueID)
 	return nil
 }
 
@@ -230,12 +973,45 @@ func (s *AgentService) GetDialogueMessages(ctx context.Context, userID uint64, d
 	return s.repo.GetMessages(ctx, oid)
 }
 
+// EndDialogueSession explicitly closes a chat session and synchronously
+// crystallizes its pending durable memory. It is intentionally separate from
+// DeleteDialogue: ending a session preserves the conversation and only stops
+// its pending summary timers/jobs.
+func (s *AgentService) EndDialogueSession(ctx context.Context, userID uint64, dialogueIDHex string) error {
+	if ctx == nil {
+		return fmt.Errorf("session end context is nil")
+	}
+	oid, err := primitive.ObjectIDFromHex(dialogueIDHex)
+	if err != nil {
+		return fmt.Errorf("invalid dialogue_id: %w", err)
+	}
+	dialogue, err := s.repo.GetDialogue(ctx, oid)
+	if err != nil {
+		return err
+	}
+	if dialogue.UserID != userID {
+		return fmt.Errorf("dialogue does not belong to user %d", userID)
+	}
+
+	s.cancelSessionSummaryTimer(oid)
+	if err := s.waitForSessionSummaryJobs(ctx, oid); err != nil {
+		return fmt.Errorf("wait for session summary jobs: %w", err)
+	}
+	finalizeCtx, cancel := context.WithTimeout(ctx, defaultSessionSummaryTimeout)
+	defer cancel()
+	if err := s.crystallizeDialogueSummary(finalizeCtx, userID, oid, true); err != nil {
+		return fmt.Errorf("finalize dialogue session summary: %w", err)
+	}
+	return nil
+}
+
 // DeleteDialogue 删除对话
 func (s *AgentService) DeleteDialogue(ctx context.Context, userID uint64, dialogueIDHex string) error {
 	oid, err := primitive.ObjectIDFromHex(dialogueIDHex)
 	if err != nil {
 		return fmt.Errorf("invalid dialogue_id: %w", err)
 	}
+	s.cancelSessionSummaryTimer(oid)
 	return s.repo.DeleteDialogue(ctx, oid, userID)
 }
 
@@ -301,9 +1077,17 @@ func (s *AgentService) AnalysisFile(ctx context.Context, userID uint64, fileKind
 
 // ========================== 模式一：直接 AI 对话 ==========================
 
-// CallApiOfAi 模式一：直接调用 AI 对话，不使用 MCP Tools
-// 支持多轮上下文：dialogueID 非空时加载历史消息
+// CallApiOfAi keeps the legacy chat contract while allowing the implementation
+// to move to Runtime v2 through the existing per-mode rollout switch.
 func (s *AgentService) CallApiOfAi(ctx context.Context, userID uint64, dialogueID uint64, dialogueKey string, content string) (*ChatResult, error) {
+	if s.RuntimeV2Enabled(agentRuntime.ModeChat) {
+		return s.callApiOfAiRuntime(ctx, userID, dialogueID, dialogueKey, content)
+	}
+	return s.callApiOfAiLegacy(ctx, userID, dialogueID, dialogueKey, content)
+}
+
+// callApiOfAiLegacy preserves the direct provider path for emergency rollback.
+func (s *AgentService) callApiOfAiLegacy(ctx context.Context, userID uint64, dialogueID uint64, dialogueKey string, content string) (*ChatResult, error) {
 	// 1. 获取或创建对话（dialogueID 作为十六进制传入时需要适配，这里兼容旧的 uint64 传参）
 	dialogueIDHex := resolveDialogueKey(dialogueID, dialogueKey)
 
@@ -342,7 +1126,7 @@ func (s *AgentService) CallApiOfAi(ctx context.Context, userID uint64, dialogueI
 
 	// 3. 调用 LLM
 	resp, err := s.llmClient.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
-		Model:    s.chatModel,
+		Model:    s.selectedModel(ctx),
 		Messages: messages,
 	})
 	if err != nil {
@@ -365,8 +1149,6 @@ func (s *AgentService) CallApiOfAi(ctx context.Context, userID uint64, dialogueI
 	if err := s.saveUserAndAssistantMessages(ctx, dialogue.ID, userID, content, aiResponse, metadata); err != nil {
 		logger.Error(ctx, "save messages failed", zap.Error(err))
 	}
-	s.crystallizeTurnMemoryAsync(userID, dialogue.ID, content, aiResponse)
-
 	return &ChatResult{
 		DialogueID: dialogue.ID.Hex(),
 		Response:   aiResponse,
@@ -375,9 +1157,111 @@ func (s *AgentService) CallApiOfAi(ctx context.Context, userID uint64, dialogueI
 
 // ========================== 模式二：RAG 语义搜索 ==========================
 
-// ConsultContent 模式二：通过 MCP Tool 搜索推文和用户
-// 使用 ReAct 循环：LLM 决策 → 调 Tool → 喂回结果 → 直到不再调 Tool
+const (
+	consultPromptTemplateID      = "consult.search.system"
+	consultPromptTemplateVersion = "v1"
+	consultSystemPrompt          = `你是一个推特内容检索助手。
+规则：
+1. 用户要查询推文、博主、趋势、历史内容时，必须调用对应工具获取真实数据。
+2. 工具返回了结果，就按结果列表直接整理：给出推文 ID、作者/用户 ID、内容摘要和可继续追问的线索。
+3. 工具返回“没有找到”或发生错误时，必须明确告诉用户当前没有拿到结果，并说明具体失败原因；禁止说“正在等待返回”“马上到达”“已成功发起请求”。
+4. 不要编造不存在的推文、搜索结果、工具状态或后台异步进度。
+5. 回答要短、准、可执行。`
+)
+
+// ConsultContent selects the Runtime v2 or legacy implementation using the
+// per-mode rollout snapshot. The legacy path remains available for rollback.
 func (s *AgentService) ConsultContent(ctx context.Context, userID uint64, dialogueID uint64, dialogueKey string, content string) (*ChatResult, error) {
+	if s.RuntimeV2Enabled(agentRuntime.ModeConsult) {
+		return s.consultContentRuntime(ctx, userID, dialogueID, dialogueKey, content)
+	}
+	return s.consultContentLegacy(ctx, userID, dialogueID, dialogueKey, content)
+}
+
+func (s *AgentService) consultContentRuntime(ctx context.Context, userID uint64, dialogueID uint64, dialogueKey string, content string) (*ChatResult, error) {
+	dialogueIDHex := resolveDialogueKey(dialogueID, dialogueKey)
+	dialogue, err := s.getOrCreateDialogue(ctx, userID, dialogueIDHex, content, repository.ModeConsult)
+	if err != nil {
+		return nil, err
+	}
+	noteAgentExecutionDialogue(ctx, dialogue.ID.Hex())
+	if s.runtimeRunner == nil {
+		return nil, errors.New("agent runtime runner is not configured")
+	}
+
+	if s.runtimeTools == nil {
+		return nil, errors.New("agent runtime tool catalog is not configured")
+	}
+	tools, err := s.runtimeTools.ListTools(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list runtime tools failed: %w", err)
+	}
+	budget := agentRuntime.Budget{
+		MaxSteps:               5,
+		MaxInputTokens:         12000,
+		MaxOutputTokens:        2048,
+		MaxTotalTokens:         32000,
+		MaxEstimatedCostMicros: 100_000,
+		Timeout:                55 * time.Second,
+	}
+	contextMessages, err := s.loadContextMessages(ctx, dialogue.ID)
+	if err != nil {
+		logger.Warn(ctx, "load runtime context failed", zap.Error(err))
+		contextMessages = nil
+	}
+	messageBuild, err := s.buildRuntimeMessages(consultSystemPrompt, content, contextMessages, budget)
+	if err != nil {
+		return nil, fmt.Errorf("build consult runtime messages failed: %w", err)
+	}
+
+	result, err := s.runRuntime(ctx, agentRuntime.RunRequest{
+		Context: agentRuntime.RunContext{
+			RunID: agentExecutionRunID(ctx), UserID: userID,
+			Mode: agentRuntime.ModeConsult, Budget: budget,
+			PromptTemplateID: consultPromptTemplateID, PromptTemplateVersion: consultPromptTemplateVersion,
+		},
+		Model:    s.selectedModel(ctx),
+		Messages: messageBuild.Messages,
+		Tools:    tools,
+	})
+	s.recordRuntimeResult(ctx, result, err, "consult")
+	if err != nil {
+		return nil, fmt.Errorf("consult runtime failed: %w", err)
+	}
+	response, err := runtimeUserVisibleResponse(result)
+	if err != nil {
+		return nil, fmt.Errorf("consult runtime response: %w", err)
+	}
+
+	metadata := map[string]any{
+		"runtime_version":               "v2",
+		"runtime_run_id":                result.Context.RunID,
+		"runtime_steps":                 len(result.Steps),
+		"runtime_tokens":                result.Usage.TotalTokens,
+		"runtime_tokens_estimated":      result.Usage.Estimated,
+		"runtime_estimated_cost_micros": result.Usage.EstimatedCostMicros,
+		"runtime_cost_estimated":        result.Usage.CostEstimated,
+		"runtime_pricing_version":       result.Usage.PricingVersion,
+		"runtime_status":                string(result.Status),
+		"runtime_context_tokens":        messageBuild.EstimatedTokens,
+		"runtime_context_dropped":       stringifyDroppedSources(messageBuild.Dropped),
+	}
+	if err := s.saveUserAndAssistantMessages(ctx, dialogue.ID, userID, content, response, metadata); err != nil {
+		logger.Error(ctx, "save runtime messages failed", zap.Error(err))
+		return nil, fmt.Errorf("persist consult conversation failed: %w", err)
+	}
+
+	return &ChatResult{
+		DialogueID: dialogue.ID.Hex(),
+		RunID:      result.Context.RunID,
+		RunStatus:  string(result.Status),
+		Response:   response,
+	}, nil
+}
+
+// consultContentLegacy preserves the pre-Runtime ReAct implementation for
+// immediate rollback while the v2 path is being evaluated.
+func (s *AgentService) consultContentLegacy(ctx context.Context, userID uint64, dialogueID uint64, dialogueKey string, content string) (*ChatResult, error) {
 	dialogueIDHex := resolveDialogueKey(dialogueID, dialogueKey)
 
 	dialogue, err := s.getOrCreateDialogue(ctx, userID, dialogueIDHex, content, repository.ModeConsult)
@@ -397,14 +1281,8 @@ func (s *AgentService) ConsultContent(ctx context.Context, userID uint64, dialog
 	// 3. 构建初始消息（含历史上下文）
 	messages := []openai.ChatCompletionMessage{
 		{
-			Role: openai.ChatMessageRoleSystem,
-			Content: `你是一个推特内容检索助手。
-规则：
-1. 用户要查询推文、博主、趋势、历史内容时，必须调用对应工具获取真实数据。
-2. 工具返回了结果，就按结果列表直接整理：给出推文 ID、作者/用户 ID、内容摘要和可继续追问的线索。
-3. 工具返回“没有找到”或发生错误时，必须明确告诉用户当前没有拿到结果，并说明具体失败原因；禁止说“正在等待返回”“马上到达”“已成功发起请求”。
-4. 不要编造不存在的推文、搜索结果、工具状态或后台异步进度。
-5. 回答要短、准、可执行。`,
+			Role:    openai.ChatMessageRoleSystem,
+			Content: consultSystemPrompt,
 		},
 	}
 
@@ -424,7 +1302,7 @@ func (s *AgentService) ConsultContent(ctx context.Context, userID uint64, dialog
 	// 4. ReAct 循环：LLM 决策 → 调 Tool → 把结果喂回 LLM → 直到 LLM 不再调 Tool
 	for i := 0; i < 5; i++ { // 最多循环 5 次，防止死循环
 		resp, err := s.llmClient.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
-			Model:    s.chatModel,
+			Model:    s.selectedModel(ctx),
 			Messages: messages,
 			Tools:    openaiTools,
 		})
@@ -457,7 +1335,7 @@ func (s *AgentService) ConsultContent(ctx context.Context, userID uint64, dialog
 		messages = append(messages, choice.Message)
 
 		for _, toolCall := range choice.Message.ToolCalls {
-			logger.Info(ctx, "mcp tool call", zap.String("tool", toolCall.Function.Name), zap.String("args", toolCall.Function.Arguments))
+			logger.Info(ctx, "mcp tool call", zap.String("tool", toolCall.Function.Name))
 
 			// 解析参数
 			var args map[string]any
@@ -466,7 +1344,15 @@ func (s *AgentService) ConsultContent(ctx context.Context, userID uint64, dialog
 			}
 
 			// 调用 MCP Server 执行 Tool，并进行身份鉴权注入
-			toolResult, err := s.callToolWithAuth(ctx, mcpClient, userID, mcp.CallToolRequest{
+			toolResult, err := s.executeMCPToolGoverned(ctx, mcpClient, workflowTool.ExecutionRequest{
+				ToolName:       toolCall.Function.Name,
+				Inputs:         args,
+				Identity:       workflowTool.CallerIdentity{UserID: userID},
+				RunID:          dialogue.ID.Hex(),
+				StepID:         toolCall.ID,
+				Source:         workflowTool.SourceLegacy,
+				IdempotencyKey: toolIdempotencyKey(dialogue.ID.Hex(), toolCall.ID, toolCall.Function.Name),
+			}, mcp.CallToolRequest{
 				Params: mcp.CallToolParams{
 					Name:      toolCall.Function.Name,
 					Arguments: args,
@@ -494,8 +1380,85 @@ func (s *AgentService) ConsultContent(ctx context.Context, userID uint64, dialog
 
 // ========================== 模式三：AI 辅助写推文 ==========================
 
-// AssistPublishTwitter 模式三：让 LLM 生成推文草稿并在确认后调用工具发推 (ReAct)
+// AssistPublishTwitter selects the Runtime v2 or legacy drafting path. Actual
+// publication remains an explicit ConfirmPublishTwitter operation.
 func (s *AgentService) AssistPublishTwitter(ctx context.Context, userID uint64, dialogueID uint64, dialogueKey string, content string) (*ChatResult, error) {
+	if s.RuntimeV2Enabled(agentRuntime.ModeAssist) {
+		return s.assistPublishTwitterRuntime(ctx, userID, dialogueID, dialogueKey, content)
+	}
+	return s.assistPublishTwitterLegacy(ctx, userID, dialogueID, dialogueKey, content)
+}
+
+func (s *AgentService) assistPublishTwitterRuntime(ctx context.Context, userID uint64, dialogueID uint64, dialogueKey string, content string) (*ChatResult, error) {
+	dialogueIDHex := resolveDialogueKey(dialogueID, dialogueKey)
+	dialogue, err := s.getOrCreateDialogue(ctx, userID, dialogueIDHex, content, repository.ModeAssist)
+	if err != nil {
+		return nil, err
+	}
+	noteAgentExecutionDialogue(ctx, dialogue.ID.Hex())
+	if s.runtimeRunner == nil {
+		return nil, errors.New("agent runtime runner is not configured")
+	}
+	if s.runtimeTools == nil {
+		return nil, errors.New("agent runtime tool catalog is not configured")
+	}
+
+	tools, err := s.runtimeTools.ListTools(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list runtime tools failed: %w", err)
+	}
+	profile, err := s.resolveAgentProfile(ctx, profileAssistDraft, userID)
+	if err != nil {
+		return nil, fmt.Errorf("resolve assist profile failed: %w", err)
+	}
+	contextMessages, err := s.loadContextMessages(ctx, dialogue.ID)
+	if err != nil {
+		logger.Warn(ctx, "load runtime context failed", zap.Error(err))
+		contextMessages = nil
+	}
+	messageBuild, err := s.buildRuntimeMessages(profile.Prompt.SystemPrompt, content, contextMessages, profile.Budget)
+	if err != nil {
+		return nil, fmt.Errorf("build assist runtime messages failed: %w", err)
+	}
+
+	result, err := s.runRuntime(ctx, agentRuntime.RunRequest{
+		Context: agentRuntime.RunContext{
+			RunID: agentExecutionRunID(ctx), UserID: userID,
+			Mode: agentRuntime.ModeAssist, Budget: profile.Budget,
+			AgentProfileID: profile.ID, AgentProfileVersion: profile.Version,
+			PromptTemplateID: profile.Prompt.ID, PromptTemplateVersion: profile.Prompt.Version,
+		},
+		Model:    s.selectedModel(ctx),
+		Messages: messageBuild.Messages,
+		Tools:    profile.FilterTools(tools),
+	})
+	s.recordRuntimeResult(ctx, result, err, profile.ID)
+	if err != nil {
+		return nil, fmt.Errorf("assist runtime failed: %w", err)
+	}
+	response, err := runtimeUserVisibleResponse(result)
+	if err != nil {
+		return nil, fmt.Errorf("assist runtime response: %w", err)
+	}
+
+	metadata := runtimeResultMetadata(result, profile.ID, profile.Version, profile.Prompt.Version)
+	metadata["execution_profile"] = ExecutionProfileRuntimeDraft
+	metadata["capability_ids"] = []string{CapabilityContentDraft}
+	metadata["runtime_context_tokens"] = messageBuild.EstimatedTokens
+	metadata["runtime_context_dropped"] = stringifyDroppedSources(messageBuild.Dropped)
+	if err := s.saveUserAndAssistantMessages(ctx, dialogue.ID, userID, content, response, metadata); err != nil {
+		return nil, fmt.Errorf("persist assist draft conversation failed: %w", err)
+	}
+	return &ChatResult{
+		DialogueID: dialogue.ID.Hex(),
+		RunID:      result.Context.RunID,
+		RunStatus:  string(result.Status),
+		Response:   response,
+	}, nil
+}
+
+// assistPublishTwitterLegacy preserves the pre-Runtime ReAct loop for rollback.
+func (s *AgentService) assistPublishTwitterLegacy(ctx context.Context, userID uint64, dialogueID uint64, dialogueKey string, content string) (*ChatResult, error) {
 	dialogueIDHex := resolveDialogueKey(dialogueID, dialogueKey)
 
 	dialogue, err := s.getOrCreateDialogue(ctx, userID, dialogueIDHex, content, repository.ModeAssist)
@@ -544,7 +1507,7 @@ func (s *AgentService) AssistPublishTwitter(ctx context.Context, userID uint64, 
 	// 4. ReAct 循环
 	for i := 0; i < 5; i++ {
 		resp, err := s.llmClient.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
-			Model:    s.chatModel,
+			Model:    s.selectedModel(ctx),
 			Messages: messages,
 			Tools:    openaiTools,
 		})
@@ -577,7 +1540,7 @@ func (s *AgentService) AssistPublishTwitter(ctx context.Context, userID uint64, 
 		messages = append(messages, choice.Message)
 
 		for _, toolCall := range choice.Message.ToolCalls {
-			logger.Info(ctx, "mcp tool call", zap.String("tool", toolCall.Function.Name), zap.String("args", toolCall.Function.Arguments))
+			logger.Info(ctx, "mcp tool call", zap.String("tool", toolCall.Function.Name))
 
 			var args map[string]any
 			if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
@@ -585,7 +1548,15 @@ func (s *AgentService) AssistPublishTwitter(ctx context.Context, userID uint64, 
 			}
 
 			// 调用 MCP Server 执行 Tool，并进行身份鉴权注入
-			toolResult, err := s.callToolWithAuth(ctx, mcpClient, userID, mcp.CallToolRequest{
+			toolResult, err := s.executeMCPToolGoverned(ctx, mcpClient, workflowTool.ExecutionRequest{
+				ToolName:       toolCall.Function.Name,
+				Inputs:         args,
+				Identity:       workflowTool.CallerIdentity{UserID: userID},
+				RunID:          dialogue.ID.Hex(),
+				StepID:         toolCall.ID,
+				Source:         workflowTool.SourceLegacy,
+				IdempotencyKey: toolIdempotencyKey(dialogue.ID.Hex(), toolCall.ID, toolCall.Function.Name),
+			}, mcp.CallToolRequest{
 				Params: mcp.CallToolParams{
 					Name:      toolCall.Function.Name,
 					Arguments: args,
@@ -609,32 +1580,6 @@ func (s *AgentService) AssistPublishTwitter(ctx context.Context, userID uint64, 
 	return nil, fmt.Errorf("max iterations reached without final answer")
 }
 
-// ConfirmPublishTwitter 模式三第二阶段：确认发布推文
-func (s *AgentService) ConfirmPublishTwitter(ctx context.Context, userID uint64, content string) (string, error) {
-	mcpClient, _, err := s.getOrInitMCPClient(ctx)
-	if err != nil {
-		return "", fmt.Errorf("init mcp client failed: %w", err)
-	}
-
-	// 直接调 create_tweet Tool，不经过 LLM，并进行身份鉴权注入
-	toolResult, err := s.callToolWithAuth(ctx, mcpClient, userID, mcp.CallToolRequest{
-		Params: mcp.CallToolParams{
-			Name: "create_tweet",
-			Arguments: map[string]any{
-				"user_id": fmt.Sprintf("%d", userID),
-				"content": content,
-			},
-		},
-	})
-	if err != nil {
-		s.resetMCPClient() // 异常断连重置
-		return "", fmt.Errorf("call create_tweet tool failed: %w", err)
-	}
-
-	resultText := extractTextFromToolResult(toolResult)
-	return resultText, nil
-}
-
 // ========================== 模式四：多 Agent 协作写推文 ==========================
 
 // MultiAgentPublishTwitter 模式四：多 Agent 协作写推文
@@ -651,9 +1596,14 @@ func (s *AgentService) MultiAgentPublishTwitter(ctx context.Context, userID uint
 	}
 
 	// ======== Agent 1: Search Agent 查阅相关领域推文 ========
-	searchResult, err := s.callToolWithAuth(ctx, mcpClient, userID, mcp.CallToolRequest{
+	searchResult, err := s.executeMCPToolGoverned(ctx, mcpClient, workflowTool.ExecutionRequest{
+		ToolName: multiSearchAgentProfile.PrimaryTool(),
+		Inputs:   map[string]any{"query": domain, "size": float64(5)},
+		Identity: workflowTool.CallerIdentity{UserID: userID},
+		RunID:    dialogue.ID.Hex(), StepID: "search", Source: workflowTool.SourceLegacy,
+	}, mcp.CallToolRequest{
 		Params: mcp.CallToolParams{
-			Name: "hybrid_search_tweets",
+			Name: multiSearchAgentProfile.PrimaryTool(),
 			Arguments: map[string]any{
 				"query": domain,
 				"size":  float64(5),
@@ -673,9 +1623,14 @@ func (s *AgentService) MultiAgentPublishTwitter(ctx context.Context, userID uint
 		styleLimit = 1
 	}
 
-	styleResult, err := s.callToolWithAuth(ctx, mcpClient, userID, mcp.CallToolRequest{
+	styleInputs := map[string]any{"user_id": fmt.Sprintf("%d", authorUserID), "limit": float64(styleLimit)}
+	styleResult, err := s.executeMCPToolGoverned(ctx, mcpClient, workflowTool.ExecutionRequest{
+		ToolName: multiStyleAgentProfile.PrimaryTool(), Inputs: styleInputs,
+		Identity: workflowTool.CallerIdentity{UserID: userID},
+		RunID:    dialogue.ID.Hex(), StepID: "style", Source: workflowTool.SourceLegacy,
+	}, mcp.CallToolRequest{
 		Params: mcp.CallToolParams{
-			Name: "get_user_tweets",
+			Name: multiStyleAgentProfile.PrimaryTool(),
 			Arguments: map[string]any{
 				"user_id": fmt.Sprintf("%d", authorUserID),
 				"limit":   float64(styleLimit),
@@ -695,7 +1650,12 @@ func (s *AgentService) MultiAgentPublishTwitter(ctx context.Context, userID uint
 		for i, id := range referenceTweetIDs {
 			ids[i] = fmt.Sprintf("%d", id)
 		}
-		refResult, err := s.callToolWithAuth(ctx, mcpClient, userID, mcp.CallToolRequest{
+		refInputs := map[string]any{"tweet_ids": strings.Join(ids, ",")}
+		refResult, err := s.executeMCPToolGoverned(ctx, mcpClient, workflowTool.ExecutionRequest{
+			ToolName: "get_tweets_by_ids", Inputs: refInputs,
+			Identity: workflowTool.CallerIdentity{UserID: userID},
+			RunID:    dialogue.ID.Hex(), StepID: "references", Source: workflowTool.SourceLegacy,
+		}, mcp.CallToolRequest{
 			Params: mcp.CallToolParams{
 				Name: "get_tweets_by_ids",
 				Arguments: map[string]any{
@@ -753,11 +1713,11 @@ func (s *AgentService) MultiAgentPublishTwitter(ctx context.Context, userID uint
 		content, domain, domainTweets, authorTweets, referenceTweets)
 
 	resp, err := s.llmClient.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
-		Model: s.chatModel,
+		Model: s.selectedModel(ctx),
 		Messages: []openai.ChatCompletionMessage{
 			{
 				Role:    openai.ChatMessageRoleSystem,
-				Content: "你是一个严谨的多智能体写作总编。你的第一优先级是产出可直接发布、内容饱满、有观点和细节的候选正文；研究摘要和风格判断只能服务正文，不能喧宾夺主。你必须执行主题隔离：任何与用户当前主题不相关的检索结果、历史推文或参考材料都要丢弃，不得混入正文。",
+				Content: multiWriterSystemPrompt(),
 			},
 			{
 				Role:    openai.ChatMessageRoleUser,
@@ -781,6 +1741,12 @@ func (s *AgentService) MultiAgentPublishTwitter(ctx context.Context, userID uint
 		"author_user_id":      authorUserID,
 		"style_ratio":         styleRatio,
 		"reference_tweet_ids": referenceTweetIDs,
+		"agent_profiles": []string{
+			multiSearchAgentProfile.ID,
+			multiStyleAgentProfile.ID,
+			multiWriterAgentProfile.ID,
+			multiReviewAgentProfile.ID,
+		},
 	}
 	if err := s.saveUserAndAssistantMessages(ctx, dialogue.ID, userID, content, aiResponse, metadata); err != nil {
 		logger.Error(ctx, "save messages failed", zap.Error(err))
@@ -820,8 +1786,15 @@ func (s *AgentService) getOrInitMCPClient(ctx context.Context) (*client.Client, 
 		addr = "127.0.0.1:" + strings.TrimPrefix(addr, "0.0.0.0:")
 	}
 
+	if len(s.mcpAuthToken) < 32 {
+		return nil, nil, errors.New("MCP authentication token is not configured")
+	}
 	logger.Info(ctx, "initializing MCP long-connection client", zap.String("addr", addr))
-	mcpClient, err := client.NewSSEMCPClient(fmt.Sprintf("http://%s/sse", addr))
+	mcpClient, err := client.NewSSEMCPClient(
+		fmt.Sprintf("http://%s/sse", addr),
+		client.WithHeaders(map[string]string{"Authorization": "Bearer " + s.mcpAuthToken}),
+		client.WithHTTPClient(platformTrace.InstrumentHTTPClient(nil, "agent.mcp.http", nil)),
+	)
 	if err != nil {
 		return nil, nil, fmt.Errorf("create mcp client failed: %w", err)
 	}
@@ -870,14 +1843,41 @@ func (s *AgentService) callToolWithAuth(ctx context.Context, mcpClient *client.C
 	if !ok {
 		args = make(map[string]any)
 	}
-
-	// 针对敏感写操作 create_tweet，强制绑定当前用户的 userID，防止 LLM 参数注入越权
-	if req.Params.Name == "create_tweet" {
-		args["user_id"] = fmt.Sprintf("%d", userID)
-	}
+	args = injectTrustedToolArguments(ctx, userID, req.Params.Name, args)
 
 	req.Params.Arguments = args
 	return mcpClient.CallTool(ctx, req)
+}
+
+func injectTrustedToolArguments(
+	ctx context.Context,
+	userID uint64,
+	toolName string,
+	arguments map[string]any,
+) map[string]any {
+	if arguments == nil {
+		arguments = make(map[string]any)
+	}
+	metadata := workflowTool.ExecutionMetadataFromContext(ctx)
+	// Sensitive write and metered web-access identities are always overwritten
+	// from the authenticated execution context.
+	if toolName == "create_tweet" {
+		arguments["user_id"] = fmt.Sprintf("%d", userID)
+		if metadata.IdempotencyKey != "" {
+			arguments["idempotency_key"] = metadata.IdempotencyKey
+		}
+	}
+	if toolName == "web_search" || toolName == "page_read" {
+		arguments[agentWebSearch.InternalUserIDArgument] = userID
+		arguments[agentWebSearch.InternalRunIDArgument] = metadata.RunID
+	}
+	if toolName == "web_search" {
+		delete(arguments, agentWebSearch.InternalProviderConfigIDArgument)
+		if configID := webSearchProviderConfigFromContext(ctx); configID != "" {
+			arguments[agentWebSearch.InternalProviderConfigIDArgument] = configID
+		}
+	}
+	return arguments
 }
 
 // mcpToolsToOpenAI 把 MCP Tools 格式转换成 OpenAI Function Calling 格式

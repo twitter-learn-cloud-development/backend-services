@@ -125,6 +125,9 @@ class _TweetDetailScreenState extends ConsumerState<TweetDetailScreen> {
         }
       });
       
+      // Update the home feed's comment count too
+      ref.read(feedNotifierProvider.notifier).refresh();
+      
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('回复成功'),
@@ -133,6 +136,7 @@ class _TweetDetailScreenState extends ConsumerState<TweetDetailScreen> {
         ),
       );
     } catch (e) {
+      debugPrint('Create comment error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('回复失败: $e')),
       );

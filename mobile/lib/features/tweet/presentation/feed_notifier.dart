@@ -195,6 +195,13 @@ class FeedNotifier extends Notifier<FeedState> {
         );
         state = state.copyWith(tweets: updatedTweets);
       }
+      
+      // If we just retweeted, refresh the feed after a short delay so the new tweet appears
+      if (newIsRetweeted) {
+        Future.delayed(const Duration(milliseconds: 300), () {
+          refresh();
+        });
+      }
     } catch (e) {
       if (kDebugMode) {
         print('❌ [FeedNotifier] toggleRetweet Error: $e');

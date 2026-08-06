@@ -9,3 +9,5 @@ metadata:
 data:
   twitter-clone-dashboard.json: |-
 {{ .Files.Get "dashboards/twitter-clone-dashboard.json" | nindent 4 }}
+  agent-runtime-dashboard.json: |-
+{{ .Files.Get "dashboards/agent-runtime-dashboard.json" | nindent 4 }}

@@ -156,34 +156,45 @@ class ProfileScreen extends ConsumerWidget {
                               child: const Text('编辑个人资料', style: TextStyle(fontWeight: FontWeight.bold)),
                             )
                           else
-                            ElevatedButton(
-                              onPressed: () {
-                                final notifier = ref.read(profileNotifierProvider(resolvedId).notifier);
-                                if (profileState.isFollowing) {
-                                  notifier.unfollow();
-                                } else {
-                                  notifier.follow();
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: profileState.isFollowing
-                                    ? Colors.transparent
-                                    : (isDark ? Colors.white : Colors.black),
-                                foregroundColor: profileState.isFollowing
-                                    ? (isDark ? Colors.white : Colors.black)
-                                    : (isDark ? Colors.black : Colors.white),
-                                side: profileState.isFollowing
-                                    ? BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder)
-                                    : BorderSide.none,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.message_outlined),
+                                  onPressed: () {
+                                    context.push('/chat/${user.id}');
+                                  },
                                 ),
-                                elevation: 0,
-                              ),
-                              child: Text(
-                                profileState.isFollowing ? '正在关注' : '关注',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
-                              ),
+                                const SizedBox(width: 8),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    final notifier = ref.read(profileNotifierProvider(resolvedId).notifier);
+                                    if (profileState.isFollowing) {
+                                      notifier.unfollow();
+                                    } else {
+                                      notifier.follow();
+                                    }
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: profileState.isFollowing
+                                        ? Colors.transparent
+                                        : (isDark ? Colors.white : Colors.black),
+                                    foregroundColor: profileState.isFollowing
+                                        ? (isDark ? Colors.white : Colors.black)
+                                        : (isDark ? Colors.black : Colors.white),
+                                    side: profileState.isFollowing
+                                        ? BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder)
+                                        : BorderSide.none,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    elevation: 0,
+                                  ),
+                                  child: Text(
+                                    profileState.isFollowing ? '正在关注' : '关注',
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ],
                             ),
                         ],
                       ),

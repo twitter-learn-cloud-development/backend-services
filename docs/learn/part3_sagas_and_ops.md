@@ -44,8 +44,8 @@
 
 ### 🛣️ 请求链路全景 (Request Flow)
 1. 发布推文：用户发帖成功，触发发件箱向 RabbitMQ 广播消息。
-2. 消费者捕获事件：`timeline_consumer` 快速把推文写入普通时间线。同时检测到需要启动风控风控，向 RabbitMQ 广播 `queue.tweet.risk` 风控事件。
-3. 工作流启动：`RiskControl` 接收到消息，向 **Temporal Server** 发起 `TweetRiskControlWorkflow`，设置 WorkflowID 为 `RiskControl-Tweet-{TweetID}`（依靠引擎实现强去重，防止消息重投）。
+2. 独立消费者捕获事件：`timeline_consumer` 订阅 `tweet.created` 写入普通时间线；Agent Worker 自己拥有的 `queue.tweet.risk` 同时直接订阅同一原始事件，两个消费者互不转发。
+3. 工作流启动：`RiskControl` 接收到消息，向 **Temporal Server** 发起 `TweetRiskControlWorkflow`，设置 WorkflowID 为 `RiskControl-Tweet-{TweetID}` 并使用 `REJECT_DUPLICATE`（依靠引擎拒绝重复启动，防止消息重投和滚动升级双链路重复）。
 4. 频率与相似度审计：工作流并发调 Activity 提取作者近期发帖频率，调用 Qdrant 检查内容与已知垃圾文本的余弦相似度。
 5. 影子封禁（Shadowban）：如果判定为垃圾推文，工作流修改推文属性为 `visible_type=4`（仅自己可见）。
 6. 原子洗地回滚（Saga 补偿）：Activity 并发调用 **Redis Lua 脚本**，批量从所有粉丝的 Timeline ZSet 缓存中原子移除该垃圾推文 ID（ZREM）并递减未读数。

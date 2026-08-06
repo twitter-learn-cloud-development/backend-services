@@ -46,7 +46,7 @@ func main() {
 	}
 
 	// 🔍 初始化链路追踪
-	jaegerEndpoint := getEnv("JAEGER_COLLECTOR_ENDPOINT", "http://localhost:14268/api/traces")
+	jaegerEndpoint := getEnv("JAEGER_COLLECTOR_ENDPOINT", "localhost:4317")
 	trace.InitTracer("notification-service", jaegerEndpoint)
 
 	// 2. Consul Config (可选)

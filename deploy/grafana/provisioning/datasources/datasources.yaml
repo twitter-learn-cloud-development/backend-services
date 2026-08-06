@@ -26,6 +26,7 @@ datasources:
   # 3. Prometheus 指标监控数据源配置
   - name: Prometheus
     type: prometheus
+    uid: prometheus
     access: proxy
     url: http://prometheus:9090
     editable: true

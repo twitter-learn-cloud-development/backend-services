@@ -1,12 +1,14 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"twitter-clone/internal/module/agent/workflow/dsl"
+	workflowTool "twitter-clone/internal/module/agent/workflow/tool"
 )
 
 func TestGetAvailableModelsExcludesEmbeddingModels(t *testing.T) {
@@ -26,6 +28,11 @@ func TestBuildWorkflowNodesSupportsAgentStrategies(t *testing.T) {
 		"objective": "{{start.user_input}}",
 	})
 	require.NoError(t, err)
+	registry := workflowTool.NewRegistry()
+	require.NoError(t, registry.Register(workflowTool.NewDelegatedTool(
+		"ReActAgent", "test", `{"type":"object"}`,
+		func(context.Context, map[string]interface{}) (map[string]interface{}, error) { return nil, nil },
+	)))
 
 	nodes, err := buildWorkflowNodes(&dsl.WorkflowDSL{
 		Nodes: []dsl.NodeDSL{
@@ -33,7 +40,7 @@ func TestBuildWorkflowNodesSupportsAgentStrategies(t *testing.T) {
 			{ID: "react", Type: "agent", Properties: properties},
 			{ID: "end", Type: "end"},
 		},
-	})
+	}, workflowTool.NewExecutor(registry))
 
 	require.NoError(t, err)
 	require.Len(t, nodes, 3)

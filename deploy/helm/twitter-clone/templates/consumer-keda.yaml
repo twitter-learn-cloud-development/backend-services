@@ -45,4 +45,11 @@ spec:
         mode: QueueLength
       authenticationRef:
         name: {{ include "twitter.fullname" . }}-consumer-keda-auth
+    - type: rabbitmq
+      metadata:
+        queueName: queue.tweet.moderation.cleanup
+        value: {{ .Values.keda.queueLength | default 100 | quote }}
+        mode: QueueLength
+      authenticationRef:
+        name: {{ include "twitter.fullname" . }}-consumer-keda-auth
 {{- end }}

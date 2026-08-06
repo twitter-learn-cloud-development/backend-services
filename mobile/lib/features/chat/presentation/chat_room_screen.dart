@@ -50,8 +50,13 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
                          (msg.senderId == currentUserId && msg.receiverId == widget.userId);
                          
       if (isRelevant) {
+        // If we are the sender, we already inserted the message locally via HTTP response.
+        // Ignore it to avoid duplicates (especially if IDs mismatch between HTTP and WS).
+        if (msg.senderId == currentUserId) {
+          return;
+        }
+
         setState(() {
-          // Avoid duplicate entry if we sent the message and it was already inserted locally
           if (!_messages.any((m) => m.id == msg.id)) {
             _messages.insert(0, msg);
           }

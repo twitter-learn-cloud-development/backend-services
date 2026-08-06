@@ -53,6 +53,32 @@ class DialogueMessage {
   }
 }
 
+class WorkflowSummary {
+  final String workflowId;
+  final String userId;
+  final String name;
+  final int createdAt;
+  final int updatedAt;
+
+  WorkflowSummary({
+    required this.workflowId,
+    required this.userId,
+    required this.name,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory WorkflowSummary.fromJson(Map<String, dynamic> json) {
+    return WorkflowSummary(
+      workflowId: json['workflow_id']?.toString() ?? '',
+      userId: json['user_id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      createdAt: json['created_at'] is int ? json['created_at'] : 0,
+      updatedAt: json['updated_at'] is int ? json['updated_at'] : 0,
+    );
+  }
+}
+
 class AgentRepository {
   final Dio _dio;
 
@@ -173,11 +199,54 @@ class AgentRepository {
         'content': content,
       });
       if (response.statusCode == 200) {
-        return response.data['tweet_id']?.toString() ?? '';
+        final respText = response.data['response']?.toString() ?? '';
+        if (respText.contains('失败') || respText.contains('error') || respText.contains('Error')) {
+          throw Exception(respText);
+        }
+        return respText;
       }
       throw Exception('确认发布失败');
     } on DioException catch (e) {
-      throw Exception(e.response?.data?['error'] ?? '网络异常');
+      final errorMsg = e.response?.data?['error'] ?? e.message ?? '网络连接错误';
+      throw Exception(errorMsg);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Workflows: List workflows
+  Future<List<WorkflowSummary>> listWorkflows({int page = 1, int pageSize = 20}) async {
+    try {
+      final response = await _dio.get('/agent/workflows', queryParameters: {
+        'page': page,
+        'page_size': pageSize,
+      });
+      if (response.statusCode == 200) {
+        final data = response.data as Map<String, dynamic>;
+        final list = data['workflows'] as List? ?? [];
+        return list.map((e) => WorkflowSummary.fromJson(e)).toList();
+      }
+      return [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  // Workflows: Run a workflow
+  Future<Map<String, dynamic>> runWorkflow(String workflowId, String inputJson) async {
+    try {
+      final response = await _dio.post('/agent/workflows/$workflowId/run', data: {
+        'input_json': inputJson,
+      });
+      if (response.statusCode == 200) {
+        return response.data as Map<String, dynamic>;
+      }
+      throw Exception('执行工作流失败');
+    } on DioException catch (e) {
+      final errorMsg = e.response?.data?['error'] ?? e.message ?? '网络连接错误';
+      throw Exception(errorMsg);
+    } catch (e) {
+      rethrow;
     }
   }
 }

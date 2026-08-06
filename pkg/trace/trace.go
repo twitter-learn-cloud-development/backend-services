@@ -2,6 +2,7 @@ package trace
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -13,51 +14,57 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 )
 
-// InitTracer 初始化全局 Tracer Provider
+// InitTracer preserves the process-lifetime setup used by existing services.
+// New composition roots should use InitTracerProvider and flush on shutdown.
 func InitTracer(serviceName string, collectorHost string) {
-	// 1. 设置资源信息 (Resource)
+	if _, err := InitTracerProvider(context.Background(), serviceName, collectorHost, 1); err != nil {
+		log.Printf("failed to initialize tracer: %v", err)
+	}
+}
+
+// InitTracerProvider configures the global OTLP gRPC provider and returns its
+// shutdown function. sampleRatio is clamped to [0,1] and remains parent-based.
+func InitTracerProvider(
+	ctx context.Context,
+	serviceName string,
+	collectorHost string,
+	sampleRatio float64,
+) (func(context.Context) error, error) {
 	res, err := resource.Merge(
 		resource.Default(),
-		resource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceName(serviceName),
-		),
+		resource.NewSchemaless(semconv.ServiceName(serviceName)),
 	)
 	if err != nil {
-		log.Printf("⚠️ Failed to merge resource: %v", err)
+		return nil, fmt.Errorf("merge trace resource: %w", err)
 	}
 
-	// 2. 配置 Exporter (将数据发送给 OTel Collector - gRPC)
-	// collectorHost 形式一般为 IP:Port 或域名:Port，例如 localhost:4317
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	setupCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-
-	exporter, err := otlptracegrpc.New(ctx,
+	exporter, err := otlptracegrpc.New(
+		setupCtx,
 		otlptracegrpc.WithEndpoint(collectorHost),
-		otlptracegrpc.WithInsecure(), // 本地/内部调用，默认不使用 TLS
+		otlptracegrpc.WithInsecure(),
 	)
 	if err != nil {
-		log.Printf("⚠️ Failed to create OTLP gRPC exporter: %v", err)
-		return
+		return nil, fmt.Errorf("create OTLP gRPC exporter: %w", err)
+	}
+	if sampleRatio < 0 {
+		sampleRatio = 0
+	}
+	if sampleRatio > 1 {
+		sampleRatio = 1
 	}
 
-	// 3. 创建 Provider
-	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithBatcher(exporter), // 异步批量上报
+	provider := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exporter),
 		sdktrace.WithResource(res),
-		sdktrace.WithSampler(sdktrace.AlwaysSample()), // 采样策略：始终采样 (便于调试，生产环境请调整)
+		sdktrace.WithSampler(sdktrace.ParentBased(sdktrace.TraceIDRatioBased(sampleRatio))),
 	)
-
-	// 4. 注册为全局 Tracer
-	otel.SetTracerProvider(tp)
-
-	// 5. 设置传播器 (Context Propagators)
-	// 确保 Trace ID 能在 HTTP/gRPC Header 中传递
+	otel.SetTracerProvider(provider)
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
 		propagation.TraceContext{},
 		propagation.Baggage{},
 	))
-
-	log.Printf("✅ Tracer initialized for service: %s (OTLP gRPC Collector: %s)", serviceName, collectorHost)
+	log.Printf("tracer initialized for service %s (OTLP gRPC collector %s, sample ratio %.2f)", serviceName, collectorHost, sampleRatio)
+	return provider.Shutdown, nil
 }
-

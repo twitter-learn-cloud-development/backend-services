@@ -53,6 +53,7 @@ datasources:
       # Prometheus — 指标数据源
       - name: Prometheus
         type: prometheus
+        uid: prometheus
         access: proxy
         url: http://twitter-clone-prometheus-server.default:80
         editable: true

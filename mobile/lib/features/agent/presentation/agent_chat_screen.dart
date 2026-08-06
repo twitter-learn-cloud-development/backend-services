@@ -6,6 +6,7 @@ import '../../auth/presentation/auth_notifier.dart';
 import '../../../core/constants/colors.dart';
 import '../../tweet/domain/tweet_model.dart';
 import '../../tweet/presentation/feed_notifier.dart';
+import 'workflow_list_screen.dart';
 
 final agentRepositoryProvider = Provider<AgentRepository>((ref) {
   final dio = ref.watch(dioProvider);
@@ -62,6 +63,17 @@ class _AgentChatScreenState extends ConsumerState<AgentChatScreen> {
       appBar: AppBar(
         title: const Text('AI 智能体助手'),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.account_tree_outlined),
+            tooltip: '工作流',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const WorkflowListScreen()),
+              );
+            },
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
@@ -289,9 +301,9 @@ class _DialogueChatScreenState extends ConsumerState<DialogueChatScreen> {
   Future<void> _confirmPublishDraft(String draftContent, int msgIdx) async {
     try {
       final repo = ref.read(agentRepositoryProvider);
-      final tweetId = await repo.confirmPublish(draftContent);
+      final respText = await repo.confirmPublish(draftContent);
       
-      if (tweetId.isNotEmpty) {
+      if (respText.isNotEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('智能发帖成功！可在主页查看。'),
@@ -308,7 +320,7 @@ class _DialogueChatScreenState extends ConsumerState<DialogueChatScreen> {
           _messages[msgIdx] = DialogueMessage(
             id: oldMsg.id,
             question: oldMsg.question,
-            response: '${oldMsg.response}\n\n✅ 已发布成功！推文 ID: $tweetId',
+            response: '${oldMsg.response}\n\n✅ $respText',
           );
         });
       }

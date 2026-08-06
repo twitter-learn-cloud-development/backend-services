@@ -160,8 +160,204 @@ services:
       tag: "latest"
       pullPolicy: IfNotPresent
     replicaCount: 1
-    containerPort: 9095
-    metricsPort: 2115
+    containerPort: 9100
+    metricsPort: 9191
+    traceSampleRatio: "0.1"
+    # Keep `all` for the current combined deployment. Dedicated deployments may
+    # use `api` or `worker`; only worker/all processes start background jobs.
+    processRole: all
+    trendingReporter:
+      # Temporal is the sole production scheduler. `disabled` is the rollback.
+      owner: temporal
+      interval: "1m"
+    recoverableRuns:
+      # Encrypted ask_human recovery. Approval recovery is a separate rollout.
+      enabled: false
+      unifiedApprovalRecoveryEnabled: false
+      maxCheckpointBytes: 262144
+      resumeLeaseDuration: "5m"
+      # Secret values are base64 key strings consumed by the application.
+      existingSecret: ""
+      masterKeyKey: "master-key"
+      activeKeyID: "v1"
+      keyring:
+        enabled: false
+        key: "master-keys"
+    taskTemplates:
+      # Explicit reusable task presets derived from completed authoritative Runs.
+      # Requires recoverableRuns.enabled.
+      enabled: false
+      listLimit: 20
+    multiAgentPlanner:
+      # Admission and execution have independent rollback switches. Execution
+      # currently supports only bounded sequential research-draft templates.
+      enabled: false
+      executionEnabled: false
+      minimumComplexityScore: 6
+      maxRoles: 3
+      maxParallelRoles: 1
+      maxEstimatedLatency: "50s"
+    # AES-256-GCM key used for tenant-owned Provider Config and external MCP credentials.
+    # Leave empty to disable user-managed credentials while retaining any
+    # platform-level providers. The referenced values are base64 key strings.
+    providerConfig:
+      existingSecret: ""
+      masterKeyKey: "master-key"
+      activeKeyID: "v1"
+      keyring:
+        enabled: false
+        key: "master-keys"
+    externalMCP:
+      enabled: false
+      projectScopeEnabled: false
+      managedCredentials:
+        enabled: false
+        # Metadata only. Each entry binds reference/project/endpoint/auth_type
+        # to one key in existingSecret and includes a positive version.
+        registryJSON: "[]"
+        existingSecret: ""
+        mountPath: "/var/run/secrets/agent-mcp-managed"
+      # Controlled internal test hosts only. Public hosts are validated by
+      # DNS/IP policy without being listed here.
+      allowedHosts: ""
+      pool:
+        enabled: true
+        maxSessions: 64
+        maxSessionsPerConnection: 2
+        idleTimeout: "5m"
+        acquireTimeout: "2s"
+      health:
+        enabled: false
+        pollInterval: "15s"
+        interval: "2m"
+        timeout: "5s"
+        leaseDuration: "15s"
+        failureBackoffMin: "30s"
+        failureBackoffMax: "15m"
+        failureThreshold: 3
+        batchSize: 20
+        maxConcurrency: 4
+      acceptance:
+        # One-shot, operator-triggered production evidence job. The strict
+        # config contains no token; bearer credentials are mounted by Secret.
+        enabled: false
+        configJSON: ""
+        credentialExistingSecret: ""
+        credentialMountPath: "/var/run/secrets/agent-mcp-acceptance"
+        integrityExistingSecret: ""
+        integrityKeyKey: "integrity-key"
+        integrityKeyIDKey: "integrity-key-id"
+        allowWrite: false
+        expectCredentialRotation: false
+        requireComplete: true
+        requireSigned: true
+        timeout: "3m"
+        callTimeout: "15s"
+        rotationTimeout: "2m"
+        rotationPoll: "1s"
+        activeDeadlineSeconds: 300
+        ttlSecondsAfterFinished: 86400
+    workflowAsTool:
+      # Only explicitly published immutable revisions are exposed. Write/risky
+      # steps require the governed approval and continuation bridge.
+      enabled: false
+      catalogLimit: 20
+      timeout: "60s"
+    skillCatalog:
+      # Explicit immutable Skill discovery/execution. Requires workflowAsTool.
+      enabled: false
+      catalogLimit: 20
+    extensionCatalog:
+      # Credential-free tenant directory. Source authorization remains owned
+      # by Capability, Skill and governed MCP control planes.
+      enabled: false
+      catalogLimit: 20
+    extensionMarketplace:
+      # Signature-verified public release metadata. Installation and package
+      # execution remain unavailable until their separate control plane lands.
+      enabled: false
+      catalogLimit: 20
+      administration:
+        enabled: false
+        # Existing Secret contains tokenKey with a 32+ character internal token.
+        existingSecret: ""
+        tokenKey: "agent-extension-marketplace-admin-token"
+        # Comma-separated JWT user IDs allowed to bootstrap and suspend publishers.
+        administratorUserIDs: ""
+    webSearch:
+      enabled: false
+      provider: "brave"
+      baseURL: "https://api.search.brave.com/res/v1/web/search"
+      timeout: "10s"
+      maxResults: 10
+      maxResponseBytes: 2097152
+      maxConcurrent: 8
+      searchCacheTTL: "5m"
+      allowedHosts: ""
+      pageRead:
+        enabled: true
+        timeout: "12s"
+        maxResponseBytes: 2097152
+        maxContentRunes: 16000
+        maxConcurrent: 8
+        cacheTTL: "15m"
+        allowedHosts: ""
+      cachePrefix: "agent:web:cache"
+      governor:
+        prefix: "agent:web:governor"
+        userRateWindow: "1m"
+        userMaxRequests: 30
+        runTTL: "24h"
+        runMaxRequests: 12
+        runMaxCostMicros: 50000
+        searchEstimatedCostMicros: 1000
+        pageEstimatedCostMicros: 100
+      # Optional platform fallback. Users may instead select an encrypted
+      # tenant-owned Brave Provider Config when providerConfig is configured.
+      existingSecret: ""
+      apiKeyKey: "api-key"
+    profileCatalog:
+      storeEnabled: true
+      releaseOverrides: "[]"
+      changeChannel: "agent.profile.catalog.changed.v1"
+      syncInterval: "30s"
+      experiments:
+        enabled: false
+        reconcileInterval: "30s"
+        observationQueueSize: 1024
+        contentAttributionWindow: "168h"
+      qualityEvidence:
+        required: false
+        contentSignoffRequired: false
+        endpoint: "minio:9000"
+        bucket: "agent-task-eval-reports"
+        secure: false
+        # Secret keys: access-key, secret-key, integrity-key, integrity-key-id,
+        # content-signoff-key and content-signoff-key-id.
+        existingSecret: ""
+        accessKeyKey: "access-key"
+        secretKeyKey: "secret-key"
+        integrityKeyKey: "integrity-key"
+        integrityKeyIDKey: "integrity-key-id"
+        contentSignoffKeyKey: "content-signoff-key"
+        contentSignoffKeyIDKey: "content-signoff-key-id"
+      admin:
+        # Existing Secret must contain tokenKey with a 32+ character value.
+        existingSecret: ""
+        tokenKey: "agent-profile-admin-token"
+        # Comma-separated JWT user IDs. Admin inherits every role.
+        viewerUserIDs: ""
+        editorUserIDs: ""
+        approverUserIDs: ""
+        userIDs: ""
+        # Set false to roll back to environment-only role assignments.
+        dynamicRbacEnabled: true
+        # Break-glass only; normal version publishing uses editor + approver.
+        directPublishEnabled: false
+    promptSampling:
+      enabled: false
+      ratio: "0.01"
+      maxBytes: 512
     resources: {}
   userService:
     name: user-service
@@ -190,6 +386,14 @@ services:
     replicaCount: 1
     containerPort: 9092
     metricsPort: 2112
+    riskControlAuth:
+      # Protects only GetAuthorPostingStats and ApplyTweetModeration. The same
+      # Secret is mounted into Tweet and Agent; an empty config keeps these two
+      # RPCs fail-closed while all public Tweet RPCs remain available.
+      enabled: false
+      identity: "agent-service"
+      existingSecret: ""
+      tokenKey: "tweet-risk-control-token"
     env:
       JAEGER_COLLECTOR_ENDPOINT: "http://jaeger-query-clusterip.default:14268/api/traces"
     resources: {}
@@ -225,6 +429,7 @@ services:
     resources: {}
   consumer:
     name: consumer
+    metricsPort: 2116
     image:
       repository: daguozhai/consumer
       tag: "v1.0.1-batching"

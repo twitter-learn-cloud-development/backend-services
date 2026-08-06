@@ -65,6 +65,13 @@ const router = createRouter({
             component: () => import('../views/TweetDetail.vue')
         },
         {
+            path: '/tweet/:id',
+            redirect: route => ({
+                name: 'tweet-detail',
+                params: { id: route.params.id }
+            })
+        },
+        {
             path: '/agent',
             name: 'agent',
             component: () => import('../views/Agent.vue')
@@ -73,6 +80,16 @@ const router = createRouter({
             path: '/agent/workflow',
             name: 'agent-workflow',
             component: () => import('../views/agent/WorkflowEditor.vue')
+        },
+        {
+            path: '/agent/profiles',
+            name: 'agent-profile-catalog',
+            component: () => import('../views/agent/ProfileCatalogAdmin.vue')
+        },
+        {
+            path: '/agent/marketplace/manage',
+            name: 'agent-extension-marketplace-manage',
+            component: () => import('../views/agent/ExtensionMarketplaceAdmin.vue')
         }
     ]
 })

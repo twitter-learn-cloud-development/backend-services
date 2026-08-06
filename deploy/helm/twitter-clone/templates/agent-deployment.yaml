@@ -1,3 +1,66 @@
+{{- if and .Values.services.agentService.profileCatalog.admin.existingSecret (or .Values.services.agentService.profileCatalog.admin.dynamicRbacEnabled .Values.services.agentService.profileCatalog.admin.directPublishEnabled) (not .Values.services.agentService.profileCatalog.admin.userIDs) }}
+{{- fail "profileCatalog dynamic RBAC or direct publishing requires admin.userIDs" }}
+{{- end }}
+{{- if and .Values.services.agentService.profileCatalog.experiments.enabled (not .Values.services.agentService.profileCatalog.admin.existingSecret) }}
+{{- fail "profileCatalog experiments require admin.existingSecret" }}
+{{- end }}
+{{- if and .Values.services.agentService.profileCatalog.experiments.enabled (not .Values.services.agentService.profileCatalog.admin.userIDs) }}
+{{- fail "profileCatalog experiments require admin.userIDs" }}
+{{- end }}
+{{- if and .Values.services.agentService.profileCatalog.qualityEvidence.required (not .Values.services.agentService.profileCatalog.admin.existingSecret) }}
+{{- fail "profileCatalog quality evidence requires admin.existingSecret" }}
+{{- end }}
+{{- if and .Values.services.agentService.profileCatalog.qualityEvidence.required (not .Values.services.agentService.profileCatalog.qualityEvidence.existingSecret) }}
+{{- fail "profileCatalog quality evidence requires qualityEvidence.existingSecret" }}
+{{- end }}
+{{- if and .Values.services.agentService.profileCatalog.qualityEvidence.contentSignoffRequired (not .Values.services.agentService.profileCatalog.qualityEvidence.required) }}
+{{- fail "profileCatalog content signoff requires qualityEvidence.required" }}
+{{- end }}
+{{- if and .Values.services.agentService.providerConfig.keyring.enabled (not .Values.services.agentService.providerConfig.existingSecret) }}
+{{- fail "providerConfig keyring requires providerConfig.existingSecret" }}
+{{- end }}
+{{- if and .Values.services.agentService.skillCatalog.enabled (not .Values.services.agentService.workflowAsTool.enabled) }}
+{{- fail "skillCatalog requires workflowAsTool.enabled" }}
+{{- end }}
+{{- if or (lt (int .Values.services.agentService.extensionCatalog.catalogLimit) 1) (gt (int .Values.services.agentService.extensionCatalog.catalogLimit) 50) }}
+{{- fail "extensionCatalog.catalogLimit must be within 1..50" }}
+{{- end }}
+{{- if or (lt (int .Values.services.agentService.extensionMarketplace.catalogLimit) 1) (gt (int .Values.services.agentService.extensionMarketplace.catalogLimit) 50) }}
+{{- fail "extensionMarketplace.catalogLimit must be within 1..50" }}
+{{- end }}
+{{- if and .Values.services.agentService.extensionMarketplace.administration.enabled (not .Values.services.agentService.extensionMarketplace.administration.existingSecret) }}
+{{- fail "extensionMarketplace administration requires administration.existingSecret" }}
+{{- end }}
+{{- if and .Values.services.agentService.extensionMarketplace.administration.enabled (not .Values.services.agentService.extensionMarketplace.administration.administratorUserIDs) }}
+{{- fail "extensionMarketplace administration requires administration.administratorUserIDs" }}
+{{- end }}
+{{- if and .Values.services.agentService.taskTemplates.enabled (not .Values.services.agentService.recoverableRuns.enabled) }}
+{{- fail "taskTemplates require recoverableRuns.enabled" }}
+{{- end }}
+{{- if and .Values.services.agentService.multiAgentPlanner.executionEnabled (not .Values.services.agentService.multiAgentPlanner.enabled) }}
+{{- fail "multiAgentPlanner execution requires multiAgentPlanner.enabled" }}
+{{- end }}
+{{- if and .Values.services.agentService.multiAgentPlanner.executionEnabled (not .Values.services.agentService.recoverableRuns.enabled) }}
+{{- fail "multiAgentPlanner execution requires recoverableRuns.enabled" }}
+{{- end }}
+{{- if and .Values.services.agentService.externalMCP.projectScopeEnabled (not .Values.services.agentService.externalMCP.enabled) }}
+{{- fail "externalMCP projectScopeEnabled requires externalMCP.enabled" }}
+{{- end }}
+{{- if and .Values.services.agentService.externalMCP.managedCredentials.enabled (not .Values.services.agentService.externalMCP.projectScopeEnabled) }}
+{{- fail "externalMCP managedCredentials require projectScopeEnabled" }}
+{{- end }}
+{{- if and .Values.services.agentService.externalMCP.managedCredentials.enabled (not .Values.services.agentService.externalMCP.managedCredentials.existingSecret) }}
+{{- fail "externalMCP managedCredentials require managedCredentials.existingSecret" }}
+{{- end }}
+{{- if and .Values.services.agentService.externalMCP.managedCredentials.enabled (or (empty .Values.services.agentService.externalMCP.managedCredentials.registryJSON) (eq (trim .Values.services.agentService.externalMCP.managedCredentials.registryJSON) "[]")) }}
+{{- fail "externalMCP managedCredentials require non-empty registryJSON" }}
+{{- end }}
+{{- if not (has .Values.services.agentService.processRole (list "api" "worker" "all")) }}
+{{- fail "agentService.processRole must be api, worker, or all" }}
+{{- end }}
+{{- if not (has .Values.services.agentService.trendingReporter.owner (list "temporal" "disabled")) }}
+{{- fail "agentService.trendingReporter.owner must be temporal or disabled" }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -29,6 +92,9 @@ spec:
           ports:
             - name: grpc
               containerPort: {{ .Values.services.agentService.containerPort }}
+              protocol: TCP
+            - name: metrics
+              containerPort: {{ .Values.services.agentService.metricsPort }}
               protocol: TCP
           env:
             - name: DB_HOST
@@ -77,6 +143,294 @@ spec:
                   fieldPath: status.podIP
             - name: SERVICE_PORT
               value: {{ .Values.services.agentService.containerPort | quote }}
+            {{- if .Values.services.tweetService.riskControlAuth.enabled }}
+            - name: TWEET_INTERNAL_SERVICE_IDENTITY
+              value: {{ .Values.services.tweetService.riskControlAuth.identity | quote }}
+            - name: TWEET_INTERNAL_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.services.tweetService.riskControlAuth.existingSecret | quote }}
+                  key: {{ .Values.services.tweetService.riskControlAuth.tokenKey | quote }}
+            {{- end }}
+            - name: AGENT_PROCESS_ROLE
+              value: {{ .Values.services.agentService.processRole | quote }}
+            - name: AGENT_TRENDING_REPORTER_OWNER
+              value: {{ .Values.services.agentService.trendingReporter.owner | quote }}
+            - name: AGENT_TRENDING_REPORTER_INTERVAL
+              value: {{ .Values.services.agentService.trendingReporter.interval | quote }}
+            - name: AGENT_METRICS_PORT
+              value: {{ .Values.services.agentService.metricsPort | quote }}
+            - name: AGENT_TRACE_SAMPLE_RATIO
+              value: {{ .Values.services.agentService.traceSampleRatio | quote }}
+            - name: AGENT_RECOVERABLE_RUNS_ENABLED
+              value: {{ .Values.services.agentService.recoverableRuns.enabled | quote }}
+            - name: AGENT_TASK_TEMPLATES_ENABLED
+              value: {{ .Values.services.agentService.taskTemplates.enabled | quote }}
+            - name: AGENT_TASK_TEMPLATE_LIST_LIMIT
+              value: {{ .Values.services.agentService.taskTemplates.listLimit | quote }}
+            - name: AGENT_MULTI_AGENT_PLANNER_ENABLED
+              value: {{ .Values.services.agentService.multiAgentPlanner.enabled | quote }}
+            - name: AGENT_MULTI_AGENT_EXECUTION_ENABLED
+              value: {{ .Values.services.agentService.multiAgentPlanner.executionEnabled | quote }}
+            - name: AGENT_MULTI_AGENT_MIN_COMPLEXITY_SCORE
+              value: {{ .Values.services.agentService.multiAgentPlanner.minimumComplexityScore | quote }}
+            - name: AGENT_MULTI_AGENT_MAX_ROLES
+              value: {{ .Values.services.agentService.multiAgentPlanner.maxRoles | quote }}
+            - name: AGENT_MULTI_AGENT_MAX_PARALLEL_ROLES
+              value: {{ .Values.services.agentService.multiAgentPlanner.maxParallelRoles | quote }}
+            - name: AGENT_MULTI_AGENT_MAX_ESTIMATED_LATENCY
+              value: {{ .Values.services.agentService.multiAgentPlanner.maxEstimatedLatency | quote }}
+            - name: AGENT_UNIFIED_APPROVAL_RECOVERY_ENABLED
+              value: {{ .Values.services.agentService.recoverableRuns.unifiedApprovalRecoveryEnabled | quote }}
+            - name: AGENT_RUN_CHECKPOINT_MAX_BYTES
+              value: {{ .Values.services.agentService.recoverableRuns.maxCheckpointBytes | quote }}
+            - name: AGENT_RUN_RESUME_LEASE_DURATION
+              value: {{ .Values.services.agentService.recoverableRuns.resumeLeaseDuration | quote }}
+            {{- if .Values.services.agentService.recoverableRuns.existingSecret }}
+            - name: AGENT_RUN_CHECKPOINT_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.services.agentService.recoverableRuns.existingSecret | quote }}
+                  key: {{ .Values.services.agentService.recoverableRuns.masterKeyKey | quote }}
+            - name: AGENT_RUN_CHECKPOINT_ACTIVE_KEY_ID
+              value: {{ .Values.services.agentService.recoverableRuns.activeKeyID | quote }}
+            {{- if .Values.services.agentService.recoverableRuns.keyring.enabled }}
+            - name: AGENT_RUN_CHECKPOINT_MASTER_KEYS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.services.agentService.recoverableRuns.existingSecret | quote }}
+                  key: {{ .Values.services.agentService.recoverableRuns.keyring.key | quote }}
+            {{- end }}
+            {{- end }}
+            {{- if .Values.services.agentService.providerConfig.existingSecret }}
+            - name: AGENT_PROVIDER_CONFIG_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.services.agentService.providerConfig.existingSecret | quote }}
+                  key: {{ .Values.services.agentService.providerConfig.masterKeyKey | quote }}
+            - name: AGENT_PROVIDER_CONFIG_ACTIVE_KEY_ID
+              value: {{ .Values.services.agentService.providerConfig.activeKeyID | quote }}
+            {{- if .Values.services.agentService.providerConfig.keyring.enabled }}
+            - name: AGENT_PROVIDER_CONFIG_MASTER_KEYS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.services.agentService.providerConfig.existingSecret | quote }}
+                  key: {{ .Values.services.agentService.providerConfig.keyring.key | quote }}
+            {{- end }}
+            {{- end }}
+            - name: AGENT_EXTERNAL_MCP_ENABLED
+              value: {{ .Values.services.agentService.externalMCP.enabled | quote }}
+            - name: AGENT_WORKFLOW_AS_TOOL_ENABLED
+              value: {{ .Values.services.agentService.workflowAsTool.enabled | quote }}
+            - name: AGENT_WORKFLOW_TOOL_CATALOG_LIMIT
+              value: {{ .Values.services.agentService.workflowAsTool.catalogLimit | quote }}
+            - name: AGENT_WORKFLOW_TOOL_TIMEOUT
+              value: {{ .Values.services.agentService.workflowAsTool.timeout | quote }}
+            - name: AGENT_SKILL_CATALOG_ENABLED
+              value: {{ .Values.services.agentService.skillCatalog.enabled | quote }}
+            - name: AGENT_SKILL_CATALOG_LIMIT
+              value: {{ .Values.services.agentService.skillCatalog.catalogLimit | quote }}
+            - name: AGENT_EXTENSION_CATALOG_ENABLED
+              value: {{ .Values.services.agentService.extensionCatalog.enabled | quote }}
+            - name: AGENT_EXTENSION_CATALOG_LIMIT
+              value: {{ .Values.services.agentService.extensionCatalog.catalogLimit | quote }}
+            - name: AGENT_EXTENSION_MARKETPLACE_ENABLED
+              value: {{ .Values.services.agentService.extensionMarketplace.enabled | quote }}
+            - name: AGENT_EXTENSION_MARKETPLACE_LIMIT
+              value: {{ .Values.services.agentService.extensionMarketplace.catalogLimit | quote }}
+            - name: AGENT_EXTENSION_MARKETPLACE_ADMIN_ENABLED
+              value: {{ .Values.services.agentService.extensionMarketplace.administration.enabled | quote }}
+            - name: AGENT_EXTENSION_MARKETPLACE_ADMIN_USER_IDS
+              value: {{ .Values.services.agentService.extensionMarketplace.administration.administratorUserIDs | quote }}
+            {{- if .Values.services.agentService.extensionMarketplace.administration.enabled }}
+            - name: AGENT_EXTENSION_MARKETPLACE_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.services.agentService.extensionMarketplace.administration.existingSecret | quote }}
+                  key: {{ .Values.services.agentService.extensionMarketplace.administration.tokenKey | quote }}
+            {{- end }}
+            - name: AGENT_EXTERNAL_MCP_PROJECT_SCOPE_ENABLED
+              value: {{ .Values.services.agentService.externalMCP.projectScopeEnabled | quote }}
+            - name: AGENT_EXTERNAL_MCP_MANAGED_CREDENTIALS_ENABLED
+              value: {{ .Values.services.agentService.externalMCP.managedCredentials.enabled | quote }}
+            - name: AGENT_EXTERNAL_MCP_MANAGED_CREDENTIALS_JSON
+              value: {{ .Values.services.agentService.externalMCP.managedCredentials.registryJSON | quote }}
+            - name: AGENT_EXTERNAL_MCP_MANAGED_CREDENTIAL_SECRET_DIR
+              value: {{ .Values.services.agentService.externalMCP.managedCredentials.mountPath | quote }}
+            - name: AGENT_EXTERNAL_MCP_ALLOWED_HOSTS
+              value: {{ .Values.services.agentService.externalMCP.allowedHosts | quote }}
+            - name: AGENT_EXTERNAL_MCP_POOL_ENABLED
+              value: {{ .Values.services.agentService.externalMCP.pool.enabled | quote }}
+            - name: AGENT_EXTERNAL_MCP_POOL_MAX_SESSIONS
+              value: {{ .Values.services.agentService.externalMCP.pool.maxSessions | quote }}
+            - name: AGENT_EXTERNAL_MCP_POOL_MAX_SESSIONS_PER_CONNECTION
+              value: {{ .Values.services.agentService.externalMCP.pool.maxSessionsPerConnection | quote }}
+            - name: AGENT_EXTERNAL_MCP_POOL_IDLE_TIMEOUT
+              value: {{ .Values.services.agentService.externalMCP.pool.idleTimeout | quote }}
+            - name: AGENT_EXTERNAL_MCP_POOL_ACQUIRE_TIMEOUT
+              value: {{ .Values.services.agentService.externalMCP.pool.acquireTimeout | quote }}
+            - name: AGENT_EXTERNAL_MCP_HEALTH_CHECK_ENABLED
+              value: {{ .Values.services.agentService.externalMCP.health.enabled | quote }}
+            - name: AGENT_EXTERNAL_MCP_HEALTH_POLL_INTERVAL
+              value: {{ .Values.services.agentService.externalMCP.health.pollInterval | quote }}
+            - name: AGENT_EXTERNAL_MCP_HEALTH_INTERVAL
+              value: {{ .Values.services.agentService.externalMCP.health.interval | quote }}
+            - name: AGENT_EXTERNAL_MCP_HEALTH_TIMEOUT
+              value: {{ .Values.services.agentService.externalMCP.health.timeout | quote }}
+            - name: AGENT_EXTERNAL_MCP_HEALTH_LEASE_DURATION
+              value: {{ .Values.services.agentService.externalMCP.health.leaseDuration | quote }}
+            - name: AGENT_EXTERNAL_MCP_HEALTH_FAILURE_BACKOFF_MIN
+              value: {{ .Values.services.agentService.externalMCP.health.failureBackoffMin | quote }}
+            - name: AGENT_EXTERNAL_MCP_HEALTH_FAILURE_BACKOFF_MAX
+              value: {{ .Values.services.agentService.externalMCP.health.failureBackoffMax | quote }}
+            - name: AGENT_EXTERNAL_MCP_HEALTH_FAILURE_THRESHOLD
+              value: {{ .Values.services.agentService.externalMCP.health.failureThreshold | quote }}
+            - name: AGENT_EXTERNAL_MCP_HEALTH_BATCH_SIZE
+              value: {{ .Values.services.agentService.externalMCP.health.batchSize | quote }}
+            - name: AGENT_EXTERNAL_MCP_HEALTH_MAX_CONCURRENCY
+              value: {{ .Values.services.agentService.externalMCP.health.maxConcurrency | quote }}
+            - name: AGENT_WEB_SEARCH_ENABLED
+              value: {{ .Values.services.agentService.webSearch.enabled | quote }}
+            - name: AGENT_WEB_SEARCH_PROVIDER
+              value: {{ .Values.services.agentService.webSearch.provider | quote }}
+            - name: AGENT_WEB_SEARCH_BASE_URL
+              value: {{ .Values.services.agentService.webSearch.baseURL | quote }}
+            - name: AGENT_WEB_SEARCH_TIMEOUT
+              value: {{ .Values.services.agentService.webSearch.timeout | quote }}
+            - name: AGENT_WEB_SEARCH_MAX_RESULTS
+              value: {{ .Values.services.agentService.webSearch.maxResults | quote }}
+            - name: AGENT_WEB_SEARCH_MAX_RESPONSE_BYTES
+              value: {{ .Values.services.agentService.webSearch.maxResponseBytes | quote }}
+            - name: AGENT_WEB_SEARCH_MAX_CONCURRENT
+              value: {{ .Values.services.agentService.webSearch.maxConcurrent | quote }}
+            - name: AGENT_WEB_SEARCH_CACHE_TTL
+              value: {{ .Values.services.agentService.webSearch.searchCacheTTL | quote }}
+            - name: AGENT_WEB_SEARCH_ALLOWED_HOSTS
+              value: {{ .Values.services.agentService.webSearch.allowedHosts | quote }}
+            - name: AGENT_WEB_PAGE_READ_ENABLED
+              value: {{ .Values.services.agentService.webSearch.pageRead.enabled | quote }}
+            - name: AGENT_WEB_PAGE_TIMEOUT
+              value: {{ .Values.services.agentService.webSearch.pageRead.timeout | quote }}
+            - name: AGENT_WEB_PAGE_MAX_RESPONSE_BYTES
+              value: {{ .Values.services.agentService.webSearch.pageRead.maxResponseBytes | quote }}
+            - name: AGENT_WEB_PAGE_MAX_CONTENT_RUNES
+              value: {{ .Values.services.agentService.webSearch.pageRead.maxContentRunes | quote }}
+            - name: AGENT_WEB_PAGE_MAX_CONCURRENT
+              value: {{ .Values.services.agentService.webSearch.pageRead.maxConcurrent | quote }}
+            - name: AGENT_WEB_PAGE_CACHE_TTL
+              value: {{ .Values.services.agentService.webSearch.pageRead.cacheTTL | quote }}
+            - name: AGENT_WEB_PAGE_ALLOWED_HOSTS
+              value: {{ .Values.services.agentService.webSearch.pageRead.allowedHosts | quote }}
+            - name: AGENT_WEB_CACHE_PREFIX
+              value: {{ .Values.services.agentService.webSearch.cachePrefix | quote }}
+            - name: AGENT_WEB_GOVERNOR_PREFIX
+              value: {{ .Values.services.agentService.webSearch.governor.prefix | quote }}
+            - name: AGENT_WEB_USER_RATE_WINDOW
+              value: {{ .Values.services.agentService.webSearch.governor.userRateWindow | quote }}
+            - name: AGENT_WEB_USER_MAX_REQUESTS
+              value: {{ .Values.services.agentService.webSearch.governor.userMaxRequests | quote }}
+            - name: AGENT_WEB_RUN_TTL
+              value: {{ .Values.services.agentService.webSearch.governor.runTTL | quote }}
+            - name: AGENT_WEB_RUN_MAX_REQUESTS
+              value: {{ .Values.services.agentService.webSearch.governor.runMaxRequests | quote }}
+            - name: AGENT_WEB_RUN_MAX_COST_MICROS
+              value: {{ .Values.services.agentService.webSearch.governor.runMaxCostMicros | quote }}
+            - name: AGENT_WEB_SEARCH_ESTIMATED_COST_MICROS
+              value: {{ .Values.services.agentService.webSearch.governor.searchEstimatedCostMicros | quote }}
+            - name: AGENT_WEB_PAGE_ESTIMATED_COST_MICROS
+              value: {{ .Values.services.agentService.webSearch.governor.pageEstimatedCostMicros | quote }}
+            {{- if and .Values.services.agentService.webSearch.enabled .Values.services.agentService.webSearch.existingSecret }}
+            - name: AGENT_WEB_SEARCH_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.services.agentService.webSearch.existingSecret | quote }}
+                  key: {{ .Values.services.agentService.webSearch.apiKeyKey | quote }}
+            {{- end }}
+            - name: AGENT_PROFILE_STORE_ENABLED
+              value: {{ .Values.services.agentService.profileCatalog.storeEnabled | quote }}
+            - name: AGENT_PROFILE_RELEASES
+              value: {{ .Values.services.agentService.profileCatalog.releaseOverrides | quote }}
+            - name: AGENT_PROFILE_CHANGE_CHANNEL
+              value: {{ .Values.services.agentService.profileCatalog.changeChannel | quote }}
+            - name: AGENT_PROFILE_SYNC_INTERVAL
+              value: {{ .Values.services.agentService.profileCatalog.syncInterval | quote }}
+            - name: AGENT_PROFILE_EXPERIMENTS_ENABLED
+              value: {{ .Values.services.agentService.profileCatalog.experiments.enabled | quote }}
+            - name: AGENT_PROFILE_EXPERIMENT_RECONCILE_INTERVAL
+              value: {{ .Values.services.agentService.profileCatalog.experiments.reconcileInterval | quote }}
+            - name: AGENT_PROFILE_EXPERIMENT_OBSERVATION_QUEUE_SIZE
+              value: {{ .Values.services.agentService.profileCatalog.experiments.observationQueueSize | quote }}
+            - name: AGENT_PROFILE_CONTENT_ATTRIBUTION_WINDOW
+              value: {{ .Values.services.agentService.profileCatalog.experiments.contentAttributionWindow | quote }}
+            - name: AGENT_PROFILE_EVAL_EVIDENCE_REQUIRED
+              value: {{ .Values.services.agentService.profileCatalog.qualityEvidence.required | quote }}
+            - name: AGENT_PROFILE_EVAL_CONTENT_SIGNOFF_REQUIRED
+              value: {{ .Values.services.agentService.profileCatalog.qualityEvidence.contentSignoffRequired | quote }}
+            - name: AGENT_TASK_EVAL_ARCHIVE_ENDPOINT
+              value: {{ .Values.services.agentService.profileCatalog.qualityEvidence.endpoint | quote }}
+            - name: AGENT_TASK_EVAL_ARCHIVE_BUCKET
+              value: {{ .Values.services.agentService.profileCatalog.qualityEvidence.bucket | quote }}
+            - name: AGENT_TASK_EVAL_ARCHIVE_SECURE
+              value: {{ .Values.services.agentService.profileCatalog.qualityEvidence.secure | quote }}
+            {{- if .Values.services.agentService.profileCatalog.qualityEvidence.required }}
+            - name: AGENT_TASK_EVAL_ARCHIVE_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.services.agentService.profileCatalog.qualityEvidence.existingSecret | quote }}
+                  key: {{ .Values.services.agentService.profileCatalog.qualityEvidence.accessKeyKey | quote }}
+            - name: AGENT_TASK_EVAL_ARCHIVE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.services.agentService.profileCatalog.qualityEvidence.existingSecret | quote }}
+                  key: {{ .Values.services.agentService.profileCatalog.qualityEvidence.secretKeyKey | quote }}
+            - name: AGENT_TASK_EVAL_INTEGRITY_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.services.agentService.profileCatalog.qualityEvidence.existingSecret | quote }}
+                  key: {{ .Values.services.agentService.profileCatalog.qualityEvidence.integrityKeyKey | quote }}
+            - name: AGENT_TASK_EVAL_INTEGRITY_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.services.agentService.profileCatalog.qualityEvidence.existingSecret | quote }}
+                  key: {{ .Values.services.agentService.profileCatalog.qualityEvidence.integrityKeyIDKey | quote }}
+            {{- if .Values.services.agentService.profileCatalog.qualityEvidence.contentSignoffRequired }}
+            - name: AGENT_TASK_EVAL_REVIEW_SIGNOFF_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.services.agentService.profileCatalog.qualityEvidence.existingSecret | quote }}
+                  key: {{ .Values.services.agentService.profileCatalog.qualityEvidence.contentSignoffKeyKey | quote }}
+            - name: AGENT_TASK_EVAL_REVIEW_SIGNOFF_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.services.agentService.profileCatalog.qualityEvidence.existingSecret | quote }}
+                  key: {{ .Values.services.agentService.profileCatalog.qualityEvidence.contentSignoffKeyIDKey | quote }}
+            {{- end }}
+            {{- end }}
+            - name: AGENT_PROFILE_DIRECT_PUBLISH_ENABLED
+              value: {{ .Values.services.agentService.profileCatalog.admin.directPublishEnabled | quote }}
+            - name: AGENT_PROFILE_DYNAMIC_RBAC_ENABLED
+              value: {{ .Values.services.agentService.profileCatalog.admin.dynamicRbacEnabled | quote }}
+            {{- if and .Values.services.agentService.profileCatalog.admin.existingSecret (or .Values.services.agentService.profileCatalog.admin.userIDs .Values.services.agentService.profileCatalog.admin.viewerUserIDs .Values.services.agentService.profileCatalog.admin.editorUserIDs .Values.services.agentService.profileCatalog.admin.approverUserIDs) }}
+            - name: AGENT_PROFILE_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.services.agentService.profileCatalog.admin.existingSecret | quote }}
+                  key: {{ .Values.services.agentService.profileCatalog.admin.tokenKey | quote }}
+            - name: AGENT_PROFILE_ADMIN_USER_IDS
+              value: {{ .Values.services.agentService.profileCatalog.admin.userIDs | quote }}
+            - name: AGENT_PROFILE_VIEWER_USER_IDS
+              value: {{ .Values.services.agentService.profileCatalog.admin.viewerUserIDs | quote }}
+            - name: AGENT_PROFILE_EDITOR_USER_IDS
+              value: {{ .Values.services.agentService.profileCatalog.admin.editorUserIDs | quote }}
+            - name: AGENT_PROFILE_APPROVER_USER_IDS
+              value: {{ .Values.services.agentService.profileCatalog.admin.approverUserIDs | quote }}
+            {{- end }}
+            - name: AGENT_PROMPT_SAMPLING_ENABLED
+              value: {{ .Values.services.agentService.promptSampling.enabled | quote }}
+            - name: AGENT_PROMPT_SAMPLE_RATIO
+              value: {{ .Values.services.agentService.promptSampling.ratio | quote }}
+            - name: AGENT_PROMPT_SAMPLE_MAX_BYTES
+              value: {{ .Values.services.agentService.promptSampling.maxBytes | quote }}
             - name: JAEGER_AGENT_HOST
               value: {{ include "twitter.jaeger.host" . }}
             - name: JAEGER_SAMPLER_TYPE
@@ -87,6 +441,18 @@ spec:
               value: "true"
           resources:
             {{- toYaml .Values.services.agentService.resources | nindent 12 }}
+          {{- if .Values.services.agentService.externalMCP.managedCredentials.enabled }}
+          volumeMounts:
+            - name: agent-mcp-managed-credentials
+              mountPath: {{ .Values.services.agentService.externalMCP.managedCredentials.mountPath | quote }}
+              readOnly: true
+          {{- end }}
+      {{- if .Values.services.agentService.externalMCP.managedCredentials.enabled }}
+      volumes:
+        - name: agent-mcp-managed-credentials
+          secret:
+            secretName: {{ .Values.services.agentService.externalMCP.managedCredentials.existingSecret | quote }}
+      {{- end }}
 ---
 apiVersion: v1
 kind: Service

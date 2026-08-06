@@ -1,0 +1,123 @@
+{{- if .Values.services.agentService.externalMCP.acceptance.enabled }}
+{{- $acceptance := .Values.services.agentService.externalMCP.acceptance }}
+{{- if or (empty $acceptance.configJSON) (eq (trim $acceptance.configJSON) "{}") }}
+{{- fail "externalMCP acceptance requires non-empty configJSON" }}
+{{- end }}
+{{- if and $acceptance.expectCredentialRotation (not $acceptance.credentialExistingSecret) }}
+{{- fail "externalMCP acceptance credential rotation requires credentialExistingSecret" }}
+{{- end }}
+{{- if and $acceptance.requireSigned (not $acceptance.integrityExistingSecret) }}
+{{- fail "externalMCP acceptance signed reports require integrityExistingSecret" }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "twitter.fullname" . }}-agent-mcp-acceptance
+  labels:
+    {{- include "twitter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: agent-mcp-acceptance
+data:
+  config.json: |-
+{{ $acceptance.configJSON | nindent 4 }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "twitter.fullname" . }}-agent-mcp-acceptance
+  labels:
+    {{- include "twitter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: agent-mcp-acceptance
+spec:
+  # A write probe must never be replayed automatically by the Job controller.
+  backoffLimit: 0
+  activeDeadlineSeconds: {{ $acceptance.activeDeadlineSeconds }}
+  ttlSecondsAfterFinished: {{ $acceptance.ttlSecondsAfterFinished }}
+  template:
+    metadata:
+      labels:
+        {{- include "twitter.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: agent-mcp-acceptance
+      annotations:
+        checksum/acceptance-config: {{ $acceptance.configJSON | sha256sum }}
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: agent-mcp-acceptance
+          image: "{{ .Values.services.agentService.image.repository }}:{{ .Values.services.agentService.image.tag }}"
+          imagePullPolicy: {{ .Values.services.agentService.image.pullPolicy }}
+          command:
+            - /app/agent-mcp-acceptance
+          args:
+            - --allow-live
+            - --config
+            - /etc/agent-mcp-acceptance/config.json
+            - --timeout
+            - {{ $acceptance.timeout | quote }}
+            - --call-timeout
+            - {{ $acceptance.callTimeout | quote }}
+            - --rotation-timeout
+            - {{ $acceptance.rotationTimeout | quote }}
+            - --rotation-poll
+            - {{ $acceptance.rotationPoll | quote }}
+            {{- if $acceptance.allowWrite }}
+            - --allow-write
+            {{- end }}
+            {{- if $acceptance.expectCredentialRotation }}
+            - --expect-credential-rotation
+            {{- end }}
+            {{- if $acceptance.requireComplete }}
+            - --require-complete
+            {{- end }}
+            {{- if $acceptance.requireSigned }}
+            - --require-signed
+            {{- end }}
+          env:
+            - name: APP_ENV
+              value: "kubernetes-acceptance"
+            {{- if $acceptance.integrityExistingSecret }}
+            - name: AGENT_MCP_ACCEPTANCE_INTEGRITY_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $acceptance.integrityExistingSecret | quote }}
+                  key: {{ $acceptance.integrityKeyKey | quote }}
+            - name: AGENT_MCP_ACCEPTANCE_INTEGRITY_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $acceptance.integrityExistingSecret | quote }}
+                  key: {{ $acceptance.integrityKeyIDKey | quote }}
+            {{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: acceptance-config
+              mountPath: /etc/agent-mcp-acceptance
+              readOnly: true
+            {{- if $acceptance.credentialExistingSecret }}
+            # Mount the whole projected Secret. subPath mounts do not receive
+            # Kubernetes Secret rotation updates.
+            - name: acceptance-credential
+              mountPath: {{ $acceptance.credentialMountPath | quote }}
+              readOnly: true
+            {{- end }}
+      volumes:
+        - name: acceptance-config
+          configMap:
+            name: {{ include "twitter.fullname" . }}-agent-mcp-acceptance
+        {{- if $acceptance.credentialExistingSecret }}
+        - name: acceptance-credential
+          secret:
+            secretName: {{ $acceptance.credentialExistingSecret | quote }}
+        {{- end }}
+{{- end }}

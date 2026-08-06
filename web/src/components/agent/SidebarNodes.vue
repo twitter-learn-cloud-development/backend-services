@@ -1,4 +1,8 @@
 <script setup lang="ts">
+const emit = defineEmits<{
+  (e: 'add', node: { type: string; title: string; preset: string }): void
+}>()
+
 const nodeTypes = [
   {
     type: 'start',
@@ -51,6 +55,27 @@ const nodeTypes = [
   },
   {
     type: 'tool',
+    preset: 'web_search',
+    title: '公网搜索 (WebSearch)',
+    description: '检索公网来源，返回可引用的标题、摘要与 URL。',
+    iconClass: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
+  },
+  {
+    type: 'tool',
+    preset: 'page_read',
+    title: '网页读取 (PageRead)',
+    description: '安全读取公网网页正文；私网地址、跳转与隐藏指令会被拦截。',
+    iconClass: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+  },
+  {
+    type: 'tool',
+    preset: 'external_mcp',
+    title: '外部 MCP 工具',
+    description: '调用当前账号已审核的远程工具；高风险与幂等写入操作逐次审批。',
+    iconClass: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+  },
+  {
+    type: 'tool',
     preset: 'mcp_hybrid_tweet_search',
     title: 'MCP 混合推文检索',
     description: '调用平台 MCP，融合关键词与向量召回检索推文。',
@@ -94,8 +119,8 @@ const nodeTypes = [
   {
     type: 'wait',
     preset: 'wait',
-    title: '人工审批 (Approve)',
-    description: '执行到此暂停，等待人工确认后恢复。',
+    title: '人工输入 (Wait)',
+    description: '暂停当前运行，收到用户补充信息后继续。',
     iconClass: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
   },
   {
@@ -107,7 +132,10 @@ const nodeTypes = [
   },
 ]
 
+let dragInProgress = false
+
 const onDragStart = (event: DragEvent, nodeType: string, title: string, preset: string) => {
+  dragInProgress = true
   if (event.dataTransfer) {
     event.dataTransfer.setData('application/vueflow-type', nodeType)
     event.dataTransfer.setData('application/vueflow-title', title)
@@ -115,13 +143,24 @@ const onDragStart = (event: DragEvent, nodeType: string, title: string, preset: 
     event.dataTransfer.effectAllowed = 'move'
   }
 }
+
+const onDragEnd = () => {
+  window.setTimeout(() => {
+    dragInProgress = false
+  }, 0)
+}
+
+const addNode = (node: { type: string; title: string; preset: string }) => {
+  if (dragInProgress) return
+  emit('add', { type: node.type, title: node.title, preset: node.preset })
+}
 </script>
 
 <template>
-  <div class="w-72 bg-slate-900 border-r border-white/10 p-4 flex flex-col h-full overflow-y-auto">
+  <div class="w-72 flex-shrink-0 bg-slate-900 border-r border-white/10 p-4 flex flex-col h-full overflow-y-auto">
     <div class="mb-4">
       <h2 class="text-base font-bold text-white">智能体组件库</h2>
-      <p class="text-xs text-gray-500 mt-1">拖拽组件到右侧画布开始编排</p>
+      <p class="text-xs text-gray-500 mt-1">工作流节点、智能体与工具</p>
     </div>
 
     <div class="space-y-3 flex-1">
@@ -130,7 +169,14 @@ const onDragStart = (event: DragEvent, nodeType: string, title: string, preset: 
         :key="node.preset"
         class="flex flex-col p-3 rounded-lg border bg-slate-800/50 hover:bg-slate-800 cursor-grab active:cursor-grabbing border-white/5 hover:border-white/10 transition-all group"
         draggable="true"
+        role="button"
+        tabindex="0"
+        :title="`添加${node.title}`"
         @dragstart="onDragStart($event, node.type, node.title, node.preset)"
+        @dragend="onDragEnd"
+        @click="addNode(node)"
+        @keydown.enter.prevent="addNode(node)"
+        @keydown.space.prevent="addNode(node)"
       >
         <div class="flex items-center gap-2 mb-1.5">
           <span

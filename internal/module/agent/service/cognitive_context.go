@@ -2,19 +2,17 @@ package service
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"strings"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 
 	"twitter-clone/internal/module/agent/workflow/rag"
 	"twitter-clone/pkg/logger"
 )
 
-const cognitiveContextBudgetChars = 3600
+const cognitiveContextBudgetTokens = 1200
 
 type cognitiveContextResult struct {
 	Intent         rag.Intent
@@ -28,6 +26,12 @@ func (s *AgentService) SetCognitiveEngine(memoryManager *rag.MemoryManager, casc
 	s.memoryManager = memoryManager
 	s.cascadeRouter = cascadeRouter
 	s.embeddingModel = embeddingModel
+	if memoryManager != nil {
+		memoryManager.SetTokenCounter(s.runtimeTokens)
+		if s.summaryWriter == nil {
+			s.summaryWriter = memoryManager
+		}
+	}
 }
 
 func (s *AgentService) buildCognitiveContext(ctx context.Context, userID uint64, query string) cognitiveContextResult {
@@ -72,7 +76,7 @@ func (s *AgentService) buildCognitiveContext(ctx context.Context, userID uint64,
 		result.RewrittenQuery,
 		persona,
 		keywords,
-		cognitiveContextBudgetChars,
+		cognitiveContextBudgetTokens,
 	)
 	if err != nil {
 		logger.Warn(ctx, "build cognitive context failed", zap.Error(err))
@@ -100,30 +104,6 @@ Route intent: %s
 Rewritten query: %s
 
 %s`, basePrompt, cognitive.Intent, cognitive.RewrittenQuery, cognitive.ContextBlock)
-}
-
-func (s *AgentService) crystallizeTurnMemoryAsync(userID uint64, dialogueID primitive.ObjectID, userContent string, assistantContent string) {
-	if s.memoryManager == nil || strings.TrimSpace(userContent) == "" || strings.TrimSpace(assistantContent) == "" {
-		return
-	}
-	if len([]rune(userContent))+len([]rune(assistantContent)) < 80 {
-		return
-	}
-
-	history := fmt.Sprintf("User: %s\nAssistant: %s", userContent, assistantContent)
-	pointID := dialogueMemoryPointID(dialogueID, time.Now().UnixNano())
-
-	go func() {
-		baseCtx := s.serviceCtx
-		if baseCtx == nil {
-			baseCtx = context.Background()
-		}
-		ctx, cancel := context.WithTimeout(baseCtx, 20*time.Second)
-		defer cancel()
-		if err := s.memoryManager.SaveEpisodicMemory(ctx, userID, pointID, history); err != nil {
-			logger.Warn(ctx, "crystallize episodic memory failed", zap.Error(err))
-		}
-	}()
 }
 
 func buildPersonaOnlyBlock(persona string) string {
@@ -159,10 +139,4 @@ func extractPersonaKeywords(persona string) []string {
 		}
 	}
 	return keywords
-}
-
-func dialogueMemoryPointID(dialogueID primitive.ObjectID, salt int64) uint64 {
-	idBytes := dialogueID[:]
-	base := binary.BigEndian.Uint64(idBytes[4:])
-	return base ^ uint64(salt)
 }

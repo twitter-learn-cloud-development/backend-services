@@ -35,3 +35,13 @@ scrape_configs:
     metrics_path: '/metrics'
     static_configs:
       - targets: ['messenger-service:2115']
+
+  - job_name: 'consumer'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['consumer:2116']
+
+  - job_name: 'agent-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['agent-service:9191']

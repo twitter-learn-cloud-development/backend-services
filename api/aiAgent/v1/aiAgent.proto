@@ -5,14 +5,53 @@ option go_package = "twitter-clone/api/aiAgent/v1;aiAgentv1";
 
 // AiAgentService 智能体服务
 service AiAgentService {
+    // List active immutable Skill versions projected from governed publications.
+    rpc listAgentSkills (ListAgentSkillsRequest) returns (ListAgentSkillsResponse);
+    // Resolve one exact Skill version. "Latest" resolution is intentionally unsupported.
+    rpc getAgentSkill (GetAgentSkillRequest) returns (GetAgentSkillResponse);
+    // List tenant-visible built-in capabilities, immutable Skills and reviewed MCP tools.
+    rpc listAgentExtensions (ListAgentExtensionsRequest) returns (ListAgentExtensionsResponse);
+    // List signature-verified public extension releases. This does not install or authorize them.
+    rpc listAgentMarketplaceExtensions (ListAgentMarketplaceExtensionsRequest) returns (ListAgentMarketplaceExtensionsResponse);
+    // Authenticated extension publisher control plane. It stores public keys and signed metadata only.
+    rpc getAgentMarketplaceManagementAccess (GetAgentMarketplaceManagementAccessRequest) returns (GetAgentMarketplaceManagementAccessResponse);
+    rpc listAgentMarketplacePublishers (ListAgentMarketplacePublishersRequest) returns (ListAgentMarketplacePublishersResponse);
+    rpc registerAgentMarketplacePublisher (RegisterAgentMarketplacePublisherRequest) returns (RegisterAgentMarketplacePublisherResponse);
+    rpc rotateAgentMarketplacePublisherKey (RotateAgentMarketplacePublisherKeyRequest) returns (RotateAgentMarketplacePublisherKeyResponse);
+    rpc revokeAgentMarketplacePublisherKey (RevokeAgentMarketplacePublisherKeyRequest) returns (RevokeAgentMarketplacePublisherKeyResponse);
+    rpc setAgentMarketplacePublisherVerification (SetAgentMarketplacePublisherVerificationRequest) returns (SetAgentMarketplacePublisherVerificationResponse);
+    rpc listAgentMarketplaceManagedReleases (ListAgentMarketplaceManagedReleasesRequest) returns (ListAgentMarketplaceManagedReleasesResponse);
+    rpc publishAgentMarketplaceRelease (PublishAgentMarketplaceReleaseRequest) returns (PublishAgentMarketplaceReleaseResponse);
+    rpc withdrawAgentMarketplaceRelease (WithdrawAgentMarketplaceReleaseRequest) returns (WithdrawAgentMarketplaceReleaseResponse);
+    rpc listAgentMarketplaceAuditEvents (ListAgentMarketplaceAuditEventsRequest) returns (ListAgentMarketplaceAuditEventsResponse);
+    // Explicitly save a reusable task preset from one completed authoritative Agent Run.
+    rpc createAgentTaskTemplate (CreateAgentTaskTemplateRequest) returns (CreateAgentTaskTemplateResponse);
+    // List active task templates. The response also exposes the execution rollout state.
+    rpc listAgentTaskTemplates (ListAgentTaskTemplatesRequest) returns (ListAgentTaskTemplatesResponse);
+    // Archive template metadata without deleting its source-run evidence.
+    rpc archiveAgentTaskTemplate (ArchiveAgentTaskTemplateRequest) returns (ArchiveAgentTaskTemplateResponse);
+    // Render one immutable template revision and execute it through the unified Agent entry.
+    rpc runAgentTaskTemplate (RunAgentTaskTemplateRequest) returns (RunAgentResponse);
     // 获取模型初始化详细信息
     rpc getModelDetailedInformation (getModelDetailedInformationRequest) returns (getModelDetailedInformationResponse);
     // 获取历史对话列表
     rpc getRepositoryDialogue (getRepositoryDialogueRequest) returns (getRepositoryDialogueResponse);
     // 获取某个历史对话的详细消息记录
     rpc getDialogueDetail (getDialogueDetailRequest) returns (getDialogueDetailResponse);
+    // Explicitly finalize pending episodic memory while preserving the dialogue.
+    rpc endDialogueSession (EndDialogueSessionRequest) returns (EndDialogueSessionResponse);
     // 解析前端 pdf、word 和图片等文件
     rpc analysisFiles (analysisFilesRequest) returns (analysisFilesResponse);
+    // P8 统一智能助手入口；preferred_capability_ids 仅作为偏好，不授予工具权限。
+    rpc runAgent (RunAgentRequest) returns (RunAgentResponse);
+    // 查询当前用户所属的权威 Agent Run 生命周期，不返回 Checkpoint 密文或领取租约。
+    rpc getAgentRun (GetAgentRunRequest) returns (GetAgentRunResponse);
+    // 聚合父 Agent Run 与其直接子 Workflow Run 的版本化预算和用量快照。
+    rpc getAgentRunAccounting (GetAgentRunAccountingRequest) returns (GetAgentRunAccountingResponse);
+    // 使用人工回答原子领取并恢复 ask_human Run；expected_revision 防止重复提交。
+    rpc resumeAgentRun (ResumeAgentRunRequest) returns (RunAgentResponse);
+    // 为已批准的 Runtime 工具动作签发短期一次性恢复令牌。
+    rpc issueAgentResumeGrant (IssueAgentResumeGrantRequest) returns (IssueAgentResumeGrantResponse);
     // 模式一：直接调用 AI api 进行对话
     rpc callApiOfAi (callApiOfAiRequest) returns (callApiOfAiResponse);
     // 模式二：通过对话查询相关推文和作者
@@ -33,10 +72,90 @@ service AiAgentService {
     rpc listWorkflows (ListWorkflowsRequest) returns (ListWorkflowsResponse);
     // 获取单个工作流 DSL
     rpc getWorkflow (GetWorkflowRequest) returns (GetWorkflowResponse);
+    // 分页查询工作流的不可变历史版本。
+    rpc listWorkflowRevisions (ListWorkflowRevisionsRequest) returns (ListWorkflowRevisionsResponse);
+    // 查询指定不可变工作流版本。
+    rpc getWorkflowRevision (GetWorkflowRevisionRequest) returns (GetWorkflowRevisionResponse);
+    // Publish one immutable, read-only workflow revision into the user's Runtime tool catalog.
+    rpc publishWorkflowTool (PublishWorkflowToolRequest) returns (PublishWorkflowToolResponse);
+    rpc getWorkflowToolPublication (GetWorkflowToolPublicationRequest) returns (GetWorkflowToolPublicationResponse);
+    rpc unpublishWorkflowTool (UnpublishWorkflowToolRequest) returns (UnpublishWorkflowToolResponse);
     // 运行工作流
     rpc runWorkflow (RunWorkflowRequest) returns (RunWorkflowResponse);
     // 获取工作流运行记录
     rpc getWorkflowRun (GetWorkflowRunRequest) returns (GetWorkflowRunResponse);
+    // 查询与业务 output_json 解耦的脱敏 Run/Step/LLM/Tool 执行追踪。
+    rpc getWorkflowRunTrace (GetWorkflowRunTraceRequest) returns (GetWorkflowRunTraceResponse);
+    // 检索指定运行版本的已验证、脱敏 Blackboard 快照。
+    rpc searchWorkflowBlackboard (SearchWorkflowBlackboardRequest) returns (SearchWorkflowBlackboardResponse);
+    // 流式投递脱敏执行事件；客户端使用 after_cursor 断点续传。
+    rpc watchWorkflowRunEvents (WatchWorkflowRunEventsRequest) returns (stream WorkflowRunEvent);
+    // 分页查询当前用户的工作流运行记录。
+    rpc listWorkflowRuns (ListWorkflowRunsRequest) returns (ListWorkflowRunsResponse);
+    // 请求取消仍在执行的工作流；取消状态由持久化控制面跨实例传播。
+    rpc cancelWorkflowRun (CancelWorkflowRunRequest) returns (CancelWorkflowRunResponse);
+    // 获取只读运行回放证据；不会重新执行节点、模型或工具。
+    rpc getWorkflowRunReplay (GetWorkflowRunReplayRequest) returns (GetWorkflowRunReplayResponse);
+    // 查询脱敏后的持久补偿 Journal 和当前可执行的人工动作。
+    rpc getWorkflowCompensationJournal (GetWorkflowCompensationJournalRequest) returns (GetWorkflowCompensationJournalResponse);
+    // 显式重试失败或中断的持久补偿；不会重放主 DAG。
+    rpc retryWorkflowCompensation (RetryWorkflowCompensationRequest) returns (RetryWorkflowCompensationResponse);
+    // 查询当前用户的工具审批请求。
+    rpc listToolApprovals (ListToolApprovalsRequest) returns (ListToolApprovalsResponse);
+    // 批准或拒绝工具执行，使用 revision 防止重复决策。
+    rpc decideToolApproval (DecideToolApprovalRequest) returns (DecideToolApprovalResponse);
+    // 为已批准且仍挂起的 Run 签发短时、单次恢复授权；签发会使旧恢复令牌失效。
+    rpc issueWorkflowResumeGrant (IssueWorkflowResumeGrantRequest) returns (IssueWorkflowResumeGrantResponse);
+    // 使用一次性恢复令牌继续已挂起的工作流；空令牌仅用于显式重试持久补偿 Journal。
+    rpc resumeWorkflowRun (ResumeWorkflowRunRequest) returns (ResumeWorkflowRunResponse);
+    // 创建用户级 OpenAI-compatible Provider 配置，API Key 仅加密存储。
+    rpc createProviderConfig (CreateProviderConfigRequest) returns (CreateProviderConfigResponse);
+    // 更新 Provider 元数据或轮换 API Key。
+    rpc updateProviderConfig (UpdateProviderConfigRequest) returns (UpdateProviderConfigResponse);
+    rpc listProviderConfigs (ListProviderConfigsRequest) returns (ListProviderConfigsResponse);
+    rpc getProviderConfig (GetProviderConfigRequest) returns (GetProviderConfigResponse);
+    // 撤销配置并清除服务端密文。
+    rpc revokeProviderConfig (RevokeProviderConfigRequest) returns (RevokeProviderConfigResponse);
+    // Agent Project 是项目级 MCP 连接的成员权限事实源。
+    rpc createAgentProject (CreateAgentProjectRequest) returns (CreateAgentProjectResponse);
+    rpc listAgentProjects (ListAgentProjectsRequest) returns (ListAgentProjectsResponse);
+    rpc getAgentProject (GetAgentProjectRequest) returns (GetAgentProjectResponse);
+    rpc upsertAgentProjectMember (UpsertAgentProjectMemberRequest) returns (UpsertAgentProjectMemberResponse);
+    rpc removeAgentProjectMember (RemoveAgentProjectMemberRequest) returns (RemoveAgentProjectMemberResponse);
+    // 个人/项目级远程 MCP 连接控制面。凭据只在创建/轮换请求中出现。
+    rpc createExternalMCPConnection (CreateExternalMCPConnectionRequest) returns (CreateExternalMCPConnectionResponse);
+    rpc updateExternalMCPConnection (UpdateExternalMCPConnectionRequest) returns (UpdateExternalMCPConnectionResponse);
+    rpc listExternalMCPConnections (ListExternalMCPConnectionsRequest) returns (ListExternalMCPConnectionsResponse);
+    rpc getExternalMCPConnection (GetExternalMCPConnectionRequest) returns (GetExternalMCPConnectionResponse);
+    rpc revokeExternalMCPConnection (RevokeExternalMCPConnectionRequest) returns (RevokeExternalMCPConnectionResponse);
+    // Discovery 只生成待审核的不可变 Schema Snapshot，不授予执行权限。
+    rpc discoverExternalMCPTools (DiscoverExternalMCPToolsRequest) returns (DiscoverExternalMCPToolsResponse);
+    rpc approveExternalMCPSnapshot (ApproveExternalMCPSnapshotRequest) returns (ApproveExternalMCPSnapshotResponse);
+    rpc listExternalMCPTools (ListExternalMCPToolsRequest) returns (ListExternalMCPToolsResponse);
+    rpc configureExternalMCPTool (ConfigureExternalMCPToolRequest) returns (ConfigureExternalMCPToolResponse);
+    rpc createAgentProfileDraft (CreateAgentProfileDraftRequest) returns (CreateAgentProfileDraftResponse);
+    rpc publishAgentProfileVersion (PublishAgentProfileVersionRequest) returns (PublishAgentProfileVersionResponse);
+    rpc requestAgentProfilePublishApproval (RequestAgentProfilePublishApprovalRequest) returns (RequestAgentProfilePublishApprovalResponse);
+    rpc listAgentProfilePublishApprovals (ListAgentProfilePublishApprovalsRequest) returns (ListAgentProfilePublishApprovalsResponse);
+    rpc getAgentProfilePublishApproval (GetAgentProfilePublishApprovalRequest) returns (GetAgentProfilePublishApprovalResponse);
+    rpc decideAgentProfilePublishApproval (DecideAgentProfilePublishApprovalRequest) returns (DecideAgentProfilePublishApprovalResponse);
+    rpc retryAgentProfilePublishApproval (RetryAgentProfilePublishApprovalRequest) returns (RetryAgentProfilePublishApprovalResponse);
+    rpc listAgentProfileVersions (ListAgentProfileVersionsRequest) returns (ListAgentProfileVersionsResponse);
+    rpc getAgentProfileVersion (GetAgentProfileVersionRequest) returns (GetAgentProfileVersionResponse);
+    rpc getAgentProfileRelease (GetAgentProfileReleaseRequest) returns (GetAgentProfileReleaseResponse);
+    rpc upsertAgentProfileRelease (UpsertAgentProfileReleaseRequest) returns (UpsertAgentProfileReleaseResponse);
+    rpc listAgentProfileAuditEvents (ListAgentProfileAuditEventsRequest) returns (ListAgentProfileAuditEventsResponse);
+    rpc getAgentProfileManagementAccess (GetAgentProfileManagementAccessRequest) returns (GetAgentProfileManagementAccessResponse);
+    rpc listAgentProfileRoleBindings (ListAgentProfileRoleBindingsRequest) returns (ListAgentProfileRoleBindingsResponse);
+    rpc upsertAgentProfileRoleBinding (UpsertAgentProfileRoleBindingRequest) returns (UpsertAgentProfileRoleBindingResponse);
+    rpc deleteAgentProfileRoleBinding (DeleteAgentProfileRoleBindingRequest) returns (DeleteAgentProfileRoleBindingResponse);
+    rpc listAgentProfileRoleAuditEvents (ListAgentProfileRoleAuditEventsRequest) returns (ListAgentProfileRoleAuditEventsResponse);
+    rpc startAgentProfileExperiment (StartAgentProfileExperimentRequest) returns (StartAgentProfileExperimentResponse);
+    rpc listAgentProfileExperiments (ListAgentProfileExperimentsRequest) returns (ListAgentProfileExperimentsResponse);
+    rpc getAgentProfileExperiment (GetAgentProfileExperimentRequest) returns (GetAgentProfileExperimentResponse);
+    rpc evaluateAgentProfileExperiment (EvaluateAgentProfileExperimentRequest) returns (EvaluateAgentProfileExperimentResponse);
+    rpc stopAgentProfileExperiment (StopAgentProfileExperimentRequest) returns (StopAgentProfileExperimentResponse);
+    rpc recordAgentProfileExperimentOutcome (RecordAgentProfileExperimentOutcomeRequest) returns (RecordAgentProfileExperimentOutcomeResponse);
 }
 
 
@@ -61,6 +180,8 @@ message RepositoryContentList {
     string dialogue_key = 6;
     string role        = 7;
     string content     = 8;
+    string run_id      = 9;  // 白名单化的 Runtime Run ID
+    bool publishable_draft = 10; // 是否来自可显式确认发布的 Assist 草稿
 }
 
 // 历史对话（标题级别）
@@ -164,6 +285,17 @@ message getDialogueDetailResponse {
     repeated RepositoryContentList messages = 3;
 }
 
+message EndDialogueSessionRequest {
+    uint64 user_id = 1;
+    uint64 dialogue_id = 2;
+    string dialogue_key = 3;
+}
+
+message EndDialogueSessionResponse {
+    uint64 code = 1;
+    string msg = 2;
+}
+
 message analysisFilesRequest {
     uint64 user_id       = 1;
     uint64 file_kind_id  = 2;
@@ -174,6 +306,690 @@ message analysisFilesResponse {
     string msg            = 2;
     string parsed_content = 3; // 解析出的文本内容，供后续对话使用
     string file_key       = 4; // 存储 key，后续对话可引用
+}
+
+message RunAgentRequest {
+    uint64 user_id = 1;
+    uint64 model_kind_id = 2;
+    MainContent main_content = 3;
+    // Optional planner hints. The server still applies catalog, policy, budget and approval checks.
+    repeated string preferred_capability_ids = 4;
+    // Optional tenant-owned encrypted web provider configuration. The secret is never returned.
+    string web_search_provider_config_id = 5;
+    // Explicit immutable Skill selection. Both fields must be supplied together.
+    string skill_id = 6;
+    string skill_version = 7;
+}
+
+message AgentToolActivity {
+    int32 step_index = 1;
+    string tool_name = 2;
+    string status = 3;
+    int32 result_count = 4;
+}
+
+message AgentCitation {
+    string citation_id = 1;
+    string source_type = 2;
+    string source_id = 3;
+    string url = 4;
+    string title = 5;
+    string snippet = 6;
+}
+
+message AgentArtifact {
+    string artifact_id = 1;
+    string type = 2;
+    string status = 3;
+    string content_type = 4;
+    string content = 5;
+    string source_run_id = 6;
+    bool requires_confirmation = 7;
+}
+
+message AgentApprovalState {
+    string status = 1;
+    string approval_id = 2;
+    string run_id = 3;
+    string action = 4;
+    int64 revision = 5;
+    // Unix milliseconds. Zero means the state has no expiry.
+    int64 expires_at = 6;
+    bool resume_supported = 7;
+}
+
+message AgentExecutionStrategyRole {
+    string role_id = 1;
+    repeated string capability_ids = 2;
+    repeated string allowed_tools = 3;
+    int32 max_steps = 4;
+    int32 max_total_tokens = 5;
+    int64 max_estimated_cost_micros = 6;
+    int64 timeout_millis = 7;
+}
+
+// Sanitized, versioned admission evidence. It never contains prompts, raw
+// requests, credentials or tool arguments and does not itself grant tools.
+message AgentExecutionStrategyPlan {
+    string version = 1;
+    string template_id = 2;
+    string candidate_strategy = 3;
+    string selected_strategy = 4;
+    string decision = 5;
+    string reason_code = 6;
+    int32 complexity_score = 7;
+    string complexity_class = 8;
+    repeated string complexity_signals = 9;
+    int64 estimated_latency_millis = 10;
+    int32 estimated_total_tokens = 11;
+    int64 estimated_cost_micros = 12;
+    int32 max_parallel_roles = 13;
+    repeated AgentExecutionStrategyRole roles = 14;
+    string plan_digest = 15;
+}
+
+message RunAgentResponse {
+    uint64 code = 1;
+    string msg = 2;
+    string response = 3;
+    string dialogue_key = 4;
+    string run_id = 5;
+    // Compatibility profile selected by the first P8 migration planner.
+    string execution_profile = 6;
+    // Capabilities actually selected for this response, not requested permissions.
+    repeated string capability_ids = 7;
+    repeated TweetResult tweet_list = 8;
+    bool publishable_draft = 9;
+    // Sanitized execution evidence. Tool arguments and raw observations are never returned.
+    repeated AgentToolActivity tool_activities = 10;
+    // Verifiable source records derived from structured tool results, never from answer text.
+    repeated AgentCitation citations = 11;
+    // Typed outputs projected from the persisted Run.
+    repeated AgentArtifact artifacts = 12;
+    // Sanitized approval projection. Never contains inputs or resume credentials.
+    AgentApprovalState approval_state = 13;
+    string run_status = 14;
+    string selected_skill_id = 15;
+    string selected_skill_version = 16;
+    string selected_task_template_id = 17;
+    int64 selected_task_template_revision = 18;
+    AgentExecutionStrategyPlan execution_strategy_plan = 19;
+}
+
+message AgentExecutionRun {
+    string run_id = 1;
+    string dialogue_key = 2;
+    string execution_profile = 3;
+    repeated string capability_ids = 4;
+    string status = 5;
+    int64 revision = 6;
+    bool resume_supported = 7;
+    string pending_action_type = 8;
+    string pending_action_name = 9;
+    int32 step_count = 10;
+    int32 input_tokens = 11;
+    int32 output_tokens = 12;
+    int32 total_tokens = 13;
+    int64 estimated_cost_micros = 14;
+    string pricing_version = 15;
+    string failure_code = 16;
+    int64 started_at = 17;
+    int64 updated_at = 18;
+    int64 suspended_at = 19;
+    int64 finished_at = 20;
+    string pending_action_id = 21;
+    string approval_id = 22;
+    int64 approval_expires_at = 23;
+    string skill_id = 24;
+    string skill_version = 25;
+    string task_template_id = 26;
+    int64 task_template_revision = 27;
+    AgentExecutionStrategyPlan execution_strategy_plan = 28;
+}
+
+message AgentSkillKnowledgeBinding {
+    string kind = 1;
+    string reference = 2;
+    string version = 3;
+}
+
+message AgentSkillProfileBinding {
+    string profile_id = 1;
+    string profile_version = 2;
+    string prompt_id = 3;
+    string prompt_version = 4;
+}
+
+message AgentSkillBudget {
+    int32 max_steps = 1;
+    int32 max_input_tokens = 2;
+    int32 max_output_tokens = 3;
+    int32 max_total_tokens = 4;
+    int64 max_estimated_cost_micros = 5;
+    int64 timeout_seconds = 6;
+}
+
+message AgentSkillOutputContract {
+    string schema_id = 1;
+    string content_type = 2;
+    string schema_json = 3;
+}
+
+message AgentSkillWorkflowBinding {
+    string publication_id = 1;
+    int64 publication_revision = 2;
+    string workflow_id = 3;
+    string workflow_revision_id = 4;
+    int64 workflow_revision_number = 5;
+    string workflow_dsl_hash = 6;
+    string tool_name = 7;
+    string input_schema_json = 8;
+}
+
+message AgentSkill {
+    string contract_version = 1;
+    string skill_id = 2;
+    string version = 3;
+    string display_name = 4;
+    string description = 5;
+    string instructions = 6;
+    string source = 7;
+    repeated string allowed_tools = 8;
+    repeated AgentSkillKnowledgeBinding knowledge = 9;
+    AgentSkillProfileBinding profile = 10;
+    AgentSkillBudget budget = 11;
+    AgentSkillOutputContract output = 12;
+    AgentSkillWorkflowBinding workflow = 13;
+}
+
+message ListAgentSkillsRequest {
+    uint64 user_id = 1;
+    int32 limit = 2;
+}
+
+message ListAgentSkillsResponse {
+    uint64 code = 1;
+    string msg = 2;
+    repeated AgentSkill skills = 3;
+}
+
+message GetAgentSkillRequest {
+    uint64 user_id = 1;
+    string skill_id = 2;
+    string version = 3;
+}
+
+message GetAgentSkillResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentSkill skill = 3;
+}
+
+message AgentExtensionSkillReference {
+    string skill_id = 1;
+    string version = 2;
+}
+
+message AgentExtensionMCPReference {
+    string connection_id = 1;
+    string server_id = 2;
+    string snapshot_id = 3;
+    string qualified_tool_name = 4;
+}
+
+// AgentExtension is a credential-free discovery projection. It is not an
+// execution grant; Runtime policy, budget and approval remain authoritative.
+message AgentExtension {
+    string contract_version = 1;
+    string extension_id = 2;
+    string kind = 3;
+    string name = 4;
+    string display_name = 5;
+    string description = 6;
+    string version = 7;
+    string source = 8;
+    string capability_id = 9;
+    string category = 10;
+    string scope = 11;
+    string status = 12;
+    string approval_mode = 13;
+    string health_status = 14;
+    AgentExtensionSkillReference skill = 15;
+    AgentExtensionMCPReference mcp = 16;
+}
+
+message AgentExtensionSourceStatus {
+    string source = 1;
+    string state = 2;
+    int32 entry_count = 3;
+}
+
+message ListAgentExtensionsRequest {
+    uint64 user_id = 1;
+    string kind = 2;
+    string category = 3;
+    string scope = 4;
+    string status = 5;
+    string search = 6;
+    string after_cursor = 7;
+    int32 page_size = 8;
+}
+
+message ListAgentExtensionsResponse {
+    uint64 code = 1;
+    string msg = 2;
+    string contract_version = 3;
+    repeated AgentExtension extensions = 4;
+    repeated AgentExtensionSourceStatus sources = 5;
+    string next_cursor = 6;
+    bool has_more = 7;
+}
+
+message AgentMarketplacePublisher {
+    string publisher_id = 1;
+    string display_name = 2;
+    string verification = 3;
+}
+
+// AgentMarketplaceExtension exposes verified metadata only. Package bytes,
+// publisher public keys, signatures and installation grants are not returned.
+message AgentMarketplaceExtension {
+    string contract_version = 1;
+    string release_id = 2;
+    string package_id = 3;
+    string kind = 4;
+    string version = 5;
+    string display_name = 6;
+    string description = 7;
+    AgentMarketplacePublisher publisher = 8;
+    string artifact_digest_sha256 = 9;
+    string signature_key_id = 10;
+    repeated string capability_ids = 11;
+    repeated string requested_permissions = 12;
+    int64 published_at_unix_ms = 13;
+    bool signature_verified = 14;
+}
+
+message ListAgentMarketplaceExtensionsRequest {
+    uint64 user_id = 1;
+    string kind = 2;
+    string publisher_id = 3;
+    string search = 4;
+    string after_cursor = 5;
+    int32 page_size = 6;
+}
+
+message ListAgentMarketplaceExtensionsResponse {
+    uint64 code = 1;
+    string msg = 2;
+    string contract_version = 3;
+    repeated AgentMarketplaceExtension releases = 4;
+    string next_cursor = 5;
+    bool has_more = 6;
+}
+
+message AgentMarketplaceManagementAccess {
+    string contract_version = 1;
+    bool enabled = 2;
+    bool platform_admin = 3;
+    repeated string owned_publisher_ids = 4;
+}
+
+message GetAgentMarketplaceManagementAccessRequest {
+    uint64 actor_user_id = 1;
+}
+
+message GetAgentMarketplaceManagementAccessResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentMarketplaceManagementAccess access = 3;
+}
+
+message AgentMarketplaceSigningKey {
+    string key_id = 1;
+    string algorithm = 2;
+    string public_key_base64 = 3;
+    string status = 4;
+}
+
+message AgentMarketplaceManagedPublisher {
+    string contract_version = 1;
+    string publisher_id = 2;
+    string display_name = 3;
+    string verification = 4;
+    repeated AgentMarketplaceSigningKey signing_keys = 5;
+    repeated uint64 owner_user_ids = 6;
+    int64 revision = 7;
+    uint64 created_by = 8;
+    uint64 updated_by = 9;
+    int64 verified_at_unix_ms = 10;
+    int64 created_at_unix_ms = 11;
+    int64 updated_at_unix_ms = 12;
+}
+
+message ListAgentMarketplacePublishersRequest {
+    uint64 actor_user_id = 1;
+    int32 page = 2;
+    int32 page_size = 3;
+}
+
+message ListAgentMarketplacePublishersResponse {
+    uint64 code = 1;
+    string msg = 2;
+    repeated AgentMarketplaceManagedPublisher publishers = 3;
+    int64 total = 4;
+}
+
+message RegisterAgentMarketplacePublisherRequest {
+    uint64 actor_user_id = 1;
+    string publisher_id = 2;
+    string display_name = 3;
+    repeated uint64 owner_user_ids = 4;
+    string initial_key_id = 5;
+    string public_key_base64 = 6;
+}
+
+message RegisterAgentMarketplacePublisherResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentMarketplaceManagedPublisher publisher = 3;
+}
+
+message RotateAgentMarketplacePublisherKeyRequest {
+    uint64 actor_user_id = 1;
+    string publisher_id = 2;
+    string key_id = 3;
+    string public_key_base64 = 4;
+    int64 expected_revision = 5;
+}
+
+message RotateAgentMarketplacePublisherKeyResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentMarketplaceManagedPublisher publisher = 3;
+}
+
+message RevokeAgentMarketplacePublisherKeyRequest {
+    uint64 actor_user_id = 1;
+    string publisher_id = 2;
+    string key_id = 3;
+    int64 expected_revision = 4;
+}
+
+message RevokeAgentMarketplacePublisherKeyResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentMarketplaceManagedPublisher publisher = 3;
+}
+
+message SetAgentMarketplacePublisherVerificationRequest {
+    uint64 actor_user_id = 1;
+    string publisher_id = 2;
+    string verification = 3;
+    int64 expected_revision = 4;
+}
+
+message SetAgentMarketplacePublisherVerificationResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentMarketplaceManagedPublisher publisher = 3;
+}
+
+message AgentMarketplaceManifest {
+    string contract_version = 1;
+    string package_id = 2;
+    string kind = 3;
+    string version = 4;
+    string publisher_id = 5;
+    string display_name = 6;
+    string description = 7;
+    string artifact_digest_sha256 = 8;
+    repeated string capability_ids = 9;
+    repeated string requested_permissions = 10;
+}
+
+// Signature bytes are intentionally absent from every managed response.
+message AgentMarketplaceManagedRelease {
+    string contract_version = 1;
+    string release_id = 2;
+    AgentMarketplaceManifest manifest = 3;
+    string signature_key_id = 4;
+    string status = 5;
+    int64 revision = 6;
+    uint64 published_by = 7;
+    uint64 withdrawn_by = 8;
+    string withdrawal_reason_code = 9;
+    int64 published_at_unix_ms = 10;
+    int64 withdrawn_at_unix_ms = 11;
+    int64 created_at_unix_ms = 12;
+    int64 updated_at_unix_ms = 13;
+}
+
+message ListAgentMarketplaceManagedReleasesRequest {
+    uint64 actor_user_id = 1;
+    string publisher_id = 2;
+    string status = 3;
+    int32 page = 4;
+    int32 page_size = 5;
+}
+
+message ListAgentMarketplaceManagedReleasesResponse {
+    uint64 code = 1;
+    string msg = 2;
+    repeated AgentMarketplaceManagedRelease releases = 3;
+    int64 total = 4;
+}
+
+message PublishAgentMarketplaceReleaseRequest {
+    uint64 actor_user_id = 1;
+    AgentMarketplaceManifest manifest = 2;
+    string signature_key_id = 3;
+    string signature_base64 = 4;
+    int64 expected_publisher_revision = 5;
+}
+
+message PublishAgentMarketplaceReleaseResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentMarketplaceManagedRelease release = 3;
+}
+
+message WithdrawAgentMarketplaceReleaseRequest {
+    uint64 actor_user_id = 1;
+    string release_id = 2;
+    string reason_code = 3;
+    int64 expected_revision = 4;
+}
+
+message WithdrawAgentMarketplaceReleaseResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentMarketplaceManagedRelease release = 3;
+}
+
+message AgentMarketplaceAuditEvent {
+    string contract_version = 1;
+    string event_id = 2;
+    string operation_id = 3;
+    string action = 4;
+    string outcome = 5;
+    uint64 actor_user_id = 6;
+    string publisher_id = 7;
+    string package_id = 8;
+    string version = 9;
+    string key_id = 10;
+    int64 revision = 11;
+    string reason_code = 12;
+    string error_code = 13;
+    int64 created_at_unix_ms = 14;
+}
+
+message ListAgentMarketplaceAuditEventsRequest {
+    uint64 actor_user_id = 1;
+    string publisher_id = 2;
+    string action = 3;
+    string outcome = 4;
+    int32 page = 5;
+    int32 page_size = 6;
+}
+
+message ListAgentMarketplaceAuditEventsResponse {
+    uint64 code = 1;
+    string msg = 2;
+    repeated AgentMarketplaceAuditEvent events = 3;
+    int64 total = 4;
+}
+
+message AgentTaskTemplate {
+    string contract_version = 1;
+    string template_id = 2;
+    string name = 3;
+    string description = 4;
+    string instruction_template = 5;
+    string status = 6;
+    int64 revision = 7;
+    string source_run_id = 8;
+    int64 source_run_revision = 9;
+    string source_result_digest = 10;
+    string source_execution_profile = 11;
+    repeated string capability_ids = 12;
+    string skill_id = 13;
+    string skill_version = 14;
+    string source_model = 15;
+    string agent_profile_id = 16;
+    string agent_profile_version = 17;
+    string prompt_template_id = 18;
+    string prompt_template_version = 19;
+    int64 created_at = 20;
+    int64 updated_at = 21;
+    int64 archived_at = 22;
+}
+
+message CreateAgentTaskTemplateRequest {
+    uint64 user_id = 1;
+    string source_run_id = 2;
+    int64 expected_source_run_revision = 3;
+    string name = 4;
+    string description = 5;
+    string instruction_template = 6;
+    string idempotency_key = 7;
+}
+
+message CreateAgentTaskTemplateResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentTaskTemplate task_template = 3;
+}
+
+message ListAgentTaskTemplatesRequest {
+    uint64 user_id = 1;
+    int32 limit = 2;
+}
+
+message ListAgentTaskTemplatesResponse {
+    uint64 code = 1;
+    string msg = 2;
+    bool execution_enabled = 3;
+    repeated AgentTaskTemplate task_templates = 4;
+}
+
+message ArchiveAgentTaskTemplateRequest {
+    uint64 user_id = 1;
+    string template_id = 2;
+    int64 expected_revision = 3;
+}
+
+message ArchiveAgentTaskTemplateResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentTaskTemplate task_template = 3;
+}
+
+message RunAgentTaskTemplateRequest {
+    uint64 user_id = 1;
+    string template_id = 2;
+    int64 expected_revision = 3;
+    uint64 model_kind_id = 4;
+    MainContent main_content = 5;
+    string web_search_provider_config_id = 6;
+}
+
+message GetAgentRunRequest {
+    uint64 user_id = 1;
+    string run_id = 2;
+}
+
+message GetAgentRunResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentExecutionRun run = 3;
+}
+
+message GetAgentRunAccountingRequest {
+    uint64 user_id = 1;
+    string run_id = 2;
+    int32 child_limit = 3;
+}
+
+message WorkflowRunAccounting {
+    string run_id = 1;
+    string workflow_id = 2;
+    string parent_action_id = 3;
+    string status = 4;
+    string state = 5;
+    string accounting_version = 6;
+    ExecutionTokenUsage usage = 7;
+    ExecutionBudgetSnapshot budget = 8;
+    int64 started_at_ms = 9;
+    int64 suspended_at_ms = 10;
+    int64 finished_at_ms = 11;
+}
+
+message AgentRunAccounting {
+    string run_id = 1;
+    string run_status = 2;
+    string scope = 3;
+    string state = 4;
+    bool complete = 5;
+    bool truncated = 6;
+    int64 child_run_count = 7;
+    int32 included_child_run_count = 8;
+    string accounting_version = 9;
+    ExecutionTokenUsage parent_usage = 10;
+    ExecutionBudgetSnapshot parent_budget = 11;
+    ExecutionTokenUsage child_usage = 12;
+    ExecutionTokenUsage total_usage = 13;
+    repeated WorkflowRunAccounting children = 14;
+}
+
+message GetAgentRunAccountingResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentRunAccounting accounting = 3;
+}
+
+message ResumeAgentRunRequest {
+    uint64 user_id = 1;
+    string run_id = 2;
+    int64 expected_revision = 3;
+    string human_response = 4;
+    string approval_id = 5;
+    string resume_token = 6;
+}
+
+message IssueAgentResumeGrantRequest {
+    uint64 user_id = 1;
+    string approval_id = 2;
+    int64 expected_run_revision = 3;
+}
+
+message IssueAgentResumeGrantResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentExecutionRun run = 3;
+    // 仅在本次响应返回；服务端只保存哈希，后续签发会使旧令牌失效。
+    string resume_token = 4;
+    int64 expires_at = 5;
 }
 
 message callApiOfAiRequest {
@@ -212,11 +1028,13 @@ message assistPublishTwitterResponse {
     string         msg        = 2;
     string         response   = 3; // AI 生成的推文草稿说明
     repeated Tweet tweet_list = 4; // 生成的推文候选列表
+    string run_id             = 6; // Runtime v2 Run ID；Legacy 路径为空
 }
 
 message ConfirmPublishTwitterRequest {
     uint64 user_id       = 1;
     string content       = 2; // 用户选定的推文内容
+    string source_run_id = 3; // 可选；用于校验 Assist 来源并归因业务结果
 }
 
 message ConfirmPublishTwitterResponse {
@@ -261,6 +1079,9 @@ message WorkflowSummary {
     string name = 3;
     int64 created_at = 4;
     int64 updated_at = 5;
+    string current_revision_id = 6;
+    int64 current_revision_number = 7;
+    string current_dsl_hash = 8;
 }
 
 message WorkflowDetail {
@@ -270,6 +1091,45 @@ message WorkflowDetail {
     string dsl_json = 4;
     int64 created_at = 5;
     int64 updated_at = 6;
+    string current_revision_id = 7;
+    int64 current_revision_number = 8;
+    string current_dsl_hash = 9;
+}
+
+message WorkflowRevisionSummary {
+    string revision_id = 1;
+    string workflow_id = 2;
+    uint64 user_id = 3;
+    int64 revision_number = 4;
+    string dsl_hash = 5;
+    int64 created_at = 6;
+}
+
+message WorkflowRevisionDetail {
+    string revision_id = 1;
+    string workflow_id = 2;
+    uint64 user_id = 3;
+    int64 revision_number = 4;
+    string dsl_json = 5;
+    string dsl_hash = 6;
+    int64 created_at = 7;
+}
+
+message WorkflowToolPublication {
+    string publication_id = 1;
+    uint64 user_id = 2;
+    string workflow_id = 3;
+    string workflow_revision_id = 4;
+    int64 workflow_revision_number = 5;
+    string workflow_dsl_hash = 6;
+    string tool_name = 7;
+    string display_name = 8;
+    string description = 9;
+    string input_schema_json = 10;
+    string status = 11;
+    int64 revision = 12;
+    int64 created_at = 13;
+    int64 updated_at = 14;
 }
 
 message WorkflowRun {
@@ -282,6 +1142,37 @@ message WorkflowRun {
     string error_message = 7;
     int64 started_at = 8;
     int64 finished_at = 9;
+    string waiting_node_id = 10;
+    int64 suspended_at = 11;
+    string approval_request_id = 12;
+    int64 revision = 13;
+    string workflow_revision_id = 14;
+    int64 workflow_revision_number = 15;
+    int64 state_version = 16;
+    int64 cancel_requested_at = 17;
+    string cancel_reason = 18;
+    int64 canceled_at = 19;
+    int64 resume_grant_issued_at = 20;
+    int64 resume_grant_expires_at = 21;
+    string invocation_source = 22;
+    string parent_run_id = 23;
+    string parent_action_id = 24;
+}
+
+message WorkflowRunSummary {
+    string run_id = 1;
+    string workflow_id = 2;
+    string status = 3;
+    string error_message = 4;
+    int64 started_at = 5;
+    int64 finished_at = 6;
+    string waiting_node_id = 7;
+    string approval_request_id = 8;
+    int64 workflow_revision_number = 9;
+    int64 state_version = 10;
+    int64 cancel_requested_at = 11;
+    string cancel_reason = 12;
+    int64 canceled_at = 13;
 }
 
 message CreateWorkflowRequest {
@@ -333,10 +1224,75 @@ message GetWorkflowResponse {
     WorkflowDetail workflow = 3;
 }
 
+message ListWorkflowRevisionsRequest {
+    uint64 user_id = 1;
+    string workflow_id = 2;
+    uint32 page = 3;
+    uint32 page_size = 4;
+}
+
+message ListWorkflowRevisionsResponse {
+    uint64 code = 1;
+    string msg = 2;
+    repeated WorkflowRevisionSummary revisions = 3;
+    int64 total = 4;
+}
+
+message GetWorkflowRevisionRequest {
+    uint64 user_id = 1;
+    string workflow_id = 2;
+    string revision_id = 3;
+}
+
+message GetWorkflowRevisionResponse {
+    uint64 code = 1;
+    string msg = 2;
+    WorkflowRevisionDetail revision = 3;
+}
+
+message PublishWorkflowToolRequest {
+    uint64 user_id = 1;
+    string workflow_id = 2;
+    string workflow_revision_id = 3;
+    string description = 4;
+    string input_schema_json = 5;
+    int64 expected_revision = 6;
+}
+
+message PublishWorkflowToolResponse {
+    uint64 code = 1;
+    string msg = 2;
+    WorkflowToolPublication publication = 3;
+}
+
+message GetWorkflowToolPublicationRequest {
+    uint64 user_id = 1;
+    string workflow_id = 2;
+}
+
+message GetWorkflowToolPublicationResponse {
+    uint64 code = 1;
+    string msg = 2;
+    WorkflowToolPublication publication = 3;
+}
+
+message UnpublishWorkflowToolRequest {
+    uint64 user_id = 1;
+    string workflow_id = 2;
+    int64 expected_revision = 3;
+}
+
+message UnpublishWorkflowToolResponse {
+    uint64 code = 1;
+    string msg = 2;
+    WorkflowToolPublication publication = 3;
+}
+
 message RunWorkflowRequest {
     uint64 user_id = 1;
     string workflow_id = 2;
     string input_json = 3;
+    string workflow_revision_id = 4;
 }
 
 message RunWorkflowResponse {
@@ -345,6 +1301,8 @@ message RunWorkflowResponse {
     WorkflowRun run = 3;
     string dialogue_key = 4;
     string response = 5;
+    // 仅在本次响应把工作流挂起时返回；服务端只保存哈希。
+    string resume_token = 6;
 }
 
 message GetWorkflowRunRequest {
@@ -356,4 +1314,1262 @@ message GetWorkflowRunResponse {
     uint64 code = 1;
     string msg = 2;
     WorkflowRun run = 3;
+}
+
+message ExecutionTokenUsage {
+    int32 input_tokens = 1;
+    int32 output_tokens = 2;
+    int32 total_tokens = 3;
+    bool estimated = 4;
+    int64 estimated_cost_micros = 5;
+    bool cost_estimated = 6;
+    string pricing_version = 7;
+}
+
+message ExecutionBudgetSnapshot {
+    int32 max_steps = 1;
+    int32 max_total_tokens = 2;
+    int64 max_estimated_cost_micros = 3;
+    int32 consumed_steps = 4;
+    int32 consumed_tokens = 5;
+    int64 consumed_cost_micros = 6;
+}
+
+message AgentRunTrace {
+    string record_id = 1;
+    string run_id = 2;
+    string workflow_id = 3;
+    uint64 user_id = 4;
+    string source = 5;
+    string mode = 6;
+    string strategy = 7;
+    string status = 8;
+    string error_class = 9;
+    ExecutionTokenUsage usage = 10;
+    ExecutionBudgetSnapshot budget = 11;
+    int64 started_at_ms = 12;
+    int64 finished_at_ms = 13;
+    int64 duration_ms = 14;
+    int64 updated_at_ms = 15;
+}
+
+message AgentStepTrace {
+    string record_id = 1;
+    string run_id = 2;
+    string workflow_id = 3;
+    uint64 user_id = 4;
+    string source = 5;
+    string step_id = 6;
+    string parent_step_id = 7;
+    int32 sequence = 8;
+    string step_type = 9;
+    string name = 10;
+    string status = 11;
+    int32 attempt = 12;
+    int32 max_attempts = 13;
+    string error_class = 14;
+    int64 started_at_ms = 15;
+    int64 finished_at_ms = 16;
+    int64 duration_ms = 17;
+    int64 updated_at_ms = 18;
+}
+
+message AgentLLMCallTrace {
+    string record_id = 1;
+    string run_id = 2;
+    string workflow_id = 3;
+    uint64 user_id = 4;
+    string source = 5;
+    string step_id = 6;
+    int32 sequence = 7;
+    string model = 8;
+    string provider = 9;
+    string status = 10;
+    string error_class = 11;
+    string prompt_hash = 12;
+    int32 prompt_length = 13;
+    string completion_hash = 14;
+    int32 completion_length = 15;
+    ExecutionTokenUsage usage = 16;
+    int64 started_at_ms = 17;
+    int64 finished_at_ms = 18;
+    int64 duration_ms = 19;
+    int64 updated_at_ms = 20;
+    string prompt_template_id = 21;
+    string prompt_template_version = 22;
+    string prompt_sample = 23;
+    string completion_sample = 24;
+    string prompt_sample_status = 25;
+    string completion_sample_status = 26;
+    string content_sample_policy = 27;
+}
+
+message AgentToolCallTrace {
+    string record_id = 1;
+    string run_id = 2;
+    string workflow_id = 3;
+    uint64 user_id = 4;
+    string source = 5;
+    string step_id = 6;
+    int32 sequence = 7;
+    string tool_name = 8;
+    string category = 9;
+    string status = 10;
+    string error_class = 11;
+    int32 attempts = 12;
+    string arguments_hash = 13;
+    int32 arguments_length = 14;
+    string output_hash = 15;
+    int32 output_length = 16;
+    int64 started_at_ms = 17;
+    int64 finished_at_ms = 18;
+    int64 duration_ms = 19;
+    int64 updated_at_ms = 20;
+    string output_storage = 21;
+    string output_reference = 22;
+    string output_content_type = 23;
+}
+
+message GetWorkflowRunTraceRequest {
+    uint64 user_id = 1;
+    string run_id = 2;
+}
+
+message GetWorkflowRunTraceResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentRunTrace run = 3;
+    repeated AgentStepTrace steps = 4;
+    repeated AgentLLMCallTrace llm_calls = 5;
+    repeated AgentToolCallTrace tool_calls = 6;
+}
+
+message SearchWorkflowBlackboardRequest {
+    uint64 user_id = 1;
+    string run_id = 2;
+    // 0 表示最新已持久化版本；分页游标会固定首次查询的版本。
+    int64 state_version = 3;
+    string query = 4;
+    string path_prefix = 5;
+    string after_cursor = 6;
+    uint32 page_size = 7;
+}
+
+message WorkflowBlackboardEntry {
+    string path = 1;
+    // 仅在脱敏后的 JSON 不超过服务端预览上限时返回。
+    string value_json = 2;
+    string value_type = 3;
+    string value_hash = 4;
+    int64 value_length = 5;
+    bool truncated = 6;
+}
+
+message SearchWorkflowBlackboardResponse {
+    uint64 code = 1;
+    string msg = 2;
+    string run_id = 3;
+    int64 state_version = 4;
+    int64 base_snapshot_version = 5;
+    string base_snapshot_hash = 6;
+    string state_hash = 7;
+    bool verified = 8;
+    repeated WorkflowBlackboardEntry entries = 9;
+    int64 matched_total = 10;
+    string next_cursor = 11;
+    bool has_more = 12;
+}
+
+message WatchWorkflowRunEventsRequest {
+    uint64 user_id = 1;
+    string run_id = 2;
+    string after_cursor = 3;
+}
+
+message WorkflowRunEvent {
+    string cursor = 1;
+    string kind = 2;
+    bool reset = 3;
+    bool heartbeat = 4;
+    bool terminal = 5;
+    string reason = 6;
+    int64 created_at_ms = 7;
+    AgentRunTrace run = 8;
+    AgentStepTrace step = 9;
+    AgentLLMCallTrace llm_call = 10;
+    AgentToolCallTrace tool_call = 11;
+}
+
+message ListWorkflowRunsRequest {
+    uint64 user_id = 1;
+    string workflow_id = 2;
+    string status = 3;
+    uint32 page = 4;
+    uint32 page_size = 5;
+}
+
+message ListWorkflowRunsResponse {
+    uint64 code = 1;
+    string msg = 2;
+    repeated WorkflowRunSummary runs = 3;
+    int64 total = 4;
+}
+
+message CancelWorkflowRunRequest {
+    uint64 user_id = 1;
+    string run_id = 2;
+    string reason = 3;
+}
+
+message CancelWorkflowRunResponse {
+    uint64 code = 1;
+    string msg = 2;
+    WorkflowRunSummary run = 3;
+}
+
+message WorkflowReplayStateEvent {
+    int64 sequence = 1;
+    string node_id = 2;
+    string delta_json = 3;
+    string event_hash = 4;
+    int64 applied_at = 5;
+}
+
+message WorkflowReplaySnapshot {
+    int64 state_version = 1;
+    string snapshot_hash = 2;
+    int64 created_at = 3;
+}
+
+message WorkflowReplayCompensation {
+    int32 sequence = 1;
+    string source_node_id = 2;
+    string step_id = 3;
+    string tool_name = 4;
+    string input_hash = 5;
+    string plan_hash = 6;
+    string status = 7;
+    int32 attempt = 8;
+    string error_message = 9;
+    string approval_request_id = 10;
+    int64 lease_until = 11;
+    int64 created_at = 12;
+    int64 updated_at = 13;
+    int64 finished_at = 14;
+}
+
+message WorkflowReplayIntegrity {
+    bool verified = 1;
+    int64 state_version = 2;
+    int64 event_count = 3;
+    int64 last_sequence = 4;
+    int64 snapshot_version = 5;
+}
+
+message GetWorkflowRunReplayRequest {
+    uint64 user_id = 1;
+    string run_id = 2;
+}
+
+message GetWorkflowRunReplayResponse {
+    uint64 code = 1;
+    string msg = 2;
+    WorkflowRun run = 3;
+    WorkflowRevisionSummary revision = 4;
+    repeated WorkflowReplayStateEvent events = 5;
+    WorkflowReplaySnapshot snapshot = 6;
+    repeated WorkflowReplayCompensation compensations = 7;
+    WorkflowReplayIntegrity integrity = 8;
+}
+
+message WorkflowCompensationJournalEntry {
+    int32 sequence = 1;
+    string source_node_id = 2;
+    string step_id = 3;
+    string tool_name = 4;
+    string input_hash = 5;
+    string plan_hash = 6;
+    string status = 7;
+    int32 attempt = 8;
+    string error_message = 9;
+    string approval_request_id = 10;
+    int64 lease_until = 11;
+    int64 created_at = 12;
+    int64 updated_at = 13;
+    int64 finished_at = 14;
+    bool is_next = 15;
+}
+
+message GetWorkflowCompensationJournalRequest {
+    uint64 user_id = 1;
+    string run_id = 2;
+}
+
+message WorkflowCompensationRunSummary {
+    string run_id = 1;
+    string workflow_id = 2;
+    string status = 3;
+    string error_message = 4;
+    int64 started_at = 5;
+    int64 finished_at = 6;
+    string waiting_node_id = 7;
+    string approval_request_id = 8;
+}
+
+message GetWorkflowCompensationJournalResponse {
+    uint64 code = 1;
+    string msg = 2;
+    WorkflowCompensationRunSummary run = 3;
+    repeated WorkflowCompensationJournalEntry entries = 4;
+    int32 next_sequence = 5;
+    bool retry_available = 6;
+}
+
+message RetryWorkflowCompensationRequest {
+    uint64 user_id = 1;
+    string run_id = 2;
+}
+
+message RetryWorkflowCompensationResponse {
+    uint64 code = 1;
+    string msg = 2;
+    WorkflowRun run = 3;
+    string response = 4;
+    // 补偿若需要审批，仅在本次响应返回一次性恢复令牌。
+    string resume_token = 5;
+}
+
+message ToolApprovalRequest {
+    string approval_id = 1;
+    uint64 user_id = 2;
+    string run_id = 3;
+    string step_id = 4;
+    string tool_name = 5;
+    string source = 6;
+    string category = 7;
+    string status = 8;
+    string redacted_inputs_json = 9;
+    string idempotency_key = 10;
+    string reason = 11;
+    int64 revision = 12;
+    int64 created_at = 13;
+    int64 expires_at = 14;
+    int64 decided_at = 15;
+}
+
+message ListToolApprovalsRequest {
+    uint64 user_id = 1;
+    string status = 2;
+    uint32 page = 3;
+    uint32 page_size = 4;
+}
+
+message ListToolApprovalsResponse {
+    uint64 code = 1;
+    string msg = 2;
+    repeated ToolApprovalRequest approvals = 3;
+    int64 total = 4;
+}
+
+message DecideToolApprovalRequest {
+    uint64 user_id = 1;
+    string approval_id = 2;
+    string decision = 3;
+    string reason = 4;
+    int64 expected_revision = 5;
+}
+
+message DecideToolApprovalResponse {
+    uint64 code = 1;
+    string msg = 2;
+    ToolApprovalRequest approval = 3;
+}
+
+message IssueWorkflowResumeGrantRequest {
+    uint64 user_id = 1;
+    string approval_id = 2;
+    int64 expected_run_revision = 3;
+}
+
+message IssueWorkflowResumeGrantResponse {
+    uint64 code = 1;
+    string msg = 2;
+    WorkflowRun run = 3;
+    // 仅在本次响应返回；服务端只保存哈希，后续签发会使其失效。
+    string resume_token = 4;
+    int64 expires_at = 5;
+}
+
+message ResumeWorkflowRunRequest {
+    uint64 user_id = 1;
+    string run_id = 2;
+    string approval_id = 3;
+    string resume_token = 4;
+    string input_json = 5;
+}
+
+message ResumeWorkflowRunResponse {
+    uint64 code = 1;
+    string msg = 2;
+    WorkflowRun run = 3;
+    string response = 4;
+    // 工作流若在后续节点再次挂起，会返回新的令牌。
+    string resume_token = 5;
+}
+
+message ProviderConfig {
+    string provider_config_id = 1;
+    uint64 user_id = 2;
+    string name = 3;
+    string provider = 4;
+    string base_url = 5;
+    string model = 6;
+    string status = 7;
+    bool has_secret = 8;
+    int64 credential_version = 9;
+    int64 revision = 10;
+    int64 created_at = 11;
+    int64 updated_at = 12;
+    // llm or web_search. Missing legacy values are interpreted as llm.
+    string kind = 13;
+}
+
+message CreateProviderConfigRequest {
+    uint64 user_id = 1;
+    string name = 2;
+    string provider = 3;
+    string base_url = 4;
+    string model = 5;
+    string api_key = 6;
+    string kind = 7;
+}
+
+message CreateProviderConfigResponse {
+    uint64 code = 1;
+    string msg = 2;
+    ProviderConfig provider_config = 3;
+}
+
+message UpdateProviderConfigRequest {
+    uint64 user_id = 1;
+    string provider_config_id = 2;
+    string name = 3;
+    string provider = 4;
+    string base_url = 5;
+    string model = 6;
+    string api_key = 7;
+    int64 revision = 8;
+    string kind = 9;
+}
+
+message UpdateProviderConfigResponse {
+    uint64 code = 1;
+    string msg = 2;
+    ProviderConfig provider_config = 3;
+}
+
+message ListProviderConfigsRequest {
+    uint64 user_id = 1;
+    uint32 page = 2;
+    uint32 page_size = 3;
+    string kind = 4;
+}
+
+message ListProviderConfigsResponse {
+    uint64 code = 1;
+    string msg = 2;
+    repeated ProviderConfig provider_configs = 3;
+    int64 total = 4;
+}
+
+message GetProviderConfigRequest {
+    uint64 user_id = 1;
+    string provider_config_id = 2;
+}
+
+message GetProviderConfigResponse {
+    uint64 code = 1;
+    string msg = 2;
+    ProviderConfig provider_config = 3;
+}
+
+message RevokeProviderConfigRequest {
+    uint64 user_id = 1;
+    string provider_config_id = 2;
+    int64 revision = 3;
+}
+
+message RevokeProviderConfigResponse {
+    uint64 code = 1;
+    string msg = 2;
+}
+
+message AgentProfileSpec {
+    string profile_id = 1;
+    string version = 2;
+    string prompt_id = 3;
+    string prompt_version = 4;
+    string system_prompt = 5;
+    int32 max_steps = 6;
+    int32 max_input_tokens = 7;
+    int32 max_output_tokens = 8;
+    int32 max_total_tokens = 9;
+    int64 max_estimated_cost_micros = 10;
+    int64 timeout_millis = 11;
+    repeated string allowed_tools = 12;
+}
+
+message AgentProfileVersion {
+    string id = 1;
+    AgentProfileSpec spec = 2;
+    string status = 3;
+    int64 revision = 4;
+    uint64 created_by = 5;
+    uint64 published_by = 6;
+    int64 created_at = 7;
+    int64 updated_at = 8;
+    int64 published_at = 9;
+    string snapshot_hash = 10;
+}
+
+message AgentProfileRelease {
+    string profile_id = 1;
+    string stable_version = 2;
+    string candidate_version = 3;
+    int32 candidate_basis_points = 4;
+    string salt = 5;
+    int64 revision = 6;
+    uint64 created_by = 7;
+    uint64 updated_by = 8;
+    int64 created_at = 9;
+    int64 updated_at = 10;
+}
+
+message AgentProfileAuditEvent {
+    string id = 1;
+    string operation_id = 2;
+    string action = 3;
+    string outcome = 4;
+    string profile_id = 5;
+    string version = 6;
+    uint64 actor_user_id = 7;
+    int64 version_revision = 8;
+    int64 release_revision = 9;
+    string snapshot_hash = 10;
+    string error_code = 11;
+    int64 created_at = 12;
+    string approval_id = 13;
+    string experiment_id = 14;
+}
+
+message AgentProfileExperimentPolicy {
+    int32 min_samples_per_arm = 1;
+    int32 target_samples_per_arm = 2;
+    int32 max_error_rate_increase_basis_points = 3;
+    int32 max_p95_latency_increase_basis_points = 4;
+    int32 max_average_cost_increase_basis_points = 5;
+    string outcome_signal = 6;
+    int32 min_outcome_samples_per_arm = 7;
+    int32 max_outcome_rate_decrease_basis_points = 8;
+}
+
+message AgentProfileExperimentArmStats {
+    int32 samples = 1;
+    int32 successes = 2;
+    int32 failures = 3;
+    int32 error_rate_basis_points = 4;
+    int64 p95_latency_millis = 5;
+    int64 average_cost_micros = 6;
+    int32 outcome_samples = 7;
+    int32 outcome_positives = 8;
+    int32 outcome_rate_basis_points = 9;
+}
+
+message AgentProfileExperimentStats {
+    AgentProfileExperimentArmStats stable = 1;
+    AgentProfileExperimentArmStats candidate = 2;
+}
+
+message AgentProfileExperiment {
+    string experiment_id = 1;
+    string profile_id = 2;
+    string stable_version = 3;
+    string candidate_version = 4;
+    int32 candidate_basis_points = 5;
+    int64 release_revision = 6;
+    AgentProfileExperimentPolicy policy = 7;
+    string status = 8;
+    string decision = 9;
+    string decision_reason = 10;
+    AgentProfileExperimentStats stats = 11;
+    int64 revision = 12;
+    uint64 created_by = 13;
+    uint64 updated_by = 14;
+    int64 started_at = 15;
+    int64 completed_at = 16;
+    int64 updated_at = 17;
+}
+
+message AgentEvalEvidenceReference {
+    string storage = 1;
+    string bucket = 2;
+    string key = 3;
+    string version_id = 4;
+    string etag = 5;
+    string report_sha256 = 6;
+    int32 length = 7;
+    string content_type = 8;
+    string retention_mode = 9;
+    int64 retain_until = 10;
+    int64 archived_at = 11;
+    string dataset_version = 12;
+    string dataset_sha256 = 13;
+    string execution_config_sha256 = 14;
+    string integrity_key_id = 15;
+}
+
+message AgentProfileQualityEvidence {
+    AgentEvalEvidenceReference reference = 1;
+    string profile_id = 2;
+    string profile_version = 3;
+    string gate_status = 4;
+    int32 cases = 5;
+    int32 passed = 6;
+    int32 task_completion_rate_bps = 7;
+    int32 read_tool_selection_accuracy_bps = 8;
+    int32 semantic_pass_rate_bps = 9;
+    int32 approval_pass_rate_bps = 10;
+    int64 report_signed_at = 11;
+    int64 verified_at = 12;
+}
+
+message AgentProfilePublishApproval {
+    string approval_id = 1;
+    string profile_id = 2;
+    string version = 3;
+    string snapshot_hash = 4;
+    int64 expected_version_revision = 5;
+    string status = 6;
+    string decision = 7;
+    string reason = 8;
+    int64 revision = 9;
+    uint64 requested_by = 10;
+    uint64 decided_by = 11;
+    uint64 applying_by = 12;
+    string error_code = 13;
+    int64 requested_at = 14;
+    int64 decided_at = 15;
+    int64 apply_lease_until = 16;
+    int64 applied_at = 17;
+    int64 updated_at = 18;
+    AgentProfileQualityEvidence quality_evidence = 19;
+}
+
+message CreateAgentProfileDraftRequest {
+    uint64 actor_user_id = 1;
+    AgentProfileSpec spec = 2;
+}
+
+message CreateAgentProfileDraftResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentProfileVersion profile_version = 3;
+}
+
+message PublishAgentProfileVersionRequest {
+    uint64 actor_user_id = 1;
+    string profile_id = 2;
+    string version = 3;
+    int64 expected_revision = 4;
+}
+
+message PublishAgentProfileVersionResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentProfileVersion profile_version = 3;
+}
+
+message RequestAgentProfilePublishApprovalRequest {
+    uint64 actor_user_id = 1;
+    string profile_id = 2;
+    string version = 3;
+    int64 expected_version_revision = 4;
+    AgentEvalEvidenceReference quality_evidence = 5;
+}
+
+message RequestAgentProfilePublishApprovalResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentProfilePublishApproval approval = 3;
+}
+
+message ListAgentProfilePublishApprovalsRequest {
+    uint64 actor_user_id = 1;
+    string profile_id = 2;
+    string status = 3;
+    uint32 page = 4;
+    uint32 page_size = 5;
+}
+
+message ListAgentProfilePublishApprovalsResponse {
+    uint64 code = 1;
+    string msg = 2;
+    repeated AgentProfilePublishApproval approvals = 3;
+    int64 total = 4;
+}
+
+message GetAgentProfilePublishApprovalRequest {
+    uint64 actor_user_id = 1;
+    string approval_id = 2;
+}
+
+message GetAgentProfilePublishApprovalResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentProfilePublishApproval approval = 3;
+}
+
+message DecideAgentProfilePublishApprovalRequest {
+    uint64 actor_user_id = 1;
+    string approval_id = 2;
+    string decision = 3;
+    string reason = 4;
+    int64 expected_revision = 5;
+}
+
+message DecideAgentProfilePublishApprovalResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentProfilePublishApproval approval = 3;
+}
+
+message RetryAgentProfilePublishApprovalRequest {
+    uint64 actor_user_id = 1;
+    string approval_id = 2;
+    int64 expected_revision = 3;
+}
+
+message RetryAgentProfilePublishApprovalResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentProfilePublishApproval approval = 3;
+}
+
+message ListAgentProfileVersionsRequest {
+    uint64 actor_user_id = 1;
+    string profile_id = 2;
+    uint32 page = 3;
+    uint32 page_size = 4;
+}
+
+message ListAgentProfileVersionsResponse {
+    uint64 code = 1;
+    string msg = 2;
+    repeated AgentProfileVersion profile_versions = 3;
+    int64 total = 4;
+}
+
+message GetAgentProfileVersionRequest {
+    uint64 actor_user_id = 1;
+    string profile_id = 2;
+    string version = 3;
+}
+
+message GetAgentProfileVersionResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentProfileVersion profile_version = 3;
+}
+
+message GetAgentProfileReleaseRequest {
+    uint64 actor_user_id = 1;
+    string profile_id = 2;
+}
+
+message GetAgentProfileReleaseResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentProfileRelease profile_release = 3;
+}
+
+message UpsertAgentProfileReleaseRequest {
+    uint64 actor_user_id = 1;
+    string profile_id = 2;
+    string stable_version = 3;
+    string candidate_version = 4;
+    int32 candidate_basis_points = 5;
+    string salt = 6;
+    int64 expected_revision = 7;
+}
+
+message UpsertAgentProfileReleaseResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentProfileRelease profile_release = 3;
+}
+
+message ListAgentProfileAuditEventsRequest {
+    uint64 actor_user_id = 1;
+    string profile_id = 2;
+    uint32 page = 3;
+    uint32 page_size = 4;
+}
+
+message ListAgentProfileAuditEventsResponse {
+    uint64 code = 1;
+    string msg = 2;
+    repeated AgentProfileAuditEvent audit_events = 3;
+    int64 total = 4;
+}
+
+message AgentProfileManagementAccess {
+    repeated string roles = 1;
+    repeated string static_roles = 2;
+    repeated string dynamic_roles = 3;
+    bool root_admin = 4;
+    bool dynamic_rbac_enabled = 5;
+    bool experiments_enabled = 6;
+}
+
+message AgentProfileRoleBinding {
+    uint64 user_id = 1;
+    repeated string roles = 2;
+    int64 revision = 3;
+    uint64 created_by = 4;
+    uint64 updated_by = 5;
+    int64 created_at = 6;
+    int64 updated_at = 7;
+}
+
+message AgentProfileRoleAuditEvent {
+    string id = 1;
+    string operation_id = 2;
+    string action = 3;
+    string outcome = 4;
+    uint64 actor_user_id = 5;
+    uint64 subject_user_id = 6;
+    repeated string roles = 7;
+    int64 revision = 8;
+    string error_code = 9;
+    int64 created_at = 10;
+}
+
+message GetAgentProfileManagementAccessRequest {
+    uint64 actor_user_id = 1;
+}
+
+message GetAgentProfileManagementAccessResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentProfileManagementAccess access = 3;
+}
+
+message ListAgentProfileRoleBindingsRequest {
+    uint64 actor_user_id = 1;
+    uint32 page = 2;
+    uint32 page_size = 3;
+}
+
+message ListAgentProfileRoleBindingsResponse {
+    uint64 code = 1;
+    string msg = 2;
+    repeated AgentProfileRoleBinding role_bindings = 3;
+    int64 total = 4;
+}
+
+message UpsertAgentProfileRoleBindingRequest {
+    uint64 actor_user_id = 1;
+    uint64 subject_user_id = 2;
+    repeated string roles = 3;
+    int64 expected_revision = 4;
+}
+
+message UpsertAgentProfileRoleBindingResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentProfileRoleBinding role_binding = 3;
+}
+
+message DeleteAgentProfileRoleBindingRequest {
+    uint64 actor_user_id = 1;
+    uint64 subject_user_id = 2;
+    int64 expected_revision = 3;
+}
+
+message DeleteAgentProfileRoleBindingResponse {
+    uint64 code = 1;
+    string msg = 2;
+}
+
+message ListAgentProfileRoleAuditEventsRequest {
+    uint64 actor_user_id = 1;
+    uint32 page = 2;
+    uint32 page_size = 3;
+}
+
+message ListAgentProfileRoleAuditEventsResponse {
+    uint64 code = 1;
+    string msg = 2;
+    repeated AgentProfileRoleAuditEvent audit_events = 3;
+    int64 total = 4;
+}
+
+message StartAgentProfileExperimentRequest {
+    uint64 actor_user_id = 1;
+    string profile_id = 2;
+    int64 expected_release_revision = 3;
+    AgentProfileExperimentPolicy policy = 4;
+}
+
+message StartAgentProfileExperimentResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentProfileExperiment experiment = 3;
+}
+
+message ListAgentProfileExperimentsRequest {
+    uint64 actor_user_id = 1;
+    string profile_id = 2;
+    string status = 3;
+    uint32 page = 4;
+    uint32 page_size = 5;
+}
+
+message ListAgentProfileExperimentsResponse {
+    uint64 code = 1;
+    string msg = 2;
+    repeated AgentProfileExperiment experiments = 3;
+    int64 total = 4;
+}
+
+message GetAgentProfileExperimentRequest {
+    uint64 actor_user_id = 1;
+    string experiment_id = 2;
+}
+
+message GetAgentProfileExperimentResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentProfileExperiment experiment = 3;
+}
+
+message EvaluateAgentProfileExperimentRequest {
+    uint64 actor_user_id = 1;
+    string experiment_id = 2;
+    int64 expected_revision = 3;
+}
+
+message EvaluateAgentProfileExperimentResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentProfileExperiment experiment = 3;
+}
+
+message StopAgentProfileExperimentRequest {
+    uint64 actor_user_id = 1;
+    string experiment_id = 2;
+    int64 expected_revision = 3;
+}
+
+message StopAgentProfileExperimentResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentProfileExperiment experiment = 3;
+}
+
+message RecordAgentProfileExperimentOutcomeRequest {
+    uint64 actor_user_id = 1;
+    string experiment_id = 2;
+    string event_id = 3;
+    string signal = 4;
+    bool positive = 5;
+}
+
+message RecordAgentProfileExperimentOutcomeResponse {
+    uint64 code = 1;
+    string msg = 2;
+    bool idempotent_replay = 3;
+}
+
+message ExternalMCPConnection {
+    string connection_id = 1;
+    uint64 user_id = 2;
+    string scope = 3;
+    string project_id = 4;
+    string server_id = 5;
+    string name = 6;
+    string transport = 7;
+    string endpoint = 8;
+    string auth_type = 9;
+    string credential_source = 10;
+    string status = 11;
+    bool has_secret = 12;
+    int64 credential_version = 13;
+    string latest_snapshot_id = 14;
+    string pending_snapshot_id = 15;
+    string active_snapshot_id = 16;
+    string discovery_status = 17;
+    string last_error_code = 18;
+    int64 last_checked_at = 19;
+    int64 revision = 20;
+    int64 created_at = 21;
+    int64 updated_at = 22;
+    string health_status = 23;
+    string health_error_code = 24;
+    int64 health_failure_count = 25;
+    int64 last_health_checked_at = 26;
+    int64 last_healthy_at = 27;
+    int64 next_health_check_at = 28;
+    string managed_credential_ref = 29;
+    int64 managed_credential_version = 30;
+}
+
+message AgentProjectMember {
+    uint64 user_id = 1;
+    string role = 2;
+    uint64 added_by = 3;
+    int64 created_at = 4;
+    int64 updated_at = 5;
+}
+
+message AgentProject {
+    string project_id = 1;
+    string name = 2;
+    uint64 owner_id = 3;
+    repeated AgentProjectMember members = 4;
+    int64 revision = 5;
+    int64 created_at = 6;
+    int64 updated_at = 7;
+    string current_role = 8;
+}
+
+message CreateAgentProjectRequest {
+    uint64 actor_user_id = 1;
+    string name = 2;
+}
+
+message CreateAgentProjectResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentProject project = 3;
+}
+
+message ListAgentProjectsRequest {
+    uint64 user_id = 1;
+    uint32 page = 2;
+    uint32 page_size = 3;
+}
+
+message ListAgentProjectsResponse {
+    uint64 code = 1;
+    string msg = 2;
+    repeated AgentProject projects = 3;
+    int64 total = 4;
+}
+
+message GetAgentProjectRequest {
+    uint64 user_id = 1;
+    string project_id = 2;
+}
+
+message GetAgentProjectResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentProject project = 3;
+}
+
+message UpsertAgentProjectMemberRequest {
+    uint64 actor_user_id = 1;
+    string project_id = 2;
+    uint64 target_user_id = 3;
+    string role = 4;
+    int64 expected_revision = 5;
+}
+
+message UpsertAgentProjectMemberResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentProject project = 3;
+}
+
+message RemoveAgentProjectMemberRequest {
+    uint64 actor_user_id = 1;
+    string project_id = 2;
+    uint64 target_user_id = 3;
+    int64 expected_revision = 4;
+}
+
+message RemoveAgentProjectMemberResponse {
+    uint64 code = 1;
+    string msg = 2;
+    AgentProject project = 3;
+}
+
+message ExternalMCPToolSchema {
+    string name = 1;
+    string qualified_name = 2;
+    string description = 3;
+    string input_schema_json = 4;
+    string output_schema_json = 5;
+    bool declared_read_only = 6;
+    bool declared_idempotent = 7;
+    string idempotency_key_argument = 8;
+    bool supports_write_idempotency = 9;
+}
+
+message ExternalMCPToolPolicy {
+    string snapshot_id = 1;
+    string tool_name = 2;
+    string qualified_name = 3;
+    string category = 4;
+    bool enabled = 5;
+    int64 updated_at = 6;
+}
+
+message ExternalMCPToolView {
+    ExternalMCPToolSchema schema = 1;
+    ExternalMCPToolPolicy policy = 2;
+}
+
+message ExternalMCPToolSnapshot {
+    string snapshot_id = 1;
+    string connection_id = 2;
+    uint64 user_id = 3;
+    string server_id = 4;
+    string schema_hash = 5;
+    int64 version = 6;
+    repeated ExternalMCPToolSchema tools = 7;
+    int64 created_at = 8;
+}
+
+message CreateExternalMCPConnectionRequest {
+    uint64 user_id = 1;
+    string scope = 2;
+    string project_id = 3;
+    string name = 4;
+    string transport = 5;
+    string endpoint = 6;
+    string auth_type = 7;
+    string bearer_token = 8;
+    string credential_source = 9;
+    string managed_credential_ref = 10;
+}
+
+message CreateExternalMCPConnectionResponse {
+    uint64 code = 1;
+    string msg = 2;
+    ExternalMCPConnection connection = 3;
+}
+
+message UpdateExternalMCPConnectionRequest {
+    uint64 user_id = 1;
+    string connection_id = 2;
+    string scope = 3;
+    string project_id = 4;
+    string name = 5;
+    string transport = 6;
+    string endpoint = 7;
+    string auth_type = 8;
+    string bearer_token = 9;
+    int64 expected_revision = 10;
+    string credential_source = 11;
+    string managed_credential_ref = 12;
+}
+
+message UpdateExternalMCPConnectionResponse {
+    uint64 code = 1;
+    string msg = 2;
+    ExternalMCPConnection connection = 3;
+}
+
+message ListExternalMCPConnectionsRequest {
+    uint64 user_id = 1;
+    uint32 page = 2;
+    uint32 page_size = 3;
+}
+
+message ListExternalMCPConnectionsResponse {
+    uint64 code = 1;
+    string msg = 2;
+    repeated ExternalMCPConnection connections = 3;
+    int64 total = 4;
+}
+
+message GetExternalMCPConnectionRequest {
+    uint64 user_id = 1;
+    string connection_id = 2;
+}
+
+message GetExternalMCPConnectionResponse {
+    uint64 code = 1;
+    string msg = 2;
+    ExternalMCPConnection connection = 3;
+}
+
+message RevokeExternalMCPConnectionRequest {
+    uint64 user_id = 1;
+    string connection_id = 2;
+    int64 expected_revision = 3;
+}
+
+message RevokeExternalMCPConnectionResponse {
+    uint64 code = 1;
+    string msg = 2;
+}
+
+message DiscoverExternalMCPToolsRequest {
+    uint64 user_id = 1;
+    string connection_id = 2;
+    int64 expected_revision = 3;
+}
+
+message DiscoverExternalMCPToolsResponse {
+    uint64 code = 1;
+    string msg = 2;
+    ExternalMCPConnection connection = 3;
+    ExternalMCPToolSnapshot snapshot = 4;
+}
+
+message ApproveExternalMCPSnapshotRequest {
+    uint64 user_id = 1;
+    string connection_id = 2;
+    string snapshot_id = 3;
+    int64 expected_revision = 4;
+}
+
+message ApproveExternalMCPSnapshotResponse {
+    uint64 code = 1;
+    string msg = 2;
+    ExternalMCPConnection connection = 3;
+    ExternalMCPToolSnapshot snapshot = 4;
+}
+
+message ListExternalMCPToolsRequest {
+    uint64 user_id = 1;
+    string connection_id = 2;
+}
+
+message ListExternalMCPToolsResponse {
+    uint64 code = 1;
+    string msg = 2;
+    ExternalMCPConnection connection = 3;
+    ExternalMCPToolSnapshot snapshot = 4;
+    repeated ExternalMCPToolView tools = 5;
+}
+
+message ConfigureExternalMCPToolRequest {
+    uint64 user_id = 1;
+    string connection_id = 2;
+    string snapshot_id = 3;
+    string tool_name = 4;
+    string category = 5;
+    bool enabled = 6;
+    int64 expected_revision = 7;
+}
+
+message ConfigureExternalMCPToolResponse {
+    uint64 code = 1;
+    string msg = 2;
+    ExternalMCPConnection connection = 3;
+    ExternalMCPToolView tool = 4;
 }

@@ -19,22 +19,105 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AiAgentService_GetModelDetailedInformation_FullMethodName = "/aiAgent.v1.AiAgentService/getModelDetailedInformation"
-	AiAgentService_GetRepositoryDialogue_FullMethodName       = "/aiAgent.v1.AiAgentService/getRepositoryDialogue"
-	AiAgentService_GetDialogueDetail_FullMethodName           = "/aiAgent.v1.AiAgentService/getDialogueDetail"
-	AiAgentService_AnalysisFiles_FullMethodName               = "/aiAgent.v1.AiAgentService/analysisFiles"
-	AiAgentService_CallApiOfAi_FullMethodName                 = "/aiAgent.v1.AiAgentService/callApiOfAi"
-	AiAgentService_ConsultContent_FullMethodName              = "/aiAgent.v1.AiAgentService/consultContent"
-	AiAgentService_AssistPublishTwitter_FullMethodName        = "/aiAgent.v1.AiAgentService/assistPublishTwitter"
-	AiAgentService_ConfirmPublishTwitter_FullMethodName       = "/aiAgent.v1.AiAgentService/confirmPublishTwitter"
-	AiAgentService_MultiAgentPublishTwitter_FullMethodName    = "/aiAgent.v1.AiAgentService/multiAgentPublishTwitter"
-	AiAgentService_AnalyzeAlert_FullMethodName                = "/aiAgent.v1.AiAgentService/analyzeAlert"
-	AiAgentService_CreateWorkflow_FullMethodName              = "/aiAgent.v1.AiAgentService/createWorkflow"
-	AiAgentService_UpdateWorkflow_FullMethodName              = "/aiAgent.v1.AiAgentService/updateWorkflow"
-	AiAgentService_ListWorkflows_FullMethodName               = "/aiAgent.v1.AiAgentService/listWorkflows"
-	AiAgentService_GetWorkflow_FullMethodName                 = "/aiAgent.v1.AiAgentService/getWorkflow"
-	AiAgentService_RunWorkflow_FullMethodName                 = "/aiAgent.v1.AiAgentService/runWorkflow"
-	AiAgentService_GetWorkflowRun_FullMethodName              = "/aiAgent.v1.AiAgentService/getWorkflowRun"
+	AiAgentService_ListAgentSkills_FullMethodName                          = "/aiAgent.v1.AiAgentService/listAgentSkills"
+	AiAgentService_GetAgentSkill_FullMethodName                            = "/aiAgent.v1.AiAgentService/getAgentSkill"
+	AiAgentService_ListAgentExtensions_FullMethodName                      = "/aiAgent.v1.AiAgentService/listAgentExtensions"
+	AiAgentService_ListAgentMarketplaceExtensions_FullMethodName           = "/aiAgent.v1.AiAgentService/listAgentMarketplaceExtensions"
+	AiAgentService_GetAgentMarketplaceManagementAccess_FullMethodName      = "/aiAgent.v1.AiAgentService/getAgentMarketplaceManagementAccess"
+	AiAgentService_ListAgentMarketplacePublishers_FullMethodName           = "/aiAgent.v1.AiAgentService/listAgentMarketplacePublishers"
+	AiAgentService_RegisterAgentMarketplacePublisher_FullMethodName        = "/aiAgent.v1.AiAgentService/registerAgentMarketplacePublisher"
+	AiAgentService_RotateAgentMarketplacePublisherKey_FullMethodName       = "/aiAgent.v1.AiAgentService/rotateAgentMarketplacePublisherKey"
+	AiAgentService_RevokeAgentMarketplacePublisherKey_FullMethodName       = "/aiAgent.v1.AiAgentService/revokeAgentMarketplacePublisherKey"
+	AiAgentService_SetAgentMarketplacePublisherVerification_FullMethodName = "/aiAgent.v1.AiAgentService/setAgentMarketplacePublisherVerification"
+	AiAgentService_ListAgentMarketplaceManagedReleases_FullMethodName      = "/aiAgent.v1.AiAgentService/listAgentMarketplaceManagedReleases"
+	AiAgentService_PublishAgentMarketplaceRelease_FullMethodName           = "/aiAgent.v1.AiAgentService/publishAgentMarketplaceRelease"
+	AiAgentService_WithdrawAgentMarketplaceRelease_FullMethodName          = "/aiAgent.v1.AiAgentService/withdrawAgentMarketplaceRelease"
+	AiAgentService_ListAgentMarketplaceAuditEvents_FullMethodName          = "/aiAgent.v1.AiAgentService/listAgentMarketplaceAuditEvents"
+	AiAgentService_CreateAgentTaskTemplate_FullMethodName                  = "/aiAgent.v1.AiAgentService/createAgentTaskTemplate"
+	AiAgentService_ListAgentTaskTemplates_FullMethodName                   = "/aiAgent.v1.AiAgentService/listAgentTaskTemplates"
+	AiAgentService_ArchiveAgentTaskTemplate_FullMethodName                 = "/aiAgent.v1.AiAgentService/archiveAgentTaskTemplate"
+	AiAgentService_RunAgentTaskTemplate_FullMethodName                     = "/aiAgent.v1.AiAgentService/runAgentTaskTemplate"
+	AiAgentService_GetModelDetailedInformation_FullMethodName              = "/aiAgent.v1.AiAgentService/getModelDetailedInformation"
+	AiAgentService_GetRepositoryDialogue_FullMethodName                    = "/aiAgent.v1.AiAgentService/getRepositoryDialogue"
+	AiAgentService_GetDialogueDetail_FullMethodName                        = "/aiAgent.v1.AiAgentService/getDialogueDetail"
+	AiAgentService_EndDialogueSession_FullMethodName                       = "/aiAgent.v1.AiAgentService/endDialogueSession"
+	AiAgentService_AnalysisFiles_FullMethodName                            = "/aiAgent.v1.AiAgentService/analysisFiles"
+	AiAgentService_RunAgent_FullMethodName                                 = "/aiAgent.v1.AiAgentService/runAgent"
+	AiAgentService_GetAgentRun_FullMethodName                              = "/aiAgent.v1.AiAgentService/getAgentRun"
+	AiAgentService_GetAgentRunAccounting_FullMethodName                    = "/aiAgent.v1.AiAgentService/getAgentRunAccounting"
+	AiAgentService_ResumeAgentRun_FullMethodName                           = "/aiAgent.v1.AiAgentService/resumeAgentRun"
+	AiAgentService_IssueAgentResumeGrant_FullMethodName                    = "/aiAgent.v1.AiAgentService/issueAgentResumeGrant"
+	AiAgentService_CallApiOfAi_FullMethodName                              = "/aiAgent.v1.AiAgentService/callApiOfAi"
+	AiAgentService_ConsultContent_FullMethodName                           = "/aiAgent.v1.AiAgentService/consultContent"
+	AiAgentService_AssistPublishTwitter_FullMethodName                     = "/aiAgent.v1.AiAgentService/assistPublishTwitter"
+	AiAgentService_ConfirmPublishTwitter_FullMethodName                    = "/aiAgent.v1.AiAgentService/confirmPublishTwitter"
+	AiAgentService_MultiAgentPublishTwitter_FullMethodName                 = "/aiAgent.v1.AiAgentService/multiAgentPublishTwitter"
+	AiAgentService_AnalyzeAlert_FullMethodName                             = "/aiAgent.v1.AiAgentService/analyzeAlert"
+	AiAgentService_CreateWorkflow_FullMethodName                           = "/aiAgent.v1.AiAgentService/createWorkflow"
+	AiAgentService_UpdateWorkflow_FullMethodName                           = "/aiAgent.v1.AiAgentService/updateWorkflow"
+	AiAgentService_ListWorkflows_FullMethodName                            = "/aiAgent.v1.AiAgentService/listWorkflows"
+	AiAgentService_GetWorkflow_FullMethodName                              = "/aiAgent.v1.AiAgentService/getWorkflow"
+	AiAgentService_ListWorkflowRevisions_FullMethodName                    = "/aiAgent.v1.AiAgentService/listWorkflowRevisions"
+	AiAgentService_GetWorkflowRevision_FullMethodName                      = "/aiAgent.v1.AiAgentService/getWorkflowRevision"
+	AiAgentService_PublishWorkflowTool_FullMethodName                      = "/aiAgent.v1.AiAgentService/publishWorkflowTool"
+	AiAgentService_GetWorkflowToolPublication_FullMethodName               = "/aiAgent.v1.AiAgentService/getWorkflowToolPublication"
+	AiAgentService_UnpublishWorkflowTool_FullMethodName                    = "/aiAgent.v1.AiAgentService/unpublishWorkflowTool"
+	AiAgentService_RunWorkflow_FullMethodName                              = "/aiAgent.v1.AiAgentService/runWorkflow"
+	AiAgentService_GetWorkflowRun_FullMethodName                           = "/aiAgent.v1.AiAgentService/getWorkflowRun"
+	AiAgentService_GetWorkflowRunTrace_FullMethodName                      = "/aiAgent.v1.AiAgentService/getWorkflowRunTrace"
+	AiAgentService_SearchWorkflowBlackboard_FullMethodName                 = "/aiAgent.v1.AiAgentService/searchWorkflowBlackboard"
+	AiAgentService_WatchWorkflowRunEvents_FullMethodName                   = "/aiAgent.v1.AiAgentService/watchWorkflowRunEvents"
+	AiAgentService_ListWorkflowRuns_FullMethodName                         = "/aiAgent.v1.AiAgentService/listWorkflowRuns"
+	AiAgentService_CancelWorkflowRun_FullMethodName                        = "/aiAgent.v1.AiAgentService/cancelWorkflowRun"
+	AiAgentService_GetWorkflowRunReplay_FullMethodName                     = "/aiAgent.v1.AiAgentService/getWorkflowRunReplay"
+	AiAgentService_GetWorkflowCompensationJournal_FullMethodName           = "/aiAgent.v1.AiAgentService/getWorkflowCompensationJournal"
+	AiAgentService_RetryWorkflowCompensation_FullMethodName                = "/aiAgent.v1.AiAgentService/retryWorkflowCompensation"
+	AiAgentService_ListToolApprovals_FullMethodName                        = "/aiAgent.v1.AiAgentService/listToolApprovals"
+	AiAgentService_DecideToolApproval_FullMethodName                       = "/aiAgent.v1.AiAgentService/decideToolApproval"
+	AiAgentService_IssueWorkflowResumeGrant_FullMethodName                 = "/aiAgent.v1.AiAgentService/issueWorkflowResumeGrant"
+	AiAgentService_ResumeWorkflowRun_FullMethodName                        = "/aiAgent.v1.AiAgentService/resumeWorkflowRun"
+	AiAgentService_CreateProviderConfig_FullMethodName                     = "/aiAgent.v1.AiAgentService/createProviderConfig"
+	AiAgentService_UpdateProviderConfig_FullMethodName                     = "/aiAgent.v1.AiAgentService/updateProviderConfig"
+	AiAgentService_ListProviderConfigs_FullMethodName                      = "/aiAgent.v1.AiAgentService/listProviderConfigs"
+	AiAgentService_GetProviderConfig_FullMethodName                        = "/aiAgent.v1.AiAgentService/getProviderConfig"
+	AiAgentService_RevokeProviderConfig_FullMethodName                     = "/aiAgent.v1.AiAgentService/revokeProviderConfig"
+	AiAgentService_CreateAgentProject_FullMethodName                       = "/aiAgent.v1.AiAgentService/createAgentProject"
+	AiAgentService_ListAgentProjects_FullMethodName                        = "/aiAgent.v1.AiAgentService/listAgentProjects"
+	AiAgentService_GetAgentProject_FullMethodName                          = "/aiAgent.v1.AiAgentService/getAgentProject"
+	AiAgentService_UpsertAgentProjectMember_FullMethodName                 = "/aiAgent.v1.AiAgentService/upsertAgentProjectMember"
+	AiAgentService_RemoveAgentProjectMember_FullMethodName                 = "/aiAgent.v1.AiAgentService/removeAgentProjectMember"
+	AiAgentService_CreateExternalMCPConnection_FullMethodName              = "/aiAgent.v1.AiAgentService/createExternalMCPConnection"
+	AiAgentService_UpdateExternalMCPConnection_FullMethodName              = "/aiAgent.v1.AiAgentService/updateExternalMCPConnection"
+	AiAgentService_ListExternalMCPConnections_FullMethodName               = "/aiAgent.v1.AiAgentService/listExternalMCPConnections"
+	AiAgentService_GetExternalMCPConnection_FullMethodName                 = "/aiAgent.v1.AiAgentService/getExternalMCPConnection"
+	AiAgentService_RevokeExternalMCPConnection_FullMethodName              = "/aiAgent.v1.AiAgentService/revokeExternalMCPConnection"
+	AiAgentService_DiscoverExternalMCPTools_FullMethodName                 = "/aiAgent.v1.AiAgentService/discoverExternalMCPTools"
+	AiAgentService_ApproveExternalMCPSnapshot_FullMethodName               = "/aiAgent.v1.AiAgentService/approveExternalMCPSnapshot"
+	AiAgentService_ListExternalMCPTools_FullMethodName                     = "/aiAgent.v1.AiAgentService/listExternalMCPTools"
+	AiAgentService_ConfigureExternalMCPTool_FullMethodName                 = "/aiAgent.v1.AiAgentService/configureExternalMCPTool"
+	AiAgentService_CreateAgentProfileDraft_FullMethodName                  = "/aiAgent.v1.AiAgentService/createAgentProfileDraft"
+	AiAgentService_PublishAgentProfileVersion_FullMethodName               = "/aiAgent.v1.AiAgentService/publishAgentProfileVersion"
+	AiAgentService_RequestAgentProfilePublishApproval_FullMethodName       = "/aiAgent.v1.AiAgentService/requestAgentProfilePublishApproval"
+	AiAgentService_ListAgentProfilePublishApprovals_FullMethodName         = "/aiAgent.v1.AiAgentService/listAgentProfilePublishApprovals"
+	AiAgentService_GetAgentProfilePublishApproval_FullMethodName           = "/aiAgent.v1.AiAgentService/getAgentProfilePublishApproval"
+	AiAgentService_DecideAgentProfilePublishApproval_FullMethodName        = "/aiAgent.v1.AiAgentService/decideAgentProfilePublishApproval"
+	AiAgentService_RetryAgentProfilePublishApproval_FullMethodName         = "/aiAgent.v1.AiAgentService/retryAgentProfilePublishApproval"
+	AiAgentService_ListAgentProfileVersions_FullMethodName                 = "/aiAgent.v1.AiAgentService/listAgentProfileVersions"
+	AiAgentService_GetAgentProfileVersion_FullMethodName                   = "/aiAgent.v1.AiAgentService/getAgentProfileVersion"
+	AiAgentService_GetAgentProfileRelease_FullMethodName                   = "/aiAgent.v1.AiAgentService/getAgentProfileRelease"
+	AiAgentService_UpsertAgentProfileRelease_FullMethodName                = "/aiAgent.v1.AiAgentService/upsertAgentProfileRelease"
+	AiAgentService_ListAgentProfileAuditEvents_FullMethodName              = "/aiAgent.v1.AiAgentService/listAgentProfileAuditEvents"
+	AiAgentService_GetAgentProfileManagementAccess_FullMethodName          = "/aiAgent.v1.AiAgentService/getAgentProfileManagementAccess"
+	AiAgentService_ListAgentProfileRoleBindings_FullMethodName             = "/aiAgent.v1.AiAgentService/listAgentProfileRoleBindings"
+	AiAgentService_UpsertAgentProfileRoleBinding_FullMethodName            = "/aiAgent.v1.AiAgentService/upsertAgentProfileRoleBinding"
+	AiAgentService_DeleteAgentProfileRoleBinding_FullMethodName            = "/aiAgent.v1.AiAgentService/deleteAgentProfileRoleBinding"
+	AiAgentService_ListAgentProfileRoleAuditEvents_FullMethodName          = "/aiAgent.v1.AiAgentService/listAgentProfileRoleAuditEvents"
+	AiAgentService_StartAgentProfileExperiment_FullMethodName              = "/aiAgent.v1.AiAgentService/startAgentProfileExperiment"
+	AiAgentService_ListAgentProfileExperiments_FullMethodName              = "/aiAgent.v1.AiAgentService/listAgentProfileExperiments"
+	AiAgentService_GetAgentProfileExperiment_FullMethodName                = "/aiAgent.v1.AiAgentService/getAgentProfileExperiment"
+	AiAgentService_EvaluateAgentProfileExperiment_FullMethodName           = "/aiAgent.v1.AiAgentService/evaluateAgentProfileExperiment"
+	AiAgentService_StopAgentProfileExperiment_FullMethodName               = "/aiAgent.v1.AiAgentService/stopAgentProfileExperiment"
+	AiAgentService_RecordAgentProfileExperimentOutcome_FullMethodName      = "/aiAgent.v1.AiAgentService/recordAgentProfileExperimentOutcome"
 )
 
 // AiAgentServiceClient is the client API for AiAgentService service.
@@ -43,14 +126,53 @@ const (
 //
 // AiAgentService 智能体服务
 type AiAgentServiceClient interface {
+	// List active immutable Skill versions projected from governed publications.
+	ListAgentSkills(ctx context.Context, in *ListAgentSkillsRequest, opts ...grpc.CallOption) (*ListAgentSkillsResponse, error)
+	// Resolve one exact Skill version. "Latest" resolution is intentionally unsupported.
+	GetAgentSkill(ctx context.Context, in *GetAgentSkillRequest, opts ...grpc.CallOption) (*GetAgentSkillResponse, error)
+	// List tenant-visible built-in capabilities, immutable Skills and reviewed MCP tools.
+	ListAgentExtensions(ctx context.Context, in *ListAgentExtensionsRequest, opts ...grpc.CallOption) (*ListAgentExtensionsResponse, error)
+	// List signature-verified public extension releases. This does not install or authorize them.
+	ListAgentMarketplaceExtensions(ctx context.Context, in *ListAgentMarketplaceExtensionsRequest, opts ...grpc.CallOption) (*ListAgentMarketplaceExtensionsResponse, error)
+	// Authenticated extension publisher control plane. It stores public keys and signed metadata only.
+	GetAgentMarketplaceManagementAccess(ctx context.Context, in *GetAgentMarketplaceManagementAccessRequest, opts ...grpc.CallOption) (*GetAgentMarketplaceManagementAccessResponse, error)
+	ListAgentMarketplacePublishers(ctx context.Context, in *ListAgentMarketplacePublishersRequest, opts ...grpc.CallOption) (*ListAgentMarketplacePublishersResponse, error)
+	RegisterAgentMarketplacePublisher(ctx context.Context, in *RegisterAgentMarketplacePublisherRequest, opts ...grpc.CallOption) (*RegisterAgentMarketplacePublisherResponse, error)
+	RotateAgentMarketplacePublisherKey(ctx context.Context, in *RotateAgentMarketplacePublisherKeyRequest, opts ...grpc.CallOption) (*RotateAgentMarketplacePublisherKeyResponse, error)
+	RevokeAgentMarketplacePublisherKey(ctx context.Context, in *RevokeAgentMarketplacePublisherKeyRequest, opts ...grpc.CallOption) (*RevokeAgentMarketplacePublisherKeyResponse, error)
+	SetAgentMarketplacePublisherVerification(ctx context.Context, in *SetAgentMarketplacePublisherVerificationRequest, opts ...grpc.CallOption) (*SetAgentMarketplacePublisherVerificationResponse, error)
+	ListAgentMarketplaceManagedReleases(ctx context.Context, in *ListAgentMarketplaceManagedReleasesRequest, opts ...grpc.CallOption) (*ListAgentMarketplaceManagedReleasesResponse, error)
+	PublishAgentMarketplaceRelease(ctx context.Context, in *PublishAgentMarketplaceReleaseRequest, opts ...grpc.CallOption) (*PublishAgentMarketplaceReleaseResponse, error)
+	WithdrawAgentMarketplaceRelease(ctx context.Context, in *WithdrawAgentMarketplaceReleaseRequest, opts ...grpc.CallOption) (*WithdrawAgentMarketplaceReleaseResponse, error)
+	ListAgentMarketplaceAuditEvents(ctx context.Context, in *ListAgentMarketplaceAuditEventsRequest, opts ...grpc.CallOption) (*ListAgentMarketplaceAuditEventsResponse, error)
+	// Explicitly save a reusable task preset from one completed authoritative Agent Run.
+	CreateAgentTaskTemplate(ctx context.Context, in *CreateAgentTaskTemplateRequest, opts ...grpc.CallOption) (*CreateAgentTaskTemplateResponse, error)
+	// List active task templates. The response also exposes the execution rollout state.
+	ListAgentTaskTemplates(ctx context.Context, in *ListAgentTaskTemplatesRequest, opts ...grpc.CallOption) (*ListAgentTaskTemplatesResponse, error)
+	// Archive template metadata without deleting its source-run evidence.
+	ArchiveAgentTaskTemplate(ctx context.Context, in *ArchiveAgentTaskTemplateRequest, opts ...grpc.CallOption) (*ArchiveAgentTaskTemplateResponse, error)
+	// Render one immutable template revision and execute it through the unified Agent entry.
+	RunAgentTaskTemplate(ctx context.Context, in *RunAgentTaskTemplateRequest, opts ...grpc.CallOption) (*RunAgentResponse, error)
 	// 获取模型初始化详细信息
 	GetModelDetailedInformation(ctx context.Context, in *GetModelDetailedInformationRequest, opts ...grpc.CallOption) (*GetModelDetailedInformationResponse, error)
 	// 获取历史对话列表
 	GetRepositoryDialogue(ctx context.Context, in *GetRepositoryDialogueRequest, opts ...grpc.CallOption) (*GetRepositoryDialogueResponse, error)
 	// 获取某个历史对话的详细消息记录
 	GetDialogueDetail(ctx context.Context, in *GetDialogueDetailRequest, opts ...grpc.CallOption) (*GetDialogueDetailResponse, error)
+	// Explicitly finalize pending episodic memory while preserving the dialogue.
+	EndDialogueSession(ctx context.Context, in *EndDialogueSessionRequest, opts ...grpc.CallOption) (*EndDialogueSessionResponse, error)
 	// 解析前端 pdf、word 和图片等文件
 	AnalysisFiles(ctx context.Context, in *AnalysisFilesRequest, opts ...grpc.CallOption) (*AnalysisFilesResponse, error)
+	// P8 统一智能助手入口；preferred_capability_ids 仅作为偏好，不授予工具权限。
+	RunAgent(ctx context.Context, in *RunAgentRequest, opts ...grpc.CallOption) (*RunAgentResponse, error)
+	// 查询当前用户所属的权威 Agent Run 生命周期，不返回 Checkpoint 密文或领取租约。
+	GetAgentRun(ctx context.Context, in *GetAgentRunRequest, opts ...grpc.CallOption) (*GetAgentRunResponse, error)
+	// 聚合父 Agent Run 与其直接子 Workflow Run 的版本化预算和用量快照。
+	GetAgentRunAccounting(ctx context.Context, in *GetAgentRunAccountingRequest, opts ...grpc.CallOption) (*GetAgentRunAccountingResponse, error)
+	// 使用人工回答原子领取并恢复 ask_human Run；expected_revision 防止重复提交。
+	ResumeAgentRun(ctx context.Context, in *ResumeAgentRunRequest, opts ...grpc.CallOption) (*RunAgentResponse, error)
+	// 为已批准的 Runtime 工具动作签发短期一次性恢复令牌。
+	IssueAgentResumeGrant(ctx context.Context, in *IssueAgentResumeGrantRequest, opts ...grpc.CallOption) (*IssueAgentResumeGrantResponse, error)
 	// 模式一：直接调用 AI api 进行对话
 	CallApiOfAi(ctx context.Context, in *CallApiOfAiRequest, opts ...grpc.CallOption) (*CallApiOfAiResponse, error)
 	// 模式二：通过对话查询相关推文和作者
@@ -71,10 +193,90 @@ type AiAgentServiceClient interface {
 	ListWorkflows(ctx context.Context, in *ListWorkflowsRequest, opts ...grpc.CallOption) (*ListWorkflowsResponse, error)
 	// 获取单个工作流 DSL
 	GetWorkflow(ctx context.Context, in *GetWorkflowRequest, opts ...grpc.CallOption) (*GetWorkflowResponse, error)
+	// 分页查询工作流的不可变历史版本。
+	ListWorkflowRevisions(ctx context.Context, in *ListWorkflowRevisionsRequest, opts ...grpc.CallOption) (*ListWorkflowRevisionsResponse, error)
+	// 查询指定不可变工作流版本。
+	GetWorkflowRevision(ctx context.Context, in *GetWorkflowRevisionRequest, opts ...grpc.CallOption) (*GetWorkflowRevisionResponse, error)
+	// Publish one immutable, read-only workflow revision into the user's Runtime tool catalog.
+	PublishWorkflowTool(ctx context.Context, in *PublishWorkflowToolRequest, opts ...grpc.CallOption) (*PublishWorkflowToolResponse, error)
+	GetWorkflowToolPublication(ctx context.Context, in *GetWorkflowToolPublicationRequest, opts ...grpc.CallOption) (*GetWorkflowToolPublicationResponse, error)
+	UnpublishWorkflowTool(ctx context.Context, in *UnpublishWorkflowToolRequest, opts ...grpc.CallOption) (*UnpublishWorkflowToolResponse, error)
 	// 运行工作流
 	RunWorkflow(ctx context.Context, in *RunWorkflowRequest, opts ...grpc.CallOption) (*RunWorkflowResponse, error)
 	// 获取工作流运行记录
 	GetWorkflowRun(ctx context.Context, in *GetWorkflowRunRequest, opts ...grpc.CallOption) (*GetWorkflowRunResponse, error)
+	// 查询与业务 output_json 解耦的脱敏 Run/Step/LLM/Tool 执行追踪。
+	GetWorkflowRunTrace(ctx context.Context, in *GetWorkflowRunTraceRequest, opts ...grpc.CallOption) (*GetWorkflowRunTraceResponse, error)
+	// 检索指定运行版本的已验证、脱敏 Blackboard 快照。
+	SearchWorkflowBlackboard(ctx context.Context, in *SearchWorkflowBlackboardRequest, opts ...grpc.CallOption) (*SearchWorkflowBlackboardResponse, error)
+	// 流式投递脱敏执行事件；客户端使用 after_cursor 断点续传。
+	WatchWorkflowRunEvents(ctx context.Context, in *WatchWorkflowRunEventsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[WorkflowRunEvent], error)
+	// 分页查询当前用户的工作流运行记录。
+	ListWorkflowRuns(ctx context.Context, in *ListWorkflowRunsRequest, opts ...grpc.CallOption) (*ListWorkflowRunsResponse, error)
+	// 请求取消仍在执行的工作流；取消状态由持久化控制面跨实例传播。
+	CancelWorkflowRun(ctx context.Context, in *CancelWorkflowRunRequest, opts ...grpc.CallOption) (*CancelWorkflowRunResponse, error)
+	// 获取只读运行回放证据；不会重新执行节点、模型或工具。
+	GetWorkflowRunReplay(ctx context.Context, in *GetWorkflowRunReplayRequest, opts ...grpc.CallOption) (*GetWorkflowRunReplayResponse, error)
+	// 查询脱敏后的持久补偿 Journal 和当前可执行的人工动作。
+	GetWorkflowCompensationJournal(ctx context.Context, in *GetWorkflowCompensationJournalRequest, opts ...grpc.CallOption) (*GetWorkflowCompensationJournalResponse, error)
+	// 显式重试失败或中断的持久补偿；不会重放主 DAG。
+	RetryWorkflowCompensation(ctx context.Context, in *RetryWorkflowCompensationRequest, opts ...grpc.CallOption) (*RetryWorkflowCompensationResponse, error)
+	// 查询当前用户的工具审批请求。
+	ListToolApprovals(ctx context.Context, in *ListToolApprovalsRequest, opts ...grpc.CallOption) (*ListToolApprovalsResponse, error)
+	// 批准或拒绝工具执行，使用 revision 防止重复决策。
+	DecideToolApproval(ctx context.Context, in *DecideToolApprovalRequest, opts ...grpc.CallOption) (*DecideToolApprovalResponse, error)
+	// 为已批准且仍挂起的 Run 签发短时、单次恢复授权；签发会使旧恢复令牌失效。
+	IssueWorkflowResumeGrant(ctx context.Context, in *IssueWorkflowResumeGrantRequest, opts ...grpc.CallOption) (*IssueWorkflowResumeGrantResponse, error)
+	// 使用一次性恢复令牌继续已挂起的工作流；空令牌仅用于显式重试持久补偿 Journal。
+	ResumeWorkflowRun(ctx context.Context, in *ResumeWorkflowRunRequest, opts ...grpc.CallOption) (*ResumeWorkflowRunResponse, error)
+	// 创建用户级 OpenAI-compatible Provider 配置，API Key 仅加密存储。
+	CreateProviderConfig(ctx context.Context, in *CreateProviderConfigRequest, opts ...grpc.CallOption) (*CreateProviderConfigResponse, error)
+	// 更新 Provider 元数据或轮换 API Key。
+	UpdateProviderConfig(ctx context.Context, in *UpdateProviderConfigRequest, opts ...grpc.CallOption) (*UpdateProviderConfigResponse, error)
+	ListProviderConfigs(ctx context.Context, in *ListProviderConfigsRequest, opts ...grpc.CallOption) (*ListProviderConfigsResponse, error)
+	GetProviderConfig(ctx context.Context, in *GetProviderConfigRequest, opts ...grpc.CallOption) (*GetProviderConfigResponse, error)
+	// 撤销配置并清除服务端密文。
+	RevokeProviderConfig(ctx context.Context, in *RevokeProviderConfigRequest, opts ...grpc.CallOption) (*RevokeProviderConfigResponse, error)
+	// Agent Project 是项目级 MCP 连接的成员权限事实源。
+	CreateAgentProject(ctx context.Context, in *CreateAgentProjectRequest, opts ...grpc.CallOption) (*CreateAgentProjectResponse, error)
+	ListAgentProjects(ctx context.Context, in *ListAgentProjectsRequest, opts ...grpc.CallOption) (*ListAgentProjectsResponse, error)
+	GetAgentProject(ctx context.Context, in *GetAgentProjectRequest, opts ...grpc.CallOption) (*GetAgentProjectResponse, error)
+	UpsertAgentProjectMember(ctx context.Context, in *UpsertAgentProjectMemberRequest, opts ...grpc.CallOption) (*UpsertAgentProjectMemberResponse, error)
+	RemoveAgentProjectMember(ctx context.Context, in *RemoveAgentProjectMemberRequest, opts ...grpc.CallOption) (*RemoveAgentProjectMemberResponse, error)
+	// 个人/项目级远程 MCP 连接控制面。凭据只在创建/轮换请求中出现。
+	CreateExternalMCPConnection(ctx context.Context, in *CreateExternalMCPConnectionRequest, opts ...grpc.CallOption) (*CreateExternalMCPConnectionResponse, error)
+	UpdateExternalMCPConnection(ctx context.Context, in *UpdateExternalMCPConnectionRequest, opts ...grpc.CallOption) (*UpdateExternalMCPConnectionResponse, error)
+	ListExternalMCPConnections(ctx context.Context, in *ListExternalMCPConnectionsRequest, opts ...grpc.CallOption) (*ListExternalMCPConnectionsResponse, error)
+	GetExternalMCPConnection(ctx context.Context, in *GetExternalMCPConnectionRequest, opts ...grpc.CallOption) (*GetExternalMCPConnectionResponse, error)
+	RevokeExternalMCPConnection(ctx context.Context, in *RevokeExternalMCPConnectionRequest, opts ...grpc.CallOption) (*RevokeExternalMCPConnectionResponse, error)
+	// Discovery 只生成待审核的不可变 Schema Snapshot，不授予执行权限。
+	DiscoverExternalMCPTools(ctx context.Context, in *DiscoverExternalMCPToolsRequest, opts ...grpc.CallOption) (*DiscoverExternalMCPToolsResponse, error)
+	ApproveExternalMCPSnapshot(ctx context.Context, in *ApproveExternalMCPSnapshotRequest, opts ...grpc.CallOption) (*ApproveExternalMCPSnapshotResponse, error)
+	ListExternalMCPTools(ctx context.Context, in *ListExternalMCPToolsRequest, opts ...grpc.CallOption) (*ListExternalMCPToolsResponse, error)
+	ConfigureExternalMCPTool(ctx context.Context, in *ConfigureExternalMCPToolRequest, opts ...grpc.CallOption) (*ConfigureExternalMCPToolResponse, error)
+	CreateAgentProfileDraft(ctx context.Context, in *CreateAgentProfileDraftRequest, opts ...grpc.CallOption) (*CreateAgentProfileDraftResponse, error)
+	PublishAgentProfileVersion(ctx context.Context, in *PublishAgentProfileVersionRequest, opts ...grpc.CallOption) (*PublishAgentProfileVersionResponse, error)
+	RequestAgentProfilePublishApproval(ctx context.Context, in *RequestAgentProfilePublishApprovalRequest, opts ...grpc.CallOption) (*RequestAgentProfilePublishApprovalResponse, error)
+	ListAgentProfilePublishApprovals(ctx context.Context, in *ListAgentProfilePublishApprovalsRequest, opts ...grpc.CallOption) (*ListAgentProfilePublishApprovalsResponse, error)
+	GetAgentProfilePublishApproval(ctx context.Context, in *GetAgentProfilePublishApprovalRequest, opts ...grpc.CallOption) (*GetAgentProfilePublishApprovalResponse, error)
+	DecideAgentProfilePublishApproval(ctx context.Context, in *DecideAgentProfilePublishApprovalRequest, opts ...grpc.CallOption) (*DecideAgentProfilePublishApprovalResponse, error)
+	RetryAgentProfilePublishApproval(ctx context.Context, in *RetryAgentProfilePublishApprovalRequest, opts ...grpc.CallOption) (*RetryAgentProfilePublishApprovalResponse, error)
+	ListAgentProfileVersions(ctx context.Context, in *ListAgentProfileVersionsRequest, opts ...grpc.CallOption) (*ListAgentProfileVersionsResponse, error)
+	GetAgentProfileVersion(ctx context.Context, in *GetAgentProfileVersionRequest, opts ...grpc.CallOption) (*GetAgentProfileVersionResponse, error)
+	GetAgentProfileRelease(ctx context.Context, in *GetAgentProfileReleaseRequest, opts ...grpc.CallOption) (*GetAgentProfileReleaseResponse, error)
+	UpsertAgentProfileRelease(ctx context.Context, in *UpsertAgentProfileReleaseRequest, opts ...grpc.CallOption) (*UpsertAgentProfileReleaseResponse, error)
+	ListAgentProfileAuditEvents(ctx context.Context, in *ListAgentProfileAuditEventsRequest, opts ...grpc.CallOption) (*ListAgentProfileAuditEventsResponse, error)
+	GetAgentProfileManagementAccess(ctx context.Context, in *GetAgentProfileManagementAccessRequest, opts ...grpc.CallOption) (*GetAgentProfileManagementAccessResponse, error)
+	ListAgentProfileRoleBindings(ctx context.Context, in *ListAgentProfileRoleBindingsRequest, opts ...grpc.CallOption) (*ListAgentProfileRoleBindingsResponse, error)
+	UpsertAgentProfileRoleBinding(ctx context.Context, in *UpsertAgentProfileRoleBindingRequest, opts ...grpc.CallOption) (*UpsertAgentProfileRoleBindingResponse, error)
+	DeleteAgentProfileRoleBinding(ctx context.Context, in *DeleteAgentProfileRoleBindingRequest, opts ...grpc.CallOption) (*DeleteAgentProfileRoleBindingResponse, error)
+	ListAgentProfileRoleAuditEvents(ctx context.Context, in *ListAgentProfileRoleAuditEventsRequest, opts ...grpc.CallOption) (*ListAgentProfileRoleAuditEventsResponse, error)
+	StartAgentProfileExperiment(ctx context.Context, in *StartAgentProfileExperimentRequest, opts ...grpc.CallOption) (*StartAgentProfileExperimentResponse, error)
+	ListAgentProfileExperiments(ctx context.Context, in *ListAgentProfileExperimentsRequest, opts ...grpc.CallOption) (*ListAgentProfileExperimentsResponse, error)
+	GetAgentProfileExperiment(ctx context.Context, in *GetAgentProfileExperimentRequest, opts ...grpc.CallOption) (*GetAgentProfileExperimentResponse, error)
+	EvaluateAgentProfileExperiment(ctx context.Context, in *EvaluateAgentProfileExperimentRequest, opts ...grpc.CallOption) (*EvaluateAgentProfileExperimentResponse, error)
+	StopAgentProfileExperiment(ctx context.Context, in *StopAgentProfileExperimentRequest, opts ...grpc.CallOption) (*StopAgentProfileExperimentResponse, error)
+	RecordAgentProfileExperimentOutcome(ctx context.Context, in *RecordAgentProfileExperimentOutcomeRequest, opts ...grpc.CallOption) (*RecordAgentProfileExperimentOutcomeResponse, error)
 }
 
 type aiAgentServiceClient struct {
@@ -83,6 +285,186 @@ type aiAgentServiceClient struct {
 
 func NewAiAgentServiceClient(cc grpc.ClientConnInterface) AiAgentServiceClient {
 	return &aiAgentServiceClient{cc}
+}
+
+func (c *aiAgentServiceClient) ListAgentSkills(ctx context.Context, in *ListAgentSkillsRequest, opts ...grpc.CallOption) (*ListAgentSkillsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListAgentSkillsResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_ListAgentSkills_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) GetAgentSkill(ctx context.Context, in *GetAgentSkillRequest, opts ...grpc.CallOption) (*GetAgentSkillResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetAgentSkillResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_GetAgentSkill_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) ListAgentExtensions(ctx context.Context, in *ListAgentExtensionsRequest, opts ...grpc.CallOption) (*ListAgentExtensionsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListAgentExtensionsResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_ListAgentExtensions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) ListAgentMarketplaceExtensions(ctx context.Context, in *ListAgentMarketplaceExtensionsRequest, opts ...grpc.CallOption) (*ListAgentMarketplaceExtensionsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListAgentMarketplaceExtensionsResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_ListAgentMarketplaceExtensions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) GetAgentMarketplaceManagementAccess(ctx context.Context, in *GetAgentMarketplaceManagementAccessRequest, opts ...grpc.CallOption) (*GetAgentMarketplaceManagementAccessResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetAgentMarketplaceManagementAccessResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_GetAgentMarketplaceManagementAccess_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) ListAgentMarketplacePublishers(ctx context.Context, in *ListAgentMarketplacePublishersRequest, opts ...grpc.CallOption) (*ListAgentMarketplacePublishersResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListAgentMarketplacePublishersResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_ListAgentMarketplacePublishers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) RegisterAgentMarketplacePublisher(ctx context.Context, in *RegisterAgentMarketplacePublisherRequest, opts ...grpc.CallOption) (*RegisterAgentMarketplacePublisherResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RegisterAgentMarketplacePublisherResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_RegisterAgentMarketplacePublisher_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) RotateAgentMarketplacePublisherKey(ctx context.Context, in *RotateAgentMarketplacePublisherKeyRequest, opts ...grpc.CallOption) (*RotateAgentMarketplacePublisherKeyResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RotateAgentMarketplacePublisherKeyResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_RotateAgentMarketplacePublisherKey_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) RevokeAgentMarketplacePublisherKey(ctx context.Context, in *RevokeAgentMarketplacePublisherKeyRequest, opts ...grpc.CallOption) (*RevokeAgentMarketplacePublisherKeyResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RevokeAgentMarketplacePublisherKeyResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_RevokeAgentMarketplacePublisherKey_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) SetAgentMarketplacePublisherVerification(ctx context.Context, in *SetAgentMarketplacePublisherVerificationRequest, opts ...grpc.CallOption) (*SetAgentMarketplacePublisherVerificationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetAgentMarketplacePublisherVerificationResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_SetAgentMarketplacePublisherVerification_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) ListAgentMarketplaceManagedReleases(ctx context.Context, in *ListAgentMarketplaceManagedReleasesRequest, opts ...grpc.CallOption) (*ListAgentMarketplaceManagedReleasesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListAgentMarketplaceManagedReleasesResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_ListAgentMarketplaceManagedReleases_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) PublishAgentMarketplaceRelease(ctx context.Context, in *PublishAgentMarketplaceReleaseRequest, opts ...grpc.CallOption) (*PublishAgentMarketplaceReleaseResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PublishAgentMarketplaceReleaseResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_PublishAgentMarketplaceRelease_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) WithdrawAgentMarketplaceRelease(ctx context.Context, in *WithdrawAgentMarketplaceReleaseRequest, opts ...grpc.CallOption) (*WithdrawAgentMarketplaceReleaseResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(WithdrawAgentMarketplaceReleaseResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_WithdrawAgentMarketplaceRelease_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) ListAgentMarketplaceAuditEvents(ctx context.Context, in *ListAgentMarketplaceAuditEventsRequest, opts ...grpc.CallOption) (*ListAgentMarketplaceAuditEventsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListAgentMarketplaceAuditEventsResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_ListAgentMarketplaceAuditEvents_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) CreateAgentTaskTemplate(ctx context.Context, in *CreateAgentTaskTemplateRequest, opts ...grpc.CallOption) (*CreateAgentTaskTemplateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateAgentTaskTemplateResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_CreateAgentTaskTemplate_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) ListAgentTaskTemplates(ctx context.Context, in *ListAgentTaskTemplatesRequest, opts ...grpc.CallOption) (*ListAgentTaskTemplatesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListAgentTaskTemplatesResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_ListAgentTaskTemplates_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) ArchiveAgentTaskTemplate(ctx context.Context, in *ArchiveAgentTaskTemplateRequest, opts ...grpc.CallOption) (*ArchiveAgentTaskTemplateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ArchiveAgentTaskTemplateResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_ArchiveAgentTaskTemplate_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) RunAgentTaskTemplate(ctx context.Context, in *RunAgentTaskTemplateRequest, opts ...grpc.CallOption) (*RunAgentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RunAgentResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_RunAgentTaskTemplate_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *aiAgentServiceClient) GetModelDetailedInformation(ctx context.Context, in *GetModelDetailedInformationRequest, opts ...grpc.CallOption) (*GetModelDetailedInformationResponse, error) {
@@ -115,10 +497,70 @@ func (c *aiAgentServiceClient) GetDialogueDetail(ctx context.Context, in *GetDia
 	return out, nil
 }
 
+func (c *aiAgentServiceClient) EndDialogueSession(ctx context.Context, in *EndDialogueSessionRequest, opts ...grpc.CallOption) (*EndDialogueSessionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(EndDialogueSessionResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_EndDialogueSession_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *aiAgentServiceClient) AnalysisFiles(ctx context.Context, in *AnalysisFilesRequest, opts ...grpc.CallOption) (*AnalysisFilesResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(AnalysisFilesResponse)
 	err := c.cc.Invoke(ctx, AiAgentService_AnalysisFiles_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) RunAgent(ctx context.Context, in *RunAgentRequest, opts ...grpc.CallOption) (*RunAgentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RunAgentResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_RunAgent_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) GetAgentRun(ctx context.Context, in *GetAgentRunRequest, opts ...grpc.CallOption) (*GetAgentRunResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetAgentRunResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_GetAgentRun_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) GetAgentRunAccounting(ctx context.Context, in *GetAgentRunAccountingRequest, opts ...grpc.CallOption) (*GetAgentRunAccountingResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetAgentRunAccountingResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_GetAgentRunAccounting_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) ResumeAgentRun(ctx context.Context, in *ResumeAgentRunRequest, opts ...grpc.CallOption) (*RunAgentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RunAgentResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_ResumeAgentRun_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) IssueAgentResumeGrant(ctx context.Context, in *IssueAgentResumeGrantRequest, opts ...grpc.CallOption) (*IssueAgentResumeGrantResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(IssueAgentResumeGrantResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_IssueAgentResumeGrant_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -225,6 +667,56 @@ func (c *aiAgentServiceClient) GetWorkflow(ctx context.Context, in *GetWorkflowR
 	return out, nil
 }
 
+func (c *aiAgentServiceClient) ListWorkflowRevisions(ctx context.Context, in *ListWorkflowRevisionsRequest, opts ...grpc.CallOption) (*ListWorkflowRevisionsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListWorkflowRevisionsResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_ListWorkflowRevisions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) GetWorkflowRevision(ctx context.Context, in *GetWorkflowRevisionRequest, opts ...grpc.CallOption) (*GetWorkflowRevisionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetWorkflowRevisionResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_GetWorkflowRevision_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) PublishWorkflowTool(ctx context.Context, in *PublishWorkflowToolRequest, opts ...grpc.CallOption) (*PublishWorkflowToolResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PublishWorkflowToolResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_PublishWorkflowTool_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) GetWorkflowToolPublication(ctx context.Context, in *GetWorkflowToolPublicationRequest, opts ...grpc.CallOption) (*GetWorkflowToolPublicationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetWorkflowToolPublicationResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_GetWorkflowToolPublication_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) UnpublishWorkflowTool(ctx context.Context, in *UnpublishWorkflowToolRequest, opts ...grpc.CallOption) (*UnpublishWorkflowToolResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UnpublishWorkflowToolResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_UnpublishWorkflowTool_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *aiAgentServiceClient) RunWorkflow(ctx context.Context, in *RunWorkflowRequest, opts ...grpc.CallOption) (*RunWorkflowResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(RunWorkflowResponse)
@@ -245,20 +737,608 @@ func (c *aiAgentServiceClient) GetWorkflowRun(ctx context.Context, in *GetWorkfl
 	return out, nil
 }
 
+func (c *aiAgentServiceClient) GetWorkflowRunTrace(ctx context.Context, in *GetWorkflowRunTraceRequest, opts ...grpc.CallOption) (*GetWorkflowRunTraceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetWorkflowRunTraceResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_GetWorkflowRunTrace_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) SearchWorkflowBlackboard(ctx context.Context, in *SearchWorkflowBlackboardRequest, opts ...grpc.CallOption) (*SearchWorkflowBlackboardResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SearchWorkflowBlackboardResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_SearchWorkflowBlackboard_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) WatchWorkflowRunEvents(ctx context.Context, in *WatchWorkflowRunEventsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[WorkflowRunEvent], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &AiAgentService_ServiceDesc.Streams[0], AiAgentService_WatchWorkflowRunEvents_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[WatchWorkflowRunEventsRequest, WorkflowRunEvent]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type AiAgentService_WatchWorkflowRunEventsClient = grpc.ServerStreamingClient[WorkflowRunEvent]
+
+func (c *aiAgentServiceClient) ListWorkflowRuns(ctx context.Context, in *ListWorkflowRunsRequest, opts ...grpc.CallOption) (*ListWorkflowRunsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListWorkflowRunsResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_ListWorkflowRuns_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) CancelWorkflowRun(ctx context.Context, in *CancelWorkflowRunRequest, opts ...grpc.CallOption) (*CancelWorkflowRunResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CancelWorkflowRunResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_CancelWorkflowRun_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) GetWorkflowRunReplay(ctx context.Context, in *GetWorkflowRunReplayRequest, opts ...grpc.CallOption) (*GetWorkflowRunReplayResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetWorkflowRunReplayResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_GetWorkflowRunReplay_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) GetWorkflowCompensationJournal(ctx context.Context, in *GetWorkflowCompensationJournalRequest, opts ...grpc.CallOption) (*GetWorkflowCompensationJournalResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetWorkflowCompensationJournalResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_GetWorkflowCompensationJournal_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) RetryWorkflowCompensation(ctx context.Context, in *RetryWorkflowCompensationRequest, opts ...grpc.CallOption) (*RetryWorkflowCompensationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RetryWorkflowCompensationResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_RetryWorkflowCompensation_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) ListToolApprovals(ctx context.Context, in *ListToolApprovalsRequest, opts ...grpc.CallOption) (*ListToolApprovalsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListToolApprovalsResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_ListToolApprovals_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) DecideToolApproval(ctx context.Context, in *DecideToolApprovalRequest, opts ...grpc.CallOption) (*DecideToolApprovalResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DecideToolApprovalResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_DecideToolApproval_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) IssueWorkflowResumeGrant(ctx context.Context, in *IssueWorkflowResumeGrantRequest, opts ...grpc.CallOption) (*IssueWorkflowResumeGrantResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(IssueWorkflowResumeGrantResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_IssueWorkflowResumeGrant_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) ResumeWorkflowRun(ctx context.Context, in *ResumeWorkflowRunRequest, opts ...grpc.CallOption) (*ResumeWorkflowRunResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ResumeWorkflowRunResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_ResumeWorkflowRun_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) CreateProviderConfig(ctx context.Context, in *CreateProviderConfigRequest, opts ...grpc.CallOption) (*CreateProviderConfigResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateProviderConfigResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_CreateProviderConfig_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) UpdateProviderConfig(ctx context.Context, in *UpdateProviderConfigRequest, opts ...grpc.CallOption) (*UpdateProviderConfigResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateProviderConfigResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_UpdateProviderConfig_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) ListProviderConfigs(ctx context.Context, in *ListProviderConfigsRequest, opts ...grpc.CallOption) (*ListProviderConfigsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListProviderConfigsResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_ListProviderConfigs_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) GetProviderConfig(ctx context.Context, in *GetProviderConfigRequest, opts ...grpc.CallOption) (*GetProviderConfigResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetProviderConfigResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_GetProviderConfig_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) RevokeProviderConfig(ctx context.Context, in *RevokeProviderConfigRequest, opts ...grpc.CallOption) (*RevokeProviderConfigResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RevokeProviderConfigResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_RevokeProviderConfig_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) CreateAgentProject(ctx context.Context, in *CreateAgentProjectRequest, opts ...grpc.CallOption) (*CreateAgentProjectResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateAgentProjectResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_CreateAgentProject_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) ListAgentProjects(ctx context.Context, in *ListAgentProjectsRequest, opts ...grpc.CallOption) (*ListAgentProjectsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListAgentProjectsResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_ListAgentProjects_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) GetAgentProject(ctx context.Context, in *GetAgentProjectRequest, opts ...grpc.CallOption) (*GetAgentProjectResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetAgentProjectResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_GetAgentProject_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) UpsertAgentProjectMember(ctx context.Context, in *UpsertAgentProjectMemberRequest, opts ...grpc.CallOption) (*UpsertAgentProjectMemberResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpsertAgentProjectMemberResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_UpsertAgentProjectMember_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) RemoveAgentProjectMember(ctx context.Context, in *RemoveAgentProjectMemberRequest, opts ...grpc.CallOption) (*RemoveAgentProjectMemberResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RemoveAgentProjectMemberResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_RemoveAgentProjectMember_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) CreateExternalMCPConnection(ctx context.Context, in *CreateExternalMCPConnectionRequest, opts ...grpc.CallOption) (*CreateExternalMCPConnectionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateExternalMCPConnectionResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_CreateExternalMCPConnection_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) UpdateExternalMCPConnection(ctx context.Context, in *UpdateExternalMCPConnectionRequest, opts ...grpc.CallOption) (*UpdateExternalMCPConnectionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateExternalMCPConnectionResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_UpdateExternalMCPConnection_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) ListExternalMCPConnections(ctx context.Context, in *ListExternalMCPConnectionsRequest, opts ...grpc.CallOption) (*ListExternalMCPConnectionsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListExternalMCPConnectionsResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_ListExternalMCPConnections_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) GetExternalMCPConnection(ctx context.Context, in *GetExternalMCPConnectionRequest, opts ...grpc.CallOption) (*GetExternalMCPConnectionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetExternalMCPConnectionResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_GetExternalMCPConnection_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) RevokeExternalMCPConnection(ctx context.Context, in *RevokeExternalMCPConnectionRequest, opts ...grpc.CallOption) (*RevokeExternalMCPConnectionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RevokeExternalMCPConnectionResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_RevokeExternalMCPConnection_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) DiscoverExternalMCPTools(ctx context.Context, in *DiscoverExternalMCPToolsRequest, opts ...grpc.CallOption) (*DiscoverExternalMCPToolsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DiscoverExternalMCPToolsResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_DiscoverExternalMCPTools_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) ApproveExternalMCPSnapshot(ctx context.Context, in *ApproveExternalMCPSnapshotRequest, opts ...grpc.CallOption) (*ApproveExternalMCPSnapshotResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ApproveExternalMCPSnapshotResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_ApproveExternalMCPSnapshot_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) ListExternalMCPTools(ctx context.Context, in *ListExternalMCPToolsRequest, opts ...grpc.CallOption) (*ListExternalMCPToolsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListExternalMCPToolsResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_ListExternalMCPTools_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) ConfigureExternalMCPTool(ctx context.Context, in *ConfigureExternalMCPToolRequest, opts ...grpc.CallOption) (*ConfigureExternalMCPToolResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ConfigureExternalMCPToolResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_ConfigureExternalMCPTool_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) CreateAgentProfileDraft(ctx context.Context, in *CreateAgentProfileDraftRequest, opts ...grpc.CallOption) (*CreateAgentProfileDraftResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateAgentProfileDraftResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_CreateAgentProfileDraft_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) PublishAgentProfileVersion(ctx context.Context, in *PublishAgentProfileVersionRequest, opts ...grpc.CallOption) (*PublishAgentProfileVersionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PublishAgentProfileVersionResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_PublishAgentProfileVersion_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) RequestAgentProfilePublishApproval(ctx context.Context, in *RequestAgentProfilePublishApprovalRequest, opts ...grpc.CallOption) (*RequestAgentProfilePublishApprovalResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RequestAgentProfilePublishApprovalResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_RequestAgentProfilePublishApproval_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) ListAgentProfilePublishApprovals(ctx context.Context, in *ListAgentProfilePublishApprovalsRequest, opts ...grpc.CallOption) (*ListAgentProfilePublishApprovalsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListAgentProfilePublishApprovalsResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_ListAgentProfilePublishApprovals_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) GetAgentProfilePublishApproval(ctx context.Context, in *GetAgentProfilePublishApprovalRequest, opts ...grpc.CallOption) (*GetAgentProfilePublishApprovalResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetAgentProfilePublishApprovalResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_GetAgentProfilePublishApproval_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) DecideAgentProfilePublishApproval(ctx context.Context, in *DecideAgentProfilePublishApprovalRequest, opts ...grpc.CallOption) (*DecideAgentProfilePublishApprovalResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DecideAgentProfilePublishApprovalResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_DecideAgentProfilePublishApproval_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) RetryAgentProfilePublishApproval(ctx context.Context, in *RetryAgentProfilePublishApprovalRequest, opts ...grpc.CallOption) (*RetryAgentProfilePublishApprovalResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RetryAgentProfilePublishApprovalResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_RetryAgentProfilePublishApproval_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) ListAgentProfileVersions(ctx context.Context, in *ListAgentProfileVersionsRequest, opts ...grpc.CallOption) (*ListAgentProfileVersionsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListAgentProfileVersionsResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_ListAgentProfileVersions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) GetAgentProfileVersion(ctx context.Context, in *GetAgentProfileVersionRequest, opts ...grpc.CallOption) (*GetAgentProfileVersionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetAgentProfileVersionResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_GetAgentProfileVersion_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) GetAgentProfileRelease(ctx context.Context, in *GetAgentProfileReleaseRequest, opts ...grpc.CallOption) (*GetAgentProfileReleaseResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetAgentProfileReleaseResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_GetAgentProfileRelease_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) UpsertAgentProfileRelease(ctx context.Context, in *UpsertAgentProfileReleaseRequest, opts ...grpc.CallOption) (*UpsertAgentProfileReleaseResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpsertAgentProfileReleaseResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_UpsertAgentProfileRelease_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) ListAgentProfileAuditEvents(ctx context.Context, in *ListAgentProfileAuditEventsRequest, opts ...grpc.CallOption) (*ListAgentProfileAuditEventsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListAgentProfileAuditEventsResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_ListAgentProfileAuditEvents_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) GetAgentProfileManagementAccess(ctx context.Context, in *GetAgentProfileManagementAccessRequest, opts ...grpc.CallOption) (*GetAgentProfileManagementAccessResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetAgentProfileManagementAccessResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_GetAgentProfileManagementAccess_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) ListAgentProfileRoleBindings(ctx context.Context, in *ListAgentProfileRoleBindingsRequest, opts ...grpc.CallOption) (*ListAgentProfileRoleBindingsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListAgentProfileRoleBindingsResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_ListAgentProfileRoleBindings_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) UpsertAgentProfileRoleBinding(ctx context.Context, in *UpsertAgentProfileRoleBindingRequest, opts ...grpc.CallOption) (*UpsertAgentProfileRoleBindingResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpsertAgentProfileRoleBindingResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_UpsertAgentProfileRoleBinding_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) DeleteAgentProfileRoleBinding(ctx context.Context, in *DeleteAgentProfileRoleBindingRequest, opts ...grpc.CallOption) (*DeleteAgentProfileRoleBindingResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteAgentProfileRoleBindingResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_DeleteAgentProfileRoleBinding_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) ListAgentProfileRoleAuditEvents(ctx context.Context, in *ListAgentProfileRoleAuditEventsRequest, opts ...grpc.CallOption) (*ListAgentProfileRoleAuditEventsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListAgentProfileRoleAuditEventsResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_ListAgentProfileRoleAuditEvents_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) StartAgentProfileExperiment(ctx context.Context, in *StartAgentProfileExperimentRequest, opts ...grpc.CallOption) (*StartAgentProfileExperimentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StartAgentProfileExperimentResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_StartAgentProfileExperiment_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) ListAgentProfileExperiments(ctx context.Context, in *ListAgentProfileExperimentsRequest, opts ...grpc.CallOption) (*ListAgentProfileExperimentsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListAgentProfileExperimentsResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_ListAgentProfileExperiments_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) GetAgentProfileExperiment(ctx context.Context, in *GetAgentProfileExperimentRequest, opts ...grpc.CallOption) (*GetAgentProfileExperimentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetAgentProfileExperimentResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_GetAgentProfileExperiment_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) EvaluateAgentProfileExperiment(ctx context.Context, in *EvaluateAgentProfileExperimentRequest, opts ...grpc.CallOption) (*EvaluateAgentProfileExperimentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(EvaluateAgentProfileExperimentResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_EvaluateAgentProfileExperiment_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) StopAgentProfileExperiment(ctx context.Context, in *StopAgentProfileExperimentRequest, opts ...grpc.CallOption) (*StopAgentProfileExperimentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StopAgentProfileExperimentResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_StopAgentProfileExperiment_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aiAgentServiceClient) RecordAgentProfileExperimentOutcome(ctx context.Context, in *RecordAgentProfileExperimentOutcomeRequest, opts ...grpc.CallOption) (*RecordAgentProfileExperimentOutcomeResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RecordAgentProfileExperimentOutcomeResponse)
+	err := c.cc.Invoke(ctx, AiAgentService_RecordAgentProfileExperimentOutcome_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AiAgentServiceServer is the server API for AiAgentService service.
 // All implementations must embed UnimplementedAiAgentServiceServer
 // for forward compatibility.
 //
 // AiAgentService 智能体服务
 type AiAgentServiceServer interface {
+	// List active immutable Skill versions projected from governed publications.
+	ListAgentSkills(context.Context, *ListAgentSkillsRequest) (*ListAgentSkillsResponse, error)
+	// Resolve one exact Skill version. "Latest" resolution is intentionally unsupported.
+	GetAgentSkill(context.Context, *GetAgentSkillRequest) (*GetAgentSkillResponse, error)
+	// List tenant-visible built-in capabilities, immutable Skills and reviewed MCP tools.
+	ListAgentExtensions(context.Context, *ListAgentExtensionsRequest) (*ListAgentExtensionsResponse, error)
+	// List signature-verified public extension releases. This does not install or authorize them.
+	ListAgentMarketplaceExtensions(context.Context, *ListAgentMarketplaceExtensionsRequest) (*ListAgentMarketplaceExtensionsResponse, error)
+	// Authenticated extension publisher control plane. It stores public keys and signed metadata only.
+	GetAgentMarketplaceManagementAccess(context.Context, *GetAgentMarketplaceManagementAccessRequest) (*GetAgentMarketplaceManagementAccessResponse, error)
+	ListAgentMarketplacePublishers(context.Context, *ListAgentMarketplacePublishersRequest) (*ListAgentMarketplacePublishersResponse, error)
+	RegisterAgentMarketplacePublisher(context.Context, *RegisterAgentMarketplacePublisherRequest) (*RegisterAgentMarketplacePublisherResponse, error)
+	RotateAgentMarketplacePublisherKey(context.Context, *RotateAgentMarketplacePublisherKeyRequest) (*RotateAgentMarketplacePublisherKeyResponse, error)
+	RevokeAgentMarketplacePublisherKey(context.Context, *RevokeAgentMarketplacePublisherKeyRequest) (*RevokeAgentMarketplacePublisherKeyResponse, error)
+	SetAgentMarketplacePublisherVerification(context.Context, *SetAgentMarketplacePublisherVerificationRequest) (*SetAgentMarketplacePublisherVerificationResponse, error)
+	ListAgentMarketplaceManagedReleases(context.Context, *ListAgentMarketplaceManagedReleasesRequest) (*ListAgentMarketplaceManagedReleasesResponse, error)
+	PublishAgentMarketplaceRelease(context.Context, *PublishAgentMarketplaceReleaseRequest) (*PublishAgentMarketplaceReleaseResponse, error)
+	WithdrawAgentMarketplaceRelease(context.Context, *WithdrawAgentMarketplaceReleaseRequest) (*WithdrawAgentMarketplaceReleaseResponse, error)
+	ListAgentMarketplaceAuditEvents(context.Context, *ListAgentMarketplaceAuditEventsRequest) (*ListAgentMarketplaceAuditEventsResponse, error)
+	// Explicitly save a reusable task preset from one completed authoritative Agent Run.
+	CreateAgentTaskTemplate(context.Context, *CreateAgentTaskTemplateRequest) (*CreateAgentTaskTemplateResponse, error)
+	// List active task templates. The response also exposes the execution rollout state.
+	ListAgentTaskTemplates(context.Context, *ListAgentTaskTemplatesRequest) (*ListAgentTaskTemplatesResponse, error)
+	// Archive template metadata without deleting its source-run evidence.
+	ArchiveAgentTaskTemplate(context.Context, *ArchiveAgentTaskTemplateRequest) (*ArchiveAgentTaskTemplateResponse, error)
+	// Render one immutable template revision and execute it through the unified Agent entry.
+	RunAgentTaskTemplate(context.Context, *RunAgentTaskTemplateRequest) (*RunAgentResponse, error)
 	// 获取模型初始化详细信息
 	GetModelDetailedInformation(context.Context, *GetModelDetailedInformationRequest) (*GetModelDetailedInformationResponse, error)
 	// 获取历史对话列表
 	GetRepositoryDialogue(context.Context, *GetRepositoryDialogueRequest) (*GetRepositoryDialogueResponse, error)
 	// 获取某个历史对话的详细消息记录
 	GetDialogueDetail(context.Context, *GetDialogueDetailRequest) (*GetDialogueDetailResponse, error)
+	// Explicitly finalize pending episodic memory while preserving the dialogue.
+	EndDialogueSession(context.Context, *EndDialogueSessionRequest) (*EndDialogueSessionResponse, error)
 	// 解析前端 pdf、word 和图片等文件
 	AnalysisFiles(context.Context, *AnalysisFilesRequest) (*AnalysisFilesResponse, error)
+	// P8 统一智能助手入口；preferred_capability_ids 仅作为偏好，不授予工具权限。
+	RunAgent(context.Context, *RunAgentRequest) (*RunAgentResponse, error)
+	// 查询当前用户所属的权威 Agent Run 生命周期，不返回 Checkpoint 密文或领取租约。
+	GetAgentRun(context.Context, *GetAgentRunRequest) (*GetAgentRunResponse, error)
+	// 聚合父 Agent Run 与其直接子 Workflow Run 的版本化预算和用量快照。
+	GetAgentRunAccounting(context.Context, *GetAgentRunAccountingRequest) (*GetAgentRunAccountingResponse, error)
+	// 使用人工回答原子领取并恢复 ask_human Run；expected_revision 防止重复提交。
+	ResumeAgentRun(context.Context, *ResumeAgentRunRequest) (*RunAgentResponse, error)
+	// 为已批准的 Runtime 工具动作签发短期一次性恢复令牌。
+	IssueAgentResumeGrant(context.Context, *IssueAgentResumeGrantRequest) (*IssueAgentResumeGrantResponse, error)
 	// 模式一：直接调用 AI api 进行对话
 	CallApiOfAi(context.Context, *CallApiOfAiRequest) (*CallApiOfAiResponse, error)
 	// 模式二：通过对话查询相关推文和作者
@@ -279,10 +1359,90 @@ type AiAgentServiceServer interface {
 	ListWorkflows(context.Context, *ListWorkflowsRequest) (*ListWorkflowsResponse, error)
 	// 获取单个工作流 DSL
 	GetWorkflow(context.Context, *GetWorkflowRequest) (*GetWorkflowResponse, error)
+	// 分页查询工作流的不可变历史版本。
+	ListWorkflowRevisions(context.Context, *ListWorkflowRevisionsRequest) (*ListWorkflowRevisionsResponse, error)
+	// 查询指定不可变工作流版本。
+	GetWorkflowRevision(context.Context, *GetWorkflowRevisionRequest) (*GetWorkflowRevisionResponse, error)
+	// Publish one immutable, read-only workflow revision into the user's Runtime tool catalog.
+	PublishWorkflowTool(context.Context, *PublishWorkflowToolRequest) (*PublishWorkflowToolResponse, error)
+	GetWorkflowToolPublication(context.Context, *GetWorkflowToolPublicationRequest) (*GetWorkflowToolPublicationResponse, error)
+	UnpublishWorkflowTool(context.Context, *UnpublishWorkflowToolRequest) (*UnpublishWorkflowToolResponse, error)
 	// 运行工作流
 	RunWorkflow(context.Context, *RunWorkflowRequest) (*RunWorkflowResponse, error)
 	// 获取工作流运行记录
 	GetWorkflowRun(context.Context, *GetWorkflowRunRequest) (*GetWorkflowRunResponse, error)
+	// 查询与业务 output_json 解耦的脱敏 Run/Step/LLM/Tool 执行追踪。
+	GetWorkflowRunTrace(context.Context, *GetWorkflowRunTraceRequest) (*GetWorkflowRunTraceResponse, error)
+	// 检索指定运行版本的已验证、脱敏 Blackboard 快照。
+	SearchWorkflowBlackboard(context.Context, *SearchWorkflowBlackboardRequest) (*SearchWorkflowBlackboardResponse, error)
+	// 流式投递脱敏执行事件；客户端使用 after_cursor 断点续传。
+	WatchWorkflowRunEvents(*WatchWorkflowRunEventsRequest, grpc.ServerStreamingServer[WorkflowRunEvent]) error
+	// 分页查询当前用户的工作流运行记录。
+	ListWorkflowRuns(context.Context, *ListWorkflowRunsRequest) (*ListWorkflowRunsResponse, error)
+	// 请求取消仍在执行的工作流；取消状态由持久化控制面跨实例传播。
+	CancelWorkflowRun(context.Context, *CancelWorkflowRunRequest) (*CancelWorkflowRunResponse, error)
+	// 获取只读运行回放证据；不会重新执行节点、模型或工具。
+	GetWorkflowRunReplay(context.Context, *GetWorkflowRunReplayRequest) (*GetWorkflowRunReplayResponse, error)
+	// 查询脱敏后的持久补偿 Journal 和当前可执行的人工动作。
+	GetWorkflowCompensationJournal(context.Context, *GetWorkflowCompensationJournalRequest) (*GetWorkflowCompensationJournalResponse, error)
+	// 显式重试失败或中断的持久补偿；不会重放主 DAG。
+	RetryWorkflowCompensation(context.Context, *RetryWorkflowCompensationRequest) (*RetryWorkflowCompensationResponse, error)
+	// 查询当前用户的工具审批请求。
+	ListToolApprovals(context.Context, *ListToolApprovalsRequest) (*ListToolApprovalsResponse, error)
+	// 批准或拒绝工具执行，使用 revision 防止重复决策。
+	DecideToolApproval(context.Context, *DecideToolApprovalRequest) (*DecideToolApprovalResponse, error)
+	// 为已批准且仍挂起的 Run 签发短时、单次恢复授权；签发会使旧恢复令牌失效。
+	IssueWorkflowResumeGrant(context.Context, *IssueWorkflowResumeGrantRequest) (*IssueWorkflowResumeGrantResponse, error)
+	// 使用一次性恢复令牌继续已挂起的工作流；空令牌仅用于显式重试持久补偿 Journal。
+	ResumeWorkflowRun(context.Context, *ResumeWorkflowRunRequest) (*ResumeWorkflowRunResponse, error)
+	// 创建用户级 OpenAI-compatible Provider 配置，API Key 仅加密存储。
+	CreateProviderConfig(context.Context, *CreateProviderConfigRequest) (*CreateProviderConfigResponse, error)
+	// 更新 Provider 元数据或轮换 API Key。
+	UpdateProviderConfig(context.Context, *UpdateProviderConfigRequest) (*UpdateProviderConfigResponse, error)
+	ListProviderConfigs(context.Context, *ListProviderConfigsRequest) (*ListProviderConfigsResponse, error)
+	GetProviderConfig(context.Context, *GetProviderConfigRequest) (*GetProviderConfigResponse, error)
+	// 撤销配置并清除服务端密文。
+	RevokeProviderConfig(context.Context, *RevokeProviderConfigRequest) (*RevokeProviderConfigResponse, error)
+	// Agent Project 是项目级 MCP 连接的成员权限事实源。
+	CreateAgentProject(context.Context, *CreateAgentProjectRequest) (*CreateAgentProjectResponse, error)
+	ListAgentProjects(context.Context, *ListAgentProjectsRequest) (*ListAgentProjectsResponse, error)
+	GetAgentProject(context.Context, *GetAgentProjectRequest) (*GetAgentProjectResponse, error)
+	UpsertAgentProjectMember(context.Context, *UpsertAgentProjectMemberRequest) (*UpsertAgentProjectMemberResponse, error)
+	RemoveAgentProjectMember(context.Context, *RemoveAgentProjectMemberRequest) (*RemoveAgentProjectMemberResponse, error)
+	// 个人/项目级远程 MCP 连接控制面。凭据只在创建/轮换请求中出现。
+	CreateExternalMCPConnection(context.Context, *CreateExternalMCPConnectionRequest) (*CreateExternalMCPConnectionResponse, error)
+	UpdateExternalMCPConnection(context.Context, *UpdateExternalMCPConnectionRequest) (*UpdateExternalMCPConnectionResponse, error)
+	ListExternalMCPConnections(context.Context, *ListExternalMCPConnectionsRequest) (*ListExternalMCPConnectionsResponse, error)
+	GetExternalMCPConnection(context.Context, *GetExternalMCPConnectionRequest) (*GetExternalMCPConnectionResponse, error)
+	RevokeExternalMCPConnection(context.Context, *RevokeExternalMCPConnectionRequest) (*RevokeExternalMCPConnectionResponse, error)
+	// Discovery 只生成待审核的不可变 Schema Snapshot，不授予执行权限。
+	DiscoverExternalMCPTools(context.Context, *DiscoverExternalMCPToolsRequest) (*DiscoverExternalMCPToolsResponse, error)
+	ApproveExternalMCPSnapshot(context.Context, *ApproveExternalMCPSnapshotRequest) (*ApproveExternalMCPSnapshotResponse, error)
+	ListExternalMCPTools(context.Context, *ListExternalMCPToolsRequest) (*ListExternalMCPToolsResponse, error)
+	ConfigureExternalMCPTool(context.Context, *ConfigureExternalMCPToolRequest) (*ConfigureExternalMCPToolResponse, error)
+	CreateAgentProfileDraft(context.Context, *CreateAgentProfileDraftRequest) (*CreateAgentProfileDraftResponse, error)
+	PublishAgentProfileVersion(context.Context, *PublishAgentProfileVersionRequest) (*PublishAgentProfileVersionResponse, error)
+	RequestAgentProfilePublishApproval(context.Context, *RequestAgentProfilePublishApprovalRequest) (*RequestAgentProfilePublishApprovalResponse, error)
+	ListAgentProfilePublishApprovals(context.Context, *ListAgentProfilePublishApprovalsRequest) (*ListAgentProfilePublishApprovalsResponse, error)
+	GetAgentProfilePublishApproval(context.Context, *GetAgentProfilePublishApprovalRequest) (*GetAgentProfilePublishApprovalResponse, error)
+	DecideAgentProfilePublishApproval(context.Context, *DecideAgentProfilePublishApprovalRequest) (*DecideAgentProfilePublishApprovalResponse, error)
+	RetryAgentProfilePublishApproval(context.Context, *RetryAgentProfilePublishApprovalRequest) (*RetryAgentProfilePublishApprovalResponse, error)
+	ListAgentProfileVersions(context.Context, *ListAgentProfileVersionsRequest) (*ListAgentProfileVersionsResponse, error)
+	GetAgentProfileVersion(context.Context, *GetAgentProfileVersionRequest) (*GetAgentProfileVersionResponse, error)
+	GetAgentProfileRelease(context.Context, *GetAgentProfileReleaseRequest) (*GetAgentProfileReleaseResponse, error)
+	UpsertAgentProfileRelease(context.Context, *UpsertAgentProfileReleaseRequest) (*UpsertAgentProfileReleaseResponse, error)
+	ListAgentProfileAuditEvents(context.Context, *ListAgentProfileAuditEventsRequest) (*ListAgentProfileAuditEventsResponse, error)
+	GetAgentProfileManagementAccess(context.Context, *GetAgentProfileManagementAccessRequest) (*GetAgentProfileManagementAccessResponse, error)
+	ListAgentProfileRoleBindings(context.Context, *ListAgentProfileRoleBindingsRequest) (*ListAgentProfileRoleBindingsResponse, error)
+	UpsertAgentProfileRoleBinding(context.Context, *UpsertAgentProfileRoleBindingRequest) (*UpsertAgentProfileRoleBindingResponse, error)
+	DeleteAgentProfileRoleBinding(context.Context, *DeleteAgentProfileRoleBindingRequest) (*DeleteAgentProfileRoleBindingResponse, error)
+	ListAgentProfileRoleAuditEvents(context.Context, *ListAgentProfileRoleAuditEventsRequest) (*ListAgentProfileRoleAuditEventsResponse, error)
+	StartAgentProfileExperiment(context.Context, *StartAgentProfileExperimentRequest) (*StartAgentProfileExperimentResponse, error)
+	ListAgentProfileExperiments(context.Context, *ListAgentProfileExperimentsRequest) (*ListAgentProfileExperimentsResponse, error)
+	GetAgentProfileExperiment(context.Context, *GetAgentProfileExperimentRequest) (*GetAgentProfileExperimentResponse, error)
+	EvaluateAgentProfileExperiment(context.Context, *EvaluateAgentProfileExperimentRequest) (*EvaluateAgentProfileExperimentResponse, error)
+	StopAgentProfileExperiment(context.Context, *StopAgentProfileExperimentRequest) (*StopAgentProfileExperimentResponse, error)
+	RecordAgentProfileExperimentOutcome(context.Context, *RecordAgentProfileExperimentOutcomeRequest) (*RecordAgentProfileExperimentOutcomeResponse, error)
 	mustEmbedUnimplementedAiAgentServiceServer()
 }
 
@@ -293,6 +1453,60 @@ type AiAgentServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedAiAgentServiceServer struct{}
 
+func (UnimplementedAiAgentServiceServer) ListAgentSkills(context.Context, *ListAgentSkillsRequest) (*ListAgentSkillsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListAgentSkills not implemented")
+}
+func (UnimplementedAiAgentServiceServer) GetAgentSkill(context.Context, *GetAgentSkillRequest) (*GetAgentSkillResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetAgentSkill not implemented")
+}
+func (UnimplementedAiAgentServiceServer) ListAgentExtensions(context.Context, *ListAgentExtensionsRequest) (*ListAgentExtensionsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListAgentExtensions not implemented")
+}
+func (UnimplementedAiAgentServiceServer) ListAgentMarketplaceExtensions(context.Context, *ListAgentMarketplaceExtensionsRequest) (*ListAgentMarketplaceExtensionsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListAgentMarketplaceExtensions not implemented")
+}
+func (UnimplementedAiAgentServiceServer) GetAgentMarketplaceManagementAccess(context.Context, *GetAgentMarketplaceManagementAccessRequest) (*GetAgentMarketplaceManagementAccessResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetAgentMarketplaceManagementAccess not implemented")
+}
+func (UnimplementedAiAgentServiceServer) ListAgentMarketplacePublishers(context.Context, *ListAgentMarketplacePublishersRequest) (*ListAgentMarketplacePublishersResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListAgentMarketplacePublishers not implemented")
+}
+func (UnimplementedAiAgentServiceServer) RegisterAgentMarketplacePublisher(context.Context, *RegisterAgentMarketplacePublisherRequest) (*RegisterAgentMarketplacePublisherResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RegisterAgentMarketplacePublisher not implemented")
+}
+func (UnimplementedAiAgentServiceServer) RotateAgentMarketplacePublisherKey(context.Context, *RotateAgentMarketplacePublisherKeyRequest) (*RotateAgentMarketplacePublisherKeyResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RotateAgentMarketplacePublisherKey not implemented")
+}
+func (UnimplementedAiAgentServiceServer) RevokeAgentMarketplacePublisherKey(context.Context, *RevokeAgentMarketplacePublisherKeyRequest) (*RevokeAgentMarketplacePublisherKeyResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RevokeAgentMarketplacePublisherKey not implemented")
+}
+func (UnimplementedAiAgentServiceServer) SetAgentMarketplacePublisherVerification(context.Context, *SetAgentMarketplacePublisherVerificationRequest) (*SetAgentMarketplacePublisherVerificationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetAgentMarketplacePublisherVerification not implemented")
+}
+func (UnimplementedAiAgentServiceServer) ListAgentMarketplaceManagedReleases(context.Context, *ListAgentMarketplaceManagedReleasesRequest) (*ListAgentMarketplaceManagedReleasesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListAgentMarketplaceManagedReleases not implemented")
+}
+func (UnimplementedAiAgentServiceServer) PublishAgentMarketplaceRelease(context.Context, *PublishAgentMarketplaceReleaseRequest) (*PublishAgentMarketplaceReleaseResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method PublishAgentMarketplaceRelease not implemented")
+}
+func (UnimplementedAiAgentServiceServer) WithdrawAgentMarketplaceRelease(context.Context, *WithdrawAgentMarketplaceReleaseRequest) (*WithdrawAgentMarketplaceReleaseResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method WithdrawAgentMarketplaceRelease not implemented")
+}
+func (UnimplementedAiAgentServiceServer) ListAgentMarketplaceAuditEvents(context.Context, *ListAgentMarketplaceAuditEventsRequest) (*ListAgentMarketplaceAuditEventsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListAgentMarketplaceAuditEvents not implemented")
+}
+func (UnimplementedAiAgentServiceServer) CreateAgentTaskTemplate(context.Context, *CreateAgentTaskTemplateRequest) (*CreateAgentTaskTemplateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateAgentTaskTemplate not implemented")
+}
+func (UnimplementedAiAgentServiceServer) ListAgentTaskTemplates(context.Context, *ListAgentTaskTemplatesRequest) (*ListAgentTaskTemplatesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListAgentTaskTemplates not implemented")
+}
+func (UnimplementedAiAgentServiceServer) ArchiveAgentTaskTemplate(context.Context, *ArchiveAgentTaskTemplateRequest) (*ArchiveAgentTaskTemplateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ArchiveAgentTaskTemplate not implemented")
+}
+func (UnimplementedAiAgentServiceServer) RunAgentTaskTemplate(context.Context, *RunAgentTaskTemplateRequest) (*RunAgentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RunAgentTaskTemplate not implemented")
+}
 func (UnimplementedAiAgentServiceServer) GetModelDetailedInformation(context.Context, *GetModelDetailedInformationRequest) (*GetModelDetailedInformationResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetModelDetailedInformation not implemented")
 }
@@ -302,8 +1516,26 @@ func (UnimplementedAiAgentServiceServer) GetRepositoryDialogue(context.Context, 
 func (UnimplementedAiAgentServiceServer) GetDialogueDetail(context.Context, *GetDialogueDetailRequest) (*GetDialogueDetailResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetDialogueDetail not implemented")
 }
+func (UnimplementedAiAgentServiceServer) EndDialogueSession(context.Context, *EndDialogueSessionRequest) (*EndDialogueSessionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method EndDialogueSession not implemented")
+}
 func (UnimplementedAiAgentServiceServer) AnalysisFiles(context.Context, *AnalysisFilesRequest) (*AnalysisFilesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method AnalysisFiles not implemented")
+}
+func (UnimplementedAiAgentServiceServer) RunAgent(context.Context, *RunAgentRequest) (*RunAgentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RunAgent not implemented")
+}
+func (UnimplementedAiAgentServiceServer) GetAgentRun(context.Context, *GetAgentRunRequest) (*GetAgentRunResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetAgentRun not implemented")
+}
+func (UnimplementedAiAgentServiceServer) GetAgentRunAccounting(context.Context, *GetAgentRunAccountingRequest) (*GetAgentRunAccountingResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetAgentRunAccounting not implemented")
+}
+func (UnimplementedAiAgentServiceServer) ResumeAgentRun(context.Context, *ResumeAgentRunRequest) (*RunAgentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ResumeAgentRun not implemented")
+}
+func (UnimplementedAiAgentServiceServer) IssueAgentResumeGrant(context.Context, *IssueAgentResumeGrantRequest) (*IssueAgentResumeGrantResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method IssueAgentResumeGrant not implemented")
 }
 func (UnimplementedAiAgentServiceServer) CallApiOfAi(context.Context, *CallApiOfAiRequest) (*CallApiOfAiResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CallApiOfAi not implemented")
@@ -335,11 +1567,188 @@ func (UnimplementedAiAgentServiceServer) ListWorkflows(context.Context, *ListWor
 func (UnimplementedAiAgentServiceServer) GetWorkflow(context.Context, *GetWorkflowRequest) (*GetWorkflowResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetWorkflow not implemented")
 }
+func (UnimplementedAiAgentServiceServer) ListWorkflowRevisions(context.Context, *ListWorkflowRevisionsRequest) (*ListWorkflowRevisionsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListWorkflowRevisions not implemented")
+}
+func (UnimplementedAiAgentServiceServer) GetWorkflowRevision(context.Context, *GetWorkflowRevisionRequest) (*GetWorkflowRevisionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetWorkflowRevision not implemented")
+}
+func (UnimplementedAiAgentServiceServer) PublishWorkflowTool(context.Context, *PublishWorkflowToolRequest) (*PublishWorkflowToolResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method PublishWorkflowTool not implemented")
+}
+func (UnimplementedAiAgentServiceServer) GetWorkflowToolPublication(context.Context, *GetWorkflowToolPublicationRequest) (*GetWorkflowToolPublicationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetWorkflowToolPublication not implemented")
+}
+func (UnimplementedAiAgentServiceServer) UnpublishWorkflowTool(context.Context, *UnpublishWorkflowToolRequest) (*UnpublishWorkflowToolResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UnpublishWorkflowTool not implemented")
+}
 func (UnimplementedAiAgentServiceServer) RunWorkflow(context.Context, *RunWorkflowRequest) (*RunWorkflowResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RunWorkflow not implemented")
 }
 func (UnimplementedAiAgentServiceServer) GetWorkflowRun(context.Context, *GetWorkflowRunRequest) (*GetWorkflowRunResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetWorkflowRun not implemented")
+}
+func (UnimplementedAiAgentServiceServer) GetWorkflowRunTrace(context.Context, *GetWorkflowRunTraceRequest) (*GetWorkflowRunTraceResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetWorkflowRunTrace not implemented")
+}
+func (UnimplementedAiAgentServiceServer) SearchWorkflowBlackboard(context.Context, *SearchWorkflowBlackboardRequest) (*SearchWorkflowBlackboardResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SearchWorkflowBlackboard not implemented")
+}
+func (UnimplementedAiAgentServiceServer) WatchWorkflowRunEvents(*WatchWorkflowRunEventsRequest, grpc.ServerStreamingServer[WorkflowRunEvent]) error {
+	return status.Error(codes.Unimplemented, "method WatchWorkflowRunEvents not implemented")
+}
+func (UnimplementedAiAgentServiceServer) ListWorkflowRuns(context.Context, *ListWorkflowRunsRequest) (*ListWorkflowRunsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListWorkflowRuns not implemented")
+}
+func (UnimplementedAiAgentServiceServer) CancelWorkflowRun(context.Context, *CancelWorkflowRunRequest) (*CancelWorkflowRunResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CancelWorkflowRun not implemented")
+}
+func (UnimplementedAiAgentServiceServer) GetWorkflowRunReplay(context.Context, *GetWorkflowRunReplayRequest) (*GetWorkflowRunReplayResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetWorkflowRunReplay not implemented")
+}
+func (UnimplementedAiAgentServiceServer) GetWorkflowCompensationJournal(context.Context, *GetWorkflowCompensationJournalRequest) (*GetWorkflowCompensationJournalResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetWorkflowCompensationJournal not implemented")
+}
+func (UnimplementedAiAgentServiceServer) RetryWorkflowCompensation(context.Context, *RetryWorkflowCompensationRequest) (*RetryWorkflowCompensationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RetryWorkflowCompensation not implemented")
+}
+func (UnimplementedAiAgentServiceServer) ListToolApprovals(context.Context, *ListToolApprovalsRequest) (*ListToolApprovalsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListToolApprovals not implemented")
+}
+func (UnimplementedAiAgentServiceServer) DecideToolApproval(context.Context, *DecideToolApprovalRequest) (*DecideToolApprovalResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DecideToolApproval not implemented")
+}
+func (UnimplementedAiAgentServiceServer) IssueWorkflowResumeGrant(context.Context, *IssueWorkflowResumeGrantRequest) (*IssueWorkflowResumeGrantResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method IssueWorkflowResumeGrant not implemented")
+}
+func (UnimplementedAiAgentServiceServer) ResumeWorkflowRun(context.Context, *ResumeWorkflowRunRequest) (*ResumeWorkflowRunResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ResumeWorkflowRun not implemented")
+}
+func (UnimplementedAiAgentServiceServer) CreateProviderConfig(context.Context, *CreateProviderConfigRequest) (*CreateProviderConfigResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateProviderConfig not implemented")
+}
+func (UnimplementedAiAgentServiceServer) UpdateProviderConfig(context.Context, *UpdateProviderConfigRequest) (*UpdateProviderConfigResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateProviderConfig not implemented")
+}
+func (UnimplementedAiAgentServiceServer) ListProviderConfigs(context.Context, *ListProviderConfigsRequest) (*ListProviderConfigsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListProviderConfigs not implemented")
+}
+func (UnimplementedAiAgentServiceServer) GetProviderConfig(context.Context, *GetProviderConfigRequest) (*GetProviderConfigResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetProviderConfig not implemented")
+}
+func (UnimplementedAiAgentServiceServer) RevokeProviderConfig(context.Context, *RevokeProviderConfigRequest) (*RevokeProviderConfigResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RevokeProviderConfig not implemented")
+}
+func (UnimplementedAiAgentServiceServer) CreateAgentProject(context.Context, *CreateAgentProjectRequest) (*CreateAgentProjectResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateAgentProject not implemented")
+}
+func (UnimplementedAiAgentServiceServer) ListAgentProjects(context.Context, *ListAgentProjectsRequest) (*ListAgentProjectsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListAgentProjects not implemented")
+}
+func (UnimplementedAiAgentServiceServer) GetAgentProject(context.Context, *GetAgentProjectRequest) (*GetAgentProjectResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetAgentProject not implemented")
+}
+func (UnimplementedAiAgentServiceServer) UpsertAgentProjectMember(context.Context, *UpsertAgentProjectMemberRequest) (*UpsertAgentProjectMemberResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpsertAgentProjectMember not implemented")
+}
+func (UnimplementedAiAgentServiceServer) RemoveAgentProjectMember(context.Context, *RemoveAgentProjectMemberRequest) (*RemoveAgentProjectMemberResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RemoveAgentProjectMember not implemented")
+}
+func (UnimplementedAiAgentServiceServer) CreateExternalMCPConnection(context.Context, *CreateExternalMCPConnectionRequest) (*CreateExternalMCPConnectionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateExternalMCPConnection not implemented")
+}
+func (UnimplementedAiAgentServiceServer) UpdateExternalMCPConnection(context.Context, *UpdateExternalMCPConnectionRequest) (*UpdateExternalMCPConnectionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateExternalMCPConnection not implemented")
+}
+func (UnimplementedAiAgentServiceServer) ListExternalMCPConnections(context.Context, *ListExternalMCPConnectionsRequest) (*ListExternalMCPConnectionsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListExternalMCPConnections not implemented")
+}
+func (UnimplementedAiAgentServiceServer) GetExternalMCPConnection(context.Context, *GetExternalMCPConnectionRequest) (*GetExternalMCPConnectionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetExternalMCPConnection not implemented")
+}
+func (UnimplementedAiAgentServiceServer) RevokeExternalMCPConnection(context.Context, *RevokeExternalMCPConnectionRequest) (*RevokeExternalMCPConnectionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RevokeExternalMCPConnection not implemented")
+}
+func (UnimplementedAiAgentServiceServer) DiscoverExternalMCPTools(context.Context, *DiscoverExternalMCPToolsRequest) (*DiscoverExternalMCPToolsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DiscoverExternalMCPTools not implemented")
+}
+func (UnimplementedAiAgentServiceServer) ApproveExternalMCPSnapshot(context.Context, *ApproveExternalMCPSnapshotRequest) (*ApproveExternalMCPSnapshotResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ApproveExternalMCPSnapshot not implemented")
+}
+func (UnimplementedAiAgentServiceServer) ListExternalMCPTools(context.Context, *ListExternalMCPToolsRequest) (*ListExternalMCPToolsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListExternalMCPTools not implemented")
+}
+func (UnimplementedAiAgentServiceServer) ConfigureExternalMCPTool(context.Context, *ConfigureExternalMCPToolRequest) (*ConfigureExternalMCPToolResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ConfigureExternalMCPTool not implemented")
+}
+func (UnimplementedAiAgentServiceServer) CreateAgentProfileDraft(context.Context, *CreateAgentProfileDraftRequest) (*CreateAgentProfileDraftResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateAgentProfileDraft not implemented")
+}
+func (UnimplementedAiAgentServiceServer) PublishAgentProfileVersion(context.Context, *PublishAgentProfileVersionRequest) (*PublishAgentProfileVersionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method PublishAgentProfileVersion not implemented")
+}
+func (UnimplementedAiAgentServiceServer) RequestAgentProfilePublishApproval(context.Context, *RequestAgentProfilePublishApprovalRequest) (*RequestAgentProfilePublishApprovalResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RequestAgentProfilePublishApproval not implemented")
+}
+func (UnimplementedAiAgentServiceServer) ListAgentProfilePublishApprovals(context.Context, *ListAgentProfilePublishApprovalsRequest) (*ListAgentProfilePublishApprovalsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListAgentProfilePublishApprovals not implemented")
+}
+func (UnimplementedAiAgentServiceServer) GetAgentProfilePublishApproval(context.Context, *GetAgentProfilePublishApprovalRequest) (*GetAgentProfilePublishApprovalResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetAgentProfilePublishApproval not implemented")
+}
+func (UnimplementedAiAgentServiceServer) DecideAgentProfilePublishApproval(context.Context, *DecideAgentProfilePublishApprovalRequest) (*DecideAgentProfilePublishApprovalResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DecideAgentProfilePublishApproval not implemented")
+}
+func (UnimplementedAiAgentServiceServer) RetryAgentProfilePublishApproval(context.Context, *RetryAgentProfilePublishApprovalRequest) (*RetryAgentProfilePublishApprovalResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RetryAgentProfilePublishApproval not implemented")
+}
+func (UnimplementedAiAgentServiceServer) ListAgentProfileVersions(context.Context, *ListAgentProfileVersionsRequest) (*ListAgentProfileVersionsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListAgentProfileVersions not implemented")
+}
+func (UnimplementedAiAgentServiceServer) GetAgentProfileVersion(context.Context, *GetAgentProfileVersionRequest) (*GetAgentProfileVersionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetAgentProfileVersion not implemented")
+}
+func (UnimplementedAiAgentServiceServer) GetAgentProfileRelease(context.Context, *GetAgentProfileReleaseRequest) (*GetAgentProfileReleaseResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetAgentProfileRelease not implemented")
+}
+func (UnimplementedAiAgentServiceServer) UpsertAgentProfileRelease(context.Context, *UpsertAgentProfileReleaseRequest) (*UpsertAgentProfileReleaseResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpsertAgentProfileRelease not implemented")
+}
+func (UnimplementedAiAgentServiceServer) ListAgentProfileAuditEvents(context.Context, *ListAgentProfileAuditEventsRequest) (*ListAgentProfileAuditEventsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListAgentProfileAuditEvents not implemented")
+}
+func (UnimplementedAiAgentServiceServer) GetAgentProfileManagementAccess(context.Context, *GetAgentProfileManagementAccessRequest) (*GetAgentProfileManagementAccessResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetAgentProfileManagementAccess not implemented")
+}
+func (UnimplementedAiAgentServiceServer) ListAgentProfileRoleBindings(context.Context, *ListAgentProfileRoleBindingsRequest) (*ListAgentProfileRoleBindingsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListAgentProfileRoleBindings not implemented")
+}
+func (UnimplementedAiAgentServiceServer) UpsertAgentProfileRoleBinding(context.Context, *UpsertAgentProfileRoleBindingRequest) (*UpsertAgentProfileRoleBindingResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpsertAgentProfileRoleBinding not implemented")
+}
+func (UnimplementedAiAgentServiceServer) DeleteAgentProfileRoleBinding(context.Context, *DeleteAgentProfileRoleBindingRequest) (*DeleteAgentProfileRoleBindingResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteAgentProfileRoleBinding not implemented")
+}
+func (UnimplementedAiAgentServiceServer) ListAgentProfileRoleAuditEvents(context.Context, *ListAgentProfileRoleAuditEventsRequest) (*ListAgentProfileRoleAuditEventsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListAgentProfileRoleAuditEvents not implemented")
+}
+func (UnimplementedAiAgentServiceServer) StartAgentProfileExperiment(context.Context, *StartAgentProfileExperimentRequest) (*StartAgentProfileExperimentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method StartAgentProfileExperiment not implemented")
+}
+func (UnimplementedAiAgentServiceServer) ListAgentProfileExperiments(context.Context, *ListAgentProfileExperimentsRequest) (*ListAgentProfileExperimentsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListAgentProfileExperiments not implemented")
+}
+func (UnimplementedAiAgentServiceServer) GetAgentProfileExperiment(context.Context, *GetAgentProfileExperimentRequest) (*GetAgentProfileExperimentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetAgentProfileExperiment not implemented")
+}
+func (UnimplementedAiAgentServiceServer) EvaluateAgentProfileExperiment(context.Context, *EvaluateAgentProfileExperimentRequest) (*EvaluateAgentProfileExperimentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method EvaluateAgentProfileExperiment not implemented")
+}
+func (UnimplementedAiAgentServiceServer) StopAgentProfileExperiment(context.Context, *StopAgentProfileExperimentRequest) (*StopAgentProfileExperimentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method StopAgentProfileExperiment not implemented")
+}
+func (UnimplementedAiAgentServiceServer) RecordAgentProfileExperimentOutcome(context.Context, *RecordAgentProfileExperimentOutcomeRequest) (*RecordAgentProfileExperimentOutcomeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RecordAgentProfileExperimentOutcome not implemented")
 }
 func (UnimplementedAiAgentServiceServer) mustEmbedUnimplementedAiAgentServiceServer() {}
 func (UnimplementedAiAgentServiceServer) testEmbeddedByValue()                        {}
@@ -360,6 +1769,330 @@ func RegisterAiAgentServiceServer(s grpc.ServiceRegistrar, srv AiAgentServiceSer
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&AiAgentService_ServiceDesc, srv)
+}
+
+func _AiAgentService_ListAgentSkills_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAgentSkillsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).ListAgentSkills(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_ListAgentSkills_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).ListAgentSkills(ctx, req.(*ListAgentSkillsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_GetAgentSkill_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAgentSkillRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).GetAgentSkill(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_GetAgentSkill_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).GetAgentSkill(ctx, req.(*GetAgentSkillRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_ListAgentExtensions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAgentExtensionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).ListAgentExtensions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_ListAgentExtensions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).ListAgentExtensions(ctx, req.(*ListAgentExtensionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_ListAgentMarketplaceExtensions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAgentMarketplaceExtensionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).ListAgentMarketplaceExtensions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_ListAgentMarketplaceExtensions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).ListAgentMarketplaceExtensions(ctx, req.(*ListAgentMarketplaceExtensionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_GetAgentMarketplaceManagementAccess_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAgentMarketplaceManagementAccessRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).GetAgentMarketplaceManagementAccess(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_GetAgentMarketplaceManagementAccess_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).GetAgentMarketplaceManagementAccess(ctx, req.(*GetAgentMarketplaceManagementAccessRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_ListAgentMarketplacePublishers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAgentMarketplacePublishersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).ListAgentMarketplacePublishers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_ListAgentMarketplacePublishers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).ListAgentMarketplacePublishers(ctx, req.(*ListAgentMarketplacePublishersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_RegisterAgentMarketplacePublisher_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RegisterAgentMarketplacePublisherRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).RegisterAgentMarketplacePublisher(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_RegisterAgentMarketplacePublisher_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).RegisterAgentMarketplacePublisher(ctx, req.(*RegisterAgentMarketplacePublisherRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_RotateAgentMarketplacePublisherKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RotateAgentMarketplacePublisherKeyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).RotateAgentMarketplacePublisherKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_RotateAgentMarketplacePublisherKey_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).RotateAgentMarketplacePublisherKey(ctx, req.(*RotateAgentMarketplacePublisherKeyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_RevokeAgentMarketplacePublisherKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RevokeAgentMarketplacePublisherKeyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).RevokeAgentMarketplacePublisherKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_RevokeAgentMarketplacePublisherKey_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).RevokeAgentMarketplacePublisherKey(ctx, req.(*RevokeAgentMarketplacePublisherKeyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_SetAgentMarketplacePublisherVerification_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetAgentMarketplacePublisherVerificationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).SetAgentMarketplacePublisherVerification(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_SetAgentMarketplacePublisherVerification_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).SetAgentMarketplacePublisherVerification(ctx, req.(*SetAgentMarketplacePublisherVerificationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_ListAgentMarketplaceManagedReleases_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAgentMarketplaceManagedReleasesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).ListAgentMarketplaceManagedReleases(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_ListAgentMarketplaceManagedReleases_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).ListAgentMarketplaceManagedReleases(ctx, req.(*ListAgentMarketplaceManagedReleasesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_PublishAgentMarketplaceRelease_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PublishAgentMarketplaceReleaseRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).PublishAgentMarketplaceRelease(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_PublishAgentMarketplaceRelease_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).PublishAgentMarketplaceRelease(ctx, req.(*PublishAgentMarketplaceReleaseRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_WithdrawAgentMarketplaceRelease_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WithdrawAgentMarketplaceReleaseRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).WithdrawAgentMarketplaceRelease(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_WithdrawAgentMarketplaceRelease_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).WithdrawAgentMarketplaceRelease(ctx, req.(*WithdrawAgentMarketplaceReleaseRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_ListAgentMarketplaceAuditEvents_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAgentMarketplaceAuditEventsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).ListAgentMarketplaceAuditEvents(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_ListAgentMarketplaceAuditEvents_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).ListAgentMarketplaceAuditEvents(ctx, req.(*ListAgentMarketplaceAuditEventsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_CreateAgentTaskTemplate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateAgentTaskTemplateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).CreateAgentTaskTemplate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_CreateAgentTaskTemplate_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).CreateAgentTaskTemplate(ctx, req.(*CreateAgentTaskTemplateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_ListAgentTaskTemplates_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAgentTaskTemplatesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).ListAgentTaskTemplates(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_ListAgentTaskTemplates_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).ListAgentTaskTemplates(ctx, req.(*ListAgentTaskTemplatesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_ArchiveAgentTaskTemplate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ArchiveAgentTaskTemplateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).ArchiveAgentTaskTemplate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_ArchiveAgentTaskTemplate_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).ArchiveAgentTaskTemplate(ctx, req.(*ArchiveAgentTaskTemplateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_RunAgentTaskTemplate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RunAgentTaskTemplateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).RunAgentTaskTemplate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_RunAgentTaskTemplate_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).RunAgentTaskTemplate(ctx, req.(*RunAgentTaskTemplateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _AiAgentService_GetModelDetailedInformation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -416,6 +2149,24 @@ func _AiAgentService_GetDialogueDetail_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AiAgentService_EndDialogueSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EndDialogueSessionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).EndDialogueSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_EndDialogueSession_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).EndDialogueSession(ctx, req.(*EndDialogueSessionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AiAgentService_AnalysisFiles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AnalysisFilesRequest)
 	if err := dec(in); err != nil {
@@ -430,6 +2181,96 @@ func _AiAgentService_AnalysisFiles_Handler(srv interface{}, ctx context.Context,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(AiAgentServiceServer).AnalysisFiles(ctx, req.(*AnalysisFilesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_RunAgent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RunAgentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).RunAgent(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_RunAgent_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).RunAgent(ctx, req.(*RunAgentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_GetAgentRun_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAgentRunRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).GetAgentRun(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_GetAgentRun_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).GetAgentRun(ctx, req.(*GetAgentRunRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_GetAgentRunAccounting_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAgentRunAccountingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).GetAgentRunAccounting(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_GetAgentRunAccounting_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).GetAgentRunAccounting(ctx, req.(*GetAgentRunAccountingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_ResumeAgentRun_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResumeAgentRunRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).ResumeAgentRun(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_ResumeAgentRun_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).ResumeAgentRun(ctx, req.(*ResumeAgentRunRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_IssueAgentResumeGrant_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(IssueAgentResumeGrantRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).IssueAgentResumeGrant(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_IssueAgentResumeGrant_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).IssueAgentResumeGrant(ctx, req.(*IssueAgentResumeGrantRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -614,6 +2455,96 @@ func _AiAgentService_GetWorkflow_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AiAgentService_ListWorkflowRevisions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListWorkflowRevisionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).ListWorkflowRevisions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_ListWorkflowRevisions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).ListWorkflowRevisions(ctx, req.(*ListWorkflowRevisionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_GetWorkflowRevision_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetWorkflowRevisionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).GetWorkflowRevision(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_GetWorkflowRevision_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).GetWorkflowRevision(ctx, req.(*GetWorkflowRevisionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_PublishWorkflowTool_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PublishWorkflowToolRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).PublishWorkflowTool(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_PublishWorkflowTool_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).PublishWorkflowTool(ctx, req.(*PublishWorkflowToolRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_GetWorkflowToolPublication_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetWorkflowToolPublicationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).GetWorkflowToolPublication(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_GetWorkflowToolPublication_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).GetWorkflowToolPublication(ctx, req.(*GetWorkflowToolPublicationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_UnpublishWorkflowTool_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UnpublishWorkflowToolRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).UnpublishWorkflowTool(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_UnpublishWorkflowTool_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).UnpublishWorkflowTool(ctx, req.(*UnpublishWorkflowToolRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AiAgentService_RunWorkflow_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RunWorkflowRequest)
 	if err := dec(in); err != nil {
@@ -650,6 +2581,971 @@ func _AiAgentService_GetWorkflowRun_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AiAgentService_GetWorkflowRunTrace_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetWorkflowRunTraceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).GetWorkflowRunTrace(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_GetWorkflowRunTrace_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).GetWorkflowRunTrace(ctx, req.(*GetWorkflowRunTraceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_SearchWorkflowBlackboard_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SearchWorkflowBlackboardRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).SearchWorkflowBlackboard(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_SearchWorkflowBlackboard_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).SearchWorkflowBlackboard(ctx, req.(*SearchWorkflowBlackboardRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_WatchWorkflowRunEvents_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(WatchWorkflowRunEventsRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(AiAgentServiceServer).WatchWorkflowRunEvents(m, &grpc.GenericServerStream[WatchWorkflowRunEventsRequest, WorkflowRunEvent]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type AiAgentService_WatchWorkflowRunEventsServer = grpc.ServerStreamingServer[WorkflowRunEvent]
+
+func _AiAgentService_ListWorkflowRuns_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListWorkflowRunsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).ListWorkflowRuns(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_ListWorkflowRuns_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).ListWorkflowRuns(ctx, req.(*ListWorkflowRunsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_CancelWorkflowRun_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CancelWorkflowRunRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).CancelWorkflowRun(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_CancelWorkflowRun_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).CancelWorkflowRun(ctx, req.(*CancelWorkflowRunRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_GetWorkflowRunReplay_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetWorkflowRunReplayRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).GetWorkflowRunReplay(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_GetWorkflowRunReplay_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).GetWorkflowRunReplay(ctx, req.(*GetWorkflowRunReplayRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_GetWorkflowCompensationJournal_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetWorkflowCompensationJournalRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).GetWorkflowCompensationJournal(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_GetWorkflowCompensationJournal_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).GetWorkflowCompensationJournal(ctx, req.(*GetWorkflowCompensationJournalRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_RetryWorkflowCompensation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RetryWorkflowCompensationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).RetryWorkflowCompensation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_RetryWorkflowCompensation_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).RetryWorkflowCompensation(ctx, req.(*RetryWorkflowCompensationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_ListToolApprovals_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListToolApprovalsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).ListToolApprovals(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_ListToolApprovals_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).ListToolApprovals(ctx, req.(*ListToolApprovalsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_DecideToolApproval_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DecideToolApprovalRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).DecideToolApproval(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_DecideToolApproval_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).DecideToolApproval(ctx, req.(*DecideToolApprovalRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_IssueWorkflowResumeGrant_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(IssueWorkflowResumeGrantRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).IssueWorkflowResumeGrant(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_IssueWorkflowResumeGrant_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).IssueWorkflowResumeGrant(ctx, req.(*IssueWorkflowResumeGrantRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_ResumeWorkflowRun_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResumeWorkflowRunRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).ResumeWorkflowRun(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_ResumeWorkflowRun_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).ResumeWorkflowRun(ctx, req.(*ResumeWorkflowRunRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_CreateProviderConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateProviderConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).CreateProviderConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_CreateProviderConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).CreateProviderConfig(ctx, req.(*CreateProviderConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_UpdateProviderConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateProviderConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).UpdateProviderConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_UpdateProviderConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).UpdateProviderConfig(ctx, req.(*UpdateProviderConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_ListProviderConfigs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListProviderConfigsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).ListProviderConfigs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_ListProviderConfigs_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).ListProviderConfigs(ctx, req.(*ListProviderConfigsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_GetProviderConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetProviderConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).GetProviderConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_GetProviderConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).GetProviderConfig(ctx, req.(*GetProviderConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_RevokeProviderConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RevokeProviderConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).RevokeProviderConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_RevokeProviderConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).RevokeProviderConfig(ctx, req.(*RevokeProviderConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_CreateAgentProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateAgentProjectRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).CreateAgentProject(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_CreateAgentProject_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).CreateAgentProject(ctx, req.(*CreateAgentProjectRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_ListAgentProjects_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAgentProjectsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).ListAgentProjects(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_ListAgentProjects_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).ListAgentProjects(ctx, req.(*ListAgentProjectsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_GetAgentProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAgentProjectRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).GetAgentProject(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_GetAgentProject_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).GetAgentProject(ctx, req.(*GetAgentProjectRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_UpsertAgentProjectMember_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpsertAgentProjectMemberRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).UpsertAgentProjectMember(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_UpsertAgentProjectMember_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).UpsertAgentProjectMember(ctx, req.(*UpsertAgentProjectMemberRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_RemoveAgentProjectMember_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveAgentProjectMemberRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).RemoveAgentProjectMember(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_RemoveAgentProjectMember_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).RemoveAgentProjectMember(ctx, req.(*RemoveAgentProjectMemberRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_CreateExternalMCPConnection_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateExternalMCPConnectionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).CreateExternalMCPConnection(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_CreateExternalMCPConnection_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).CreateExternalMCPConnection(ctx, req.(*CreateExternalMCPConnectionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_UpdateExternalMCPConnection_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateExternalMCPConnectionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).UpdateExternalMCPConnection(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_UpdateExternalMCPConnection_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).UpdateExternalMCPConnection(ctx, req.(*UpdateExternalMCPConnectionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_ListExternalMCPConnections_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListExternalMCPConnectionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).ListExternalMCPConnections(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_ListExternalMCPConnections_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).ListExternalMCPConnections(ctx, req.(*ListExternalMCPConnectionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_GetExternalMCPConnection_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetExternalMCPConnectionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).GetExternalMCPConnection(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_GetExternalMCPConnection_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).GetExternalMCPConnection(ctx, req.(*GetExternalMCPConnectionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_RevokeExternalMCPConnection_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RevokeExternalMCPConnectionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).RevokeExternalMCPConnection(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_RevokeExternalMCPConnection_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).RevokeExternalMCPConnection(ctx, req.(*RevokeExternalMCPConnectionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_DiscoverExternalMCPTools_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DiscoverExternalMCPToolsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).DiscoverExternalMCPTools(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_DiscoverExternalMCPTools_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).DiscoverExternalMCPTools(ctx, req.(*DiscoverExternalMCPToolsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_ApproveExternalMCPSnapshot_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ApproveExternalMCPSnapshotRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).ApproveExternalMCPSnapshot(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_ApproveExternalMCPSnapshot_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).ApproveExternalMCPSnapshot(ctx, req.(*ApproveExternalMCPSnapshotRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_ListExternalMCPTools_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListExternalMCPToolsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).ListExternalMCPTools(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_ListExternalMCPTools_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).ListExternalMCPTools(ctx, req.(*ListExternalMCPToolsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_ConfigureExternalMCPTool_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConfigureExternalMCPToolRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).ConfigureExternalMCPTool(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_ConfigureExternalMCPTool_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).ConfigureExternalMCPTool(ctx, req.(*ConfigureExternalMCPToolRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_CreateAgentProfileDraft_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateAgentProfileDraftRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).CreateAgentProfileDraft(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_CreateAgentProfileDraft_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).CreateAgentProfileDraft(ctx, req.(*CreateAgentProfileDraftRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_PublishAgentProfileVersion_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PublishAgentProfileVersionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).PublishAgentProfileVersion(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_PublishAgentProfileVersion_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).PublishAgentProfileVersion(ctx, req.(*PublishAgentProfileVersionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_RequestAgentProfilePublishApproval_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RequestAgentProfilePublishApprovalRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).RequestAgentProfilePublishApproval(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_RequestAgentProfilePublishApproval_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).RequestAgentProfilePublishApproval(ctx, req.(*RequestAgentProfilePublishApprovalRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_ListAgentProfilePublishApprovals_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAgentProfilePublishApprovalsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).ListAgentProfilePublishApprovals(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_ListAgentProfilePublishApprovals_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).ListAgentProfilePublishApprovals(ctx, req.(*ListAgentProfilePublishApprovalsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_GetAgentProfilePublishApproval_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAgentProfilePublishApprovalRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).GetAgentProfilePublishApproval(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_GetAgentProfilePublishApproval_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).GetAgentProfilePublishApproval(ctx, req.(*GetAgentProfilePublishApprovalRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_DecideAgentProfilePublishApproval_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DecideAgentProfilePublishApprovalRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).DecideAgentProfilePublishApproval(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_DecideAgentProfilePublishApproval_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).DecideAgentProfilePublishApproval(ctx, req.(*DecideAgentProfilePublishApprovalRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_RetryAgentProfilePublishApproval_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RetryAgentProfilePublishApprovalRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).RetryAgentProfilePublishApproval(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_RetryAgentProfilePublishApproval_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).RetryAgentProfilePublishApproval(ctx, req.(*RetryAgentProfilePublishApprovalRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_ListAgentProfileVersions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAgentProfileVersionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).ListAgentProfileVersions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_ListAgentProfileVersions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).ListAgentProfileVersions(ctx, req.(*ListAgentProfileVersionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_GetAgentProfileVersion_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAgentProfileVersionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).GetAgentProfileVersion(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_GetAgentProfileVersion_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).GetAgentProfileVersion(ctx, req.(*GetAgentProfileVersionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_GetAgentProfileRelease_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAgentProfileReleaseRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).GetAgentProfileRelease(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_GetAgentProfileRelease_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).GetAgentProfileRelease(ctx, req.(*GetAgentProfileReleaseRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_UpsertAgentProfileRelease_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpsertAgentProfileReleaseRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).UpsertAgentProfileRelease(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_UpsertAgentProfileRelease_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).UpsertAgentProfileRelease(ctx, req.(*UpsertAgentProfileReleaseRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_ListAgentProfileAuditEvents_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAgentProfileAuditEventsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).ListAgentProfileAuditEvents(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_ListAgentProfileAuditEvents_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).ListAgentProfileAuditEvents(ctx, req.(*ListAgentProfileAuditEventsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_GetAgentProfileManagementAccess_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAgentProfileManagementAccessRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).GetAgentProfileManagementAccess(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_GetAgentProfileManagementAccess_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).GetAgentProfileManagementAccess(ctx, req.(*GetAgentProfileManagementAccessRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_ListAgentProfileRoleBindings_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAgentProfileRoleBindingsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).ListAgentProfileRoleBindings(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_ListAgentProfileRoleBindings_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).ListAgentProfileRoleBindings(ctx, req.(*ListAgentProfileRoleBindingsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_UpsertAgentProfileRoleBinding_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpsertAgentProfileRoleBindingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).UpsertAgentProfileRoleBinding(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_UpsertAgentProfileRoleBinding_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).UpsertAgentProfileRoleBinding(ctx, req.(*UpsertAgentProfileRoleBindingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_DeleteAgentProfileRoleBinding_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteAgentProfileRoleBindingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).DeleteAgentProfileRoleBinding(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_DeleteAgentProfileRoleBinding_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).DeleteAgentProfileRoleBinding(ctx, req.(*DeleteAgentProfileRoleBindingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_ListAgentProfileRoleAuditEvents_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAgentProfileRoleAuditEventsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).ListAgentProfileRoleAuditEvents(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_ListAgentProfileRoleAuditEvents_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).ListAgentProfileRoleAuditEvents(ctx, req.(*ListAgentProfileRoleAuditEventsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_StartAgentProfileExperiment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StartAgentProfileExperimentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).StartAgentProfileExperiment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_StartAgentProfileExperiment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).StartAgentProfileExperiment(ctx, req.(*StartAgentProfileExperimentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_ListAgentProfileExperiments_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAgentProfileExperimentsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).ListAgentProfileExperiments(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_ListAgentProfileExperiments_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).ListAgentProfileExperiments(ctx, req.(*ListAgentProfileExperimentsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_GetAgentProfileExperiment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAgentProfileExperimentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).GetAgentProfileExperiment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_GetAgentProfileExperiment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).GetAgentProfileExperiment(ctx, req.(*GetAgentProfileExperimentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_EvaluateAgentProfileExperiment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EvaluateAgentProfileExperimentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).EvaluateAgentProfileExperiment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_EvaluateAgentProfileExperiment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).EvaluateAgentProfileExperiment(ctx, req.(*EvaluateAgentProfileExperimentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_StopAgentProfileExperiment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StopAgentProfileExperimentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).StopAgentProfileExperiment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_StopAgentProfileExperiment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).StopAgentProfileExperiment(ctx, req.(*StopAgentProfileExperimentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AiAgentService_RecordAgentProfileExperimentOutcome_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RecordAgentProfileExperimentOutcomeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AiAgentServiceServer).RecordAgentProfileExperimentOutcome(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AiAgentService_RecordAgentProfileExperimentOutcome_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AiAgentServiceServer).RecordAgentProfileExperimentOutcome(ctx, req.(*RecordAgentProfileExperimentOutcomeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AiAgentService_ServiceDesc is the grpc.ServiceDesc for AiAgentService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -657,6 +3553,78 @@ var AiAgentService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "aiAgent.v1.AiAgentService",
 	HandlerType: (*AiAgentServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "listAgentSkills",
+			Handler:    _AiAgentService_ListAgentSkills_Handler,
+		},
+		{
+			MethodName: "getAgentSkill",
+			Handler:    _AiAgentService_GetAgentSkill_Handler,
+		},
+		{
+			MethodName: "listAgentExtensions",
+			Handler:    _AiAgentService_ListAgentExtensions_Handler,
+		},
+		{
+			MethodName: "listAgentMarketplaceExtensions",
+			Handler:    _AiAgentService_ListAgentMarketplaceExtensions_Handler,
+		},
+		{
+			MethodName: "getAgentMarketplaceManagementAccess",
+			Handler:    _AiAgentService_GetAgentMarketplaceManagementAccess_Handler,
+		},
+		{
+			MethodName: "listAgentMarketplacePublishers",
+			Handler:    _AiAgentService_ListAgentMarketplacePublishers_Handler,
+		},
+		{
+			MethodName: "registerAgentMarketplacePublisher",
+			Handler:    _AiAgentService_RegisterAgentMarketplacePublisher_Handler,
+		},
+		{
+			MethodName: "rotateAgentMarketplacePublisherKey",
+			Handler:    _AiAgentService_RotateAgentMarketplacePublisherKey_Handler,
+		},
+		{
+			MethodName: "revokeAgentMarketplacePublisherKey",
+			Handler:    _AiAgentService_RevokeAgentMarketplacePublisherKey_Handler,
+		},
+		{
+			MethodName: "setAgentMarketplacePublisherVerification",
+			Handler:    _AiAgentService_SetAgentMarketplacePublisherVerification_Handler,
+		},
+		{
+			MethodName: "listAgentMarketplaceManagedReleases",
+			Handler:    _AiAgentService_ListAgentMarketplaceManagedReleases_Handler,
+		},
+		{
+			MethodName: "publishAgentMarketplaceRelease",
+			Handler:    _AiAgentService_PublishAgentMarketplaceRelease_Handler,
+		},
+		{
+			MethodName: "withdrawAgentMarketplaceRelease",
+			Handler:    _AiAgentService_WithdrawAgentMarketplaceRelease_Handler,
+		},
+		{
+			MethodName: "listAgentMarketplaceAuditEvents",
+			Handler:    _AiAgentService_ListAgentMarketplaceAuditEvents_Handler,
+		},
+		{
+			MethodName: "createAgentTaskTemplate",
+			Handler:    _AiAgentService_CreateAgentTaskTemplate_Handler,
+		},
+		{
+			MethodName: "listAgentTaskTemplates",
+			Handler:    _AiAgentService_ListAgentTaskTemplates_Handler,
+		},
+		{
+			MethodName: "archiveAgentTaskTemplate",
+			Handler:    _AiAgentService_ArchiveAgentTaskTemplate_Handler,
+		},
+		{
+			MethodName: "runAgentTaskTemplate",
+			Handler:    _AiAgentService_RunAgentTaskTemplate_Handler,
+		},
 		{
 			MethodName: "getModelDetailedInformation",
 			Handler:    _AiAgentService_GetModelDetailedInformation_Handler,
@@ -670,8 +3638,32 @@ var AiAgentService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AiAgentService_GetDialogueDetail_Handler,
 		},
 		{
+			MethodName: "endDialogueSession",
+			Handler:    _AiAgentService_EndDialogueSession_Handler,
+		},
+		{
 			MethodName: "analysisFiles",
 			Handler:    _AiAgentService_AnalysisFiles_Handler,
+		},
+		{
+			MethodName: "runAgent",
+			Handler:    _AiAgentService_RunAgent_Handler,
+		},
+		{
+			MethodName: "getAgentRun",
+			Handler:    _AiAgentService_GetAgentRun_Handler,
+		},
+		{
+			MethodName: "getAgentRunAccounting",
+			Handler:    _AiAgentService_GetAgentRunAccounting_Handler,
+		},
+		{
+			MethodName: "resumeAgentRun",
+			Handler:    _AiAgentService_ResumeAgentRun_Handler,
+		},
+		{
+			MethodName: "issueAgentResumeGrant",
+			Handler:    _AiAgentService_IssueAgentResumeGrant_Handler,
 		},
 		{
 			MethodName: "callApiOfAi",
@@ -714,6 +3706,26 @@ var AiAgentService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AiAgentService_GetWorkflow_Handler,
 		},
 		{
+			MethodName: "listWorkflowRevisions",
+			Handler:    _AiAgentService_ListWorkflowRevisions_Handler,
+		},
+		{
+			MethodName: "getWorkflowRevision",
+			Handler:    _AiAgentService_GetWorkflowRevision_Handler,
+		},
+		{
+			MethodName: "publishWorkflowTool",
+			Handler:    _AiAgentService_PublishWorkflowTool_Handler,
+		},
+		{
+			MethodName: "getWorkflowToolPublication",
+			Handler:    _AiAgentService_GetWorkflowToolPublication_Handler,
+		},
+		{
+			MethodName: "unpublishWorkflowTool",
+			Handler:    _AiAgentService_UnpublishWorkflowTool_Handler,
+		},
+		{
 			MethodName: "runWorkflow",
 			Handler:    _AiAgentService_RunWorkflow_Handler,
 		},
@@ -721,7 +3733,225 @@ var AiAgentService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "getWorkflowRun",
 			Handler:    _AiAgentService_GetWorkflowRun_Handler,
 		},
+		{
+			MethodName: "getWorkflowRunTrace",
+			Handler:    _AiAgentService_GetWorkflowRunTrace_Handler,
+		},
+		{
+			MethodName: "searchWorkflowBlackboard",
+			Handler:    _AiAgentService_SearchWorkflowBlackboard_Handler,
+		},
+		{
+			MethodName: "listWorkflowRuns",
+			Handler:    _AiAgentService_ListWorkflowRuns_Handler,
+		},
+		{
+			MethodName: "cancelWorkflowRun",
+			Handler:    _AiAgentService_CancelWorkflowRun_Handler,
+		},
+		{
+			MethodName: "getWorkflowRunReplay",
+			Handler:    _AiAgentService_GetWorkflowRunReplay_Handler,
+		},
+		{
+			MethodName: "getWorkflowCompensationJournal",
+			Handler:    _AiAgentService_GetWorkflowCompensationJournal_Handler,
+		},
+		{
+			MethodName: "retryWorkflowCompensation",
+			Handler:    _AiAgentService_RetryWorkflowCompensation_Handler,
+		},
+		{
+			MethodName: "listToolApprovals",
+			Handler:    _AiAgentService_ListToolApprovals_Handler,
+		},
+		{
+			MethodName: "decideToolApproval",
+			Handler:    _AiAgentService_DecideToolApproval_Handler,
+		},
+		{
+			MethodName: "issueWorkflowResumeGrant",
+			Handler:    _AiAgentService_IssueWorkflowResumeGrant_Handler,
+		},
+		{
+			MethodName: "resumeWorkflowRun",
+			Handler:    _AiAgentService_ResumeWorkflowRun_Handler,
+		},
+		{
+			MethodName: "createProviderConfig",
+			Handler:    _AiAgentService_CreateProviderConfig_Handler,
+		},
+		{
+			MethodName: "updateProviderConfig",
+			Handler:    _AiAgentService_UpdateProviderConfig_Handler,
+		},
+		{
+			MethodName: "listProviderConfigs",
+			Handler:    _AiAgentService_ListProviderConfigs_Handler,
+		},
+		{
+			MethodName: "getProviderConfig",
+			Handler:    _AiAgentService_GetProviderConfig_Handler,
+		},
+		{
+			MethodName: "revokeProviderConfig",
+			Handler:    _AiAgentService_RevokeProviderConfig_Handler,
+		},
+		{
+			MethodName: "createAgentProject",
+			Handler:    _AiAgentService_CreateAgentProject_Handler,
+		},
+		{
+			MethodName: "listAgentProjects",
+			Handler:    _AiAgentService_ListAgentProjects_Handler,
+		},
+		{
+			MethodName: "getAgentProject",
+			Handler:    _AiAgentService_GetAgentProject_Handler,
+		},
+		{
+			MethodName: "upsertAgentProjectMember",
+			Handler:    _AiAgentService_UpsertAgentProjectMember_Handler,
+		},
+		{
+			MethodName: "removeAgentProjectMember",
+			Handler:    _AiAgentService_RemoveAgentProjectMember_Handler,
+		},
+		{
+			MethodName: "createExternalMCPConnection",
+			Handler:    _AiAgentService_CreateExternalMCPConnection_Handler,
+		},
+		{
+			MethodName: "updateExternalMCPConnection",
+			Handler:    _AiAgentService_UpdateExternalMCPConnection_Handler,
+		},
+		{
+			MethodName: "listExternalMCPConnections",
+			Handler:    _AiAgentService_ListExternalMCPConnections_Handler,
+		},
+		{
+			MethodName: "getExternalMCPConnection",
+			Handler:    _AiAgentService_GetExternalMCPConnection_Handler,
+		},
+		{
+			MethodName: "revokeExternalMCPConnection",
+			Handler:    _AiAgentService_RevokeExternalMCPConnection_Handler,
+		},
+		{
+			MethodName: "discoverExternalMCPTools",
+			Handler:    _AiAgentService_DiscoverExternalMCPTools_Handler,
+		},
+		{
+			MethodName: "approveExternalMCPSnapshot",
+			Handler:    _AiAgentService_ApproveExternalMCPSnapshot_Handler,
+		},
+		{
+			MethodName: "listExternalMCPTools",
+			Handler:    _AiAgentService_ListExternalMCPTools_Handler,
+		},
+		{
+			MethodName: "configureExternalMCPTool",
+			Handler:    _AiAgentService_ConfigureExternalMCPTool_Handler,
+		},
+		{
+			MethodName: "createAgentProfileDraft",
+			Handler:    _AiAgentService_CreateAgentProfileDraft_Handler,
+		},
+		{
+			MethodName: "publishAgentProfileVersion",
+			Handler:    _AiAgentService_PublishAgentProfileVersion_Handler,
+		},
+		{
+			MethodName: "requestAgentProfilePublishApproval",
+			Handler:    _AiAgentService_RequestAgentProfilePublishApproval_Handler,
+		},
+		{
+			MethodName: "listAgentProfilePublishApprovals",
+			Handler:    _AiAgentService_ListAgentProfilePublishApprovals_Handler,
+		},
+		{
+			MethodName: "getAgentProfilePublishApproval",
+			Handler:    _AiAgentService_GetAgentProfilePublishApproval_Handler,
+		},
+		{
+			MethodName: "decideAgentProfilePublishApproval",
+			Handler:    _AiAgentService_DecideAgentProfilePublishApproval_Handler,
+		},
+		{
+			MethodName: "retryAgentProfilePublishApproval",
+			Handler:    _AiAgentService_RetryAgentProfilePublishApproval_Handler,
+		},
+		{
+			MethodName: "listAgentProfileVersions",
+			Handler:    _AiAgentService_ListAgentProfileVersions_Handler,
+		},
+		{
+			MethodName: "getAgentProfileVersion",
+			Handler:    _AiAgentService_GetAgentProfileVersion_Handler,
+		},
+		{
+			MethodName: "getAgentProfileRelease",
+			Handler:    _AiAgentService_GetAgentProfileRelease_Handler,
+		},
+		{
+			MethodName: "upsertAgentProfileRelease",
+			Handler:    _AiAgentService_UpsertAgentProfileRelease_Handler,
+		},
+		{
+			MethodName: "listAgentProfileAuditEvents",
+			Handler:    _AiAgentService_ListAgentProfileAuditEvents_Handler,
+		},
+		{
+			MethodName: "getAgentProfileManagementAccess",
+			Handler:    _AiAgentService_GetAgentProfileManagementAccess_Handler,
+		},
+		{
+			MethodName: "listAgentProfileRoleBindings",
+			Handler:    _AiAgentService_ListAgentProfileRoleBindings_Handler,
+		},
+		{
+			MethodName: "upsertAgentProfileRoleBinding",
+			Handler:    _AiAgentService_UpsertAgentProfileRoleBinding_Handler,
+		},
+		{
+			MethodName: "deleteAgentProfileRoleBinding",
+			Handler:    _AiAgentService_DeleteAgentProfileRoleBinding_Handler,
+		},
+		{
+			MethodName: "listAgentProfileRoleAuditEvents",
+			Handler:    _AiAgentService_ListAgentProfileRoleAuditEvents_Handler,
+		},
+		{
+			MethodName: "startAgentProfileExperiment",
+			Handler:    _AiAgentService_StartAgentProfileExperiment_Handler,
+		},
+		{
+			MethodName: "listAgentProfileExperiments",
+			Handler:    _AiAgentService_ListAgentProfileExperiments_Handler,
+		},
+		{
+			MethodName: "getAgentProfileExperiment",
+			Handler:    _AiAgentService_GetAgentProfileExperiment_Handler,
+		},
+		{
+			MethodName: "evaluateAgentProfileExperiment",
+			Handler:    _AiAgentService_EvaluateAgentProfileExperiment_Handler,
+		},
+		{
+			MethodName: "stopAgentProfileExperiment",
+			Handler:    _AiAgentService_StopAgentProfileExperiment_Handler,
+		},
+		{
+			MethodName: "recordAgentProfileExperimentOutcome",
+			Handler:    _AiAgentService_RecordAgentProfileExperimentOutcome_Handler,
+		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "watchWorkflowRunEvents",
+			Handler:       _AiAgentService_WatchWorkflowRunEvents_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "api/aiAgent/v1/aiAgent.proto",
 }

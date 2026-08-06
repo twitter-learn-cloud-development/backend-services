@@ -50,7 +50,7 @@ func main() {
 	}
 
 	// 🔍 初始化链路追踪
-	jaegerEndpoint := getEnv("JAEGER_COLLECTOR_ENDPOINT", "http://localhost:14268/api/traces")
+	jaegerEndpoint := getEnv("JAEGER_COLLECTOR_ENDPOINT", "localhost:4317")
 	trace.InitTracer("user-service", jaegerEndpoint)
 
 	//初始化reids(用于snowflow)

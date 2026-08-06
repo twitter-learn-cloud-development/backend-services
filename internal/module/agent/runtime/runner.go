@@ -15,7 +15,8 @@ const (
 
 	finalStepSystemInstruction = "The tool execution phase is complete. Do not request or call another tool. " +
 		"Using only the existing messages and observations, return the final answer now. " +
-		"If the available evidence is insufficient, state that plainly without calling a tool."
+		"Never invent missing identities, usernames, URLs, timestamps, metrics, source fields, or full content. " +
+		"If the available evidence is insufficient or a requested field is absent, state that plainly without calling a tool."
 )
 
 type ReActRunner struct {

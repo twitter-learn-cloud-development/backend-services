@@ -54,6 +54,32 @@ spec:
               value: {{ include "twitter.redis.host" . }}
             - name: REDIS_PORT
               value: "6379"
+            - name: AGENT_EXTENSION_MARKETPLACE_ADMIN_ENABLED
+              value: {{ .Values.services.agentService.extensionMarketplace.administration.enabled | quote }}
+            {{- if .Values.services.agentService.extensionMarketplace.administration.enabled }}
+            - name: AGENT_EXTENSION_MARKETPLACE_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.services.agentService.extensionMarketplace.administration.existingSecret | quote }}
+                  key: {{ .Values.services.agentService.extensionMarketplace.administration.tokenKey | quote }}
+            {{- end }}
+            {{- if and .Values.services.agentService.profileCatalog.admin.existingSecret (or .Values.services.agentService.profileCatalog.admin.userIDs .Values.services.agentService.profileCatalog.admin.viewerUserIDs .Values.services.agentService.profileCatalog.admin.editorUserIDs .Values.services.agentService.profileCatalog.admin.approverUserIDs) }}
+            - name: AGENT_PROFILE_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.services.agentService.profileCatalog.admin.existingSecret | quote }}
+                  key: {{ .Values.services.agentService.profileCatalog.admin.tokenKey | quote }}
+            - name: AGENT_PROFILE_ADMIN_USER_IDS
+              value: {{ .Values.services.agentService.profileCatalog.admin.userIDs | quote }}
+            - name: AGENT_PROFILE_VIEWER_USER_IDS
+              value: {{ .Values.services.agentService.profileCatalog.admin.viewerUserIDs | quote }}
+            - name: AGENT_PROFILE_EDITOR_USER_IDS
+              value: {{ .Values.services.agentService.profileCatalog.admin.editorUserIDs | quote }}
+            - name: AGENT_PROFILE_APPROVER_USER_IDS
+              value: {{ .Values.services.agentService.profileCatalog.admin.approverUserIDs | quote }}
+            - name: AGENT_PROFILE_DIRECT_PUBLISH_ENABLED
+              value: {{ .Values.services.agentService.profileCatalog.admin.directPublishEnabled | quote }}
+            {{- end }}
             - name: CONSUL_HOST
               value: {{ include "twitter.consul.host" . }}
             - name: CONSUL_PORT

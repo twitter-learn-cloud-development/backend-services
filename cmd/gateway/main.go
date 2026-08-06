@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -17,6 +20,8 @@ import (
 	"twitter-clone/internal/gateway/middleware"
 	"twitter-clone/internal/gateway/router"
 	"twitter-clone/internal/infrastructure/cache"
+	agentMarketplace "twitter-clone/internal/module/agent/marketplace"
+	agentProfile "twitter-clone/internal/module/agent/profile"
 	consulConfig "twitter-clone/pkg/config"
 	"twitter-clone/pkg/logger"
 	"twitter-clone/pkg/metric"
@@ -66,7 +71,7 @@ func main() {
 	}
 
 	// 🔍 初始化链路追踪
-	jaegerEndpoint := getEnv("JAEGER_COLLECTOR_ENDPOINT", "http://localhost:14268/api/traces")
+	jaegerEndpoint := getEnv("JAEGER_COLLECTOR_ENDPOINT", "localhost:4317")
 	trace.InitTracer("gateway", jaegerEndpoint)
 
 	// 4. 初始化 Redis (用于限流)
@@ -135,7 +140,6 @@ func main() {
 	minioPublicURL := getEnv("MINIO_PUBLIC_URL", "http://localhost:9000")
 	uploadHandler := handler.NewUploadHandler(minioEndpoint, minioAccessKey, minioSecretKey, minioBucket, minioPublicURL)
 
-
 	// 通知/书签处理器
 	notificationHandler := handler.NewNotificationHandler(grpcClients.NotificationClient, grpcClients.UserClient)
 	bookmarkHandler := handler.NewBookmarkHandler(grpcClients.TweetClient, grpcClients.UserClient)
@@ -143,7 +147,61 @@ func main() {
 	// 私信处理器 (gRPC)
 	messengerHandler := handler.NewMessengerHandler(grpcClients.MessengerClient, grpcClients.UserClient)
 
-	agentHandler := handler.NewAgentHandler(grpcClients.AgentClient)
+	profileAdminToken := strings.TrimSpace(getEnv(agentProfile.AdminTokenEnv, ""))
+	profileViewerIDs, profileAdminErr := parseProfileUserIDs(getEnv(agentProfile.ViewerUserIDsEnv, ""), "viewer")
+	if profileAdminErr != nil {
+		log.Fatalf("invalid %s: %v", agentProfile.ViewerUserIDsEnv, profileAdminErr)
+	}
+	profileEditorIDs, profileAdminErr := parseProfileUserIDs(getEnv(agentProfile.EditorUserIDsEnv, ""), "editor")
+	if profileAdminErr != nil {
+		log.Fatalf("invalid %s: %v", agentProfile.EditorUserIDsEnv, profileAdminErr)
+	}
+	profileApproverIDs, profileAdminErr := parseProfileUserIDs(getEnv(agentProfile.ApproverUserIDsEnv, ""), "approver")
+	if profileAdminErr != nil {
+		log.Fatalf("invalid %s: %v", agentProfile.ApproverUserIDsEnv, profileAdminErr)
+	}
+	profileAdministratorIDs, profileAdminErr := parseProfileUserIDs(getEnv(agentProfile.AdminUserIDsEnv, ""), "administrator")
+	if profileAdminErr != nil {
+		log.Fatalf("invalid %s: %v", agentProfile.AdminUserIDsEnv, profileAdminErr)
+	}
+	profileRoleCount := len(profileViewerIDs) + len(profileEditorIDs) + len(profileApproverIDs) + len(profileAdministratorIDs)
+	if (profileAdminToken == "") != (profileRoleCount == 0) {
+		log.Fatalf("%s and at least one Agent Profile role user list must be configured together", agentProfile.AdminTokenEnv)
+	}
+	if profileAdminToken != "" && len(profileAdminToken) < 32 {
+		log.Fatalf("%s must contain at least 32 characters", agentProfile.AdminTokenEnv)
+	}
+	profileDirectPublishEnabled, profileAdminErr := strconv.ParseBool(getEnv(agentProfile.DirectPublishEnabledEnv, "false"))
+	if profileAdminErr != nil {
+		log.Fatalf("invalid %s: %v", agentProfile.DirectPublishEnabledEnv, profileAdminErr)
+	}
+	if profileDirectPublishEnabled && len(profileAdministratorIDs) == 0 {
+		log.Fatalf("%s requires at least one %s", agentProfile.DirectPublishEnabledEnv, agentProfile.AdminUserIDsEnv)
+	}
+	agentHandlerOptions := []handler.AgentHandlerOption{}
+	if profileAdminToken != "" {
+		agentHandlerOptions = append(agentHandlerOptions, handler.WithProfileManagementRoles(
+			profileAdminToken, profileViewerIDs, profileEditorIDs, profileApproverIDs,
+			profileAdministratorIDs, profileDirectPublishEnabled,
+		))
+	}
+	extensionMarketplaceAdminEnabled, marketplaceAdminErr := strconv.ParseBool(
+		getEnv(agentMarketplace.AdministrationEnabledEnv, "false"),
+	)
+	if marketplaceAdminErr != nil {
+		log.Fatalf("invalid %s: %v", agentMarketplace.AdministrationEnabledEnv, marketplaceAdminErr)
+	}
+	extensionMarketplaceAdminToken := strings.TrimSpace(getEnv(agentMarketplace.AdministrationTokenEnv, ""))
+	if extensionMarketplaceAdminEnabled && len(extensionMarketplaceAdminToken) < 32 {
+		log.Fatalf("%s must contain at least 32 characters when administration is enabled", agentMarketplace.AdministrationTokenEnv)
+	}
+	if !extensionMarketplaceAdminEnabled && extensionMarketplaceAdminToken != "" {
+		log.Fatalf("%s requires %s=true", agentMarketplace.AdministrationTokenEnv, agentMarketplace.AdministrationEnabledEnv)
+	}
+	if extensionMarketplaceAdminEnabled {
+		agentHandlerOptions = append(agentHandlerOptions, handler.WithExtensionMarketplaceAdministration(extensionMarketplaceAdminToken))
+	}
+	agentHandler := handler.NewAgentHandler(grpcClients.AgentClient, agentHandlerOptions...)
 
 	// 创建 WebSocket 处理器
 	wsHandler := handler.NewWebSocketHandler(redisClient, authMW)
@@ -226,4 +284,26 @@ func getEnv(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func parseProfileUserIDs(raw, role string) ([]uint64, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, nil
+	}
+	seen := make(map[uint64]struct{})
+	result := make([]uint64, 0)
+	for _, part := range strings.Split(raw, ",") {
+		value := strings.TrimSpace(part)
+		userID, err := strconv.ParseUint(value, 10, 64)
+		if err != nil || userID == 0 {
+			return nil, fmt.Errorf("invalid %s user id %q", role, value)
+		}
+		if _, exists := seen[userID]; exists {
+			continue
+		}
+		seen[userID] = struct{}{}
+		result = append(result, userID)
+	}
+	return result, nil
 }

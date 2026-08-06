@@ -14,7 +14,7 @@ spec:
             matchExpressions:
               - key: app.kubernetes.io/component
                 operator: In
-                values: [gateway, tweet-service, follow-service, consumer, notification-service]
+                values: [gateway, agent-service, tweet-service, follow-service, consumer, notification-service]
       ports:
         - protocol: TCP
           port: 6379

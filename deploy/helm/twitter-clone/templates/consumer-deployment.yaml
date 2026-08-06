@@ -17,6 +17,9 @@ spec:
     metadata:
       annotations:
         proxy.istio.io/config: '{ "holdApplicationUntilProxyStarts": true }'
+        prometheus.io/scrape: "true"
+        prometheus.io/port: {{ .Values.services.consumer.metricsPort | quote }}
+        prometheus.io/path: "/metrics"
       labels:
         {{- include "twitter.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: consumer
@@ -54,5 +57,11 @@ spec:
               value: "const"
             - name: JAEGER_SAMPLER_PARAM
               value: "1"
+            - name: CONSUMER_METRICS_PORT
+              value: {{ .Values.services.consumer.metricsPort | quote }}
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.services.consumer.metricsPort }}
+              protocol: TCP
           resources:
             {{- toYaml .Values.services.consumer.resources | nindent 12 }}

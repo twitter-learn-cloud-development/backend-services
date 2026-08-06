@@ -108,6 +108,22 @@ func (m *MockTweetServiceClient) DeleteTweet(ctx context.Context, in *tweetv1.De
 	return args.Get(0).(*tweetv1.DeleteTweetResponse), args.Error(1)
 }
 
+func (m *MockTweetServiceClient) GetAuthorPostingStats(ctx context.Context, in *tweetv1.GetAuthorPostingStatsRequest, opts ...grpc.CallOption) (*tweetv1.GetAuthorPostingStatsResponse, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*tweetv1.GetAuthorPostingStatsResponse), args.Error(1)
+}
+
+func (m *MockTweetServiceClient) ApplyTweetModeration(ctx context.Context, in *tweetv1.ApplyTweetModerationRequest, opts ...grpc.CallOption) (*tweetv1.ApplyTweetModerationResponse, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*tweetv1.ApplyTweetModerationResponse), args.Error(1)
+}
+
 func (m *MockTweetServiceClient) LikeTweet(ctx context.Context, in *tweetv1.LikeTweetRequest, opts ...grpc.CallOption) (*tweetv1.LikeTweetResponse, error) {
 	args := m.Called(ctx, in)
 	if args.Get(0) == nil {

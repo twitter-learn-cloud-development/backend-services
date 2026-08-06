@@ -100,17 +100,19 @@ func (x *MainContent) GetDialogueKey() string {
 
 // 单条历史消息记录
 type RepositoryContentList struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	UserId        uint64                 `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	DialogueId    uint64                 `protobuf:"varint,3,opt,name=dialogue_id,json=dialogueId,proto3" json:"dialogue_id,omitempty"`
-	Question      string                 `protobuf:"bytes,4,opt,name=question,proto3" json:"question,omitempty"`
-	Response      string                 `protobuf:"bytes,5,opt,name=response,proto3" json:"response,omitempty"`
-	DialogueKey   string                 `protobuf:"bytes,6,opt,name=dialogue_key,json=dialogueKey,proto3" json:"dialogue_key,omitempty"`
-	Role          string                 `protobuf:"bytes,7,opt,name=role,proto3" json:"role,omitempty"`
-	Content       string                 `protobuf:"bytes,8,opt,name=content,proto3" json:"content,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Id               uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	UserId           uint64                 `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	DialogueId       uint64                 `protobuf:"varint,3,opt,name=dialogue_id,json=dialogueId,proto3" json:"dialogue_id,omitempty"`
+	Question         string                 `protobuf:"bytes,4,opt,name=question,proto3" json:"question,omitempty"`
+	Response         string                 `protobuf:"bytes,5,opt,name=response,proto3" json:"response,omitempty"`
+	DialogueKey      string                 `protobuf:"bytes,6,opt,name=dialogue_key,json=dialogueKey,proto3" json:"dialogue_key,omitempty"`
+	Role             string                 `protobuf:"bytes,7,opt,name=role,proto3" json:"role,omitempty"`
+	Content          string                 `protobuf:"bytes,8,opt,name=content,proto3" json:"content,omitempty"`
+	RunId            string                 `protobuf:"bytes,9,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`                                    // 白名单化的 Runtime Run ID
+	PublishableDraft bool                   `protobuf:"varint,10,opt,name=publishable_draft,json=publishableDraft,proto3" json:"publishable_draft,omitempty"` // 是否来自可显式确认发布的 Assist 草稿
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *RepositoryContentList) Reset() {
@@ -197,6 +199,20 @@ func (x *RepositoryContentList) GetContent() string {
 		return x.Content
 	}
 	return ""
+}
+
+func (x *RepositoryContentList) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *RepositoryContentList) GetPublishableDraft() bool {
+	if x != nil {
+		return x.PublishableDraft
+	}
+	return false
 }
 
 // 历史对话（标题级别）
@@ -1122,6 +1138,118 @@ func (x *GetDialogueDetailResponse) GetMessages() []*RepositoryContentList {
 	return nil
 }
 
+type EndDialogueSessionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	DialogueId    uint64                 `protobuf:"varint,2,opt,name=dialogue_id,json=dialogueId,proto3" json:"dialogue_id,omitempty"`
+	DialogueKey   string                 `protobuf:"bytes,3,opt,name=dialogue_key,json=dialogueKey,proto3" json:"dialogue_key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EndDialogueSessionRequest) Reset() {
+	*x = EndDialogueSessionRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EndDialogueSessionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EndDialogueSessionRequest) ProtoMessage() {}
+
+func (x *EndDialogueSessionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EndDialogueSessionRequest.ProtoReflect.Descriptor instead.
+func (*EndDialogueSessionRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *EndDialogueSessionRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *EndDialogueSessionRequest) GetDialogueId() uint64 {
+	if x != nil {
+		return x.DialogueId
+	}
+	return 0
+}
+
+func (x *EndDialogueSessionRequest) GetDialogueKey() string {
+	if x != nil {
+		return x.DialogueKey
+	}
+	return ""
+}
+
+type EndDialogueSessionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EndDialogueSessionResponse) Reset() {
+	*x = EndDialogueSessionResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EndDialogueSessionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EndDialogueSessionResponse) ProtoMessage() {}
+
+func (x *EndDialogueSessionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EndDialogueSessionResponse.ProtoReflect.Descriptor instead.
+func (*EndDialogueSessionResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *EndDialogueSessionResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *EndDialogueSessionResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
 type AnalysisFilesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -1133,7 +1261,7 @@ type AnalysisFilesRequest struct {
 
 func (x *AnalysisFilesRequest) Reset() {
 	*x = AnalysisFilesRequest{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[15]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1145,7 +1273,7 @@ func (x *AnalysisFilesRequest) String() string {
 func (*AnalysisFilesRequest) ProtoMessage() {}
 
 func (x *AnalysisFilesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[15]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1158,7 +1286,7 @@ func (x *AnalysisFilesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnalysisFilesRequest.ProtoReflect.Descriptor instead.
 func (*AnalysisFilesRequest) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{15}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *AnalysisFilesRequest) GetUserId() uint64 {
@@ -1194,7 +1322,7 @@ type AnalysisFilesResponse struct {
 
 func (x *AnalysisFilesResponse) Reset() {
 	*x = AnalysisFilesResponse{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[16]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1206,7 +1334,7 @@ func (x *AnalysisFilesResponse) String() string {
 func (*AnalysisFilesResponse) ProtoMessage() {}
 
 func (x *AnalysisFilesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[16]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1219,7 +1347,7 @@ func (x *AnalysisFilesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnalysisFilesResponse.ProtoReflect.Descriptor instead.
 func (*AnalysisFilesResponse) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{16}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *AnalysisFilesResponse) GetCode() uint64 {
@@ -1250,6 +1378,6216 @@ func (x *AnalysisFilesResponse) GetFileKey() string {
 	return ""
 }
 
+type RunAgentRequest struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	UserId      uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	ModelKindId uint64                 `protobuf:"varint,2,opt,name=model_kind_id,json=modelKindId,proto3" json:"model_kind_id,omitempty"`
+	MainContent *MainContent           `protobuf:"bytes,3,opt,name=main_content,json=mainContent,proto3" json:"main_content,omitempty"`
+	// Optional planner hints. The server still applies catalog, policy, budget and approval checks.
+	PreferredCapabilityIds []string `protobuf:"bytes,4,rep,name=preferred_capability_ids,json=preferredCapabilityIds,proto3" json:"preferred_capability_ids,omitempty"`
+	// Optional tenant-owned encrypted web provider configuration. The secret is never returned.
+	WebSearchProviderConfigId string `protobuf:"bytes,5,opt,name=web_search_provider_config_id,json=webSearchProviderConfigId,proto3" json:"web_search_provider_config_id,omitempty"`
+	// Explicit immutable Skill selection. Both fields must be supplied together.
+	SkillId       string `protobuf:"bytes,6,opt,name=skill_id,json=skillId,proto3" json:"skill_id,omitempty"`
+	SkillVersion  string `protobuf:"bytes,7,opt,name=skill_version,json=skillVersion,proto3" json:"skill_version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunAgentRequest) Reset() {
+	*x = RunAgentRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunAgentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunAgentRequest) ProtoMessage() {}
+
+func (x *RunAgentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunAgentRequest.ProtoReflect.Descriptor instead.
+func (*RunAgentRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *RunAgentRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *RunAgentRequest) GetModelKindId() uint64 {
+	if x != nil {
+		return x.ModelKindId
+	}
+	return 0
+}
+
+func (x *RunAgentRequest) GetMainContent() *MainContent {
+	if x != nil {
+		return x.MainContent
+	}
+	return nil
+}
+
+func (x *RunAgentRequest) GetPreferredCapabilityIds() []string {
+	if x != nil {
+		return x.PreferredCapabilityIds
+	}
+	return nil
+}
+
+func (x *RunAgentRequest) GetWebSearchProviderConfigId() string {
+	if x != nil {
+		return x.WebSearchProviderConfigId
+	}
+	return ""
+}
+
+func (x *RunAgentRequest) GetSkillId() string {
+	if x != nil {
+		return x.SkillId
+	}
+	return ""
+}
+
+func (x *RunAgentRequest) GetSkillVersion() string {
+	if x != nil {
+		return x.SkillVersion
+	}
+	return ""
+}
+
+type AgentToolActivity struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	StepIndex     int32                  `protobuf:"varint,1,opt,name=step_index,json=stepIndex,proto3" json:"step_index,omitempty"`
+	ToolName      string                 `protobuf:"bytes,2,opt,name=tool_name,json=toolName,proto3" json:"tool_name,omitempty"`
+	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	ResultCount   int32                  `protobuf:"varint,4,opt,name=result_count,json=resultCount,proto3" json:"result_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentToolActivity) Reset() {
+	*x = AgentToolActivity{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentToolActivity) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentToolActivity) ProtoMessage() {}
+
+func (x *AgentToolActivity) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentToolActivity.ProtoReflect.Descriptor instead.
+func (*AgentToolActivity) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *AgentToolActivity) GetStepIndex() int32 {
+	if x != nil {
+		return x.StepIndex
+	}
+	return 0
+}
+
+func (x *AgentToolActivity) GetToolName() string {
+	if x != nil {
+		return x.ToolName
+	}
+	return ""
+}
+
+func (x *AgentToolActivity) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *AgentToolActivity) GetResultCount() int32 {
+	if x != nil {
+		return x.ResultCount
+	}
+	return 0
+}
+
+type AgentCitation struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CitationId    string                 `protobuf:"bytes,1,opt,name=citation_id,json=citationId,proto3" json:"citation_id,omitempty"`
+	SourceType    string                 `protobuf:"bytes,2,opt,name=source_type,json=sourceType,proto3" json:"source_type,omitempty"`
+	SourceId      string                 `protobuf:"bytes,3,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
+	Url           string                 `protobuf:"bytes,4,opt,name=url,proto3" json:"url,omitempty"`
+	Title         string                 `protobuf:"bytes,5,opt,name=title,proto3" json:"title,omitempty"`
+	Snippet       string                 `protobuf:"bytes,6,opt,name=snippet,proto3" json:"snippet,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentCitation) Reset() {
+	*x = AgentCitation{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentCitation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentCitation) ProtoMessage() {}
+
+func (x *AgentCitation) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentCitation.ProtoReflect.Descriptor instead.
+func (*AgentCitation) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *AgentCitation) GetCitationId() string {
+	if x != nil {
+		return x.CitationId
+	}
+	return ""
+}
+
+func (x *AgentCitation) GetSourceType() string {
+	if x != nil {
+		return x.SourceType
+	}
+	return ""
+}
+
+func (x *AgentCitation) GetSourceId() string {
+	if x != nil {
+		return x.SourceId
+	}
+	return ""
+}
+
+func (x *AgentCitation) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *AgentCitation) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *AgentCitation) GetSnippet() string {
+	if x != nil {
+		return x.Snippet
+	}
+	return ""
+}
+
+type AgentArtifact struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	ArtifactId           string                 `protobuf:"bytes,1,opt,name=artifact_id,json=artifactId,proto3" json:"artifact_id,omitempty"`
+	Type                 string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	Status               string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	ContentType          string                 `protobuf:"bytes,4,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	Content              string                 `protobuf:"bytes,5,opt,name=content,proto3" json:"content,omitempty"`
+	SourceRunId          string                 `protobuf:"bytes,6,opt,name=source_run_id,json=sourceRunId,proto3" json:"source_run_id,omitempty"`
+	RequiresConfirmation bool                   `protobuf:"varint,7,opt,name=requires_confirmation,json=requiresConfirmation,proto3" json:"requires_confirmation,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *AgentArtifact) Reset() {
+	*x = AgentArtifact{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentArtifact) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentArtifact) ProtoMessage() {}
+
+func (x *AgentArtifact) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentArtifact.ProtoReflect.Descriptor instead.
+func (*AgentArtifact) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *AgentArtifact) GetArtifactId() string {
+	if x != nil {
+		return x.ArtifactId
+	}
+	return ""
+}
+
+func (x *AgentArtifact) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *AgentArtifact) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *AgentArtifact) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
+}
+
+func (x *AgentArtifact) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+func (x *AgentArtifact) GetSourceRunId() string {
+	if x != nil {
+		return x.SourceRunId
+	}
+	return ""
+}
+
+func (x *AgentArtifact) GetRequiresConfirmation() bool {
+	if x != nil {
+		return x.RequiresConfirmation
+	}
+	return false
+}
+
+type AgentApprovalState struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Status     string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	ApprovalId string                 `protobuf:"bytes,2,opt,name=approval_id,json=approvalId,proto3" json:"approval_id,omitempty"`
+	RunId      string                 `protobuf:"bytes,3,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Action     string                 `protobuf:"bytes,4,opt,name=action,proto3" json:"action,omitempty"`
+	Revision   int64                  `protobuf:"varint,5,opt,name=revision,proto3" json:"revision,omitempty"`
+	// Unix milliseconds. Zero means the state has no expiry.
+	ExpiresAt       int64 `protobuf:"varint,6,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	ResumeSupported bool  `protobuf:"varint,7,opt,name=resume_supported,json=resumeSupported,proto3" json:"resume_supported,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *AgentApprovalState) Reset() {
+	*x = AgentApprovalState{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentApprovalState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentApprovalState) ProtoMessage() {}
+
+func (x *AgentApprovalState) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentApprovalState.ProtoReflect.Descriptor instead.
+func (*AgentApprovalState) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *AgentApprovalState) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *AgentApprovalState) GetApprovalId() string {
+	if x != nil {
+		return x.ApprovalId
+	}
+	return ""
+}
+
+func (x *AgentApprovalState) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *AgentApprovalState) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *AgentApprovalState) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *AgentApprovalState) GetExpiresAt() int64 {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return 0
+}
+
+func (x *AgentApprovalState) GetResumeSupported() bool {
+	if x != nil {
+		return x.ResumeSupported
+	}
+	return false
+}
+
+type AgentExecutionStrategyRole struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	RoleId                 string                 `protobuf:"bytes,1,opt,name=role_id,json=roleId,proto3" json:"role_id,omitempty"`
+	CapabilityIds          []string               `protobuf:"bytes,2,rep,name=capability_ids,json=capabilityIds,proto3" json:"capability_ids,omitempty"`
+	AllowedTools           []string               `protobuf:"bytes,3,rep,name=allowed_tools,json=allowedTools,proto3" json:"allowed_tools,omitempty"`
+	MaxSteps               int32                  `protobuf:"varint,4,opt,name=max_steps,json=maxSteps,proto3" json:"max_steps,omitempty"`
+	MaxTotalTokens         int32                  `protobuf:"varint,5,opt,name=max_total_tokens,json=maxTotalTokens,proto3" json:"max_total_tokens,omitempty"`
+	MaxEstimatedCostMicros int64                  `protobuf:"varint,6,opt,name=max_estimated_cost_micros,json=maxEstimatedCostMicros,proto3" json:"max_estimated_cost_micros,omitempty"`
+	TimeoutMillis          int64                  `protobuf:"varint,7,opt,name=timeout_millis,json=timeoutMillis,proto3" json:"timeout_millis,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *AgentExecutionStrategyRole) Reset() {
+	*x = AgentExecutionStrategyRole{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentExecutionStrategyRole) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentExecutionStrategyRole) ProtoMessage() {}
+
+func (x *AgentExecutionStrategyRole) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentExecutionStrategyRole.ProtoReflect.Descriptor instead.
+func (*AgentExecutionStrategyRole) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *AgentExecutionStrategyRole) GetRoleId() string {
+	if x != nil {
+		return x.RoleId
+	}
+	return ""
+}
+
+func (x *AgentExecutionStrategyRole) GetCapabilityIds() []string {
+	if x != nil {
+		return x.CapabilityIds
+	}
+	return nil
+}
+
+func (x *AgentExecutionStrategyRole) GetAllowedTools() []string {
+	if x != nil {
+		return x.AllowedTools
+	}
+	return nil
+}
+
+func (x *AgentExecutionStrategyRole) GetMaxSteps() int32 {
+	if x != nil {
+		return x.MaxSteps
+	}
+	return 0
+}
+
+func (x *AgentExecutionStrategyRole) GetMaxTotalTokens() int32 {
+	if x != nil {
+		return x.MaxTotalTokens
+	}
+	return 0
+}
+
+func (x *AgentExecutionStrategyRole) GetMaxEstimatedCostMicros() int64 {
+	if x != nil {
+		return x.MaxEstimatedCostMicros
+	}
+	return 0
+}
+
+func (x *AgentExecutionStrategyRole) GetTimeoutMillis() int64 {
+	if x != nil {
+		return x.TimeoutMillis
+	}
+	return 0
+}
+
+// Sanitized, versioned admission evidence. It never contains prompts, raw
+// requests, credentials or tool arguments and does not itself grant tools.
+type AgentExecutionStrategyPlan struct {
+	state                  protoimpl.MessageState        `protogen:"open.v1"`
+	Version                string                        `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
+	TemplateId             string                        `protobuf:"bytes,2,opt,name=template_id,json=templateId,proto3" json:"template_id,omitempty"`
+	CandidateStrategy      string                        `protobuf:"bytes,3,opt,name=candidate_strategy,json=candidateStrategy,proto3" json:"candidate_strategy,omitempty"`
+	SelectedStrategy       string                        `protobuf:"bytes,4,opt,name=selected_strategy,json=selectedStrategy,proto3" json:"selected_strategy,omitempty"`
+	Decision               string                        `protobuf:"bytes,5,opt,name=decision,proto3" json:"decision,omitempty"`
+	ReasonCode             string                        `protobuf:"bytes,6,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
+	ComplexityScore        int32                         `protobuf:"varint,7,opt,name=complexity_score,json=complexityScore,proto3" json:"complexity_score,omitempty"`
+	ComplexityClass        string                        `protobuf:"bytes,8,opt,name=complexity_class,json=complexityClass,proto3" json:"complexity_class,omitempty"`
+	ComplexitySignals      []string                      `protobuf:"bytes,9,rep,name=complexity_signals,json=complexitySignals,proto3" json:"complexity_signals,omitempty"`
+	EstimatedLatencyMillis int64                         `protobuf:"varint,10,opt,name=estimated_latency_millis,json=estimatedLatencyMillis,proto3" json:"estimated_latency_millis,omitempty"`
+	EstimatedTotalTokens   int32                         `protobuf:"varint,11,opt,name=estimated_total_tokens,json=estimatedTotalTokens,proto3" json:"estimated_total_tokens,omitempty"`
+	EstimatedCostMicros    int64                         `protobuf:"varint,12,opt,name=estimated_cost_micros,json=estimatedCostMicros,proto3" json:"estimated_cost_micros,omitempty"`
+	MaxParallelRoles       int32                         `protobuf:"varint,13,opt,name=max_parallel_roles,json=maxParallelRoles,proto3" json:"max_parallel_roles,omitempty"`
+	Roles                  []*AgentExecutionStrategyRole `protobuf:"bytes,14,rep,name=roles,proto3" json:"roles,omitempty"`
+	PlanDigest             string                        `protobuf:"bytes,15,opt,name=plan_digest,json=planDigest,proto3" json:"plan_digest,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *AgentExecutionStrategyPlan) Reset() {
+	*x = AgentExecutionStrategyPlan{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentExecutionStrategyPlan) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentExecutionStrategyPlan) ProtoMessage() {}
+
+func (x *AgentExecutionStrategyPlan) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentExecutionStrategyPlan.ProtoReflect.Descriptor instead.
+func (*AgentExecutionStrategyPlan) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *AgentExecutionStrategyPlan) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *AgentExecutionStrategyPlan) GetTemplateId() string {
+	if x != nil {
+		return x.TemplateId
+	}
+	return ""
+}
+
+func (x *AgentExecutionStrategyPlan) GetCandidateStrategy() string {
+	if x != nil {
+		return x.CandidateStrategy
+	}
+	return ""
+}
+
+func (x *AgentExecutionStrategyPlan) GetSelectedStrategy() string {
+	if x != nil {
+		return x.SelectedStrategy
+	}
+	return ""
+}
+
+func (x *AgentExecutionStrategyPlan) GetDecision() string {
+	if x != nil {
+		return x.Decision
+	}
+	return ""
+}
+
+func (x *AgentExecutionStrategyPlan) GetReasonCode() string {
+	if x != nil {
+		return x.ReasonCode
+	}
+	return ""
+}
+
+func (x *AgentExecutionStrategyPlan) GetComplexityScore() int32 {
+	if x != nil {
+		return x.ComplexityScore
+	}
+	return 0
+}
+
+func (x *AgentExecutionStrategyPlan) GetComplexityClass() string {
+	if x != nil {
+		return x.ComplexityClass
+	}
+	return ""
+}
+
+func (x *AgentExecutionStrategyPlan) GetComplexitySignals() []string {
+	if x != nil {
+		return x.ComplexitySignals
+	}
+	return nil
+}
+
+func (x *AgentExecutionStrategyPlan) GetEstimatedLatencyMillis() int64 {
+	if x != nil {
+		return x.EstimatedLatencyMillis
+	}
+	return 0
+}
+
+func (x *AgentExecutionStrategyPlan) GetEstimatedTotalTokens() int32 {
+	if x != nil {
+		return x.EstimatedTotalTokens
+	}
+	return 0
+}
+
+func (x *AgentExecutionStrategyPlan) GetEstimatedCostMicros() int64 {
+	if x != nil {
+		return x.EstimatedCostMicros
+	}
+	return 0
+}
+
+func (x *AgentExecutionStrategyPlan) GetMaxParallelRoles() int32 {
+	if x != nil {
+		return x.MaxParallelRoles
+	}
+	return 0
+}
+
+func (x *AgentExecutionStrategyPlan) GetRoles() []*AgentExecutionStrategyRole {
+	if x != nil {
+		return x.Roles
+	}
+	return nil
+}
+
+func (x *AgentExecutionStrategyPlan) GetPlanDigest() string {
+	if x != nil {
+		return x.PlanDigest
+	}
+	return ""
+}
+
+type RunAgentResponse struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Code        uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg         string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Response    string                 `protobuf:"bytes,3,opt,name=response,proto3" json:"response,omitempty"`
+	DialogueKey string                 `protobuf:"bytes,4,opt,name=dialogue_key,json=dialogueKey,proto3" json:"dialogue_key,omitempty"`
+	RunId       string                 `protobuf:"bytes,5,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	// Compatibility profile selected by the first P8 migration planner.
+	ExecutionProfile string `protobuf:"bytes,6,opt,name=execution_profile,json=executionProfile,proto3" json:"execution_profile,omitempty"`
+	// Capabilities actually selected for this response, not requested permissions.
+	CapabilityIds    []string       `protobuf:"bytes,7,rep,name=capability_ids,json=capabilityIds,proto3" json:"capability_ids,omitempty"`
+	TweetList        []*TweetResult `protobuf:"bytes,8,rep,name=tweet_list,json=tweetList,proto3" json:"tweet_list,omitempty"`
+	PublishableDraft bool           `protobuf:"varint,9,opt,name=publishable_draft,json=publishableDraft,proto3" json:"publishable_draft,omitempty"`
+	// Sanitized execution evidence. Tool arguments and raw observations are never returned.
+	ToolActivities []*AgentToolActivity `protobuf:"bytes,10,rep,name=tool_activities,json=toolActivities,proto3" json:"tool_activities,omitempty"`
+	// Verifiable source records derived from structured tool results, never from answer text.
+	Citations []*AgentCitation `protobuf:"bytes,11,rep,name=citations,proto3" json:"citations,omitempty"`
+	// Typed outputs projected from the persisted Run.
+	Artifacts []*AgentArtifact `protobuf:"bytes,12,rep,name=artifacts,proto3" json:"artifacts,omitempty"`
+	// Sanitized approval projection. Never contains inputs or resume credentials.
+	ApprovalState                *AgentApprovalState         `protobuf:"bytes,13,opt,name=approval_state,json=approvalState,proto3" json:"approval_state,omitempty"`
+	RunStatus                    string                      `protobuf:"bytes,14,opt,name=run_status,json=runStatus,proto3" json:"run_status,omitempty"`
+	SelectedSkillId              string                      `protobuf:"bytes,15,opt,name=selected_skill_id,json=selectedSkillId,proto3" json:"selected_skill_id,omitempty"`
+	SelectedSkillVersion         string                      `protobuf:"bytes,16,opt,name=selected_skill_version,json=selectedSkillVersion,proto3" json:"selected_skill_version,omitempty"`
+	SelectedTaskTemplateId       string                      `protobuf:"bytes,17,opt,name=selected_task_template_id,json=selectedTaskTemplateId,proto3" json:"selected_task_template_id,omitempty"`
+	SelectedTaskTemplateRevision int64                       `protobuf:"varint,18,opt,name=selected_task_template_revision,json=selectedTaskTemplateRevision,proto3" json:"selected_task_template_revision,omitempty"`
+	ExecutionStrategyPlan        *AgentExecutionStrategyPlan `protobuf:"bytes,19,opt,name=execution_strategy_plan,json=executionStrategyPlan,proto3" json:"execution_strategy_plan,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
+}
+
+func (x *RunAgentResponse) Reset() {
+	*x = RunAgentResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunAgentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunAgentResponse) ProtoMessage() {}
+
+func (x *RunAgentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunAgentResponse.ProtoReflect.Descriptor instead.
+func (*RunAgentResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *RunAgentResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *RunAgentResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *RunAgentResponse) GetResponse() string {
+	if x != nil {
+		return x.Response
+	}
+	return ""
+}
+
+func (x *RunAgentResponse) GetDialogueKey() string {
+	if x != nil {
+		return x.DialogueKey
+	}
+	return ""
+}
+
+func (x *RunAgentResponse) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *RunAgentResponse) GetExecutionProfile() string {
+	if x != nil {
+		return x.ExecutionProfile
+	}
+	return ""
+}
+
+func (x *RunAgentResponse) GetCapabilityIds() []string {
+	if x != nil {
+		return x.CapabilityIds
+	}
+	return nil
+}
+
+func (x *RunAgentResponse) GetTweetList() []*TweetResult {
+	if x != nil {
+		return x.TweetList
+	}
+	return nil
+}
+
+func (x *RunAgentResponse) GetPublishableDraft() bool {
+	if x != nil {
+		return x.PublishableDraft
+	}
+	return false
+}
+
+func (x *RunAgentResponse) GetToolActivities() []*AgentToolActivity {
+	if x != nil {
+		return x.ToolActivities
+	}
+	return nil
+}
+
+func (x *RunAgentResponse) GetCitations() []*AgentCitation {
+	if x != nil {
+		return x.Citations
+	}
+	return nil
+}
+
+func (x *RunAgentResponse) GetArtifacts() []*AgentArtifact {
+	if x != nil {
+		return x.Artifacts
+	}
+	return nil
+}
+
+func (x *RunAgentResponse) GetApprovalState() *AgentApprovalState {
+	if x != nil {
+		return x.ApprovalState
+	}
+	return nil
+}
+
+func (x *RunAgentResponse) GetRunStatus() string {
+	if x != nil {
+		return x.RunStatus
+	}
+	return ""
+}
+
+func (x *RunAgentResponse) GetSelectedSkillId() string {
+	if x != nil {
+		return x.SelectedSkillId
+	}
+	return ""
+}
+
+func (x *RunAgentResponse) GetSelectedSkillVersion() string {
+	if x != nil {
+		return x.SelectedSkillVersion
+	}
+	return ""
+}
+
+func (x *RunAgentResponse) GetSelectedTaskTemplateId() string {
+	if x != nil {
+		return x.SelectedTaskTemplateId
+	}
+	return ""
+}
+
+func (x *RunAgentResponse) GetSelectedTaskTemplateRevision() int64 {
+	if x != nil {
+		return x.SelectedTaskTemplateRevision
+	}
+	return 0
+}
+
+func (x *RunAgentResponse) GetExecutionStrategyPlan() *AgentExecutionStrategyPlan {
+	if x != nil {
+		return x.ExecutionStrategyPlan
+	}
+	return nil
+}
+
+type AgentExecutionRun struct {
+	state                 protoimpl.MessageState      `protogen:"open.v1"`
+	RunId                 string                      `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	DialogueKey           string                      `protobuf:"bytes,2,opt,name=dialogue_key,json=dialogueKey,proto3" json:"dialogue_key,omitempty"`
+	ExecutionProfile      string                      `protobuf:"bytes,3,opt,name=execution_profile,json=executionProfile,proto3" json:"execution_profile,omitempty"`
+	CapabilityIds         []string                    `protobuf:"bytes,4,rep,name=capability_ids,json=capabilityIds,proto3" json:"capability_ids,omitempty"`
+	Status                string                      `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
+	Revision              int64                       `protobuf:"varint,6,opt,name=revision,proto3" json:"revision,omitempty"`
+	ResumeSupported       bool                        `protobuf:"varint,7,opt,name=resume_supported,json=resumeSupported,proto3" json:"resume_supported,omitempty"`
+	PendingActionType     string                      `protobuf:"bytes,8,opt,name=pending_action_type,json=pendingActionType,proto3" json:"pending_action_type,omitempty"`
+	PendingActionName     string                      `protobuf:"bytes,9,opt,name=pending_action_name,json=pendingActionName,proto3" json:"pending_action_name,omitempty"`
+	StepCount             int32                       `protobuf:"varint,10,opt,name=step_count,json=stepCount,proto3" json:"step_count,omitempty"`
+	InputTokens           int32                       `protobuf:"varint,11,opt,name=input_tokens,json=inputTokens,proto3" json:"input_tokens,omitempty"`
+	OutputTokens          int32                       `protobuf:"varint,12,opt,name=output_tokens,json=outputTokens,proto3" json:"output_tokens,omitempty"`
+	TotalTokens           int32                       `protobuf:"varint,13,opt,name=total_tokens,json=totalTokens,proto3" json:"total_tokens,omitempty"`
+	EstimatedCostMicros   int64                       `protobuf:"varint,14,opt,name=estimated_cost_micros,json=estimatedCostMicros,proto3" json:"estimated_cost_micros,omitempty"`
+	PricingVersion        string                      `protobuf:"bytes,15,opt,name=pricing_version,json=pricingVersion,proto3" json:"pricing_version,omitempty"`
+	FailureCode           string                      `protobuf:"bytes,16,opt,name=failure_code,json=failureCode,proto3" json:"failure_code,omitempty"`
+	StartedAt             int64                       `protobuf:"varint,17,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	UpdatedAt             int64                       `protobuf:"varint,18,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	SuspendedAt           int64                       `protobuf:"varint,19,opt,name=suspended_at,json=suspendedAt,proto3" json:"suspended_at,omitempty"`
+	FinishedAt            int64                       `protobuf:"varint,20,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
+	PendingActionId       string                      `protobuf:"bytes,21,opt,name=pending_action_id,json=pendingActionId,proto3" json:"pending_action_id,omitempty"`
+	ApprovalId            string                      `protobuf:"bytes,22,opt,name=approval_id,json=approvalId,proto3" json:"approval_id,omitempty"`
+	ApprovalExpiresAt     int64                       `protobuf:"varint,23,opt,name=approval_expires_at,json=approvalExpiresAt,proto3" json:"approval_expires_at,omitempty"`
+	SkillId               string                      `protobuf:"bytes,24,opt,name=skill_id,json=skillId,proto3" json:"skill_id,omitempty"`
+	SkillVersion          string                      `protobuf:"bytes,25,opt,name=skill_version,json=skillVersion,proto3" json:"skill_version,omitempty"`
+	TaskTemplateId        string                      `protobuf:"bytes,26,opt,name=task_template_id,json=taskTemplateId,proto3" json:"task_template_id,omitempty"`
+	TaskTemplateRevision  int64                       `protobuf:"varint,27,opt,name=task_template_revision,json=taskTemplateRevision,proto3" json:"task_template_revision,omitempty"`
+	ExecutionStrategyPlan *AgentExecutionStrategyPlan `protobuf:"bytes,28,opt,name=execution_strategy_plan,json=executionStrategyPlan,proto3" json:"execution_strategy_plan,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *AgentExecutionRun) Reset() {
+	*x = AgentExecutionRun{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentExecutionRun) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentExecutionRun) ProtoMessage() {}
+
+func (x *AgentExecutionRun) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentExecutionRun.ProtoReflect.Descriptor instead.
+func (*AgentExecutionRun) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *AgentExecutionRun) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *AgentExecutionRun) GetDialogueKey() string {
+	if x != nil {
+		return x.DialogueKey
+	}
+	return ""
+}
+
+func (x *AgentExecutionRun) GetExecutionProfile() string {
+	if x != nil {
+		return x.ExecutionProfile
+	}
+	return ""
+}
+
+func (x *AgentExecutionRun) GetCapabilityIds() []string {
+	if x != nil {
+		return x.CapabilityIds
+	}
+	return nil
+}
+
+func (x *AgentExecutionRun) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *AgentExecutionRun) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *AgentExecutionRun) GetResumeSupported() bool {
+	if x != nil {
+		return x.ResumeSupported
+	}
+	return false
+}
+
+func (x *AgentExecutionRun) GetPendingActionType() string {
+	if x != nil {
+		return x.PendingActionType
+	}
+	return ""
+}
+
+func (x *AgentExecutionRun) GetPendingActionName() string {
+	if x != nil {
+		return x.PendingActionName
+	}
+	return ""
+}
+
+func (x *AgentExecutionRun) GetStepCount() int32 {
+	if x != nil {
+		return x.StepCount
+	}
+	return 0
+}
+
+func (x *AgentExecutionRun) GetInputTokens() int32 {
+	if x != nil {
+		return x.InputTokens
+	}
+	return 0
+}
+
+func (x *AgentExecutionRun) GetOutputTokens() int32 {
+	if x != nil {
+		return x.OutputTokens
+	}
+	return 0
+}
+
+func (x *AgentExecutionRun) GetTotalTokens() int32 {
+	if x != nil {
+		return x.TotalTokens
+	}
+	return 0
+}
+
+func (x *AgentExecutionRun) GetEstimatedCostMicros() int64 {
+	if x != nil {
+		return x.EstimatedCostMicros
+	}
+	return 0
+}
+
+func (x *AgentExecutionRun) GetPricingVersion() string {
+	if x != nil {
+		return x.PricingVersion
+	}
+	return ""
+}
+
+func (x *AgentExecutionRun) GetFailureCode() string {
+	if x != nil {
+		return x.FailureCode
+	}
+	return ""
+}
+
+func (x *AgentExecutionRun) GetStartedAt() int64 {
+	if x != nil {
+		return x.StartedAt
+	}
+	return 0
+}
+
+func (x *AgentExecutionRun) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+func (x *AgentExecutionRun) GetSuspendedAt() int64 {
+	if x != nil {
+		return x.SuspendedAt
+	}
+	return 0
+}
+
+func (x *AgentExecutionRun) GetFinishedAt() int64 {
+	if x != nil {
+		return x.FinishedAt
+	}
+	return 0
+}
+
+func (x *AgentExecutionRun) GetPendingActionId() string {
+	if x != nil {
+		return x.PendingActionId
+	}
+	return ""
+}
+
+func (x *AgentExecutionRun) GetApprovalId() string {
+	if x != nil {
+		return x.ApprovalId
+	}
+	return ""
+}
+
+func (x *AgentExecutionRun) GetApprovalExpiresAt() int64 {
+	if x != nil {
+		return x.ApprovalExpiresAt
+	}
+	return 0
+}
+
+func (x *AgentExecutionRun) GetSkillId() string {
+	if x != nil {
+		return x.SkillId
+	}
+	return ""
+}
+
+func (x *AgentExecutionRun) GetSkillVersion() string {
+	if x != nil {
+		return x.SkillVersion
+	}
+	return ""
+}
+
+func (x *AgentExecutionRun) GetTaskTemplateId() string {
+	if x != nil {
+		return x.TaskTemplateId
+	}
+	return ""
+}
+
+func (x *AgentExecutionRun) GetTaskTemplateRevision() int64 {
+	if x != nil {
+		return x.TaskTemplateRevision
+	}
+	return 0
+}
+
+func (x *AgentExecutionRun) GetExecutionStrategyPlan() *AgentExecutionStrategyPlan {
+	if x != nil {
+		return x.ExecutionStrategyPlan
+	}
+	return nil
+}
+
+type AgentSkillKnowledgeBinding struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Reference     string                 `protobuf:"bytes,2,opt,name=reference,proto3" json:"reference,omitempty"`
+	Version       string                 `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentSkillKnowledgeBinding) Reset() {
+	*x = AgentSkillKnowledgeBinding{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentSkillKnowledgeBinding) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentSkillKnowledgeBinding) ProtoMessage() {}
+
+func (x *AgentSkillKnowledgeBinding) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentSkillKnowledgeBinding.ProtoReflect.Descriptor instead.
+func (*AgentSkillKnowledgeBinding) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *AgentSkillKnowledgeBinding) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *AgentSkillKnowledgeBinding) GetReference() string {
+	if x != nil {
+		return x.Reference
+	}
+	return ""
+}
+
+func (x *AgentSkillKnowledgeBinding) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+type AgentSkillProfileBinding struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ProfileId      string                 `protobuf:"bytes,1,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	ProfileVersion string                 `protobuf:"bytes,2,opt,name=profile_version,json=profileVersion,proto3" json:"profile_version,omitempty"`
+	PromptId       string                 `protobuf:"bytes,3,opt,name=prompt_id,json=promptId,proto3" json:"prompt_id,omitempty"`
+	PromptVersion  string                 `protobuf:"bytes,4,opt,name=prompt_version,json=promptVersion,proto3" json:"prompt_version,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *AgentSkillProfileBinding) Reset() {
+	*x = AgentSkillProfileBinding{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentSkillProfileBinding) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentSkillProfileBinding) ProtoMessage() {}
+
+func (x *AgentSkillProfileBinding) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentSkillProfileBinding.ProtoReflect.Descriptor instead.
+func (*AgentSkillProfileBinding) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *AgentSkillProfileBinding) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
+	}
+	return ""
+}
+
+func (x *AgentSkillProfileBinding) GetProfileVersion() string {
+	if x != nil {
+		return x.ProfileVersion
+	}
+	return ""
+}
+
+func (x *AgentSkillProfileBinding) GetPromptId() string {
+	if x != nil {
+		return x.PromptId
+	}
+	return ""
+}
+
+func (x *AgentSkillProfileBinding) GetPromptVersion() string {
+	if x != nil {
+		return x.PromptVersion
+	}
+	return ""
+}
+
+type AgentSkillBudget struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	MaxSteps               int32                  `protobuf:"varint,1,opt,name=max_steps,json=maxSteps,proto3" json:"max_steps,omitempty"`
+	MaxInputTokens         int32                  `protobuf:"varint,2,opt,name=max_input_tokens,json=maxInputTokens,proto3" json:"max_input_tokens,omitempty"`
+	MaxOutputTokens        int32                  `protobuf:"varint,3,opt,name=max_output_tokens,json=maxOutputTokens,proto3" json:"max_output_tokens,omitempty"`
+	MaxTotalTokens         int32                  `protobuf:"varint,4,opt,name=max_total_tokens,json=maxTotalTokens,proto3" json:"max_total_tokens,omitempty"`
+	MaxEstimatedCostMicros int64                  `protobuf:"varint,5,opt,name=max_estimated_cost_micros,json=maxEstimatedCostMicros,proto3" json:"max_estimated_cost_micros,omitempty"`
+	TimeoutSeconds         int64                  `protobuf:"varint,6,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *AgentSkillBudget) Reset() {
+	*x = AgentSkillBudget{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentSkillBudget) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentSkillBudget) ProtoMessage() {}
+
+func (x *AgentSkillBudget) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentSkillBudget.ProtoReflect.Descriptor instead.
+func (*AgentSkillBudget) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *AgentSkillBudget) GetMaxSteps() int32 {
+	if x != nil {
+		return x.MaxSteps
+	}
+	return 0
+}
+
+func (x *AgentSkillBudget) GetMaxInputTokens() int32 {
+	if x != nil {
+		return x.MaxInputTokens
+	}
+	return 0
+}
+
+func (x *AgentSkillBudget) GetMaxOutputTokens() int32 {
+	if x != nil {
+		return x.MaxOutputTokens
+	}
+	return 0
+}
+
+func (x *AgentSkillBudget) GetMaxTotalTokens() int32 {
+	if x != nil {
+		return x.MaxTotalTokens
+	}
+	return 0
+}
+
+func (x *AgentSkillBudget) GetMaxEstimatedCostMicros() int64 {
+	if x != nil {
+		return x.MaxEstimatedCostMicros
+	}
+	return 0
+}
+
+func (x *AgentSkillBudget) GetTimeoutSeconds() int64 {
+	if x != nil {
+		return x.TimeoutSeconds
+	}
+	return 0
+}
+
+type AgentSkillOutputContract struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SchemaId      string                 `protobuf:"bytes,1,opt,name=schema_id,json=schemaId,proto3" json:"schema_id,omitempty"`
+	ContentType   string                 `protobuf:"bytes,2,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	SchemaJson    string                 `protobuf:"bytes,3,opt,name=schema_json,json=schemaJson,proto3" json:"schema_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentSkillOutputContract) Reset() {
+	*x = AgentSkillOutputContract{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentSkillOutputContract) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentSkillOutputContract) ProtoMessage() {}
+
+func (x *AgentSkillOutputContract) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentSkillOutputContract.ProtoReflect.Descriptor instead.
+func (*AgentSkillOutputContract) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *AgentSkillOutputContract) GetSchemaId() string {
+	if x != nil {
+		return x.SchemaId
+	}
+	return ""
+}
+
+func (x *AgentSkillOutputContract) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
+}
+
+func (x *AgentSkillOutputContract) GetSchemaJson() string {
+	if x != nil {
+		return x.SchemaJson
+	}
+	return ""
+}
+
+type AgentSkillWorkflowBinding struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	PublicationId          string                 `protobuf:"bytes,1,opt,name=publication_id,json=publicationId,proto3" json:"publication_id,omitempty"`
+	PublicationRevision    int64                  `protobuf:"varint,2,opt,name=publication_revision,json=publicationRevision,proto3" json:"publication_revision,omitempty"`
+	WorkflowId             string                 `protobuf:"bytes,3,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	WorkflowRevisionId     string                 `protobuf:"bytes,4,opt,name=workflow_revision_id,json=workflowRevisionId,proto3" json:"workflow_revision_id,omitempty"`
+	WorkflowRevisionNumber int64                  `protobuf:"varint,5,opt,name=workflow_revision_number,json=workflowRevisionNumber,proto3" json:"workflow_revision_number,omitempty"`
+	WorkflowDslHash        string                 `protobuf:"bytes,6,opt,name=workflow_dsl_hash,json=workflowDslHash,proto3" json:"workflow_dsl_hash,omitempty"`
+	ToolName               string                 `protobuf:"bytes,7,opt,name=tool_name,json=toolName,proto3" json:"tool_name,omitempty"`
+	InputSchemaJson        string                 `protobuf:"bytes,8,opt,name=input_schema_json,json=inputSchemaJson,proto3" json:"input_schema_json,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *AgentSkillWorkflowBinding) Reset() {
+	*x = AgentSkillWorkflowBinding{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentSkillWorkflowBinding) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentSkillWorkflowBinding) ProtoMessage() {}
+
+func (x *AgentSkillWorkflowBinding) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentSkillWorkflowBinding.ProtoReflect.Descriptor instead.
+func (*AgentSkillWorkflowBinding) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *AgentSkillWorkflowBinding) GetPublicationId() string {
+	if x != nil {
+		return x.PublicationId
+	}
+	return ""
+}
+
+func (x *AgentSkillWorkflowBinding) GetPublicationRevision() int64 {
+	if x != nil {
+		return x.PublicationRevision
+	}
+	return 0
+}
+
+func (x *AgentSkillWorkflowBinding) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *AgentSkillWorkflowBinding) GetWorkflowRevisionId() string {
+	if x != nil {
+		return x.WorkflowRevisionId
+	}
+	return ""
+}
+
+func (x *AgentSkillWorkflowBinding) GetWorkflowRevisionNumber() int64 {
+	if x != nil {
+		return x.WorkflowRevisionNumber
+	}
+	return 0
+}
+
+func (x *AgentSkillWorkflowBinding) GetWorkflowDslHash() string {
+	if x != nil {
+		return x.WorkflowDslHash
+	}
+	return ""
+}
+
+func (x *AgentSkillWorkflowBinding) GetToolName() string {
+	if x != nil {
+		return x.ToolName
+	}
+	return ""
+}
+
+func (x *AgentSkillWorkflowBinding) GetInputSchemaJson() string {
+	if x != nil {
+		return x.InputSchemaJson
+	}
+	return ""
+}
+
+type AgentSkill struct {
+	state           protoimpl.MessageState        `protogen:"open.v1"`
+	ContractVersion string                        `protobuf:"bytes,1,opt,name=contract_version,json=contractVersion,proto3" json:"contract_version,omitempty"`
+	SkillId         string                        `protobuf:"bytes,2,opt,name=skill_id,json=skillId,proto3" json:"skill_id,omitempty"`
+	Version         string                        `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
+	DisplayName     string                        `protobuf:"bytes,4,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Description     string                        `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty"`
+	Instructions    string                        `protobuf:"bytes,6,opt,name=instructions,proto3" json:"instructions,omitempty"`
+	Source          string                        `protobuf:"bytes,7,opt,name=source,proto3" json:"source,omitempty"`
+	AllowedTools    []string                      `protobuf:"bytes,8,rep,name=allowed_tools,json=allowedTools,proto3" json:"allowed_tools,omitempty"`
+	Knowledge       []*AgentSkillKnowledgeBinding `protobuf:"bytes,9,rep,name=knowledge,proto3" json:"knowledge,omitempty"`
+	Profile         *AgentSkillProfileBinding     `protobuf:"bytes,10,opt,name=profile,proto3" json:"profile,omitempty"`
+	Budget          *AgentSkillBudget             `protobuf:"bytes,11,opt,name=budget,proto3" json:"budget,omitempty"`
+	Output          *AgentSkillOutputContract     `protobuf:"bytes,12,opt,name=output,proto3" json:"output,omitempty"`
+	Workflow        *AgentSkillWorkflowBinding    `protobuf:"bytes,13,opt,name=workflow,proto3" json:"workflow,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *AgentSkill) Reset() {
+	*x = AgentSkill{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentSkill) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentSkill) ProtoMessage() {}
+
+func (x *AgentSkill) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentSkill.ProtoReflect.Descriptor instead.
+func (*AgentSkill) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *AgentSkill) GetContractVersion() string {
+	if x != nil {
+		return x.ContractVersion
+	}
+	return ""
+}
+
+func (x *AgentSkill) GetSkillId() string {
+	if x != nil {
+		return x.SkillId
+	}
+	return ""
+}
+
+func (x *AgentSkill) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *AgentSkill) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *AgentSkill) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *AgentSkill) GetInstructions() string {
+	if x != nil {
+		return x.Instructions
+	}
+	return ""
+}
+
+func (x *AgentSkill) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *AgentSkill) GetAllowedTools() []string {
+	if x != nil {
+		return x.AllowedTools
+	}
+	return nil
+}
+
+func (x *AgentSkill) GetKnowledge() []*AgentSkillKnowledgeBinding {
+	if x != nil {
+		return x.Knowledge
+	}
+	return nil
+}
+
+func (x *AgentSkill) GetProfile() *AgentSkillProfileBinding {
+	if x != nil {
+		return x.Profile
+	}
+	return nil
+}
+
+func (x *AgentSkill) GetBudget() *AgentSkillBudget {
+	if x != nil {
+		return x.Budget
+	}
+	return nil
+}
+
+func (x *AgentSkill) GetOutput() *AgentSkillOutputContract {
+	if x != nil {
+		return x.Output
+	}
+	return nil
+}
+
+func (x *AgentSkill) GetWorkflow() *AgentSkillWorkflowBinding {
+	if x != nil {
+		return x.Workflow
+	}
+	return nil
+}
+
+type ListAgentSkillsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentSkillsRequest) Reset() {
+	*x = ListAgentSkillsRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentSkillsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentSkillsRequest) ProtoMessage() {}
+
+func (x *ListAgentSkillsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentSkillsRequest.ProtoReflect.Descriptor instead.
+func (*ListAgentSkillsRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *ListAgentSkillsRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ListAgentSkillsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type ListAgentSkillsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Skills        []*AgentSkill          `protobuf:"bytes,3,rep,name=skills,proto3" json:"skills,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentSkillsResponse) Reset() {
+	*x = ListAgentSkillsResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentSkillsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentSkillsResponse) ProtoMessage() {}
+
+func (x *ListAgentSkillsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentSkillsResponse.ProtoReflect.Descriptor instead.
+func (*ListAgentSkillsResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *ListAgentSkillsResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *ListAgentSkillsResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *ListAgentSkillsResponse) GetSkills() []*AgentSkill {
+	if x != nil {
+		return x.Skills
+	}
+	return nil
+}
+
+type GetAgentSkillRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	SkillId       string                 `protobuf:"bytes,2,opt,name=skill_id,json=skillId,proto3" json:"skill_id,omitempty"`
+	Version       string                 `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentSkillRequest) Reset() {
+	*x = GetAgentSkillRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentSkillRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentSkillRequest) ProtoMessage() {}
+
+func (x *GetAgentSkillRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentSkillRequest.ProtoReflect.Descriptor instead.
+func (*GetAgentSkillRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *GetAgentSkillRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *GetAgentSkillRequest) GetSkillId() string {
+	if x != nil {
+		return x.SkillId
+	}
+	return ""
+}
+
+func (x *GetAgentSkillRequest) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+type GetAgentSkillResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Skill         *AgentSkill            `protobuf:"bytes,3,opt,name=skill,proto3" json:"skill,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentSkillResponse) Reset() {
+	*x = GetAgentSkillResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentSkillResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentSkillResponse) ProtoMessage() {}
+
+func (x *GetAgentSkillResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentSkillResponse.ProtoReflect.Descriptor instead.
+func (*GetAgentSkillResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *GetAgentSkillResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *GetAgentSkillResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *GetAgentSkillResponse) GetSkill() *AgentSkill {
+	if x != nil {
+		return x.Skill
+	}
+	return nil
+}
+
+type AgentExtensionSkillReference struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SkillId       string                 `protobuf:"bytes,1,opt,name=skill_id,json=skillId,proto3" json:"skill_id,omitempty"`
+	Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentExtensionSkillReference) Reset() {
+	*x = AgentExtensionSkillReference{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentExtensionSkillReference) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentExtensionSkillReference) ProtoMessage() {}
+
+func (x *AgentExtensionSkillReference) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentExtensionSkillReference.ProtoReflect.Descriptor instead.
+func (*AgentExtensionSkillReference) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *AgentExtensionSkillReference) GetSkillId() string {
+	if x != nil {
+		return x.SkillId
+	}
+	return ""
+}
+
+func (x *AgentExtensionSkillReference) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+type AgentExtensionMCPReference struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	ConnectionId      string                 `protobuf:"bytes,1,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
+	ServerId          string                 `protobuf:"bytes,2,opt,name=server_id,json=serverId,proto3" json:"server_id,omitempty"`
+	SnapshotId        string                 `protobuf:"bytes,3,opt,name=snapshot_id,json=snapshotId,proto3" json:"snapshot_id,omitempty"`
+	QualifiedToolName string                 `protobuf:"bytes,4,opt,name=qualified_tool_name,json=qualifiedToolName,proto3" json:"qualified_tool_name,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *AgentExtensionMCPReference) Reset() {
+	*x = AgentExtensionMCPReference{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentExtensionMCPReference) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentExtensionMCPReference) ProtoMessage() {}
+
+func (x *AgentExtensionMCPReference) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentExtensionMCPReference.ProtoReflect.Descriptor instead.
+func (*AgentExtensionMCPReference) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *AgentExtensionMCPReference) GetConnectionId() string {
+	if x != nil {
+		return x.ConnectionId
+	}
+	return ""
+}
+
+func (x *AgentExtensionMCPReference) GetServerId() string {
+	if x != nil {
+		return x.ServerId
+	}
+	return ""
+}
+
+func (x *AgentExtensionMCPReference) GetSnapshotId() string {
+	if x != nil {
+		return x.SnapshotId
+	}
+	return ""
+}
+
+func (x *AgentExtensionMCPReference) GetQualifiedToolName() string {
+	if x != nil {
+		return x.QualifiedToolName
+	}
+	return ""
+}
+
+// AgentExtension is a credential-free discovery projection. It is not an
+// execution grant; Runtime policy, budget and approval remain authoritative.
+type AgentExtension struct {
+	state           protoimpl.MessageState        `protogen:"open.v1"`
+	ContractVersion string                        `protobuf:"bytes,1,opt,name=contract_version,json=contractVersion,proto3" json:"contract_version,omitempty"`
+	ExtensionId     string                        `protobuf:"bytes,2,opt,name=extension_id,json=extensionId,proto3" json:"extension_id,omitempty"`
+	Kind            string                        `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
+	Name            string                        `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
+	DisplayName     string                        `protobuf:"bytes,5,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Description     string                        `protobuf:"bytes,6,opt,name=description,proto3" json:"description,omitempty"`
+	Version         string                        `protobuf:"bytes,7,opt,name=version,proto3" json:"version,omitempty"`
+	Source          string                        `protobuf:"bytes,8,opt,name=source,proto3" json:"source,omitempty"`
+	CapabilityId    string                        `protobuf:"bytes,9,opt,name=capability_id,json=capabilityId,proto3" json:"capability_id,omitempty"`
+	Category        string                        `protobuf:"bytes,10,opt,name=category,proto3" json:"category,omitempty"`
+	Scope           string                        `protobuf:"bytes,11,opt,name=scope,proto3" json:"scope,omitempty"`
+	Status          string                        `protobuf:"bytes,12,opt,name=status,proto3" json:"status,omitempty"`
+	ApprovalMode    string                        `protobuf:"bytes,13,opt,name=approval_mode,json=approvalMode,proto3" json:"approval_mode,omitempty"`
+	HealthStatus    string                        `protobuf:"bytes,14,opt,name=health_status,json=healthStatus,proto3" json:"health_status,omitempty"`
+	Skill           *AgentExtensionSkillReference `protobuf:"bytes,15,opt,name=skill,proto3" json:"skill,omitempty"`
+	Mcp             *AgentExtensionMCPReference   `protobuf:"bytes,16,opt,name=mcp,proto3" json:"mcp,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *AgentExtension) Reset() {
+	*x = AgentExtension{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentExtension) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentExtension) ProtoMessage() {}
+
+func (x *AgentExtension) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentExtension.ProtoReflect.Descriptor instead.
+func (*AgentExtension) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *AgentExtension) GetContractVersion() string {
+	if x != nil {
+		return x.ContractVersion
+	}
+	return ""
+}
+
+func (x *AgentExtension) GetExtensionId() string {
+	if x != nil {
+		return x.ExtensionId
+	}
+	return ""
+}
+
+func (x *AgentExtension) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *AgentExtension) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *AgentExtension) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *AgentExtension) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *AgentExtension) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *AgentExtension) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *AgentExtension) GetCapabilityId() string {
+	if x != nil {
+		return x.CapabilityId
+	}
+	return ""
+}
+
+func (x *AgentExtension) GetCategory() string {
+	if x != nil {
+		return x.Category
+	}
+	return ""
+}
+
+func (x *AgentExtension) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *AgentExtension) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *AgentExtension) GetApprovalMode() string {
+	if x != nil {
+		return x.ApprovalMode
+	}
+	return ""
+}
+
+func (x *AgentExtension) GetHealthStatus() string {
+	if x != nil {
+		return x.HealthStatus
+	}
+	return ""
+}
+
+func (x *AgentExtension) GetSkill() *AgentExtensionSkillReference {
+	if x != nil {
+		return x.Skill
+	}
+	return nil
+}
+
+func (x *AgentExtension) GetMcp() *AgentExtensionMCPReference {
+	if x != nil {
+		return x.Mcp
+	}
+	return nil
+}
+
+type AgentExtensionSourceStatus struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Source        string                 `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
+	State         string                 `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
+	EntryCount    int32                  `protobuf:"varint,3,opt,name=entry_count,json=entryCount,proto3" json:"entry_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentExtensionSourceStatus) Reset() {
+	*x = AgentExtensionSourceStatus{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentExtensionSourceStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentExtensionSourceStatus) ProtoMessage() {}
+
+func (x *AgentExtensionSourceStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentExtensionSourceStatus.ProtoReflect.Descriptor instead.
+func (*AgentExtensionSourceStatus) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *AgentExtensionSourceStatus) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *AgentExtensionSourceStatus) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *AgentExtensionSourceStatus) GetEntryCount() int32 {
+	if x != nil {
+		return x.EntryCount
+	}
+	return 0
+}
+
+type ListAgentExtensionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Kind          string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	Category      string                 `protobuf:"bytes,3,opt,name=category,proto3" json:"category,omitempty"`
+	Scope         string                 `protobuf:"bytes,4,opt,name=scope,proto3" json:"scope,omitempty"`
+	Status        string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
+	Search        string                 `protobuf:"bytes,6,opt,name=search,proto3" json:"search,omitempty"`
+	AfterCursor   string                 `protobuf:"bytes,7,opt,name=after_cursor,json=afterCursor,proto3" json:"after_cursor,omitempty"`
+	PageSize      int32                  `protobuf:"varint,8,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentExtensionsRequest) Reset() {
+	*x = ListAgentExtensionsRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentExtensionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentExtensionsRequest) ProtoMessage() {}
+
+func (x *ListAgentExtensionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentExtensionsRequest.ProtoReflect.Descriptor instead.
+func (*ListAgentExtensionsRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *ListAgentExtensionsRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ListAgentExtensionsRequest) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *ListAgentExtensionsRequest) GetCategory() string {
+	if x != nil {
+		return x.Category
+	}
+	return ""
+}
+
+func (x *ListAgentExtensionsRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *ListAgentExtensionsRequest) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ListAgentExtensionsRequest) GetSearch() string {
+	if x != nil {
+		return x.Search
+	}
+	return ""
+}
+
+func (x *ListAgentExtensionsRequest) GetAfterCursor() string {
+	if x != nil {
+		return x.AfterCursor
+	}
+	return ""
+}
+
+func (x *ListAgentExtensionsRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type ListAgentExtensionsResponse struct {
+	state           protoimpl.MessageState        `protogen:"open.v1"`
+	Code            uint64                        `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg             string                        `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	ContractVersion string                        `protobuf:"bytes,3,opt,name=contract_version,json=contractVersion,proto3" json:"contract_version,omitempty"`
+	Extensions      []*AgentExtension             `protobuf:"bytes,4,rep,name=extensions,proto3" json:"extensions,omitempty"`
+	Sources         []*AgentExtensionSourceStatus `protobuf:"bytes,5,rep,name=sources,proto3" json:"sources,omitempty"`
+	NextCursor      string                        `protobuf:"bytes,6,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	HasMore         bool                          `protobuf:"varint,7,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ListAgentExtensionsResponse) Reset() {
+	*x = ListAgentExtensionsResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentExtensionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentExtensionsResponse) ProtoMessage() {}
+
+func (x *ListAgentExtensionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentExtensionsResponse.ProtoReflect.Descriptor instead.
+func (*ListAgentExtensionsResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *ListAgentExtensionsResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *ListAgentExtensionsResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *ListAgentExtensionsResponse) GetContractVersion() string {
+	if x != nil {
+		return x.ContractVersion
+	}
+	return ""
+}
+
+func (x *ListAgentExtensionsResponse) GetExtensions() []*AgentExtension {
+	if x != nil {
+		return x.Extensions
+	}
+	return nil
+}
+
+func (x *ListAgentExtensionsResponse) GetSources() []*AgentExtensionSourceStatus {
+	if x != nil {
+		return x.Sources
+	}
+	return nil
+}
+
+func (x *ListAgentExtensionsResponse) GetNextCursor() string {
+	if x != nil {
+		return x.NextCursor
+	}
+	return ""
+}
+
+func (x *ListAgentExtensionsResponse) GetHasMore() bool {
+	if x != nil {
+		return x.HasMore
+	}
+	return false
+}
+
+type AgentMarketplacePublisher struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PublisherId   string                 `protobuf:"bytes,1,opt,name=publisher_id,json=publisherId,proto3" json:"publisher_id,omitempty"`
+	DisplayName   string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Verification  string                 `protobuf:"bytes,3,opt,name=verification,proto3" json:"verification,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentMarketplacePublisher) Reset() {
+	*x = AgentMarketplacePublisher{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentMarketplacePublisher) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentMarketplacePublisher) ProtoMessage() {}
+
+func (x *AgentMarketplacePublisher) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentMarketplacePublisher.ProtoReflect.Descriptor instead.
+func (*AgentMarketplacePublisher) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *AgentMarketplacePublisher) GetPublisherId() string {
+	if x != nil {
+		return x.PublisherId
+	}
+	return ""
+}
+
+func (x *AgentMarketplacePublisher) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *AgentMarketplacePublisher) GetVerification() string {
+	if x != nil {
+		return x.Verification
+	}
+	return ""
+}
+
+// AgentMarketplaceExtension exposes verified metadata only. Package bytes,
+// publisher public keys, signatures and installation grants are not returned.
+type AgentMarketplaceExtension struct {
+	state                protoimpl.MessageState     `protogen:"open.v1"`
+	ContractVersion      string                     `protobuf:"bytes,1,opt,name=contract_version,json=contractVersion,proto3" json:"contract_version,omitempty"`
+	ReleaseId            string                     `protobuf:"bytes,2,opt,name=release_id,json=releaseId,proto3" json:"release_id,omitempty"`
+	PackageId            string                     `protobuf:"bytes,3,opt,name=package_id,json=packageId,proto3" json:"package_id,omitempty"`
+	Kind                 string                     `protobuf:"bytes,4,opt,name=kind,proto3" json:"kind,omitempty"`
+	Version              string                     `protobuf:"bytes,5,opt,name=version,proto3" json:"version,omitempty"`
+	DisplayName          string                     `protobuf:"bytes,6,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Description          string                     `protobuf:"bytes,7,opt,name=description,proto3" json:"description,omitempty"`
+	Publisher            *AgentMarketplacePublisher `protobuf:"bytes,8,opt,name=publisher,proto3" json:"publisher,omitempty"`
+	ArtifactDigestSha256 string                     `protobuf:"bytes,9,opt,name=artifact_digest_sha256,json=artifactDigestSha256,proto3" json:"artifact_digest_sha256,omitempty"`
+	SignatureKeyId       string                     `protobuf:"bytes,10,opt,name=signature_key_id,json=signatureKeyId,proto3" json:"signature_key_id,omitempty"`
+	CapabilityIds        []string                   `protobuf:"bytes,11,rep,name=capability_ids,json=capabilityIds,proto3" json:"capability_ids,omitempty"`
+	RequestedPermissions []string                   `protobuf:"bytes,12,rep,name=requested_permissions,json=requestedPermissions,proto3" json:"requested_permissions,omitempty"`
+	PublishedAtUnixMs    int64                      `protobuf:"varint,13,opt,name=published_at_unix_ms,json=publishedAtUnixMs,proto3" json:"published_at_unix_ms,omitempty"`
+	SignatureVerified    bool                       `protobuf:"varint,14,opt,name=signature_verified,json=signatureVerified,proto3" json:"signature_verified,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *AgentMarketplaceExtension) Reset() {
+	*x = AgentMarketplaceExtension{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentMarketplaceExtension) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentMarketplaceExtension) ProtoMessage() {}
+
+func (x *AgentMarketplaceExtension) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentMarketplaceExtension.ProtoReflect.Descriptor instead.
+func (*AgentMarketplaceExtension) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *AgentMarketplaceExtension) GetContractVersion() string {
+	if x != nil {
+		return x.ContractVersion
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceExtension) GetReleaseId() string {
+	if x != nil {
+		return x.ReleaseId
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceExtension) GetPackageId() string {
+	if x != nil {
+		return x.PackageId
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceExtension) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceExtension) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceExtension) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceExtension) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceExtension) GetPublisher() *AgentMarketplacePublisher {
+	if x != nil {
+		return x.Publisher
+	}
+	return nil
+}
+
+func (x *AgentMarketplaceExtension) GetArtifactDigestSha256() string {
+	if x != nil {
+		return x.ArtifactDigestSha256
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceExtension) GetSignatureKeyId() string {
+	if x != nil {
+		return x.SignatureKeyId
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceExtension) GetCapabilityIds() []string {
+	if x != nil {
+		return x.CapabilityIds
+	}
+	return nil
+}
+
+func (x *AgentMarketplaceExtension) GetRequestedPermissions() []string {
+	if x != nil {
+		return x.RequestedPermissions
+	}
+	return nil
+}
+
+func (x *AgentMarketplaceExtension) GetPublishedAtUnixMs() int64 {
+	if x != nil {
+		return x.PublishedAtUnixMs
+	}
+	return 0
+}
+
+func (x *AgentMarketplaceExtension) GetSignatureVerified() bool {
+	if x != nil {
+		return x.SignatureVerified
+	}
+	return false
+}
+
+type ListAgentMarketplaceExtensionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Kind          string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	PublisherId   string                 `protobuf:"bytes,3,opt,name=publisher_id,json=publisherId,proto3" json:"publisher_id,omitempty"`
+	Search        string                 `protobuf:"bytes,4,opt,name=search,proto3" json:"search,omitempty"`
+	AfterCursor   string                 `protobuf:"bytes,5,opt,name=after_cursor,json=afterCursor,proto3" json:"after_cursor,omitempty"`
+	PageSize      int32                  `protobuf:"varint,6,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentMarketplaceExtensionsRequest) Reset() {
+	*x = ListAgentMarketplaceExtensionsRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentMarketplaceExtensionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentMarketplaceExtensionsRequest) ProtoMessage() {}
+
+func (x *ListAgentMarketplaceExtensionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentMarketplaceExtensionsRequest.ProtoReflect.Descriptor instead.
+func (*ListAgentMarketplaceExtensionsRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *ListAgentMarketplaceExtensionsRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ListAgentMarketplaceExtensionsRequest) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *ListAgentMarketplaceExtensionsRequest) GetPublisherId() string {
+	if x != nil {
+		return x.PublisherId
+	}
+	return ""
+}
+
+func (x *ListAgentMarketplaceExtensionsRequest) GetSearch() string {
+	if x != nil {
+		return x.Search
+	}
+	return ""
+}
+
+func (x *ListAgentMarketplaceExtensionsRequest) GetAfterCursor() string {
+	if x != nil {
+		return x.AfterCursor
+	}
+	return ""
+}
+
+func (x *ListAgentMarketplaceExtensionsRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type ListAgentMarketplaceExtensionsResponse struct {
+	state           protoimpl.MessageState       `protogen:"open.v1"`
+	Code            uint64                       `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg             string                       `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	ContractVersion string                       `protobuf:"bytes,3,opt,name=contract_version,json=contractVersion,proto3" json:"contract_version,omitempty"`
+	Releases        []*AgentMarketplaceExtension `protobuf:"bytes,4,rep,name=releases,proto3" json:"releases,omitempty"`
+	NextCursor      string                       `protobuf:"bytes,5,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	HasMore         bool                         `protobuf:"varint,6,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ListAgentMarketplaceExtensionsResponse) Reset() {
+	*x = ListAgentMarketplaceExtensionsResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentMarketplaceExtensionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentMarketplaceExtensionsResponse) ProtoMessage() {}
+
+func (x *ListAgentMarketplaceExtensionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentMarketplaceExtensionsResponse.ProtoReflect.Descriptor instead.
+func (*ListAgentMarketplaceExtensionsResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *ListAgentMarketplaceExtensionsResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *ListAgentMarketplaceExtensionsResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *ListAgentMarketplaceExtensionsResponse) GetContractVersion() string {
+	if x != nil {
+		return x.ContractVersion
+	}
+	return ""
+}
+
+func (x *ListAgentMarketplaceExtensionsResponse) GetReleases() []*AgentMarketplaceExtension {
+	if x != nil {
+		return x.Releases
+	}
+	return nil
+}
+
+func (x *ListAgentMarketplaceExtensionsResponse) GetNextCursor() string {
+	if x != nil {
+		return x.NextCursor
+	}
+	return ""
+}
+
+func (x *ListAgentMarketplaceExtensionsResponse) GetHasMore() bool {
+	if x != nil {
+		return x.HasMore
+	}
+	return false
+}
+
+type AgentMarketplaceManagementAccess struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	ContractVersion   string                 `protobuf:"bytes,1,opt,name=contract_version,json=contractVersion,proto3" json:"contract_version,omitempty"`
+	Enabled           bool                   `protobuf:"varint,2,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	PlatformAdmin     bool                   `protobuf:"varint,3,opt,name=platform_admin,json=platformAdmin,proto3" json:"platform_admin,omitempty"`
+	OwnedPublisherIds []string               `protobuf:"bytes,4,rep,name=owned_publisher_ids,json=ownedPublisherIds,proto3" json:"owned_publisher_ids,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *AgentMarketplaceManagementAccess) Reset() {
+	*x = AgentMarketplaceManagementAccess{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[48]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentMarketplaceManagementAccess) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentMarketplaceManagementAccess) ProtoMessage() {}
+
+func (x *AgentMarketplaceManagementAccess) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[48]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentMarketplaceManagementAccess.ProtoReflect.Descriptor instead.
+func (*AgentMarketplaceManagementAccess) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{48}
+}
+
+func (x *AgentMarketplaceManagementAccess) GetContractVersion() string {
+	if x != nil {
+		return x.ContractVersion
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceManagementAccess) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *AgentMarketplaceManagementAccess) GetPlatformAdmin() bool {
+	if x != nil {
+		return x.PlatformAdmin
+	}
+	return false
+}
+
+func (x *AgentMarketplaceManagementAccess) GetOwnedPublisherIds() []string {
+	if x != nil {
+		return x.OwnedPublisherIds
+	}
+	return nil
+}
+
+type GetAgentMarketplaceManagementAccessRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId   uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentMarketplaceManagementAccessRequest) Reset() {
+	*x = GetAgentMarketplaceManagementAccessRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[49]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentMarketplaceManagementAccessRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentMarketplaceManagementAccessRequest) ProtoMessage() {}
+
+func (x *GetAgentMarketplaceManagementAccessRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[49]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentMarketplaceManagementAccessRequest.ProtoReflect.Descriptor instead.
+func (*GetAgentMarketplaceManagementAccessRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{49}
+}
+
+func (x *GetAgentMarketplaceManagementAccessRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+type GetAgentMarketplaceManagementAccessResponse struct {
+	state         protoimpl.MessageState            `protogen:"open.v1"`
+	Code          uint64                            `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                            `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Access        *AgentMarketplaceManagementAccess `protobuf:"bytes,3,opt,name=access,proto3" json:"access,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentMarketplaceManagementAccessResponse) Reset() {
+	*x = GetAgentMarketplaceManagementAccessResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentMarketplaceManagementAccessResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentMarketplaceManagementAccessResponse) ProtoMessage() {}
+
+func (x *GetAgentMarketplaceManagementAccessResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentMarketplaceManagementAccessResponse.ProtoReflect.Descriptor instead.
+func (*GetAgentMarketplaceManagementAccessResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{50}
+}
+
+func (x *GetAgentMarketplaceManagementAccessResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *GetAgentMarketplaceManagementAccessResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *GetAgentMarketplaceManagementAccessResponse) GetAccess() *AgentMarketplaceManagementAccess {
+	if x != nil {
+		return x.Access
+	}
+	return nil
+}
+
+type AgentMarketplaceSigningKey struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	KeyId           string                 `protobuf:"bytes,1,opt,name=key_id,json=keyId,proto3" json:"key_id,omitempty"`
+	Algorithm       string                 `protobuf:"bytes,2,opt,name=algorithm,proto3" json:"algorithm,omitempty"`
+	PublicKeyBase64 string                 `protobuf:"bytes,3,opt,name=public_key_base64,json=publicKeyBase64,proto3" json:"public_key_base64,omitempty"`
+	Status          string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *AgentMarketplaceSigningKey) Reset() {
+	*x = AgentMarketplaceSigningKey{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentMarketplaceSigningKey) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentMarketplaceSigningKey) ProtoMessage() {}
+
+func (x *AgentMarketplaceSigningKey) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentMarketplaceSigningKey.ProtoReflect.Descriptor instead.
+func (*AgentMarketplaceSigningKey) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *AgentMarketplaceSigningKey) GetKeyId() string {
+	if x != nil {
+		return x.KeyId
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceSigningKey) GetAlgorithm() string {
+	if x != nil {
+		return x.Algorithm
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceSigningKey) GetPublicKeyBase64() string {
+	if x != nil {
+		return x.PublicKeyBase64
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceSigningKey) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+type AgentMarketplaceManagedPublisher struct {
+	state            protoimpl.MessageState        `protogen:"open.v1"`
+	ContractVersion  string                        `protobuf:"bytes,1,opt,name=contract_version,json=contractVersion,proto3" json:"contract_version,omitempty"`
+	PublisherId      string                        `protobuf:"bytes,2,opt,name=publisher_id,json=publisherId,proto3" json:"publisher_id,omitempty"`
+	DisplayName      string                        `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Verification     string                        `protobuf:"bytes,4,opt,name=verification,proto3" json:"verification,omitempty"`
+	SigningKeys      []*AgentMarketplaceSigningKey `protobuf:"bytes,5,rep,name=signing_keys,json=signingKeys,proto3" json:"signing_keys,omitempty"`
+	OwnerUserIds     []uint64                      `protobuf:"varint,6,rep,packed,name=owner_user_ids,json=ownerUserIds,proto3" json:"owner_user_ids,omitempty"`
+	Revision         int64                         `protobuf:"varint,7,opt,name=revision,proto3" json:"revision,omitempty"`
+	CreatedBy        uint64                        `protobuf:"varint,8,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
+	UpdatedBy        uint64                        `protobuf:"varint,9,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
+	VerifiedAtUnixMs int64                         `protobuf:"varint,10,opt,name=verified_at_unix_ms,json=verifiedAtUnixMs,proto3" json:"verified_at_unix_ms,omitempty"`
+	CreatedAtUnixMs  int64                         `protobuf:"varint,11,opt,name=created_at_unix_ms,json=createdAtUnixMs,proto3" json:"created_at_unix_ms,omitempty"`
+	UpdatedAtUnixMs  int64                         `protobuf:"varint,12,opt,name=updated_at_unix_ms,json=updatedAtUnixMs,proto3" json:"updated_at_unix_ms,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *AgentMarketplaceManagedPublisher) Reset() {
+	*x = AgentMarketplaceManagedPublisher{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[52]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentMarketplaceManagedPublisher) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentMarketplaceManagedPublisher) ProtoMessage() {}
+
+func (x *AgentMarketplaceManagedPublisher) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[52]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentMarketplaceManagedPublisher.ProtoReflect.Descriptor instead.
+func (*AgentMarketplaceManagedPublisher) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{52}
+}
+
+func (x *AgentMarketplaceManagedPublisher) GetContractVersion() string {
+	if x != nil {
+		return x.ContractVersion
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceManagedPublisher) GetPublisherId() string {
+	if x != nil {
+		return x.PublisherId
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceManagedPublisher) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceManagedPublisher) GetVerification() string {
+	if x != nil {
+		return x.Verification
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceManagedPublisher) GetSigningKeys() []*AgentMarketplaceSigningKey {
+	if x != nil {
+		return x.SigningKeys
+	}
+	return nil
+}
+
+func (x *AgentMarketplaceManagedPublisher) GetOwnerUserIds() []uint64 {
+	if x != nil {
+		return x.OwnerUserIds
+	}
+	return nil
+}
+
+func (x *AgentMarketplaceManagedPublisher) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *AgentMarketplaceManagedPublisher) GetCreatedBy() uint64 {
+	if x != nil {
+		return x.CreatedBy
+	}
+	return 0
+}
+
+func (x *AgentMarketplaceManagedPublisher) GetUpdatedBy() uint64 {
+	if x != nil {
+		return x.UpdatedBy
+	}
+	return 0
+}
+
+func (x *AgentMarketplaceManagedPublisher) GetVerifiedAtUnixMs() int64 {
+	if x != nil {
+		return x.VerifiedAtUnixMs
+	}
+	return 0
+}
+
+func (x *AgentMarketplaceManagedPublisher) GetCreatedAtUnixMs() int64 {
+	if x != nil {
+		return x.CreatedAtUnixMs
+	}
+	return 0
+}
+
+func (x *AgentMarketplaceManagedPublisher) GetUpdatedAtUnixMs() int64 {
+	if x != nil {
+		return x.UpdatedAtUnixMs
+	}
+	return 0
+}
+
+type ListAgentMarketplacePublishersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId   uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	Page          int32                  `protobuf:"varint,2,opt,name=page,proto3" json:"page,omitempty"`
+	PageSize      int32                  `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentMarketplacePublishersRequest) Reset() {
+	*x = ListAgentMarketplacePublishersRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentMarketplacePublishersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentMarketplacePublishersRequest) ProtoMessage() {}
+
+func (x *ListAgentMarketplacePublishersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentMarketplacePublishersRequest.ProtoReflect.Descriptor instead.
+func (*ListAgentMarketplacePublishersRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *ListAgentMarketplacePublishersRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *ListAgentMarketplacePublishersRequest) GetPage() int32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListAgentMarketplacePublishersRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type ListAgentMarketplacePublishersResponse struct {
+	state         protoimpl.MessageState              `protogen:"open.v1"`
+	Code          uint64                              `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                              `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Publishers    []*AgentMarketplaceManagedPublisher `protobuf:"bytes,3,rep,name=publishers,proto3" json:"publishers,omitempty"`
+	Total         int64                               `protobuf:"varint,4,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentMarketplacePublishersResponse) Reset() {
+	*x = ListAgentMarketplacePublishersResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentMarketplacePublishersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentMarketplacePublishersResponse) ProtoMessage() {}
+
+func (x *ListAgentMarketplacePublishersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentMarketplacePublishersResponse.ProtoReflect.Descriptor instead.
+func (*ListAgentMarketplacePublishersResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{54}
+}
+
+func (x *ListAgentMarketplacePublishersResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *ListAgentMarketplacePublishersResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *ListAgentMarketplacePublishersResponse) GetPublishers() []*AgentMarketplaceManagedPublisher {
+	if x != nil {
+		return x.Publishers
+	}
+	return nil
+}
+
+func (x *ListAgentMarketplacePublishersResponse) GetTotal() int64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+type RegisterAgentMarketplacePublisherRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId     uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	PublisherId     string                 `protobuf:"bytes,2,opt,name=publisher_id,json=publisherId,proto3" json:"publisher_id,omitempty"`
+	DisplayName     string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	OwnerUserIds    []uint64               `protobuf:"varint,4,rep,packed,name=owner_user_ids,json=ownerUserIds,proto3" json:"owner_user_ids,omitempty"`
+	InitialKeyId    string                 `protobuf:"bytes,5,opt,name=initial_key_id,json=initialKeyId,proto3" json:"initial_key_id,omitempty"`
+	PublicKeyBase64 string                 `protobuf:"bytes,6,opt,name=public_key_base64,json=publicKeyBase64,proto3" json:"public_key_base64,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *RegisterAgentMarketplacePublisherRequest) Reset() {
+	*x = RegisterAgentMarketplacePublisherRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RegisterAgentMarketplacePublisherRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RegisterAgentMarketplacePublisherRequest) ProtoMessage() {}
+
+func (x *RegisterAgentMarketplacePublisherRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RegisterAgentMarketplacePublisherRequest.ProtoReflect.Descriptor instead.
+func (*RegisterAgentMarketplacePublisherRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *RegisterAgentMarketplacePublisherRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *RegisterAgentMarketplacePublisherRequest) GetPublisherId() string {
+	if x != nil {
+		return x.PublisherId
+	}
+	return ""
+}
+
+func (x *RegisterAgentMarketplacePublisherRequest) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *RegisterAgentMarketplacePublisherRequest) GetOwnerUserIds() []uint64 {
+	if x != nil {
+		return x.OwnerUserIds
+	}
+	return nil
+}
+
+func (x *RegisterAgentMarketplacePublisherRequest) GetInitialKeyId() string {
+	if x != nil {
+		return x.InitialKeyId
+	}
+	return ""
+}
+
+func (x *RegisterAgentMarketplacePublisherRequest) GetPublicKeyBase64() string {
+	if x != nil {
+		return x.PublicKeyBase64
+	}
+	return ""
+}
+
+type RegisterAgentMarketplacePublisherResponse struct {
+	state         protoimpl.MessageState            `protogen:"open.v1"`
+	Code          uint64                            `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                            `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Publisher     *AgentMarketplaceManagedPublisher `protobuf:"bytes,3,opt,name=publisher,proto3" json:"publisher,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RegisterAgentMarketplacePublisherResponse) Reset() {
+	*x = RegisterAgentMarketplacePublisherResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[56]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RegisterAgentMarketplacePublisherResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RegisterAgentMarketplacePublisherResponse) ProtoMessage() {}
+
+func (x *RegisterAgentMarketplacePublisherResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[56]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RegisterAgentMarketplacePublisherResponse.ProtoReflect.Descriptor instead.
+func (*RegisterAgentMarketplacePublisherResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{56}
+}
+
+func (x *RegisterAgentMarketplacePublisherResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *RegisterAgentMarketplacePublisherResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *RegisterAgentMarketplacePublisherResponse) GetPublisher() *AgentMarketplaceManagedPublisher {
+	if x != nil {
+		return x.Publisher
+	}
+	return nil
+}
+
+type RotateAgentMarketplacePublisherKeyRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId      uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	PublisherId      string                 `protobuf:"bytes,2,opt,name=publisher_id,json=publisherId,proto3" json:"publisher_id,omitempty"`
+	KeyId            string                 `protobuf:"bytes,3,opt,name=key_id,json=keyId,proto3" json:"key_id,omitempty"`
+	PublicKeyBase64  string                 `protobuf:"bytes,4,opt,name=public_key_base64,json=publicKeyBase64,proto3" json:"public_key_base64,omitempty"`
+	ExpectedRevision int64                  `protobuf:"varint,5,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *RotateAgentMarketplacePublisherKeyRequest) Reset() {
+	*x = RotateAgentMarketplacePublisherKeyRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[57]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RotateAgentMarketplacePublisherKeyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RotateAgentMarketplacePublisherKeyRequest) ProtoMessage() {}
+
+func (x *RotateAgentMarketplacePublisherKeyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[57]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RotateAgentMarketplacePublisherKeyRequest.ProtoReflect.Descriptor instead.
+func (*RotateAgentMarketplacePublisherKeyRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{57}
+}
+
+func (x *RotateAgentMarketplacePublisherKeyRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *RotateAgentMarketplacePublisherKeyRequest) GetPublisherId() string {
+	if x != nil {
+		return x.PublisherId
+	}
+	return ""
+}
+
+func (x *RotateAgentMarketplacePublisherKeyRequest) GetKeyId() string {
+	if x != nil {
+		return x.KeyId
+	}
+	return ""
+}
+
+func (x *RotateAgentMarketplacePublisherKeyRequest) GetPublicKeyBase64() string {
+	if x != nil {
+		return x.PublicKeyBase64
+	}
+	return ""
+}
+
+func (x *RotateAgentMarketplacePublisherKeyRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+type RotateAgentMarketplacePublisherKeyResponse struct {
+	state         protoimpl.MessageState            `protogen:"open.v1"`
+	Code          uint64                            `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                            `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Publisher     *AgentMarketplaceManagedPublisher `protobuf:"bytes,3,opt,name=publisher,proto3" json:"publisher,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RotateAgentMarketplacePublisherKeyResponse) Reset() {
+	*x = RotateAgentMarketplacePublisherKeyResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[58]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RotateAgentMarketplacePublisherKeyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RotateAgentMarketplacePublisherKeyResponse) ProtoMessage() {}
+
+func (x *RotateAgentMarketplacePublisherKeyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[58]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RotateAgentMarketplacePublisherKeyResponse.ProtoReflect.Descriptor instead.
+func (*RotateAgentMarketplacePublisherKeyResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{58}
+}
+
+func (x *RotateAgentMarketplacePublisherKeyResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *RotateAgentMarketplacePublisherKeyResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *RotateAgentMarketplacePublisherKeyResponse) GetPublisher() *AgentMarketplaceManagedPublisher {
+	if x != nil {
+		return x.Publisher
+	}
+	return nil
+}
+
+type RevokeAgentMarketplacePublisherKeyRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId      uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	PublisherId      string                 `protobuf:"bytes,2,opt,name=publisher_id,json=publisherId,proto3" json:"publisher_id,omitempty"`
+	KeyId            string                 `protobuf:"bytes,3,opt,name=key_id,json=keyId,proto3" json:"key_id,omitempty"`
+	ExpectedRevision int64                  `protobuf:"varint,4,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *RevokeAgentMarketplacePublisherKeyRequest) Reset() {
+	*x = RevokeAgentMarketplacePublisherKeyRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[59]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeAgentMarketplacePublisherKeyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeAgentMarketplacePublisherKeyRequest) ProtoMessage() {}
+
+func (x *RevokeAgentMarketplacePublisherKeyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[59]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeAgentMarketplacePublisherKeyRequest.ProtoReflect.Descriptor instead.
+func (*RevokeAgentMarketplacePublisherKeyRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{59}
+}
+
+func (x *RevokeAgentMarketplacePublisherKeyRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *RevokeAgentMarketplacePublisherKeyRequest) GetPublisherId() string {
+	if x != nil {
+		return x.PublisherId
+	}
+	return ""
+}
+
+func (x *RevokeAgentMarketplacePublisherKeyRequest) GetKeyId() string {
+	if x != nil {
+		return x.KeyId
+	}
+	return ""
+}
+
+func (x *RevokeAgentMarketplacePublisherKeyRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+type RevokeAgentMarketplacePublisherKeyResponse struct {
+	state         protoimpl.MessageState            `protogen:"open.v1"`
+	Code          uint64                            `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                            `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Publisher     *AgentMarketplaceManagedPublisher `protobuf:"bytes,3,opt,name=publisher,proto3" json:"publisher,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeAgentMarketplacePublisherKeyResponse) Reset() {
+	*x = RevokeAgentMarketplacePublisherKeyResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[60]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeAgentMarketplacePublisherKeyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeAgentMarketplacePublisherKeyResponse) ProtoMessage() {}
+
+func (x *RevokeAgentMarketplacePublisherKeyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[60]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeAgentMarketplacePublisherKeyResponse.ProtoReflect.Descriptor instead.
+func (*RevokeAgentMarketplacePublisherKeyResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{60}
+}
+
+func (x *RevokeAgentMarketplacePublisherKeyResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *RevokeAgentMarketplacePublisherKeyResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *RevokeAgentMarketplacePublisherKeyResponse) GetPublisher() *AgentMarketplaceManagedPublisher {
+	if x != nil {
+		return x.Publisher
+	}
+	return nil
+}
+
+type SetAgentMarketplacePublisherVerificationRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId      uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	PublisherId      string                 `protobuf:"bytes,2,opt,name=publisher_id,json=publisherId,proto3" json:"publisher_id,omitempty"`
+	Verification     string                 `protobuf:"bytes,3,opt,name=verification,proto3" json:"verification,omitempty"`
+	ExpectedRevision int64                  `protobuf:"varint,4,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *SetAgentMarketplacePublisherVerificationRequest) Reset() {
+	*x = SetAgentMarketplacePublisherVerificationRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[61]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetAgentMarketplacePublisherVerificationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetAgentMarketplacePublisherVerificationRequest) ProtoMessage() {}
+
+func (x *SetAgentMarketplacePublisherVerificationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[61]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetAgentMarketplacePublisherVerificationRequest.ProtoReflect.Descriptor instead.
+func (*SetAgentMarketplacePublisherVerificationRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{61}
+}
+
+func (x *SetAgentMarketplacePublisherVerificationRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *SetAgentMarketplacePublisherVerificationRequest) GetPublisherId() string {
+	if x != nil {
+		return x.PublisherId
+	}
+	return ""
+}
+
+func (x *SetAgentMarketplacePublisherVerificationRequest) GetVerification() string {
+	if x != nil {
+		return x.Verification
+	}
+	return ""
+}
+
+func (x *SetAgentMarketplacePublisherVerificationRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+type SetAgentMarketplacePublisherVerificationResponse struct {
+	state         protoimpl.MessageState            `protogen:"open.v1"`
+	Code          uint64                            `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                            `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Publisher     *AgentMarketplaceManagedPublisher `protobuf:"bytes,3,opt,name=publisher,proto3" json:"publisher,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetAgentMarketplacePublisherVerificationResponse) Reset() {
+	*x = SetAgentMarketplacePublisherVerificationResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[62]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetAgentMarketplacePublisherVerificationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetAgentMarketplacePublisherVerificationResponse) ProtoMessage() {}
+
+func (x *SetAgentMarketplacePublisherVerificationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[62]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetAgentMarketplacePublisherVerificationResponse.ProtoReflect.Descriptor instead.
+func (*SetAgentMarketplacePublisherVerificationResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{62}
+}
+
+func (x *SetAgentMarketplacePublisherVerificationResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *SetAgentMarketplacePublisherVerificationResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *SetAgentMarketplacePublisherVerificationResponse) GetPublisher() *AgentMarketplaceManagedPublisher {
+	if x != nil {
+		return x.Publisher
+	}
+	return nil
+}
+
+type AgentMarketplaceManifest struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	ContractVersion      string                 `protobuf:"bytes,1,opt,name=contract_version,json=contractVersion,proto3" json:"contract_version,omitempty"`
+	PackageId            string                 `protobuf:"bytes,2,opt,name=package_id,json=packageId,proto3" json:"package_id,omitempty"`
+	Kind                 string                 `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
+	Version              string                 `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
+	PublisherId          string                 `protobuf:"bytes,5,opt,name=publisher_id,json=publisherId,proto3" json:"publisher_id,omitempty"`
+	DisplayName          string                 `protobuf:"bytes,6,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Description          string                 `protobuf:"bytes,7,opt,name=description,proto3" json:"description,omitempty"`
+	ArtifactDigestSha256 string                 `protobuf:"bytes,8,opt,name=artifact_digest_sha256,json=artifactDigestSha256,proto3" json:"artifact_digest_sha256,omitempty"`
+	CapabilityIds        []string               `protobuf:"bytes,9,rep,name=capability_ids,json=capabilityIds,proto3" json:"capability_ids,omitempty"`
+	RequestedPermissions []string               `protobuf:"bytes,10,rep,name=requested_permissions,json=requestedPermissions,proto3" json:"requested_permissions,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *AgentMarketplaceManifest) Reset() {
+	*x = AgentMarketplaceManifest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[63]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentMarketplaceManifest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentMarketplaceManifest) ProtoMessage() {}
+
+func (x *AgentMarketplaceManifest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[63]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentMarketplaceManifest.ProtoReflect.Descriptor instead.
+func (*AgentMarketplaceManifest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{63}
+}
+
+func (x *AgentMarketplaceManifest) GetContractVersion() string {
+	if x != nil {
+		return x.ContractVersion
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceManifest) GetPackageId() string {
+	if x != nil {
+		return x.PackageId
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceManifest) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceManifest) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceManifest) GetPublisherId() string {
+	if x != nil {
+		return x.PublisherId
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceManifest) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceManifest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceManifest) GetArtifactDigestSha256() string {
+	if x != nil {
+		return x.ArtifactDigestSha256
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceManifest) GetCapabilityIds() []string {
+	if x != nil {
+		return x.CapabilityIds
+	}
+	return nil
+}
+
+func (x *AgentMarketplaceManifest) GetRequestedPermissions() []string {
+	if x != nil {
+		return x.RequestedPermissions
+	}
+	return nil
+}
+
+// Signature bytes are intentionally absent from every managed response.
+type AgentMarketplaceManagedRelease struct {
+	state                protoimpl.MessageState    `protogen:"open.v1"`
+	ContractVersion      string                    `protobuf:"bytes,1,opt,name=contract_version,json=contractVersion,proto3" json:"contract_version,omitempty"`
+	ReleaseId            string                    `protobuf:"bytes,2,opt,name=release_id,json=releaseId,proto3" json:"release_id,omitempty"`
+	Manifest             *AgentMarketplaceManifest `protobuf:"bytes,3,opt,name=manifest,proto3" json:"manifest,omitempty"`
+	SignatureKeyId       string                    `protobuf:"bytes,4,opt,name=signature_key_id,json=signatureKeyId,proto3" json:"signature_key_id,omitempty"`
+	Status               string                    `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
+	Revision             int64                     `protobuf:"varint,6,opt,name=revision,proto3" json:"revision,omitempty"`
+	PublishedBy          uint64                    `protobuf:"varint,7,opt,name=published_by,json=publishedBy,proto3" json:"published_by,omitempty"`
+	WithdrawnBy          uint64                    `protobuf:"varint,8,opt,name=withdrawn_by,json=withdrawnBy,proto3" json:"withdrawn_by,omitempty"`
+	WithdrawalReasonCode string                    `protobuf:"bytes,9,opt,name=withdrawal_reason_code,json=withdrawalReasonCode,proto3" json:"withdrawal_reason_code,omitempty"`
+	PublishedAtUnixMs    int64                     `protobuf:"varint,10,opt,name=published_at_unix_ms,json=publishedAtUnixMs,proto3" json:"published_at_unix_ms,omitempty"`
+	WithdrawnAtUnixMs    int64                     `protobuf:"varint,11,opt,name=withdrawn_at_unix_ms,json=withdrawnAtUnixMs,proto3" json:"withdrawn_at_unix_ms,omitempty"`
+	CreatedAtUnixMs      int64                     `protobuf:"varint,12,opt,name=created_at_unix_ms,json=createdAtUnixMs,proto3" json:"created_at_unix_ms,omitempty"`
+	UpdatedAtUnixMs      int64                     `protobuf:"varint,13,opt,name=updated_at_unix_ms,json=updatedAtUnixMs,proto3" json:"updated_at_unix_ms,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *AgentMarketplaceManagedRelease) Reset() {
+	*x = AgentMarketplaceManagedRelease{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[64]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentMarketplaceManagedRelease) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentMarketplaceManagedRelease) ProtoMessage() {}
+
+func (x *AgentMarketplaceManagedRelease) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[64]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentMarketplaceManagedRelease.ProtoReflect.Descriptor instead.
+func (*AgentMarketplaceManagedRelease) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{64}
+}
+
+func (x *AgentMarketplaceManagedRelease) GetContractVersion() string {
+	if x != nil {
+		return x.ContractVersion
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceManagedRelease) GetReleaseId() string {
+	if x != nil {
+		return x.ReleaseId
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceManagedRelease) GetManifest() *AgentMarketplaceManifest {
+	if x != nil {
+		return x.Manifest
+	}
+	return nil
+}
+
+func (x *AgentMarketplaceManagedRelease) GetSignatureKeyId() string {
+	if x != nil {
+		return x.SignatureKeyId
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceManagedRelease) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceManagedRelease) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *AgentMarketplaceManagedRelease) GetPublishedBy() uint64 {
+	if x != nil {
+		return x.PublishedBy
+	}
+	return 0
+}
+
+func (x *AgentMarketplaceManagedRelease) GetWithdrawnBy() uint64 {
+	if x != nil {
+		return x.WithdrawnBy
+	}
+	return 0
+}
+
+func (x *AgentMarketplaceManagedRelease) GetWithdrawalReasonCode() string {
+	if x != nil {
+		return x.WithdrawalReasonCode
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceManagedRelease) GetPublishedAtUnixMs() int64 {
+	if x != nil {
+		return x.PublishedAtUnixMs
+	}
+	return 0
+}
+
+func (x *AgentMarketplaceManagedRelease) GetWithdrawnAtUnixMs() int64 {
+	if x != nil {
+		return x.WithdrawnAtUnixMs
+	}
+	return 0
+}
+
+func (x *AgentMarketplaceManagedRelease) GetCreatedAtUnixMs() int64 {
+	if x != nil {
+		return x.CreatedAtUnixMs
+	}
+	return 0
+}
+
+func (x *AgentMarketplaceManagedRelease) GetUpdatedAtUnixMs() int64 {
+	if x != nil {
+		return x.UpdatedAtUnixMs
+	}
+	return 0
+}
+
+type ListAgentMarketplaceManagedReleasesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId   uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	PublisherId   string                 `protobuf:"bytes,2,opt,name=publisher_id,json=publisherId,proto3" json:"publisher_id,omitempty"`
+	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	Page          int32                  `protobuf:"varint,4,opt,name=page,proto3" json:"page,omitempty"`
+	PageSize      int32                  `protobuf:"varint,5,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentMarketplaceManagedReleasesRequest) Reset() {
+	*x = ListAgentMarketplaceManagedReleasesRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[65]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentMarketplaceManagedReleasesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentMarketplaceManagedReleasesRequest) ProtoMessage() {}
+
+func (x *ListAgentMarketplaceManagedReleasesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[65]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentMarketplaceManagedReleasesRequest.ProtoReflect.Descriptor instead.
+func (*ListAgentMarketplaceManagedReleasesRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{65}
+}
+
+func (x *ListAgentMarketplaceManagedReleasesRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *ListAgentMarketplaceManagedReleasesRequest) GetPublisherId() string {
+	if x != nil {
+		return x.PublisherId
+	}
+	return ""
+}
+
+func (x *ListAgentMarketplaceManagedReleasesRequest) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ListAgentMarketplaceManagedReleasesRequest) GetPage() int32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListAgentMarketplaceManagedReleasesRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type ListAgentMarketplaceManagedReleasesResponse struct {
+	state         protoimpl.MessageState            `protogen:"open.v1"`
+	Code          uint64                            `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                            `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Releases      []*AgentMarketplaceManagedRelease `protobuf:"bytes,3,rep,name=releases,proto3" json:"releases,omitempty"`
+	Total         int64                             `protobuf:"varint,4,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentMarketplaceManagedReleasesResponse) Reset() {
+	*x = ListAgentMarketplaceManagedReleasesResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[66]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentMarketplaceManagedReleasesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentMarketplaceManagedReleasesResponse) ProtoMessage() {}
+
+func (x *ListAgentMarketplaceManagedReleasesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[66]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentMarketplaceManagedReleasesResponse.ProtoReflect.Descriptor instead.
+func (*ListAgentMarketplaceManagedReleasesResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{66}
+}
+
+func (x *ListAgentMarketplaceManagedReleasesResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *ListAgentMarketplaceManagedReleasesResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *ListAgentMarketplaceManagedReleasesResponse) GetReleases() []*AgentMarketplaceManagedRelease {
+	if x != nil {
+		return x.Releases
+	}
+	return nil
+}
+
+func (x *ListAgentMarketplaceManagedReleasesResponse) GetTotal() int64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+type PublishAgentMarketplaceReleaseRequest struct {
+	state                     protoimpl.MessageState    `protogen:"open.v1"`
+	ActorUserId               uint64                    `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	Manifest                  *AgentMarketplaceManifest `protobuf:"bytes,2,opt,name=manifest,proto3" json:"manifest,omitempty"`
+	SignatureKeyId            string                    `protobuf:"bytes,3,opt,name=signature_key_id,json=signatureKeyId,proto3" json:"signature_key_id,omitempty"`
+	SignatureBase64           string                    `protobuf:"bytes,4,opt,name=signature_base64,json=signatureBase64,proto3" json:"signature_base64,omitempty"`
+	ExpectedPublisherRevision int64                     `protobuf:"varint,5,opt,name=expected_publisher_revision,json=expectedPublisherRevision,proto3" json:"expected_publisher_revision,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *PublishAgentMarketplaceReleaseRequest) Reset() {
+	*x = PublishAgentMarketplaceReleaseRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[67]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PublishAgentMarketplaceReleaseRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PublishAgentMarketplaceReleaseRequest) ProtoMessage() {}
+
+func (x *PublishAgentMarketplaceReleaseRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[67]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PublishAgentMarketplaceReleaseRequest.ProtoReflect.Descriptor instead.
+func (*PublishAgentMarketplaceReleaseRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{67}
+}
+
+func (x *PublishAgentMarketplaceReleaseRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *PublishAgentMarketplaceReleaseRequest) GetManifest() *AgentMarketplaceManifest {
+	if x != nil {
+		return x.Manifest
+	}
+	return nil
+}
+
+func (x *PublishAgentMarketplaceReleaseRequest) GetSignatureKeyId() string {
+	if x != nil {
+		return x.SignatureKeyId
+	}
+	return ""
+}
+
+func (x *PublishAgentMarketplaceReleaseRequest) GetSignatureBase64() string {
+	if x != nil {
+		return x.SignatureBase64
+	}
+	return ""
+}
+
+func (x *PublishAgentMarketplaceReleaseRequest) GetExpectedPublisherRevision() int64 {
+	if x != nil {
+		return x.ExpectedPublisherRevision
+	}
+	return 0
+}
+
+type PublishAgentMarketplaceReleaseResponse struct {
+	state         protoimpl.MessageState          `protogen:"open.v1"`
+	Code          uint64                          `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                          `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Release       *AgentMarketplaceManagedRelease `protobuf:"bytes,3,opt,name=release,proto3" json:"release,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PublishAgentMarketplaceReleaseResponse) Reset() {
+	*x = PublishAgentMarketplaceReleaseResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[68]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PublishAgentMarketplaceReleaseResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PublishAgentMarketplaceReleaseResponse) ProtoMessage() {}
+
+func (x *PublishAgentMarketplaceReleaseResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[68]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PublishAgentMarketplaceReleaseResponse.ProtoReflect.Descriptor instead.
+func (*PublishAgentMarketplaceReleaseResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{68}
+}
+
+func (x *PublishAgentMarketplaceReleaseResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *PublishAgentMarketplaceReleaseResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *PublishAgentMarketplaceReleaseResponse) GetRelease() *AgentMarketplaceManagedRelease {
+	if x != nil {
+		return x.Release
+	}
+	return nil
+}
+
+type WithdrawAgentMarketplaceReleaseRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId      uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	ReleaseId        string                 `protobuf:"bytes,2,opt,name=release_id,json=releaseId,proto3" json:"release_id,omitempty"`
+	ReasonCode       string                 `protobuf:"bytes,3,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
+	ExpectedRevision int64                  `protobuf:"varint,4,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *WithdrawAgentMarketplaceReleaseRequest) Reset() {
+	*x = WithdrawAgentMarketplaceReleaseRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[69]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WithdrawAgentMarketplaceReleaseRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WithdrawAgentMarketplaceReleaseRequest) ProtoMessage() {}
+
+func (x *WithdrawAgentMarketplaceReleaseRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[69]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WithdrawAgentMarketplaceReleaseRequest.ProtoReflect.Descriptor instead.
+func (*WithdrawAgentMarketplaceReleaseRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{69}
+}
+
+func (x *WithdrawAgentMarketplaceReleaseRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *WithdrawAgentMarketplaceReleaseRequest) GetReleaseId() string {
+	if x != nil {
+		return x.ReleaseId
+	}
+	return ""
+}
+
+func (x *WithdrawAgentMarketplaceReleaseRequest) GetReasonCode() string {
+	if x != nil {
+		return x.ReasonCode
+	}
+	return ""
+}
+
+func (x *WithdrawAgentMarketplaceReleaseRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+type WithdrawAgentMarketplaceReleaseResponse struct {
+	state         protoimpl.MessageState          `protogen:"open.v1"`
+	Code          uint64                          `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                          `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Release       *AgentMarketplaceManagedRelease `protobuf:"bytes,3,opt,name=release,proto3" json:"release,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WithdrawAgentMarketplaceReleaseResponse) Reset() {
+	*x = WithdrawAgentMarketplaceReleaseResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[70]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WithdrawAgentMarketplaceReleaseResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WithdrawAgentMarketplaceReleaseResponse) ProtoMessage() {}
+
+func (x *WithdrawAgentMarketplaceReleaseResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[70]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WithdrawAgentMarketplaceReleaseResponse.ProtoReflect.Descriptor instead.
+func (*WithdrawAgentMarketplaceReleaseResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{70}
+}
+
+func (x *WithdrawAgentMarketplaceReleaseResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *WithdrawAgentMarketplaceReleaseResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *WithdrawAgentMarketplaceReleaseResponse) GetRelease() *AgentMarketplaceManagedRelease {
+	if x != nil {
+		return x.Release
+	}
+	return nil
+}
+
+type AgentMarketplaceAuditEvent struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	ContractVersion string                 `protobuf:"bytes,1,opt,name=contract_version,json=contractVersion,proto3" json:"contract_version,omitempty"`
+	EventId         string                 `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	OperationId     string                 `protobuf:"bytes,3,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	Action          string                 `protobuf:"bytes,4,opt,name=action,proto3" json:"action,omitempty"`
+	Outcome         string                 `protobuf:"bytes,5,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	ActorUserId     uint64                 `protobuf:"varint,6,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	PublisherId     string                 `protobuf:"bytes,7,opt,name=publisher_id,json=publisherId,proto3" json:"publisher_id,omitempty"`
+	PackageId       string                 `protobuf:"bytes,8,opt,name=package_id,json=packageId,proto3" json:"package_id,omitempty"`
+	Version         string                 `protobuf:"bytes,9,opt,name=version,proto3" json:"version,omitempty"`
+	KeyId           string                 `protobuf:"bytes,10,opt,name=key_id,json=keyId,proto3" json:"key_id,omitempty"`
+	Revision        int64                  `protobuf:"varint,11,opt,name=revision,proto3" json:"revision,omitempty"`
+	ReasonCode      string                 `protobuf:"bytes,12,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
+	ErrorCode       string                 `protobuf:"bytes,13,opt,name=error_code,json=errorCode,proto3" json:"error_code,omitempty"`
+	CreatedAtUnixMs int64                  `protobuf:"varint,14,opt,name=created_at_unix_ms,json=createdAtUnixMs,proto3" json:"created_at_unix_ms,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *AgentMarketplaceAuditEvent) Reset() {
+	*x = AgentMarketplaceAuditEvent{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[71]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentMarketplaceAuditEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentMarketplaceAuditEvent) ProtoMessage() {}
+
+func (x *AgentMarketplaceAuditEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[71]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentMarketplaceAuditEvent.ProtoReflect.Descriptor instead.
+func (*AgentMarketplaceAuditEvent) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{71}
+}
+
+func (x *AgentMarketplaceAuditEvent) GetContractVersion() string {
+	if x != nil {
+		return x.ContractVersion
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceAuditEvent) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceAuditEvent) GetOperationId() string {
+	if x != nil {
+		return x.OperationId
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceAuditEvent) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceAuditEvent) GetOutcome() string {
+	if x != nil {
+		return x.Outcome
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceAuditEvent) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *AgentMarketplaceAuditEvent) GetPublisherId() string {
+	if x != nil {
+		return x.PublisherId
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceAuditEvent) GetPackageId() string {
+	if x != nil {
+		return x.PackageId
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceAuditEvent) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceAuditEvent) GetKeyId() string {
+	if x != nil {
+		return x.KeyId
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceAuditEvent) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *AgentMarketplaceAuditEvent) GetReasonCode() string {
+	if x != nil {
+		return x.ReasonCode
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceAuditEvent) GetErrorCode() string {
+	if x != nil {
+		return x.ErrorCode
+	}
+	return ""
+}
+
+func (x *AgentMarketplaceAuditEvent) GetCreatedAtUnixMs() int64 {
+	if x != nil {
+		return x.CreatedAtUnixMs
+	}
+	return 0
+}
+
+type ListAgentMarketplaceAuditEventsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId   uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	PublisherId   string                 `protobuf:"bytes,2,opt,name=publisher_id,json=publisherId,proto3" json:"publisher_id,omitempty"`
+	Action        string                 `protobuf:"bytes,3,opt,name=action,proto3" json:"action,omitempty"`
+	Outcome       string                 `protobuf:"bytes,4,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	Page          int32                  `protobuf:"varint,5,opt,name=page,proto3" json:"page,omitempty"`
+	PageSize      int32                  `protobuf:"varint,6,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentMarketplaceAuditEventsRequest) Reset() {
+	*x = ListAgentMarketplaceAuditEventsRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[72]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentMarketplaceAuditEventsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentMarketplaceAuditEventsRequest) ProtoMessage() {}
+
+func (x *ListAgentMarketplaceAuditEventsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[72]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentMarketplaceAuditEventsRequest.ProtoReflect.Descriptor instead.
+func (*ListAgentMarketplaceAuditEventsRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{72}
+}
+
+func (x *ListAgentMarketplaceAuditEventsRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *ListAgentMarketplaceAuditEventsRequest) GetPublisherId() string {
+	if x != nil {
+		return x.PublisherId
+	}
+	return ""
+}
+
+func (x *ListAgentMarketplaceAuditEventsRequest) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *ListAgentMarketplaceAuditEventsRequest) GetOutcome() string {
+	if x != nil {
+		return x.Outcome
+	}
+	return ""
+}
+
+func (x *ListAgentMarketplaceAuditEventsRequest) GetPage() int32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListAgentMarketplaceAuditEventsRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type ListAgentMarketplaceAuditEventsResponse struct {
+	state         protoimpl.MessageState        `protogen:"open.v1"`
+	Code          uint64                        `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                        `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Events        []*AgentMarketplaceAuditEvent `protobuf:"bytes,3,rep,name=events,proto3" json:"events,omitempty"`
+	Total         int64                         `protobuf:"varint,4,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentMarketplaceAuditEventsResponse) Reset() {
+	*x = ListAgentMarketplaceAuditEventsResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[73]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentMarketplaceAuditEventsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentMarketplaceAuditEventsResponse) ProtoMessage() {}
+
+func (x *ListAgentMarketplaceAuditEventsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[73]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentMarketplaceAuditEventsResponse.ProtoReflect.Descriptor instead.
+func (*ListAgentMarketplaceAuditEventsResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{73}
+}
+
+func (x *ListAgentMarketplaceAuditEventsResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *ListAgentMarketplaceAuditEventsResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *ListAgentMarketplaceAuditEventsResponse) GetEvents() []*AgentMarketplaceAuditEvent {
+	if x != nil {
+		return x.Events
+	}
+	return nil
+}
+
+func (x *ListAgentMarketplaceAuditEventsResponse) GetTotal() int64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+type AgentTaskTemplate struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	ContractVersion        string                 `protobuf:"bytes,1,opt,name=contract_version,json=contractVersion,proto3" json:"contract_version,omitempty"`
+	TemplateId             string                 `protobuf:"bytes,2,opt,name=template_id,json=templateId,proto3" json:"template_id,omitempty"`
+	Name                   string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Description            string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	InstructionTemplate    string                 `protobuf:"bytes,5,opt,name=instruction_template,json=instructionTemplate,proto3" json:"instruction_template,omitempty"`
+	Status                 string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
+	Revision               int64                  `protobuf:"varint,7,opt,name=revision,proto3" json:"revision,omitempty"`
+	SourceRunId            string                 `protobuf:"bytes,8,opt,name=source_run_id,json=sourceRunId,proto3" json:"source_run_id,omitempty"`
+	SourceRunRevision      int64                  `protobuf:"varint,9,opt,name=source_run_revision,json=sourceRunRevision,proto3" json:"source_run_revision,omitempty"`
+	SourceResultDigest     string                 `protobuf:"bytes,10,opt,name=source_result_digest,json=sourceResultDigest,proto3" json:"source_result_digest,omitempty"`
+	SourceExecutionProfile string                 `protobuf:"bytes,11,opt,name=source_execution_profile,json=sourceExecutionProfile,proto3" json:"source_execution_profile,omitempty"`
+	CapabilityIds          []string               `protobuf:"bytes,12,rep,name=capability_ids,json=capabilityIds,proto3" json:"capability_ids,omitempty"`
+	SkillId                string                 `protobuf:"bytes,13,opt,name=skill_id,json=skillId,proto3" json:"skill_id,omitempty"`
+	SkillVersion           string                 `protobuf:"bytes,14,opt,name=skill_version,json=skillVersion,proto3" json:"skill_version,omitempty"`
+	SourceModel            string                 `protobuf:"bytes,15,opt,name=source_model,json=sourceModel,proto3" json:"source_model,omitempty"`
+	AgentProfileId         string                 `protobuf:"bytes,16,opt,name=agent_profile_id,json=agentProfileId,proto3" json:"agent_profile_id,omitempty"`
+	AgentProfileVersion    string                 `protobuf:"bytes,17,opt,name=agent_profile_version,json=agentProfileVersion,proto3" json:"agent_profile_version,omitempty"`
+	PromptTemplateId       string                 `protobuf:"bytes,18,opt,name=prompt_template_id,json=promptTemplateId,proto3" json:"prompt_template_id,omitempty"`
+	PromptTemplateVersion  string                 `protobuf:"bytes,19,opt,name=prompt_template_version,json=promptTemplateVersion,proto3" json:"prompt_template_version,omitempty"`
+	CreatedAt              int64                  `protobuf:"varint,20,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt              int64                  `protobuf:"varint,21,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	ArchivedAt             int64                  `protobuf:"varint,22,opt,name=archived_at,json=archivedAt,proto3" json:"archived_at,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *AgentTaskTemplate) Reset() {
+	*x = AgentTaskTemplate{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[74]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentTaskTemplate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentTaskTemplate) ProtoMessage() {}
+
+func (x *AgentTaskTemplate) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[74]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentTaskTemplate.ProtoReflect.Descriptor instead.
+func (*AgentTaskTemplate) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{74}
+}
+
+func (x *AgentTaskTemplate) GetContractVersion() string {
+	if x != nil {
+		return x.ContractVersion
+	}
+	return ""
+}
+
+func (x *AgentTaskTemplate) GetTemplateId() string {
+	if x != nil {
+		return x.TemplateId
+	}
+	return ""
+}
+
+func (x *AgentTaskTemplate) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *AgentTaskTemplate) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *AgentTaskTemplate) GetInstructionTemplate() string {
+	if x != nil {
+		return x.InstructionTemplate
+	}
+	return ""
+}
+
+func (x *AgentTaskTemplate) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *AgentTaskTemplate) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *AgentTaskTemplate) GetSourceRunId() string {
+	if x != nil {
+		return x.SourceRunId
+	}
+	return ""
+}
+
+func (x *AgentTaskTemplate) GetSourceRunRevision() int64 {
+	if x != nil {
+		return x.SourceRunRevision
+	}
+	return 0
+}
+
+func (x *AgentTaskTemplate) GetSourceResultDigest() string {
+	if x != nil {
+		return x.SourceResultDigest
+	}
+	return ""
+}
+
+func (x *AgentTaskTemplate) GetSourceExecutionProfile() string {
+	if x != nil {
+		return x.SourceExecutionProfile
+	}
+	return ""
+}
+
+func (x *AgentTaskTemplate) GetCapabilityIds() []string {
+	if x != nil {
+		return x.CapabilityIds
+	}
+	return nil
+}
+
+func (x *AgentTaskTemplate) GetSkillId() string {
+	if x != nil {
+		return x.SkillId
+	}
+	return ""
+}
+
+func (x *AgentTaskTemplate) GetSkillVersion() string {
+	if x != nil {
+		return x.SkillVersion
+	}
+	return ""
+}
+
+func (x *AgentTaskTemplate) GetSourceModel() string {
+	if x != nil {
+		return x.SourceModel
+	}
+	return ""
+}
+
+func (x *AgentTaskTemplate) GetAgentProfileId() string {
+	if x != nil {
+		return x.AgentProfileId
+	}
+	return ""
+}
+
+func (x *AgentTaskTemplate) GetAgentProfileVersion() string {
+	if x != nil {
+		return x.AgentProfileVersion
+	}
+	return ""
+}
+
+func (x *AgentTaskTemplate) GetPromptTemplateId() string {
+	if x != nil {
+		return x.PromptTemplateId
+	}
+	return ""
+}
+
+func (x *AgentTaskTemplate) GetPromptTemplateVersion() string {
+	if x != nil {
+		return x.PromptTemplateVersion
+	}
+	return ""
+}
+
+func (x *AgentTaskTemplate) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *AgentTaskTemplate) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+func (x *AgentTaskTemplate) GetArchivedAt() int64 {
+	if x != nil {
+		return x.ArchivedAt
+	}
+	return 0
+}
+
+type CreateAgentTaskTemplateRequest struct {
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	UserId                    uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	SourceRunId               string                 `protobuf:"bytes,2,opt,name=source_run_id,json=sourceRunId,proto3" json:"source_run_id,omitempty"`
+	ExpectedSourceRunRevision int64                  `protobuf:"varint,3,opt,name=expected_source_run_revision,json=expectedSourceRunRevision,proto3" json:"expected_source_run_revision,omitempty"`
+	Name                      string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
+	Description               string                 `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty"`
+	InstructionTemplate       string                 `protobuf:"bytes,6,opt,name=instruction_template,json=instructionTemplate,proto3" json:"instruction_template,omitempty"`
+	IdempotencyKey            string                 `protobuf:"bytes,7,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *CreateAgentTaskTemplateRequest) Reset() {
+	*x = CreateAgentTaskTemplateRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[75]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateAgentTaskTemplateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateAgentTaskTemplateRequest) ProtoMessage() {}
+
+func (x *CreateAgentTaskTemplateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[75]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateAgentTaskTemplateRequest.ProtoReflect.Descriptor instead.
+func (*CreateAgentTaskTemplateRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{75}
+}
+
+func (x *CreateAgentTaskTemplateRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *CreateAgentTaskTemplateRequest) GetSourceRunId() string {
+	if x != nil {
+		return x.SourceRunId
+	}
+	return ""
+}
+
+func (x *CreateAgentTaskTemplateRequest) GetExpectedSourceRunRevision() int64 {
+	if x != nil {
+		return x.ExpectedSourceRunRevision
+	}
+	return 0
+}
+
+func (x *CreateAgentTaskTemplateRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateAgentTaskTemplateRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *CreateAgentTaskTemplateRequest) GetInstructionTemplate() string {
+	if x != nil {
+		return x.InstructionTemplate
+	}
+	return ""
+}
+
+func (x *CreateAgentTaskTemplateRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+type CreateAgentTaskTemplateResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	TaskTemplate  *AgentTaskTemplate     `protobuf:"bytes,3,opt,name=task_template,json=taskTemplate,proto3" json:"task_template,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateAgentTaskTemplateResponse) Reset() {
+	*x = CreateAgentTaskTemplateResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[76]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateAgentTaskTemplateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateAgentTaskTemplateResponse) ProtoMessage() {}
+
+func (x *CreateAgentTaskTemplateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[76]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateAgentTaskTemplateResponse.ProtoReflect.Descriptor instead.
+func (*CreateAgentTaskTemplateResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{76}
+}
+
+func (x *CreateAgentTaskTemplateResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *CreateAgentTaskTemplateResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *CreateAgentTaskTemplateResponse) GetTaskTemplate() *AgentTaskTemplate {
+	if x != nil {
+		return x.TaskTemplate
+	}
+	return nil
+}
+
+type ListAgentTaskTemplatesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentTaskTemplatesRequest) Reset() {
+	*x = ListAgentTaskTemplatesRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[77]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentTaskTemplatesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentTaskTemplatesRequest) ProtoMessage() {}
+
+func (x *ListAgentTaskTemplatesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[77]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentTaskTemplatesRequest.ProtoReflect.Descriptor instead.
+func (*ListAgentTaskTemplatesRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{77}
+}
+
+func (x *ListAgentTaskTemplatesRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ListAgentTaskTemplatesRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type ListAgentTaskTemplatesResponse struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Code             uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg              string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	ExecutionEnabled bool                   `protobuf:"varint,3,opt,name=execution_enabled,json=executionEnabled,proto3" json:"execution_enabled,omitempty"`
+	TaskTemplates    []*AgentTaskTemplate   `protobuf:"bytes,4,rep,name=task_templates,json=taskTemplates,proto3" json:"task_templates,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ListAgentTaskTemplatesResponse) Reset() {
+	*x = ListAgentTaskTemplatesResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[78]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentTaskTemplatesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentTaskTemplatesResponse) ProtoMessage() {}
+
+func (x *ListAgentTaskTemplatesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[78]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentTaskTemplatesResponse.ProtoReflect.Descriptor instead.
+func (*ListAgentTaskTemplatesResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{78}
+}
+
+func (x *ListAgentTaskTemplatesResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *ListAgentTaskTemplatesResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *ListAgentTaskTemplatesResponse) GetExecutionEnabled() bool {
+	if x != nil {
+		return x.ExecutionEnabled
+	}
+	return false
+}
+
+func (x *ListAgentTaskTemplatesResponse) GetTaskTemplates() []*AgentTaskTemplate {
+	if x != nil {
+		return x.TaskTemplates
+	}
+	return nil
+}
+
+type ArchiveAgentTaskTemplateRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	UserId           uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	TemplateId       string                 `protobuf:"bytes,2,opt,name=template_id,json=templateId,proto3" json:"template_id,omitempty"`
+	ExpectedRevision int64                  `protobuf:"varint,3,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ArchiveAgentTaskTemplateRequest) Reset() {
+	*x = ArchiveAgentTaskTemplateRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[79]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchiveAgentTaskTemplateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchiveAgentTaskTemplateRequest) ProtoMessage() {}
+
+func (x *ArchiveAgentTaskTemplateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[79]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchiveAgentTaskTemplateRequest.ProtoReflect.Descriptor instead.
+func (*ArchiveAgentTaskTemplateRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{79}
+}
+
+func (x *ArchiveAgentTaskTemplateRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ArchiveAgentTaskTemplateRequest) GetTemplateId() string {
+	if x != nil {
+		return x.TemplateId
+	}
+	return ""
+}
+
+func (x *ArchiveAgentTaskTemplateRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+type ArchiveAgentTaskTemplateResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	TaskTemplate  *AgentTaskTemplate     `protobuf:"bytes,3,opt,name=task_template,json=taskTemplate,proto3" json:"task_template,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArchiveAgentTaskTemplateResponse) Reset() {
+	*x = ArchiveAgentTaskTemplateResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[80]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchiveAgentTaskTemplateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchiveAgentTaskTemplateResponse) ProtoMessage() {}
+
+func (x *ArchiveAgentTaskTemplateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[80]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchiveAgentTaskTemplateResponse.ProtoReflect.Descriptor instead.
+func (*ArchiveAgentTaskTemplateResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{80}
+}
+
+func (x *ArchiveAgentTaskTemplateResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *ArchiveAgentTaskTemplateResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *ArchiveAgentTaskTemplateResponse) GetTaskTemplate() *AgentTaskTemplate {
+	if x != nil {
+		return x.TaskTemplate
+	}
+	return nil
+}
+
+type RunAgentTaskTemplateRequest struct {
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	UserId                    uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	TemplateId                string                 `protobuf:"bytes,2,opt,name=template_id,json=templateId,proto3" json:"template_id,omitempty"`
+	ExpectedRevision          int64                  `protobuf:"varint,3,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	ModelKindId               uint64                 `protobuf:"varint,4,opt,name=model_kind_id,json=modelKindId,proto3" json:"model_kind_id,omitempty"`
+	MainContent               *MainContent           `protobuf:"bytes,5,opt,name=main_content,json=mainContent,proto3" json:"main_content,omitempty"`
+	WebSearchProviderConfigId string                 `protobuf:"bytes,6,opt,name=web_search_provider_config_id,json=webSearchProviderConfigId,proto3" json:"web_search_provider_config_id,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *RunAgentTaskTemplateRequest) Reset() {
+	*x = RunAgentTaskTemplateRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[81]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunAgentTaskTemplateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunAgentTaskTemplateRequest) ProtoMessage() {}
+
+func (x *RunAgentTaskTemplateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[81]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunAgentTaskTemplateRequest.ProtoReflect.Descriptor instead.
+func (*RunAgentTaskTemplateRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{81}
+}
+
+func (x *RunAgentTaskTemplateRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *RunAgentTaskTemplateRequest) GetTemplateId() string {
+	if x != nil {
+		return x.TemplateId
+	}
+	return ""
+}
+
+func (x *RunAgentTaskTemplateRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+func (x *RunAgentTaskTemplateRequest) GetModelKindId() uint64 {
+	if x != nil {
+		return x.ModelKindId
+	}
+	return 0
+}
+
+func (x *RunAgentTaskTemplateRequest) GetMainContent() *MainContent {
+	if x != nil {
+		return x.MainContent
+	}
+	return nil
+}
+
+func (x *RunAgentTaskTemplateRequest) GetWebSearchProviderConfigId() string {
+	if x != nil {
+		return x.WebSearchProviderConfigId
+	}
+	return ""
+}
+
+type GetAgentRunRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentRunRequest) Reset() {
+	*x = GetAgentRunRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[82]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentRunRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentRunRequest) ProtoMessage() {}
+
+func (x *GetAgentRunRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[82]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentRunRequest.ProtoReflect.Descriptor instead.
+func (*GetAgentRunRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{82}
+}
+
+func (x *GetAgentRunRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *GetAgentRunRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+type GetAgentRunResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Run           *AgentExecutionRun     `protobuf:"bytes,3,opt,name=run,proto3" json:"run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentRunResponse) Reset() {
+	*x = GetAgentRunResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[83]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentRunResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentRunResponse) ProtoMessage() {}
+
+func (x *GetAgentRunResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[83]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentRunResponse.ProtoReflect.Descriptor instead.
+func (*GetAgentRunResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{83}
+}
+
+func (x *GetAgentRunResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *GetAgentRunResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *GetAgentRunResponse) GetRun() *AgentExecutionRun {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
+type GetAgentRunAccountingRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	ChildLimit    int32                  `protobuf:"varint,3,opt,name=child_limit,json=childLimit,proto3" json:"child_limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentRunAccountingRequest) Reset() {
+	*x = GetAgentRunAccountingRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[84]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentRunAccountingRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentRunAccountingRequest) ProtoMessage() {}
+
+func (x *GetAgentRunAccountingRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[84]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentRunAccountingRequest.ProtoReflect.Descriptor instead.
+func (*GetAgentRunAccountingRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{84}
+}
+
+func (x *GetAgentRunAccountingRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *GetAgentRunAccountingRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *GetAgentRunAccountingRequest) GetChildLimit() int32 {
+	if x != nil {
+		return x.ChildLimit
+	}
+	return 0
+}
+
+type WorkflowRunAccounting struct {
+	state             protoimpl.MessageState   `protogen:"open.v1"`
+	RunId             string                   `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	WorkflowId        string                   `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	ParentActionId    string                   `protobuf:"bytes,3,opt,name=parent_action_id,json=parentActionId,proto3" json:"parent_action_id,omitempty"`
+	Status            string                   `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	State             string                   `protobuf:"bytes,5,opt,name=state,proto3" json:"state,omitempty"`
+	AccountingVersion string                   `protobuf:"bytes,6,opt,name=accounting_version,json=accountingVersion,proto3" json:"accounting_version,omitempty"`
+	Usage             *ExecutionTokenUsage     `protobuf:"bytes,7,opt,name=usage,proto3" json:"usage,omitempty"`
+	Budget            *ExecutionBudgetSnapshot `protobuf:"bytes,8,opt,name=budget,proto3" json:"budget,omitempty"`
+	StartedAtMs       int64                    `protobuf:"varint,9,opt,name=started_at_ms,json=startedAtMs,proto3" json:"started_at_ms,omitempty"`
+	SuspendedAtMs     int64                    `protobuf:"varint,10,opt,name=suspended_at_ms,json=suspendedAtMs,proto3" json:"suspended_at_ms,omitempty"`
+	FinishedAtMs      int64                    `protobuf:"varint,11,opt,name=finished_at_ms,json=finishedAtMs,proto3" json:"finished_at_ms,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *WorkflowRunAccounting) Reset() {
+	*x = WorkflowRunAccounting{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[85]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkflowRunAccounting) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkflowRunAccounting) ProtoMessage() {}
+
+func (x *WorkflowRunAccounting) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[85]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkflowRunAccounting.ProtoReflect.Descriptor instead.
+func (*WorkflowRunAccounting) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{85}
+}
+
+func (x *WorkflowRunAccounting) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *WorkflowRunAccounting) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *WorkflowRunAccounting) GetParentActionId() string {
+	if x != nil {
+		return x.ParentActionId
+	}
+	return ""
+}
+
+func (x *WorkflowRunAccounting) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *WorkflowRunAccounting) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *WorkflowRunAccounting) GetAccountingVersion() string {
+	if x != nil {
+		return x.AccountingVersion
+	}
+	return ""
+}
+
+func (x *WorkflowRunAccounting) GetUsage() *ExecutionTokenUsage {
+	if x != nil {
+		return x.Usage
+	}
+	return nil
+}
+
+func (x *WorkflowRunAccounting) GetBudget() *ExecutionBudgetSnapshot {
+	if x != nil {
+		return x.Budget
+	}
+	return nil
+}
+
+func (x *WorkflowRunAccounting) GetStartedAtMs() int64 {
+	if x != nil {
+		return x.StartedAtMs
+	}
+	return 0
+}
+
+func (x *WorkflowRunAccounting) GetSuspendedAtMs() int64 {
+	if x != nil {
+		return x.SuspendedAtMs
+	}
+	return 0
+}
+
+func (x *WorkflowRunAccounting) GetFinishedAtMs() int64 {
+	if x != nil {
+		return x.FinishedAtMs
+	}
+	return 0
+}
+
+type AgentRunAccounting struct {
+	state                 protoimpl.MessageState   `protogen:"open.v1"`
+	RunId                 string                   `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	RunStatus             string                   `protobuf:"bytes,2,opt,name=run_status,json=runStatus,proto3" json:"run_status,omitempty"`
+	Scope                 string                   `protobuf:"bytes,3,opt,name=scope,proto3" json:"scope,omitempty"`
+	State                 string                   `protobuf:"bytes,4,opt,name=state,proto3" json:"state,omitempty"`
+	Complete              bool                     `protobuf:"varint,5,opt,name=complete,proto3" json:"complete,omitempty"`
+	Truncated             bool                     `protobuf:"varint,6,opt,name=truncated,proto3" json:"truncated,omitempty"`
+	ChildRunCount         int64                    `protobuf:"varint,7,opt,name=child_run_count,json=childRunCount,proto3" json:"child_run_count,omitempty"`
+	IncludedChildRunCount int32                    `protobuf:"varint,8,opt,name=included_child_run_count,json=includedChildRunCount,proto3" json:"included_child_run_count,omitempty"`
+	AccountingVersion     string                   `protobuf:"bytes,9,opt,name=accounting_version,json=accountingVersion,proto3" json:"accounting_version,omitempty"`
+	ParentUsage           *ExecutionTokenUsage     `protobuf:"bytes,10,opt,name=parent_usage,json=parentUsage,proto3" json:"parent_usage,omitempty"`
+	ParentBudget          *ExecutionBudgetSnapshot `protobuf:"bytes,11,opt,name=parent_budget,json=parentBudget,proto3" json:"parent_budget,omitempty"`
+	ChildUsage            *ExecutionTokenUsage     `protobuf:"bytes,12,opt,name=child_usage,json=childUsage,proto3" json:"child_usage,omitempty"`
+	TotalUsage            *ExecutionTokenUsage     `protobuf:"bytes,13,opt,name=total_usage,json=totalUsage,proto3" json:"total_usage,omitempty"`
+	Children              []*WorkflowRunAccounting `protobuf:"bytes,14,rep,name=children,proto3" json:"children,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *AgentRunAccounting) Reset() {
+	*x = AgentRunAccounting{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[86]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentRunAccounting) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentRunAccounting) ProtoMessage() {}
+
+func (x *AgentRunAccounting) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[86]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentRunAccounting.ProtoReflect.Descriptor instead.
+func (*AgentRunAccounting) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{86}
+}
+
+func (x *AgentRunAccounting) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *AgentRunAccounting) GetRunStatus() string {
+	if x != nil {
+		return x.RunStatus
+	}
+	return ""
+}
+
+func (x *AgentRunAccounting) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *AgentRunAccounting) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *AgentRunAccounting) GetComplete() bool {
+	if x != nil {
+		return x.Complete
+	}
+	return false
+}
+
+func (x *AgentRunAccounting) GetTruncated() bool {
+	if x != nil {
+		return x.Truncated
+	}
+	return false
+}
+
+func (x *AgentRunAccounting) GetChildRunCount() int64 {
+	if x != nil {
+		return x.ChildRunCount
+	}
+	return 0
+}
+
+func (x *AgentRunAccounting) GetIncludedChildRunCount() int32 {
+	if x != nil {
+		return x.IncludedChildRunCount
+	}
+	return 0
+}
+
+func (x *AgentRunAccounting) GetAccountingVersion() string {
+	if x != nil {
+		return x.AccountingVersion
+	}
+	return ""
+}
+
+func (x *AgentRunAccounting) GetParentUsage() *ExecutionTokenUsage {
+	if x != nil {
+		return x.ParentUsage
+	}
+	return nil
+}
+
+func (x *AgentRunAccounting) GetParentBudget() *ExecutionBudgetSnapshot {
+	if x != nil {
+		return x.ParentBudget
+	}
+	return nil
+}
+
+func (x *AgentRunAccounting) GetChildUsage() *ExecutionTokenUsage {
+	if x != nil {
+		return x.ChildUsage
+	}
+	return nil
+}
+
+func (x *AgentRunAccounting) GetTotalUsage() *ExecutionTokenUsage {
+	if x != nil {
+		return x.TotalUsage
+	}
+	return nil
+}
+
+func (x *AgentRunAccounting) GetChildren() []*WorkflowRunAccounting {
+	if x != nil {
+		return x.Children
+	}
+	return nil
+}
+
+type GetAgentRunAccountingResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Accounting    *AgentRunAccounting    `protobuf:"bytes,3,opt,name=accounting,proto3" json:"accounting,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentRunAccountingResponse) Reset() {
+	*x = GetAgentRunAccountingResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[87]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentRunAccountingResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentRunAccountingResponse) ProtoMessage() {}
+
+func (x *GetAgentRunAccountingResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[87]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentRunAccountingResponse.ProtoReflect.Descriptor instead.
+func (*GetAgentRunAccountingResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{87}
+}
+
+func (x *GetAgentRunAccountingResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *GetAgentRunAccountingResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *GetAgentRunAccountingResponse) GetAccounting() *AgentRunAccounting {
+	if x != nil {
+		return x.Accounting
+	}
+	return nil
+}
+
+type ResumeAgentRunRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	UserId           uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RunId            string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	ExpectedRevision int64                  `protobuf:"varint,3,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	HumanResponse    string                 `protobuf:"bytes,4,opt,name=human_response,json=humanResponse,proto3" json:"human_response,omitempty"`
+	ApprovalId       string                 `protobuf:"bytes,5,opt,name=approval_id,json=approvalId,proto3" json:"approval_id,omitempty"`
+	ResumeToken      string                 `protobuf:"bytes,6,opt,name=resume_token,json=resumeToken,proto3" json:"resume_token,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ResumeAgentRunRequest) Reset() {
+	*x = ResumeAgentRunRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[88]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResumeAgentRunRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResumeAgentRunRequest) ProtoMessage() {}
+
+func (x *ResumeAgentRunRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[88]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResumeAgentRunRequest.ProtoReflect.Descriptor instead.
+func (*ResumeAgentRunRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{88}
+}
+
+func (x *ResumeAgentRunRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ResumeAgentRunRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *ResumeAgentRunRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+func (x *ResumeAgentRunRequest) GetHumanResponse() string {
+	if x != nil {
+		return x.HumanResponse
+	}
+	return ""
+}
+
+func (x *ResumeAgentRunRequest) GetApprovalId() string {
+	if x != nil {
+		return x.ApprovalId
+	}
+	return ""
+}
+
+func (x *ResumeAgentRunRequest) GetResumeToken() string {
+	if x != nil {
+		return x.ResumeToken
+	}
+	return ""
+}
+
+type IssueAgentResumeGrantRequest struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	UserId              uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	ApprovalId          string                 `protobuf:"bytes,2,opt,name=approval_id,json=approvalId,proto3" json:"approval_id,omitempty"`
+	ExpectedRunRevision int64                  `protobuf:"varint,3,opt,name=expected_run_revision,json=expectedRunRevision,proto3" json:"expected_run_revision,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *IssueAgentResumeGrantRequest) Reset() {
+	*x = IssueAgentResumeGrantRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[89]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IssueAgentResumeGrantRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IssueAgentResumeGrantRequest) ProtoMessage() {}
+
+func (x *IssueAgentResumeGrantRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[89]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IssueAgentResumeGrantRequest.ProtoReflect.Descriptor instead.
+func (*IssueAgentResumeGrantRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{89}
+}
+
+func (x *IssueAgentResumeGrantRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *IssueAgentResumeGrantRequest) GetApprovalId() string {
+	if x != nil {
+		return x.ApprovalId
+	}
+	return ""
+}
+
+func (x *IssueAgentResumeGrantRequest) GetExpectedRunRevision() int64 {
+	if x != nil {
+		return x.ExpectedRunRevision
+	}
+	return 0
+}
+
+type IssueAgentResumeGrantResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Code  uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg   string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Run   *AgentExecutionRun     `protobuf:"bytes,3,opt,name=run,proto3" json:"run,omitempty"`
+	// 仅在本次响应返回；服务端只保存哈希，后续签发会使旧令牌失效。
+	ResumeToken   string `protobuf:"bytes,4,opt,name=resume_token,json=resumeToken,proto3" json:"resume_token,omitempty"`
+	ExpiresAt     int64  `protobuf:"varint,5,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IssueAgentResumeGrantResponse) Reset() {
+	*x = IssueAgentResumeGrantResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[90]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IssueAgentResumeGrantResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IssueAgentResumeGrantResponse) ProtoMessage() {}
+
+func (x *IssueAgentResumeGrantResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[90]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IssueAgentResumeGrantResponse.ProtoReflect.Descriptor instead.
+func (*IssueAgentResumeGrantResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{90}
+}
+
+func (x *IssueAgentResumeGrantResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *IssueAgentResumeGrantResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *IssueAgentResumeGrantResponse) GetRun() *AgentExecutionRun {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
+func (x *IssueAgentResumeGrantResponse) GetResumeToken() string {
+	if x != nil {
+		return x.ResumeToken
+	}
+	return ""
+}
+
+func (x *IssueAgentResumeGrantResponse) GetExpiresAt() int64 {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return 0
+}
+
 type CallApiOfAiRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -1261,7 +7599,7 @@ type CallApiOfAiRequest struct {
 
 func (x *CallApiOfAiRequest) Reset() {
 	*x = CallApiOfAiRequest{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[17]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[91]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1273,7 +7611,7 @@ func (x *CallApiOfAiRequest) String() string {
 func (*CallApiOfAiRequest) ProtoMessage() {}
 
 func (x *CallApiOfAiRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[17]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[91]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1286,7 +7624,7 @@ func (x *CallApiOfAiRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CallApiOfAiRequest.ProtoReflect.Descriptor instead.
 func (*CallApiOfAiRequest) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{17}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{91}
 }
 
 func (x *CallApiOfAiRequest) GetUserId() uint64 {
@@ -1322,7 +7660,7 @@ type CallApiOfAiResponse struct {
 
 func (x *CallApiOfAiResponse) Reset() {
 	*x = CallApiOfAiResponse{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[18]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[92]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1334,7 +7672,7 @@ func (x *CallApiOfAiResponse) String() string {
 func (*CallApiOfAiResponse) ProtoMessage() {}
 
 func (x *CallApiOfAiResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[18]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[92]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1347,7 +7685,7 @@ func (x *CallApiOfAiResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CallApiOfAiResponse.ProtoReflect.Descriptor instead.
 func (*CallApiOfAiResponse) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{18}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{92}
 }
 
 func (x *CallApiOfAiResponse) GetCode() uint64 {
@@ -1389,7 +7727,7 @@ type ConsultContentRequest struct {
 
 func (x *ConsultContentRequest) Reset() {
 	*x = ConsultContentRequest{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[19]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[93]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1401,7 +7739,7 @@ func (x *ConsultContentRequest) String() string {
 func (*ConsultContentRequest) ProtoMessage() {}
 
 func (x *ConsultContentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[19]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[93]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1414,7 +7752,7 @@ func (x *ConsultContentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConsultContentRequest.ProtoReflect.Descriptor instead.
 func (*ConsultContentRequest) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{19}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{93}
 }
 
 func (x *ConsultContentRequest) GetUserId() uint64 {
@@ -1451,7 +7789,7 @@ type ConsultContentResponse struct {
 
 func (x *ConsultContentResponse) Reset() {
 	*x = ConsultContentResponse{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[20]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[94]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1463,7 +7801,7 @@ func (x *ConsultContentResponse) String() string {
 func (*ConsultContentResponse) ProtoMessage() {}
 
 func (x *ConsultContentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[20]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[94]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1476,7 +7814,7 @@ func (x *ConsultContentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConsultContentResponse.ProtoReflect.Descriptor instead.
 func (*ConsultContentResponse) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{20}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{94}
 }
 
 func (x *ConsultContentResponse) GetDialogueKey() string {
@@ -1525,7 +7863,7 @@ type AssistPublishTwitterRequest struct {
 
 func (x *AssistPublishTwitterRequest) Reset() {
 	*x = AssistPublishTwitterRequest{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[21]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[95]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1537,7 +7875,7 @@ func (x *AssistPublishTwitterRequest) String() string {
 func (*AssistPublishTwitterRequest) ProtoMessage() {}
 
 func (x *AssistPublishTwitterRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[21]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[95]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1550,7 +7888,7 @@ func (x *AssistPublishTwitterRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssistPublishTwitterRequest.ProtoReflect.Descriptor instead.
 func (*AssistPublishTwitterRequest) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{21}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{95}
 }
 
 func (x *AssistPublishTwitterRequest) GetUserId() uint64 {
@@ -1581,13 +7919,14 @@ type AssistPublishTwitterResponse struct {
 	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
 	Response      string                 `protobuf:"bytes,3,opt,name=response,proto3" json:"response,omitempty"`                    // AI 生成的推文草稿说明
 	TweetList     []*Tweet               `protobuf:"bytes,4,rep,name=tweet_list,json=tweetList,proto3" json:"tweet_list,omitempty"` // 生成的推文候选列表
+	RunId         string                 `protobuf:"bytes,6,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`             // Runtime v2 Run ID；Legacy 路径为空
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AssistPublishTwitterResponse) Reset() {
 	*x = AssistPublishTwitterResponse{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[22]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[96]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1599,7 +7938,7 @@ func (x *AssistPublishTwitterResponse) String() string {
 func (*AssistPublishTwitterResponse) ProtoMessage() {}
 
 func (x *AssistPublishTwitterResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[22]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[96]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1612,7 +7951,7 @@ func (x *AssistPublishTwitterResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssistPublishTwitterResponse.ProtoReflect.Descriptor instead.
 func (*AssistPublishTwitterResponse) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{22}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{96}
 }
 
 func (x *AssistPublishTwitterResponse) GetDialogueKey() string {
@@ -1650,17 +7989,25 @@ func (x *AssistPublishTwitterResponse) GetTweetList() []*Tweet {
 	return nil
 }
 
+func (x *AssistPublishTwitterResponse) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
 type ConfirmPublishTwitterRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"` // 用户选定的推文内容
+	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`                              // 用户选定的推文内容
+	SourceRunId   string                 `protobuf:"bytes,3,opt,name=source_run_id,json=sourceRunId,proto3" json:"source_run_id,omitempty"` // 可选；用于校验 Assist 来源并归因业务结果
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ConfirmPublishTwitterRequest) Reset() {
 	*x = ConfirmPublishTwitterRequest{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[23]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[97]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1672,7 +8019,7 @@ func (x *ConfirmPublishTwitterRequest) String() string {
 func (*ConfirmPublishTwitterRequest) ProtoMessage() {}
 
 func (x *ConfirmPublishTwitterRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[23]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[97]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1685,7 +8032,7 @@ func (x *ConfirmPublishTwitterRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfirmPublishTwitterRequest.ProtoReflect.Descriptor instead.
 func (*ConfirmPublishTwitterRequest) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{23}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{97}
 }
 
 func (x *ConfirmPublishTwitterRequest) GetUserId() uint64 {
@@ -1702,6 +8049,13 @@ func (x *ConfirmPublishTwitterRequest) GetContent() string {
 	return ""
 }
 
+func (x *ConfirmPublishTwitterRequest) GetSourceRunId() string {
+	if x != nil {
+		return x.SourceRunId
+	}
+	return ""
+}
+
 type ConfirmPublishTwitterResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
@@ -1714,7 +8068,7 @@ type ConfirmPublishTwitterResponse struct {
 
 func (x *ConfirmPublishTwitterResponse) Reset() {
 	*x = ConfirmPublishTwitterResponse{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[24]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[98]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1726,7 +8080,7 @@ func (x *ConfirmPublishTwitterResponse) String() string {
 func (*ConfirmPublishTwitterResponse) ProtoMessage() {}
 
 func (x *ConfirmPublishTwitterResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[24]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[98]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1739,7 +8093,7 @@ func (x *ConfirmPublishTwitterResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfirmPublishTwitterResponse.ProtoReflect.Descriptor instead.
 func (*ConfirmPublishTwitterResponse) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{24}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{98}
 }
 
 func (x *ConfirmPublishTwitterResponse) GetCode() uint64 {
@@ -1785,7 +8139,7 @@ type MultiAgentPublishTwitterRequest struct {
 
 func (x *MultiAgentPublishTwitterRequest) Reset() {
 	*x = MultiAgentPublishTwitterRequest{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[25]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[99]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1797,7 +8151,7 @@ func (x *MultiAgentPublishTwitterRequest) String() string {
 func (*MultiAgentPublishTwitterRequest) ProtoMessage() {}
 
 func (x *MultiAgentPublishTwitterRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[25]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[99]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1810,7 +8164,7 @@ func (x *MultiAgentPublishTwitterRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MultiAgentPublishTwitterRequest.ProtoReflect.Descriptor instead.
 func (*MultiAgentPublishTwitterRequest) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{25}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{99}
 }
 
 func (x *MultiAgentPublishTwitterRequest) GetDialogueKey() string {
@@ -1874,7 +8228,7 @@ type MultiAgentPublishTwitterResponse struct {
 
 func (x *MultiAgentPublishTwitterResponse) Reset() {
 	*x = MultiAgentPublishTwitterResponse{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[26]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[100]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1886,7 +8240,7 @@ func (x *MultiAgentPublishTwitterResponse) String() string {
 func (*MultiAgentPublishTwitterResponse) ProtoMessage() {}
 
 func (x *MultiAgentPublishTwitterResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[26]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[100]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1899,7 +8253,7 @@ func (x *MultiAgentPublishTwitterResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MultiAgentPublishTwitterResponse.ProtoReflect.Descriptor instead.
 func (*MultiAgentPublishTwitterResponse) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{26}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{100}
 }
 
 func (x *MultiAgentPublishTwitterResponse) GetDialogueKey() string {
@@ -1940,7 +8294,7 @@ type AnalyzeAlertRequest struct {
 
 func (x *AnalyzeAlertRequest) Reset() {
 	*x = AnalyzeAlertRequest{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[27]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[101]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1952,7 +8306,7 @@ func (x *AnalyzeAlertRequest) String() string {
 func (*AnalyzeAlertRequest) ProtoMessage() {}
 
 func (x *AnalyzeAlertRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[27]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[101]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1965,7 +8319,7 @@ func (x *AnalyzeAlertRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnalyzeAlertRequest.ProtoReflect.Descriptor instead.
 func (*AnalyzeAlertRequest) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{27}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{101}
 }
 
 func (x *AnalyzeAlertRequest) GetAlertPayload() string {
@@ -1994,7 +8348,7 @@ type AnalyzeAlertResponse struct {
 
 func (x *AnalyzeAlertResponse) Reset() {
 	*x = AnalyzeAlertResponse{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[28]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[102]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2006,7 +8360,7 @@ func (x *AnalyzeAlertResponse) String() string {
 func (*AnalyzeAlertResponse) ProtoMessage() {}
 
 func (x *AnalyzeAlertResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[28]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[102]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2019,7 +8373,7 @@ func (x *AnalyzeAlertResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnalyzeAlertResponse.ProtoReflect.Descriptor instead.
 func (*AnalyzeAlertResponse) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{28}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{102}
 }
 
 func (x *AnalyzeAlertResponse) GetCode() uint64 {
@@ -2051,19 +8405,22 @@ func (x *AnalyzeAlertResponse) GetStructuredRca() string {
 }
 
 type WorkflowSummary struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkflowId    string                 `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
-	UserId        uint64                 `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	CreatedAt     int64                  `protobuf:"varint,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt     int64                  `protobuf:"varint,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	WorkflowId            string                 `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	UserId                uint64                 `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Name                  string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	CreatedAt             int64                  `protobuf:"varint,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt             int64                  `protobuf:"varint,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	CurrentRevisionId     string                 `protobuf:"bytes,6,opt,name=current_revision_id,json=currentRevisionId,proto3" json:"current_revision_id,omitempty"`
+	CurrentRevisionNumber int64                  `protobuf:"varint,7,opt,name=current_revision_number,json=currentRevisionNumber,proto3" json:"current_revision_number,omitempty"`
+	CurrentDslHash        string                 `protobuf:"bytes,8,opt,name=current_dsl_hash,json=currentDslHash,proto3" json:"current_dsl_hash,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *WorkflowSummary) Reset() {
 	*x = WorkflowSummary{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[29]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[103]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2075,7 +8432,7 @@ func (x *WorkflowSummary) String() string {
 func (*WorkflowSummary) ProtoMessage() {}
 
 func (x *WorkflowSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[29]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[103]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2088,7 +8445,7 @@ func (x *WorkflowSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkflowSummary.ProtoReflect.Descriptor instead.
 func (*WorkflowSummary) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{29}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{103}
 }
 
 func (x *WorkflowSummary) GetWorkflowId() string {
@@ -2126,21 +8483,45 @@ func (x *WorkflowSummary) GetUpdatedAt() int64 {
 	return 0
 }
 
+func (x *WorkflowSummary) GetCurrentRevisionId() string {
+	if x != nil {
+		return x.CurrentRevisionId
+	}
+	return ""
+}
+
+func (x *WorkflowSummary) GetCurrentRevisionNumber() int64 {
+	if x != nil {
+		return x.CurrentRevisionNumber
+	}
+	return 0
+}
+
+func (x *WorkflowSummary) GetCurrentDslHash() string {
+	if x != nil {
+		return x.CurrentDslHash
+	}
+	return ""
+}
+
 type WorkflowDetail struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkflowId    string                 `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
-	UserId        uint64                 `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	DslJson       string                 `protobuf:"bytes,4,opt,name=dsl_json,json=dslJson,proto3" json:"dsl_json,omitempty"`
-	CreatedAt     int64                  `protobuf:"varint,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt     int64                  `protobuf:"varint,6,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	WorkflowId            string                 `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	UserId                uint64                 `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Name                  string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	DslJson               string                 `protobuf:"bytes,4,opt,name=dsl_json,json=dslJson,proto3" json:"dsl_json,omitempty"`
+	CreatedAt             int64                  `protobuf:"varint,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt             int64                  `protobuf:"varint,6,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	CurrentRevisionId     string                 `protobuf:"bytes,7,opt,name=current_revision_id,json=currentRevisionId,proto3" json:"current_revision_id,omitempty"`
+	CurrentRevisionNumber int64                  `protobuf:"varint,8,opt,name=current_revision_number,json=currentRevisionNumber,proto3" json:"current_revision_number,omitempty"`
+	CurrentDslHash        string                 `protobuf:"bytes,9,opt,name=current_dsl_hash,json=currentDslHash,proto3" json:"current_dsl_hash,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *WorkflowDetail) Reset() {
 	*x = WorkflowDetail{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[30]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[104]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2152,7 +8533,7 @@ func (x *WorkflowDetail) String() string {
 func (*WorkflowDetail) ProtoMessage() {}
 
 func (x *WorkflowDetail) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[30]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[104]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2165,7 +8546,7 @@ func (x *WorkflowDetail) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkflowDetail.ProtoReflect.Descriptor instead.
 func (*WorkflowDetail) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{30}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{104}
 }
 
 func (x *WorkflowDetail) GetWorkflowId() string {
@@ -2210,24 +8591,384 @@ func (x *WorkflowDetail) GetUpdatedAt() int64 {
 	return 0
 }
 
+func (x *WorkflowDetail) GetCurrentRevisionId() string {
+	if x != nil {
+		return x.CurrentRevisionId
+	}
+	return ""
+}
+
+func (x *WorkflowDetail) GetCurrentRevisionNumber() int64 {
+	if x != nil {
+		return x.CurrentRevisionNumber
+	}
+	return 0
+}
+
+func (x *WorkflowDetail) GetCurrentDslHash() string {
+	if x != nil {
+		return x.CurrentDslHash
+	}
+	return ""
+}
+
+type WorkflowRevisionSummary struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	RevisionId     string                 `protobuf:"bytes,1,opt,name=revision_id,json=revisionId,proto3" json:"revision_id,omitempty"`
+	WorkflowId     string                 `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	UserId         uint64                 `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RevisionNumber int64                  `protobuf:"varint,4,opt,name=revision_number,json=revisionNumber,proto3" json:"revision_number,omitempty"`
+	DslHash        string                 `protobuf:"bytes,5,opt,name=dsl_hash,json=dslHash,proto3" json:"dsl_hash,omitempty"`
+	CreatedAt      int64                  `protobuf:"varint,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *WorkflowRevisionSummary) Reset() {
+	*x = WorkflowRevisionSummary{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[105]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkflowRevisionSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkflowRevisionSummary) ProtoMessage() {}
+
+func (x *WorkflowRevisionSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[105]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkflowRevisionSummary.ProtoReflect.Descriptor instead.
+func (*WorkflowRevisionSummary) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{105}
+}
+
+func (x *WorkflowRevisionSummary) GetRevisionId() string {
+	if x != nil {
+		return x.RevisionId
+	}
+	return ""
+}
+
+func (x *WorkflowRevisionSummary) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *WorkflowRevisionSummary) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *WorkflowRevisionSummary) GetRevisionNumber() int64 {
+	if x != nil {
+		return x.RevisionNumber
+	}
+	return 0
+}
+
+func (x *WorkflowRevisionSummary) GetDslHash() string {
+	if x != nil {
+		return x.DslHash
+	}
+	return ""
+}
+
+func (x *WorkflowRevisionSummary) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+type WorkflowRevisionDetail struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	RevisionId     string                 `protobuf:"bytes,1,opt,name=revision_id,json=revisionId,proto3" json:"revision_id,omitempty"`
+	WorkflowId     string                 `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	UserId         uint64                 `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RevisionNumber int64                  `protobuf:"varint,4,opt,name=revision_number,json=revisionNumber,proto3" json:"revision_number,omitempty"`
+	DslJson        string                 `protobuf:"bytes,5,opt,name=dsl_json,json=dslJson,proto3" json:"dsl_json,omitempty"`
+	DslHash        string                 `protobuf:"bytes,6,opt,name=dsl_hash,json=dslHash,proto3" json:"dsl_hash,omitempty"`
+	CreatedAt      int64                  `protobuf:"varint,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *WorkflowRevisionDetail) Reset() {
+	*x = WorkflowRevisionDetail{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[106]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkflowRevisionDetail) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkflowRevisionDetail) ProtoMessage() {}
+
+func (x *WorkflowRevisionDetail) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[106]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkflowRevisionDetail.ProtoReflect.Descriptor instead.
+func (*WorkflowRevisionDetail) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{106}
+}
+
+func (x *WorkflowRevisionDetail) GetRevisionId() string {
+	if x != nil {
+		return x.RevisionId
+	}
+	return ""
+}
+
+func (x *WorkflowRevisionDetail) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *WorkflowRevisionDetail) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *WorkflowRevisionDetail) GetRevisionNumber() int64 {
+	if x != nil {
+		return x.RevisionNumber
+	}
+	return 0
+}
+
+func (x *WorkflowRevisionDetail) GetDslJson() string {
+	if x != nil {
+		return x.DslJson
+	}
+	return ""
+}
+
+func (x *WorkflowRevisionDetail) GetDslHash() string {
+	if x != nil {
+		return x.DslHash
+	}
+	return ""
+}
+
+func (x *WorkflowRevisionDetail) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+type WorkflowToolPublication struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	PublicationId          string                 `protobuf:"bytes,1,opt,name=publication_id,json=publicationId,proto3" json:"publication_id,omitempty"`
+	UserId                 uint64                 `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	WorkflowId             string                 `protobuf:"bytes,3,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	WorkflowRevisionId     string                 `protobuf:"bytes,4,opt,name=workflow_revision_id,json=workflowRevisionId,proto3" json:"workflow_revision_id,omitempty"`
+	WorkflowRevisionNumber int64                  `protobuf:"varint,5,opt,name=workflow_revision_number,json=workflowRevisionNumber,proto3" json:"workflow_revision_number,omitempty"`
+	WorkflowDslHash        string                 `protobuf:"bytes,6,opt,name=workflow_dsl_hash,json=workflowDslHash,proto3" json:"workflow_dsl_hash,omitempty"`
+	ToolName               string                 `protobuf:"bytes,7,opt,name=tool_name,json=toolName,proto3" json:"tool_name,omitempty"`
+	DisplayName            string                 `protobuf:"bytes,8,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Description            string                 `protobuf:"bytes,9,opt,name=description,proto3" json:"description,omitempty"`
+	InputSchemaJson        string                 `protobuf:"bytes,10,opt,name=input_schema_json,json=inputSchemaJson,proto3" json:"input_schema_json,omitempty"`
+	Status                 string                 `protobuf:"bytes,11,opt,name=status,proto3" json:"status,omitempty"`
+	Revision               int64                  `protobuf:"varint,12,opt,name=revision,proto3" json:"revision,omitempty"`
+	CreatedAt              int64                  `protobuf:"varint,13,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt              int64                  `protobuf:"varint,14,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *WorkflowToolPublication) Reset() {
+	*x = WorkflowToolPublication{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[107]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkflowToolPublication) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkflowToolPublication) ProtoMessage() {}
+
+func (x *WorkflowToolPublication) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[107]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkflowToolPublication.ProtoReflect.Descriptor instead.
+func (*WorkflowToolPublication) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{107}
+}
+
+func (x *WorkflowToolPublication) GetPublicationId() string {
+	if x != nil {
+		return x.PublicationId
+	}
+	return ""
+}
+
+func (x *WorkflowToolPublication) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *WorkflowToolPublication) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *WorkflowToolPublication) GetWorkflowRevisionId() string {
+	if x != nil {
+		return x.WorkflowRevisionId
+	}
+	return ""
+}
+
+func (x *WorkflowToolPublication) GetWorkflowRevisionNumber() int64 {
+	if x != nil {
+		return x.WorkflowRevisionNumber
+	}
+	return 0
+}
+
+func (x *WorkflowToolPublication) GetWorkflowDslHash() string {
+	if x != nil {
+		return x.WorkflowDslHash
+	}
+	return ""
+}
+
+func (x *WorkflowToolPublication) GetToolName() string {
+	if x != nil {
+		return x.ToolName
+	}
+	return ""
+}
+
+func (x *WorkflowToolPublication) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *WorkflowToolPublication) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *WorkflowToolPublication) GetInputSchemaJson() string {
+	if x != nil {
+		return x.InputSchemaJson
+	}
+	return ""
+}
+
+func (x *WorkflowToolPublication) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *WorkflowToolPublication) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *WorkflowToolPublication) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *WorkflowToolPublication) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
 type WorkflowRun struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	WorkflowId    string                 `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
-	UserId        uint64                 `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
-	InputJson     string                 `protobuf:"bytes,5,opt,name=input_json,json=inputJson,proto3" json:"input_json,omitempty"`
-	OutputJson    string                 `protobuf:"bytes,6,opt,name=output_json,json=outputJson,proto3" json:"output_json,omitempty"`
-	ErrorMessage  string                 `protobuf:"bytes,7,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
-	StartedAt     int64                  `protobuf:"varint,8,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
-	FinishedAt    int64                  `protobuf:"varint,9,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	RunId                  string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	WorkflowId             string                 `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	UserId                 uint64                 `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Status                 string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	InputJson              string                 `protobuf:"bytes,5,opt,name=input_json,json=inputJson,proto3" json:"input_json,omitempty"`
+	OutputJson             string                 `protobuf:"bytes,6,opt,name=output_json,json=outputJson,proto3" json:"output_json,omitempty"`
+	ErrorMessage           string                 `protobuf:"bytes,7,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	StartedAt              int64                  `protobuf:"varint,8,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	FinishedAt             int64                  `protobuf:"varint,9,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
+	WaitingNodeId          string                 `protobuf:"bytes,10,opt,name=waiting_node_id,json=waitingNodeId,proto3" json:"waiting_node_id,omitempty"`
+	SuspendedAt            int64                  `protobuf:"varint,11,opt,name=suspended_at,json=suspendedAt,proto3" json:"suspended_at,omitempty"`
+	ApprovalRequestId      string                 `protobuf:"bytes,12,opt,name=approval_request_id,json=approvalRequestId,proto3" json:"approval_request_id,omitempty"`
+	Revision               int64                  `protobuf:"varint,13,opt,name=revision,proto3" json:"revision,omitempty"`
+	WorkflowRevisionId     string                 `protobuf:"bytes,14,opt,name=workflow_revision_id,json=workflowRevisionId,proto3" json:"workflow_revision_id,omitempty"`
+	WorkflowRevisionNumber int64                  `protobuf:"varint,15,opt,name=workflow_revision_number,json=workflowRevisionNumber,proto3" json:"workflow_revision_number,omitempty"`
+	StateVersion           int64                  `protobuf:"varint,16,opt,name=state_version,json=stateVersion,proto3" json:"state_version,omitempty"`
+	CancelRequestedAt      int64                  `protobuf:"varint,17,opt,name=cancel_requested_at,json=cancelRequestedAt,proto3" json:"cancel_requested_at,omitempty"`
+	CancelReason           string                 `protobuf:"bytes,18,opt,name=cancel_reason,json=cancelReason,proto3" json:"cancel_reason,omitempty"`
+	CanceledAt             int64                  `protobuf:"varint,19,opt,name=canceled_at,json=canceledAt,proto3" json:"canceled_at,omitempty"`
+	ResumeGrantIssuedAt    int64                  `protobuf:"varint,20,opt,name=resume_grant_issued_at,json=resumeGrantIssuedAt,proto3" json:"resume_grant_issued_at,omitempty"`
+	ResumeGrantExpiresAt   int64                  `protobuf:"varint,21,opt,name=resume_grant_expires_at,json=resumeGrantExpiresAt,proto3" json:"resume_grant_expires_at,omitempty"`
+	InvocationSource       string                 `protobuf:"bytes,22,opt,name=invocation_source,json=invocationSource,proto3" json:"invocation_source,omitempty"`
+	ParentRunId            string                 `protobuf:"bytes,23,opt,name=parent_run_id,json=parentRunId,proto3" json:"parent_run_id,omitempty"`
+	ParentActionId         string                 `protobuf:"bytes,24,opt,name=parent_action_id,json=parentActionId,proto3" json:"parent_action_id,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *WorkflowRun) Reset() {
 	*x = WorkflowRun{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[31]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[108]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2239,7 +8980,7 @@ func (x *WorkflowRun) String() string {
 func (*WorkflowRun) ProtoMessage() {}
 
 func (x *WorkflowRun) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[31]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[108]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2252,7 +8993,7 @@ func (x *WorkflowRun) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkflowRun.ProtoReflect.Descriptor instead.
 func (*WorkflowRun) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{31}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{108}
 }
 
 func (x *WorkflowRun) GetRunId() string {
@@ -2318,6 +9059,251 @@ func (x *WorkflowRun) GetFinishedAt() int64 {
 	return 0
 }
 
+func (x *WorkflowRun) GetWaitingNodeId() string {
+	if x != nil {
+		return x.WaitingNodeId
+	}
+	return ""
+}
+
+func (x *WorkflowRun) GetSuspendedAt() int64 {
+	if x != nil {
+		return x.SuspendedAt
+	}
+	return 0
+}
+
+func (x *WorkflowRun) GetApprovalRequestId() string {
+	if x != nil {
+		return x.ApprovalRequestId
+	}
+	return ""
+}
+
+func (x *WorkflowRun) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *WorkflowRun) GetWorkflowRevisionId() string {
+	if x != nil {
+		return x.WorkflowRevisionId
+	}
+	return ""
+}
+
+func (x *WorkflowRun) GetWorkflowRevisionNumber() int64 {
+	if x != nil {
+		return x.WorkflowRevisionNumber
+	}
+	return 0
+}
+
+func (x *WorkflowRun) GetStateVersion() int64 {
+	if x != nil {
+		return x.StateVersion
+	}
+	return 0
+}
+
+func (x *WorkflowRun) GetCancelRequestedAt() int64 {
+	if x != nil {
+		return x.CancelRequestedAt
+	}
+	return 0
+}
+
+func (x *WorkflowRun) GetCancelReason() string {
+	if x != nil {
+		return x.CancelReason
+	}
+	return ""
+}
+
+func (x *WorkflowRun) GetCanceledAt() int64 {
+	if x != nil {
+		return x.CanceledAt
+	}
+	return 0
+}
+
+func (x *WorkflowRun) GetResumeGrantIssuedAt() int64 {
+	if x != nil {
+		return x.ResumeGrantIssuedAt
+	}
+	return 0
+}
+
+func (x *WorkflowRun) GetResumeGrantExpiresAt() int64 {
+	if x != nil {
+		return x.ResumeGrantExpiresAt
+	}
+	return 0
+}
+
+func (x *WorkflowRun) GetInvocationSource() string {
+	if x != nil {
+		return x.InvocationSource
+	}
+	return ""
+}
+
+func (x *WorkflowRun) GetParentRunId() string {
+	if x != nil {
+		return x.ParentRunId
+	}
+	return ""
+}
+
+func (x *WorkflowRun) GetParentActionId() string {
+	if x != nil {
+		return x.ParentActionId
+	}
+	return ""
+}
+
+type WorkflowRunSummary struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	RunId                  string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	WorkflowId             string                 `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	Status                 string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	ErrorMessage           string                 `protobuf:"bytes,4,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	StartedAt              int64                  `protobuf:"varint,5,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	FinishedAt             int64                  `protobuf:"varint,6,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
+	WaitingNodeId          string                 `protobuf:"bytes,7,opt,name=waiting_node_id,json=waitingNodeId,proto3" json:"waiting_node_id,omitempty"`
+	ApprovalRequestId      string                 `protobuf:"bytes,8,opt,name=approval_request_id,json=approvalRequestId,proto3" json:"approval_request_id,omitempty"`
+	WorkflowRevisionNumber int64                  `protobuf:"varint,9,opt,name=workflow_revision_number,json=workflowRevisionNumber,proto3" json:"workflow_revision_number,omitempty"`
+	StateVersion           int64                  `protobuf:"varint,10,opt,name=state_version,json=stateVersion,proto3" json:"state_version,omitempty"`
+	CancelRequestedAt      int64                  `protobuf:"varint,11,opt,name=cancel_requested_at,json=cancelRequestedAt,proto3" json:"cancel_requested_at,omitempty"`
+	CancelReason           string                 `protobuf:"bytes,12,opt,name=cancel_reason,json=cancelReason,proto3" json:"cancel_reason,omitempty"`
+	CanceledAt             int64                  `protobuf:"varint,13,opt,name=canceled_at,json=canceledAt,proto3" json:"canceled_at,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *WorkflowRunSummary) Reset() {
+	*x = WorkflowRunSummary{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[109]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkflowRunSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkflowRunSummary) ProtoMessage() {}
+
+func (x *WorkflowRunSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[109]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkflowRunSummary.ProtoReflect.Descriptor instead.
+func (*WorkflowRunSummary) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{109}
+}
+
+func (x *WorkflowRunSummary) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *WorkflowRunSummary) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *WorkflowRunSummary) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *WorkflowRunSummary) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
+func (x *WorkflowRunSummary) GetStartedAt() int64 {
+	if x != nil {
+		return x.StartedAt
+	}
+	return 0
+}
+
+func (x *WorkflowRunSummary) GetFinishedAt() int64 {
+	if x != nil {
+		return x.FinishedAt
+	}
+	return 0
+}
+
+func (x *WorkflowRunSummary) GetWaitingNodeId() string {
+	if x != nil {
+		return x.WaitingNodeId
+	}
+	return ""
+}
+
+func (x *WorkflowRunSummary) GetApprovalRequestId() string {
+	if x != nil {
+		return x.ApprovalRequestId
+	}
+	return ""
+}
+
+func (x *WorkflowRunSummary) GetWorkflowRevisionNumber() int64 {
+	if x != nil {
+		return x.WorkflowRevisionNumber
+	}
+	return 0
+}
+
+func (x *WorkflowRunSummary) GetStateVersion() int64 {
+	if x != nil {
+		return x.StateVersion
+	}
+	return 0
+}
+
+func (x *WorkflowRunSummary) GetCancelRequestedAt() int64 {
+	if x != nil {
+		return x.CancelRequestedAt
+	}
+	return 0
+}
+
+func (x *WorkflowRunSummary) GetCancelReason() string {
+	if x != nil {
+		return x.CancelReason
+	}
+	return ""
+}
+
+func (x *WorkflowRunSummary) GetCanceledAt() int64 {
+	if x != nil {
+		return x.CanceledAt
+	}
+	return 0
+}
+
 type CreateWorkflowRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -2329,7 +9315,7 @@ type CreateWorkflowRequest struct {
 
 func (x *CreateWorkflowRequest) Reset() {
 	*x = CreateWorkflowRequest{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[32]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[110]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2341,7 +9327,7 @@ func (x *CreateWorkflowRequest) String() string {
 func (*CreateWorkflowRequest) ProtoMessage() {}
 
 func (x *CreateWorkflowRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[32]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[110]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2354,7 +9340,7 @@ func (x *CreateWorkflowRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateWorkflowRequest.ProtoReflect.Descriptor instead.
 func (*CreateWorkflowRequest) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{32}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{110}
 }
 
 func (x *CreateWorkflowRequest) GetUserId() uint64 {
@@ -2389,7 +9375,7 @@ type CreateWorkflowResponse struct {
 
 func (x *CreateWorkflowResponse) Reset() {
 	*x = CreateWorkflowResponse{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[33]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[111]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2401,7 +9387,7 @@ func (x *CreateWorkflowResponse) String() string {
 func (*CreateWorkflowResponse) ProtoMessage() {}
 
 func (x *CreateWorkflowResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[33]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[111]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2414,7 +9400,7 @@ func (x *CreateWorkflowResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateWorkflowResponse.ProtoReflect.Descriptor instead.
 func (*CreateWorkflowResponse) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{33}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{111}
 }
 
 func (x *CreateWorkflowResponse) GetCode() uint64 {
@@ -2450,7 +9436,7 @@ type UpdateWorkflowRequest struct {
 
 func (x *UpdateWorkflowRequest) Reset() {
 	*x = UpdateWorkflowRequest{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[34]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[112]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2462,7 +9448,7 @@ func (x *UpdateWorkflowRequest) String() string {
 func (*UpdateWorkflowRequest) ProtoMessage() {}
 
 func (x *UpdateWorkflowRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[34]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[112]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2475,7 +9461,7 @@ func (x *UpdateWorkflowRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateWorkflowRequest.ProtoReflect.Descriptor instead.
 func (*UpdateWorkflowRequest) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{34}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{112}
 }
 
 func (x *UpdateWorkflowRequest) GetUserId() uint64 {
@@ -2517,7 +9503,7 @@ type UpdateWorkflowResponse struct {
 
 func (x *UpdateWorkflowResponse) Reset() {
 	*x = UpdateWorkflowResponse{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[35]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[113]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2529,7 +9515,7 @@ func (x *UpdateWorkflowResponse) String() string {
 func (*UpdateWorkflowResponse) ProtoMessage() {}
 
 func (x *UpdateWorkflowResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[35]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[113]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2542,7 +9528,7 @@ func (x *UpdateWorkflowResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateWorkflowResponse.ProtoReflect.Descriptor instead.
 func (*UpdateWorkflowResponse) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{35}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{113}
 }
 
 func (x *UpdateWorkflowResponse) GetCode() uint64 {
@@ -2577,7 +9563,7 @@ type ListWorkflowsRequest struct {
 
 func (x *ListWorkflowsRequest) Reset() {
 	*x = ListWorkflowsRequest{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[36]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[114]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2589,7 +9575,7 @@ func (x *ListWorkflowsRequest) String() string {
 func (*ListWorkflowsRequest) ProtoMessage() {}
 
 func (x *ListWorkflowsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[36]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[114]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2602,7 +9588,7 @@ func (x *ListWorkflowsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListWorkflowsRequest.ProtoReflect.Descriptor instead.
 func (*ListWorkflowsRequest) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{36}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{114}
 }
 
 func (x *ListWorkflowsRequest) GetUserId() uint64 {
@@ -2638,7 +9624,7 @@ type ListWorkflowsResponse struct {
 
 func (x *ListWorkflowsResponse) Reset() {
 	*x = ListWorkflowsResponse{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[37]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[115]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2650,7 +9636,7 @@ func (x *ListWorkflowsResponse) String() string {
 func (*ListWorkflowsResponse) ProtoMessage() {}
 
 func (x *ListWorkflowsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[37]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[115]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2663,7 +9649,7 @@ func (x *ListWorkflowsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListWorkflowsResponse.ProtoReflect.Descriptor instead.
 func (*ListWorkflowsResponse) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{37}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{115}
 }
 
 func (x *ListWorkflowsResponse) GetCode() uint64 {
@@ -2704,7 +9690,7 @@ type GetWorkflowRequest struct {
 
 func (x *GetWorkflowRequest) Reset() {
 	*x = GetWorkflowRequest{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[38]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[116]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2716,7 +9702,7 @@ func (x *GetWorkflowRequest) String() string {
 func (*GetWorkflowRequest) ProtoMessage() {}
 
 func (x *GetWorkflowRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[38]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[116]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2729,7 +9715,7 @@ func (x *GetWorkflowRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetWorkflowRequest.ProtoReflect.Descriptor instead.
 func (*GetWorkflowRequest) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{38}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{116}
 }
 
 func (x *GetWorkflowRequest) GetUserId() uint64 {
@@ -2757,7 +9743,7 @@ type GetWorkflowResponse struct {
 
 func (x *GetWorkflowResponse) Reset() {
 	*x = GetWorkflowResponse{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[39]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[117]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2769,7 +9755,7 @@ func (x *GetWorkflowResponse) String() string {
 func (*GetWorkflowResponse) ProtoMessage() {}
 
 func (x *GetWorkflowResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[39]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[117]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2782,7 +9768,7 @@ func (x *GetWorkflowResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetWorkflowResponse.ProtoReflect.Descriptor instead.
 func (*GetWorkflowResponse) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{39}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{117}
 }
 
 func (x *GetWorkflowResponse) GetCode() uint64 {
@@ -2806,18 +9792,651 @@ func (x *GetWorkflowResponse) GetWorkflow() *WorkflowDetail {
 	return nil
 }
 
-type RunWorkflowRequest struct {
+type ListWorkflowRevisionsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	WorkflowId    string                 `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
-	InputJson     string                 `protobuf:"bytes,3,opt,name=input_json,json=inputJson,proto3" json:"input_json,omitempty"`
+	Page          uint32                 `protobuf:"varint,3,opt,name=page,proto3" json:"page,omitempty"`
+	PageSize      uint32                 `protobuf:"varint,4,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
+func (x *ListWorkflowRevisionsRequest) Reset() {
+	*x = ListWorkflowRevisionsRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[118]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListWorkflowRevisionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListWorkflowRevisionsRequest) ProtoMessage() {}
+
+func (x *ListWorkflowRevisionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[118]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListWorkflowRevisionsRequest.ProtoReflect.Descriptor instead.
+func (*ListWorkflowRevisionsRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{118}
+}
+
+func (x *ListWorkflowRevisionsRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ListWorkflowRevisionsRequest) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *ListWorkflowRevisionsRequest) GetPage() uint32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListWorkflowRevisionsRequest) GetPageSize() uint32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type ListWorkflowRevisionsResponse struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	Code          uint64                     `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                     `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Revisions     []*WorkflowRevisionSummary `protobuf:"bytes,3,rep,name=revisions,proto3" json:"revisions,omitempty"`
+	Total         int64                      `protobuf:"varint,4,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListWorkflowRevisionsResponse) Reset() {
+	*x = ListWorkflowRevisionsResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[119]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListWorkflowRevisionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListWorkflowRevisionsResponse) ProtoMessage() {}
+
+func (x *ListWorkflowRevisionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[119]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListWorkflowRevisionsResponse.ProtoReflect.Descriptor instead.
+func (*ListWorkflowRevisionsResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{119}
+}
+
+func (x *ListWorkflowRevisionsResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *ListWorkflowRevisionsResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *ListWorkflowRevisionsResponse) GetRevisions() []*WorkflowRevisionSummary {
+	if x != nil {
+		return x.Revisions
+	}
+	return nil
+}
+
+func (x *ListWorkflowRevisionsResponse) GetTotal() int64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+type GetWorkflowRevisionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	WorkflowId    string                 `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	RevisionId    string                 `protobuf:"bytes,3,opt,name=revision_id,json=revisionId,proto3" json:"revision_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetWorkflowRevisionRequest) Reset() {
+	*x = GetWorkflowRevisionRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[120]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWorkflowRevisionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWorkflowRevisionRequest) ProtoMessage() {}
+
+func (x *GetWorkflowRevisionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[120]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWorkflowRevisionRequest.ProtoReflect.Descriptor instead.
+func (*GetWorkflowRevisionRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{120}
+}
+
+func (x *GetWorkflowRevisionRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *GetWorkflowRevisionRequest) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *GetWorkflowRevisionRequest) GetRevisionId() string {
+	if x != nil {
+		return x.RevisionId
+	}
+	return ""
+}
+
+type GetWorkflowRevisionResponse struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Code          uint64                  `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                  `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Revision      *WorkflowRevisionDetail `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetWorkflowRevisionResponse) Reset() {
+	*x = GetWorkflowRevisionResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[121]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWorkflowRevisionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWorkflowRevisionResponse) ProtoMessage() {}
+
+func (x *GetWorkflowRevisionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[121]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWorkflowRevisionResponse.ProtoReflect.Descriptor instead.
+func (*GetWorkflowRevisionResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{121}
+}
+
+func (x *GetWorkflowRevisionResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *GetWorkflowRevisionResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *GetWorkflowRevisionResponse) GetRevision() *WorkflowRevisionDetail {
+	if x != nil {
+		return x.Revision
+	}
+	return nil
+}
+
+type PublishWorkflowToolRequest struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	UserId             uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	WorkflowId         string                 `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	WorkflowRevisionId string                 `protobuf:"bytes,3,opt,name=workflow_revision_id,json=workflowRevisionId,proto3" json:"workflow_revision_id,omitempty"`
+	Description        string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	InputSchemaJson    string                 `protobuf:"bytes,5,opt,name=input_schema_json,json=inputSchemaJson,proto3" json:"input_schema_json,omitempty"`
+	ExpectedRevision   int64                  `protobuf:"varint,6,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *PublishWorkflowToolRequest) Reset() {
+	*x = PublishWorkflowToolRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[122]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PublishWorkflowToolRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PublishWorkflowToolRequest) ProtoMessage() {}
+
+func (x *PublishWorkflowToolRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[122]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PublishWorkflowToolRequest.ProtoReflect.Descriptor instead.
+func (*PublishWorkflowToolRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{122}
+}
+
+func (x *PublishWorkflowToolRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *PublishWorkflowToolRequest) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *PublishWorkflowToolRequest) GetWorkflowRevisionId() string {
+	if x != nil {
+		return x.WorkflowRevisionId
+	}
+	return ""
+}
+
+func (x *PublishWorkflowToolRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *PublishWorkflowToolRequest) GetInputSchemaJson() string {
+	if x != nil {
+		return x.InputSchemaJson
+	}
+	return ""
+}
+
+func (x *PublishWorkflowToolRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+type PublishWorkflowToolResponse struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	Code          uint64                   `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                   `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Publication   *WorkflowToolPublication `protobuf:"bytes,3,opt,name=publication,proto3" json:"publication,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PublishWorkflowToolResponse) Reset() {
+	*x = PublishWorkflowToolResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[123]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PublishWorkflowToolResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PublishWorkflowToolResponse) ProtoMessage() {}
+
+func (x *PublishWorkflowToolResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[123]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PublishWorkflowToolResponse.ProtoReflect.Descriptor instead.
+func (*PublishWorkflowToolResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{123}
+}
+
+func (x *PublishWorkflowToolResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *PublishWorkflowToolResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *PublishWorkflowToolResponse) GetPublication() *WorkflowToolPublication {
+	if x != nil {
+		return x.Publication
+	}
+	return nil
+}
+
+type GetWorkflowToolPublicationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	WorkflowId    string                 `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetWorkflowToolPublicationRequest) Reset() {
+	*x = GetWorkflowToolPublicationRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[124]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWorkflowToolPublicationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWorkflowToolPublicationRequest) ProtoMessage() {}
+
+func (x *GetWorkflowToolPublicationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[124]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWorkflowToolPublicationRequest.ProtoReflect.Descriptor instead.
+func (*GetWorkflowToolPublicationRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{124}
+}
+
+func (x *GetWorkflowToolPublicationRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *GetWorkflowToolPublicationRequest) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+type GetWorkflowToolPublicationResponse struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	Code          uint64                   `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                   `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Publication   *WorkflowToolPublication `protobuf:"bytes,3,opt,name=publication,proto3" json:"publication,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetWorkflowToolPublicationResponse) Reset() {
+	*x = GetWorkflowToolPublicationResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[125]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWorkflowToolPublicationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWorkflowToolPublicationResponse) ProtoMessage() {}
+
+func (x *GetWorkflowToolPublicationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[125]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWorkflowToolPublicationResponse.ProtoReflect.Descriptor instead.
+func (*GetWorkflowToolPublicationResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{125}
+}
+
+func (x *GetWorkflowToolPublicationResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *GetWorkflowToolPublicationResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *GetWorkflowToolPublicationResponse) GetPublication() *WorkflowToolPublication {
+	if x != nil {
+		return x.Publication
+	}
+	return nil
+}
+
+type UnpublishWorkflowToolRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	UserId           uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	WorkflowId       string                 `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	ExpectedRevision int64                  `protobuf:"varint,3,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *UnpublishWorkflowToolRequest) Reset() {
+	*x = UnpublishWorkflowToolRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[126]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnpublishWorkflowToolRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnpublishWorkflowToolRequest) ProtoMessage() {}
+
+func (x *UnpublishWorkflowToolRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[126]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnpublishWorkflowToolRequest.ProtoReflect.Descriptor instead.
+func (*UnpublishWorkflowToolRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{126}
+}
+
+func (x *UnpublishWorkflowToolRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *UnpublishWorkflowToolRequest) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *UnpublishWorkflowToolRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+type UnpublishWorkflowToolResponse struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	Code          uint64                   `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                   `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Publication   *WorkflowToolPublication `protobuf:"bytes,3,opt,name=publication,proto3" json:"publication,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnpublishWorkflowToolResponse) Reset() {
+	*x = UnpublishWorkflowToolResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[127]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnpublishWorkflowToolResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnpublishWorkflowToolResponse) ProtoMessage() {}
+
+func (x *UnpublishWorkflowToolResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[127]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnpublishWorkflowToolResponse.ProtoReflect.Descriptor instead.
+func (*UnpublishWorkflowToolResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{127}
+}
+
+func (x *UnpublishWorkflowToolResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *UnpublishWorkflowToolResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *UnpublishWorkflowToolResponse) GetPublication() *WorkflowToolPublication {
+	if x != nil {
+		return x.Publication
+	}
+	return nil
+}
+
+type RunWorkflowRequest struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	UserId             uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	WorkflowId         string                 `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	InputJson          string                 `protobuf:"bytes,3,opt,name=input_json,json=inputJson,proto3" json:"input_json,omitempty"`
+	WorkflowRevisionId string                 `protobuf:"bytes,4,opt,name=workflow_revision_id,json=workflowRevisionId,proto3" json:"workflow_revision_id,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
 func (x *RunWorkflowRequest) Reset() {
 	*x = RunWorkflowRequest{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[40]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[128]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2829,7 +10448,7 @@ func (x *RunWorkflowRequest) String() string {
 func (*RunWorkflowRequest) ProtoMessage() {}
 
 func (x *RunWorkflowRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[40]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[128]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2842,7 +10461,7 @@ func (x *RunWorkflowRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunWorkflowRequest.ProtoReflect.Descriptor instead.
 func (*RunWorkflowRequest) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{40}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{128}
 }
 
 func (x *RunWorkflowRequest) GetUserId() uint64 {
@@ -2866,20 +10485,29 @@ func (x *RunWorkflowRequest) GetInputJson() string {
 	return ""
 }
 
+func (x *RunWorkflowRequest) GetWorkflowRevisionId() string {
+	if x != nil {
+		return x.WorkflowRevisionId
+	}
+	return ""
+}
+
 type RunWorkflowResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
-	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
-	Run           *WorkflowRun           `protobuf:"bytes,3,opt,name=run,proto3" json:"run,omitempty"`
-	DialogueKey   string                 `protobuf:"bytes,4,opt,name=dialogue_key,json=dialogueKey,proto3" json:"dialogue_key,omitempty"`
-	Response      string                 `protobuf:"bytes,5,opt,name=response,proto3" json:"response,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Code        uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg         string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Run         *WorkflowRun           `protobuf:"bytes,3,opt,name=run,proto3" json:"run,omitempty"`
+	DialogueKey string                 `protobuf:"bytes,4,opt,name=dialogue_key,json=dialogueKey,proto3" json:"dialogue_key,omitempty"`
+	Response    string                 `protobuf:"bytes,5,opt,name=response,proto3" json:"response,omitempty"`
+	// 仅在本次响应把工作流挂起时返回；服务端只保存哈希。
+	ResumeToken   string `protobuf:"bytes,6,opt,name=resume_token,json=resumeToken,proto3" json:"resume_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RunWorkflowResponse) Reset() {
 	*x = RunWorkflowResponse{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[41]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[129]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2891,7 +10519,7 @@ func (x *RunWorkflowResponse) String() string {
 func (*RunWorkflowResponse) ProtoMessage() {}
 
 func (x *RunWorkflowResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[41]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[129]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2904,7 +10532,7 @@ func (x *RunWorkflowResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunWorkflowResponse.ProtoReflect.Descriptor instead.
 func (*RunWorkflowResponse) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{41}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{129}
 }
 
 func (x *RunWorkflowResponse) GetCode() uint64 {
@@ -2942,6 +10570,13 @@ func (x *RunWorkflowResponse) GetResponse() string {
 	return ""
 }
 
+func (x *RunWorkflowResponse) GetResumeToken() string {
+	if x != nil {
+		return x.ResumeToken
+	}
+	return ""
+}
+
 type GetWorkflowRunRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -2952,7 +10587,7 @@ type GetWorkflowRunRequest struct {
 
 func (x *GetWorkflowRunRequest) Reset() {
 	*x = GetWorkflowRunRequest{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[42]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[130]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2964,7 +10599,7 @@ func (x *GetWorkflowRunRequest) String() string {
 func (*GetWorkflowRunRequest) ProtoMessage() {}
 
 func (x *GetWorkflowRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[42]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[130]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2977,7 +10612,7 @@ func (x *GetWorkflowRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetWorkflowRunRequest.ProtoReflect.Descriptor instead.
 func (*GetWorkflowRunRequest) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{42}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{130}
 }
 
 func (x *GetWorkflowRunRequest) GetUserId() uint64 {
@@ -3005,7 +10640,7 @@ type GetWorkflowRunResponse struct {
 
 func (x *GetWorkflowRunResponse) Reset() {
 	*x = GetWorkflowRunResponse{}
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[43]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[131]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3017,7 +10652,7 @@ func (x *GetWorkflowRunResponse) String() string {
 func (*GetWorkflowRunResponse) ProtoMessage() {}
 
 func (x *GetWorkflowRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[43]
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[131]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3030,7 +10665,7 @@ func (x *GetWorkflowRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetWorkflowRunResponse.ProtoReflect.Descriptor instead.
 func (*GetWorkflowRunResponse) Descriptor() ([]byte, []int) {
-	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{43}
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{131}
 }
 
 func (x *GetWorkflowRunResponse) GetCode() uint64 {
@@ -3054,6 +10689,11756 @@ func (x *GetWorkflowRunResponse) GetRun() *WorkflowRun {
 	return nil
 }
 
+type ExecutionTokenUsage struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	InputTokens         int32                  `protobuf:"varint,1,opt,name=input_tokens,json=inputTokens,proto3" json:"input_tokens,omitempty"`
+	OutputTokens        int32                  `protobuf:"varint,2,opt,name=output_tokens,json=outputTokens,proto3" json:"output_tokens,omitempty"`
+	TotalTokens         int32                  `protobuf:"varint,3,opt,name=total_tokens,json=totalTokens,proto3" json:"total_tokens,omitempty"`
+	Estimated           bool                   `protobuf:"varint,4,opt,name=estimated,proto3" json:"estimated,omitempty"`
+	EstimatedCostMicros int64                  `protobuf:"varint,5,opt,name=estimated_cost_micros,json=estimatedCostMicros,proto3" json:"estimated_cost_micros,omitempty"`
+	CostEstimated       bool                   `protobuf:"varint,6,opt,name=cost_estimated,json=costEstimated,proto3" json:"cost_estimated,omitempty"`
+	PricingVersion      string                 `protobuf:"bytes,7,opt,name=pricing_version,json=pricingVersion,proto3" json:"pricing_version,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *ExecutionTokenUsage) Reset() {
+	*x = ExecutionTokenUsage{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[132]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExecutionTokenUsage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExecutionTokenUsage) ProtoMessage() {}
+
+func (x *ExecutionTokenUsage) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[132]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExecutionTokenUsage.ProtoReflect.Descriptor instead.
+func (*ExecutionTokenUsage) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{132}
+}
+
+func (x *ExecutionTokenUsage) GetInputTokens() int32 {
+	if x != nil {
+		return x.InputTokens
+	}
+	return 0
+}
+
+func (x *ExecutionTokenUsage) GetOutputTokens() int32 {
+	if x != nil {
+		return x.OutputTokens
+	}
+	return 0
+}
+
+func (x *ExecutionTokenUsage) GetTotalTokens() int32 {
+	if x != nil {
+		return x.TotalTokens
+	}
+	return 0
+}
+
+func (x *ExecutionTokenUsage) GetEstimated() bool {
+	if x != nil {
+		return x.Estimated
+	}
+	return false
+}
+
+func (x *ExecutionTokenUsage) GetEstimatedCostMicros() int64 {
+	if x != nil {
+		return x.EstimatedCostMicros
+	}
+	return 0
+}
+
+func (x *ExecutionTokenUsage) GetCostEstimated() bool {
+	if x != nil {
+		return x.CostEstimated
+	}
+	return false
+}
+
+func (x *ExecutionTokenUsage) GetPricingVersion() string {
+	if x != nil {
+		return x.PricingVersion
+	}
+	return ""
+}
+
+type ExecutionBudgetSnapshot struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	MaxSteps               int32                  `protobuf:"varint,1,opt,name=max_steps,json=maxSteps,proto3" json:"max_steps,omitempty"`
+	MaxTotalTokens         int32                  `protobuf:"varint,2,opt,name=max_total_tokens,json=maxTotalTokens,proto3" json:"max_total_tokens,omitempty"`
+	MaxEstimatedCostMicros int64                  `protobuf:"varint,3,opt,name=max_estimated_cost_micros,json=maxEstimatedCostMicros,proto3" json:"max_estimated_cost_micros,omitempty"`
+	ConsumedSteps          int32                  `protobuf:"varint,4,opt,name=consumed_steps,json=consumedSteps,proto3" json:"consumed_steps,omitempty"`
+	ConsumedTokens         int32                  `protobuf:"varint,5,opt,name=consumed_tokens,json=consumedTokens,proto3" json:"consumed_tokens,omitempty"`
+	ConsumedCostMicros     int64                  `protobuf:"varint,6,opt,name=consumed_cost_micros,json=consumedCostMicros,proto3" json:"consumed_cost_micros,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *ExecutionBudgetSnapshot) Reset() {
+	*x = ExecutionBudgetSnapshot{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[133]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExecutionBudgetSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExecutionBudgetSnapshot) ProtoMessage() {}
+
+func (x *ExecutionBudgetSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[133]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExecutionBudgetSnapshot.ProtoReflect.Descriptor instead.
+func (*ExecutionBudgetSnapshot) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{133}
+}
+
+func (x *ExecutionBudgetSnapshot) GetMaxSteps() int32 {
+	if x != nil {
+		return x.MaxSteps
+	}
+	return 0
+}
+
+func (x *ExecutionBudgetSnapshot) GetMaxTotalTokens() int32 {
+	if x != nil {
+		return x.MaxTotalTokens
+	}
+	return 0
+}
+
+func (x *ExecutionBudgetSnapshot) GetMaxEstimatedCostMicros() int64 {
+	if x != nil {
+		return x.MaxEstimatedCostMicros
+	}
+	return 0
+}
+
+func (x *ExecutionBudgetSnapshot) GetConsumedSteps() int32 {
+	if x != nil {
+		return x.ConsumedSteps
+	}
+	return 0
+}
+
+func (x *ExecutionBudgetSnapshot) GetConsumedTokens() int32 {
+	if x != nil {
+		return x.ConsumedTokens
+	}
+	return 0
+}
+
+func (x *ExecutionBudgetSnapshot) GetConsumedCostMicros() int64 {
+	if x != nil {
+		return x.ConsumedCostMicros
+	}
+	return 0
+}
+
+type AgentRunTrace struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	RecordId      string                   `protobuf:"bytes,1,opt,name=record_id,json=recordId,proto3" json:"record_id,omitempty"`
+	RunId         string                   `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	WorkflowId    string                   `protobuf:"bytes,3,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	UserId        uint64                   `protobuf:"varint,4,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Source        string                   `protobuf:"bytes,5,opt,name=source,proto3" json:"source,omitempty"`
+	Mode          string                   `protobuf:"bytes,6,opt,name=mode,proto3" json:"mode,omitempty"`
+	Strategy      string                   `protobuf:"bytes,7,opt,name=strategy,proto3" json:"strategy,omitempty"`
+	Status        string                   `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
+	ErrorClass    string                   `protobuf:"bytes,9,opt,name=error_class,json=errorClass,proto3" json:"error_class,omitempty"`
+	Usage         *ExecutionTokenUsage     `protobuf:"bytes,10,opt,name=usage,proto3" json:"usage,omitempty"`
+	Budget        *ExecutionBudgetSnapshot `protobuf:"bytes,11,opt,name=budget,proto3" json:"budget,omitempty"`
+	StartedAtMs   int64                    `protobuf:"varint,12,opt,name=started_at_ms,json=startedAtMs,proto3" json:"started_at_ms,omitempty"`
+	FinishedAtMs  int64                    `protobuf:"varint,13,opt,name=finished_at_ms,json=finishedAtMs,proto3" json:"finished_at_ms,omitempty"`
+	DurationMs    int64                    `protobuf:"varint,14,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	UpdatedAtMs   int64                    `protobuf:"varint,15,opt,name=updated_at_ms,json=updatedAtMs,proto3" json:"updated_at_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentRunTrace) Reset() {
+	*x = AgentRunTrace{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[134]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentRunTrace) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentRunTrace) ProtoMessage() {}
+
+func (x *AgentRunTrace) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[134]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentRunTrace.ProtoReflect.Descriptor instead.
+func (*AgentRunTrace) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{134}
+}
+
+func (x *AgentRunTrace) GetRecordId() string {
+	if x != nil {
+		return x.RecordId
+	}
+	return ""
+}
+
+func (x *AgentRunTrace) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *AgentRunTrace) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *AgentRunTrace) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *AgentRunTrace) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *AgentRunTrace) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+func (x *AgentRunTrace) GetStrategy() string {
+	if x != nil {
+		return x.Strategy
+	}
+	return ""
+}
+
+func (x *AgentRunTrace) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *AgentRunTrace) GetErrorClass() string {
+	if x != nil {
+		return x.ErrorClass
+	}
+	return ""
+}
+
+func (x *AgentRunTrace) GetUsage() *ExecutionTokenUsage {
+	if x != nil {
+		return x.Usage
+	}
+	return nil
+}
+
+func (x *AgentRunTrace) GetBudget() *ExecutionBudgetSnapshot {
+	if x != nil {
+		return x.Budget
+	}
+	return nil
+}
+
+func (x *AgentRunTrace) GetStartedAtMs() int64 {
+	if x != nil {
+		return x.StartedAtMs
+	}
+	return 0
+}
+
+func (x *AgentRunTrace) GetFinishedAtMs() int64 {
+	if x != nil {
+		return x.FinishedAtMs
+	}
+	return 0
+}
+
+func (x *AgentRunTrace) GetDurationMs() int64 {
+	if x != nil {
+		return x.DurationMs
+	}
+	return 0
+}
+
+func (x *AgentRunTrace) GetUpdatedAtMs() int64 {
+	if x != nil {
+		return x.UpdatedAtMs
+	}
+	return 0
+}
+
+type AgentStepTrace struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RecordId      string                 `protobuf:"bytes,1,opt,name=record_id,json=recordId,proto3" json:"record_id,omitempty"`
+	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	WorkflowId    string                 `protobuf:"bytes,3,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	UserId        uint64                 `protobuf:"varint,4,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Source        string                 `protobuf:"bytes,5,opt,name=source,proto3" json:"source,omitempty"`
+	StepId        string                 `protobuf:"bytes,6,opt,name=step_id,json=stepId,proto3" json:"step_id,omitempty"`
+	ParentStepId  string                 `protobuf:"bytes,7,opt,name=parent_step_id,json=parentStepId,proto3" json:"parent_step_id,omitempty"`
+	Sequence      int32                  `protobuf:"varint,8,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	StepType      string                 `protobuf:"bytes,9,opt,name=step_type,json=stepType,proto3" json:"step_type,omitempty"`
+	Name          string                 `protobuf:"bytes,10,opt,name=name,proto3" json:"name,omitempty"`
+	Status        string                 `protobuf:"bytes,11,opt,name=status,proto3" json:"status,omitempty"`
+	Attempt       int32                  `protobuf:"varint,12,opt,name=attempt,proto3" json:"attempt,omitempty"`
+	MaxAttempts   int32                  `protobuf:"varint,13,opt,name=max_attempts,json=maxAttempts,proto3" json:"max_attempts,omitempty"`
+	ErrorClass    string                 `protobuf:"bytes,14,opt,name=error_class,json=errorClass,proto3" json:"error_class,omitempty"`
+	StartedAtMs   int64                  `protobuf:"varint,15,opt,name=started_at_ms,json=startedAtMs,proto3" json:"started_at_ms,omitempty"`
+	FinishedAtMs  int64                  `protobuf:"varint,16,opt,name=finished_at_ms,json=finishedAtMs,proto3" json:"finished_at_ms,omitempty"`
+	DurationMs    int64                  `protobuf:"varint,17,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	UpdatedAtMs   int64                  `protobuf:"varint,18,opt,name=updated_at_ms,json=updatedAtMs,proto3" json:"updated_at_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentStepTrace) Reset() {
+	*x = AgentStepTrace{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[135]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentStepTrace) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentStepTrace) ProtoMessage() {}
+
+func (x *AgentStepTrace) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[135]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentStepTrace.ProtoReflect.Descriptor instead.
+func (*AgentStepTrace) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{135}
+}
+
+func (x *AgentStepTrace) GetRecordId() string {
+	if x != nil {
+		return x.RecordId
+	}
+	return ""
+}
+
+func (x *AgentStepTrace) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *AgentStepTrace) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *AgentStepTrace) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *AgentStepTrace) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *AgentStepTrace) GetStepId() string {
+	if x != nil {
+		return x.StepId
+	}
+	return ""
+}
+
+func (x *AgentStepTrace) GetParentStepId() string {
+	if x != nil {
+		return x.ParentStepId
+	}
+	return ""
+}
+
+func (x *AgentStepTrace) GetSequence() int32 {
+	if x != nil {
+		return x.Sequence
+	}
+	return 0
+}
+
+func (x *AgentStepTrace) GetStepType() string {
+	if x != nil {
+		return x.StepType
+	}
+	return ""
+}
+
+func (x *AgentStepTrace) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *AgentStepTrace) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *AgentStepTrace) GetAttempt() int32 {
+	if x != nil {
+		return x.Attempt
+	}
+	return 0
+}
+
+func (x *AgentStepTrace) GetMaxAttempts() int32 {
+	if x != nil {
+		return x.MaxAttempts
+	}
+	return 0
+}
+
+func (x *AgentStepTrace) GetErrorClass() string {
+	if x != nil {
+		return x.ErrorClass
+	}
+	return ""
+}
+
+func (x *AgentStepTrace) GetStartedAtMs() int64 {
+	if x != nil {
+		return x.StartedAtMs
+	}
+	return 0
+}
+
+func (x *AgentStepTrace) GetFinishedAtMs() int64 {
+	if x != nil {
+		return x.FinishedAtMs
+	}
+	return 0
+}
+
+func (x *AgentStepTrace) GetDurationMs() int64 {
+	if x != nil {
+		return x.DurationMs
+	}
+	return 0
+}
+
+func (x *AgentStepTrace) GetUpdatedAtMs() int64 {
+	if x != nil {
+		return x.UpdatedAtMs
+	}
+	return 0
+}
+
+type AgentLLMCallTrace struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	RecordId               string                 `protobuf:"bytes,1,opt,name=record_id,json=recordId,proto3" json:"record_id,omitempty"`
+	RunId                  string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	WorkflowId             string                 `protobuf:"bytes,3,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	UserId                 uint64                 `protobuf:"varint,4,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Source                 string                 `protobuf:"bytes,5,opt,name=source,proto3" json:"source,omitempty"`
+	StepId                 string                 `protobuf:"bytes,6,opt,name=step_id,json=stepId,proto3" json:"step_id,omitempty"`
+	Sequence               int32                  `protobuf:"varint,7,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	Model                  string                 `protobuf:"bytes,8,opt,name=model,proto3" json:"model,omitempty"`
+	Provider               string                 `protobuf:"bytes,9,opt,name=provider,proto3" json:"provider,omitempty"`
+	Status                 string                 `protobuf:"bytes,10,opt,name=status,proto3" json:"status,omitempty"`
+	ErrorClass             string                 `protobuf:"bytes,11,opt,name=error_class,json=errorClass,proto3" json:"error_class,omitempty"`
+	PromptHash             string                 `protobuf:"bytes,12,opt,name=prompt_hash,json=promptHash,proto3" json:"prompt_hash,omitempty"`
+	PromptLength           int32                  `protobuf:"varint,13,opt,name=prompt_length,json=promptLength,proto3" json:"prompt_length,omitempty"`
+	CompletionHash         string                 `protobuf:"bytes,14,opt,name=completion_hash,json=completionHash,proto3" json:"completion_hash,omitempty"`
+	CompletionLength       int32                  `protobuf:"varint,15,opt,name=completion_length,json=completionLength,proto3" json:"completion_length,omitempty"`
+	Usage                  *ExecutionTokenUsage   `protobuf:"bytes,16,opt,name=usage,proto3" json:"usage,omitempty"`
+	StartedAtMs            int64                  `protobuf:"varint,17,opt,name=started_at_ms,json=startedAtMs,proto3" json:"started_at_ms,omitempty"`
+	FinishedAtMs           int64                  `protobuf:"varint,18,opt,name=finished_at_ms,json=finishedAtMs,proto3" json:"finished_at_ms,omitempty"`
+	DurationMs             int64                  `protobuf:"varint,19,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	UpdatedAtMs            int64                  `protobuf:"varint,20,opt,name=updated_at_ms,json=updatedAtMs,proto3" json:"updated_at_ms,omitempty"`
+	PromptTemplateId       string                 `protobuf:"bytes,21,opt,name=prompt_template_id,json=promptTemplateId,proto3" json:"prompt_template_id,omitempty"`
+	PromptTemplateVersion  string                 `protobuf:"bytes,22,opt,name=prompt_template_version,json=promptTemplateVersion,proto3" json:"prompt_template_version,omitempty"`
+	PromptSample           string                 `protobuf:"bytes,23,opt,name=prompt_sample,json=promptSample,proto3" json:"prompt_sample,omitempty"`
+	CompletionSample       string                 `protobuf:"bytes,24,opt,name=completion_sample,json=completionSample,proto3" json:"completion_sample,omitempty"`
+	PromptSampleStatus     string                 `protobuf:"bytes,25,opt,name=prompt_sample_status,json=promptSampleStatus,proto3" json:"prompt_sample_status,omitempty"`
+	CompletionSampleStatus string                 `protobuf:"bytes,26,opt,name=completion_sample_status,json=completionSampleStatus,proto3" json:"completion_sample_status,omitempty"`
+	ContentSamplePolicy    string                 `protobuf:"bytes,27,opt,name=content_sample_policy,json=contentSamplePolicy,proto3" json:"content_sample_policy,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *AgentLLMCallTrace) Reset() {
+	*x = AgentLLMCallTrace{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[136]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentLLMCallTrace) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentLLMCallTrace) ProtoMessage() {}
+
+func (x *AgentLLMCallTrace) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[136]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentLLMCallTrace.ProtoReflect.Descriptor instead.
+func (*AgentLLMCallTrace) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{136}
+}
+
+func (x *AgentLLMCallTrace) GetRecordId() string {
+	if x != nil {
+		return x.RecordId
+	}
+	return ""
+}
+
+func (x *AgentLLMCallTrace) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *AgentLLMCallTrace) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *AgentLLMCallTrace) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *AgentLLMCallTrace) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *AgentLLMCallTrace) GetStepId() string {
+	if x != nil {
+		return x.StepId
+	}
+	return ""
+}
+
+func (x *AgentLLMCallTrace) GetSequence() int32 {
+	if x != nil {
+		return x.Sequence
+	}
+	return 0
+}
+
+func (x *AgentLLMCallTrace) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *AgentLLMCallTrace) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *AgentLLMCallTrace) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *AgentLLMCallTrace) GetErrorClass() string {
+	if x != nil {
+		return x.ErrorClass
+	}
+	return ""
+}
+
+func (x *AgentLLMCallTrace) GetPromptHash() string {
+	if x != nil {
+		return x.PromptHash
+	}
+	return ""
+}
+
+func (x *AgentLLMCallTrace) GetPromptLength() int32 {
+	if x != nil {
+		return x.PromptLength
+	}
+	return 0
+}
+
+func (x *AgentLLMCallTrace) GetCompletionHash() string {
+	if x != nil {
+		return x.CompletionHash
+	}
+	return ""
+}
+
+func (x *AgentLLMCallTrace) GetCompletionLength() int32 {
+	if x != nil {
+		return x.CompletionLength
+	}
+	return 0
+}
+
+func (x *AgentLLMCallTrace) GetUsage() *ExecutionTokenUsage {
+	if x != nil {
+		return x.Usage
+	}
+	return nil
+}
+
+func (x *AgentLLMCallTrace) GetStartedAtMs() int64 {
+	if x != nil {
+		return x.StartedAtMs
+	}
+	return 0
+}
+
+func (x *AgentLLMCallTrace) GetFinishedAtMs() int64 {
+	if x != nil {
+		return x.FinishedAtMs
+	}
+	return 0
+}
+
+func (x *AgentLLMCallTrace) GetDurationMs() int64 {
+	if x != nil {
+		return x.DurationMs
+	}
+	return 0
+}
+
+func (x *AgentLLMCallTrace) GetUpdatedAtMs() int64 {
+	if x != nil {
+		return x.UpdatedAtMs
+	}
+	return 0
+}
+
+func (x *AgentLLMCallTrace) GetPromptTemplateId() string {
+	if x != nil {
+		return x.PromptTemplateId
+	}
+	return ""
+}
+
+func (x *AgentLLMCallTrace) GetPromptTemplateVersion() string {
+	if x != nil {
+		return x.PromptTemplateVersion
+	}
+	return ""
+}
+
+func (x *AgentLLMCallTrace) GetPromptSample() string {
+	if x != nil {
+		return x.PromptSample
+	}
+	return ""
+}
+
+func (x *AgentLLMCallTrace) GetCompletionSample() string {
+	if x != nil {
+		return x.CompletionSample
+	}
+	return ""
+}
+
+func (x *AgentLLMCallTrace) GetPromptSampleStatus() string {
+	if x != nil {
+		return x.PromptSampleStatus
+	}
+	return ""
+}
+
+func (x *AgentLLMCallTrace) GetCompletionSampleStatus() string {
+	if x != nil {
+		return x.CompletionSampleStatus
+	}
+	return ""
+}
+
+func (x *AgentLLMCallTrace) GetContentSamplePolicy() string {
+	if x != nil {
+		return x.ContentSamplePolicy
+	}
+	return ""
+}
+
+type AgentToolCallTrace struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	RecordId          string                 `protobuf:"bytes,1,opt,name=record_id,json=recordId,proto3" json:"record_id,omitempty"`
+	RunId             string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	WorkflowId        string                 `protobuf:"bytes,3,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	UserId            uint64                 `protobuf:"varint,4,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Source            string                 `protobuf:"bytes,5,opt,name=source,proto3" json:"source,omitempty"`
+	StepId            string                 `protobuf:"bytes,6,opt,name=step_id,json=stepId,proto3" json:"step_id,omitempty"`
+	Sequence          int32                  `protobuf:"varint,7,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	ToolName          string                 `protobuf:"bytes,8,opt,name=tool_name,json=toolName,proto3" json:"tool_name,omitempty"`
+	Category          string                 `protobuf:"bytes,9,opt,name=category,proto3" json:"category,omitempty"`
+	Status            string                 `protobuf:"bytes,10,opt,name=status,proto3" json:"status,omitempty"`
+	ErrorClass        string                 `protobuf:"bytes,11,opt,name=error_class,json=errorClass,proto3" json:"error_class,omitempty"`
+	Attempts          int32                  `protobuf:"varint,12,opt,name=attempts,proto3" json:"attempts,omitempty"`
+	ArgumentsHash     string                 `protobuf:"bytes,13,opt,name=arguments_hash,json=argumentsHash,proto3" json:"arguments_hash,omitempty"`
+	ArgumentsLength   int32                  `protobuf:"varint,14,opt,name=arguments_length,json=argumentsLength,proto3" json:"arguments_length,omitempty"`
+	OutputHash        string                 `protobuf:"bytes,15,opt,name=output_hash,json=outputHash,proto3" json:"output_hash,omitempty"`
+	OutputLength      int32                  `protobuf:"varint,16,opt,name=output_length,json=outputLength,proto3" json:"output_length,omitempty"`
+	StartedAtMs       int64                  `protobuf:"varint,17,opt,name=started_at_ms,json=startedAtMs,proto3" json:"started_at_ms,omitempty"`
+	FinishedAtMs      int64                  `protobuf:"varint,18,opt,name=finished_at_ms,json=finishedAtMs,proto3" json:"finished_at_ms,omitempty"`
+	DurationMs        int64                  `protobuf:"varint,19,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	UpdatedAtMs       int64                  `protobuf:"varint,20,opt,name=updated_at_ms,json=updatedAtMs,proto3" json:"updated_at_ms,omitempty"`
+	OutputStorage     string                 `protobuf:"bytes,21,opt,name=output_storage,json=outputStorage,proto3" json:"output_storage,omitempty"`
+	OutputReference   string                 `protobuf:"bytes,22,opt,name=output_reference,json=outputReference,proto3" json:"output_reference,omitempty"`
+	OutputContentType string                 `protobuf:"bytes,23,opt,name=output_content_type,json=outputContentType,proto3" json:"output_content_type,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *AgentToolCallTrace) Reset() {
+	*x = AgentToolCallTrace{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[137]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentToolCallTrace) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentToolCallTrace) ProtoMessage() {}
+
+func (x *AgentToolCallTrace) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[137]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentToolCallTrace.ProtoReflect.Descriptor instead.
+func (*AgentToolCallTrace) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{137}
+}
+
+func (x *AgentToolCallTrace) GetRecordId() string {
+	if x != nil {
+		return x.RecordId
+	}
+	return ""
+}
+
+func (x *AgentToolCallTrace) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *AgentToolCallTrace) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *AgentToolCallTrace) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *AgentToolCallTrace) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *AgentToolCallTrace) GetStepId() string {
+	if x != nil {
+		return x.StepId
+	}
+	return ""
+}
+
+func (x *AgentToolCallTrace) GetSequence() int32 {
+	if x != nil {
+		return x.Sequence
+	}
+	return 0
+}
+
+func (x *AgentToolCallTrace) GetToolName() string {
+	if x != nil {
+		return x.ToolName
+	}
+	return ""
+}
+
+func (x *AgentToolCallTrace) GetCategory() string {
+	if x != nil {
+		return x.Category
+	}
+	return ""
+}
+
+func (x *AgentToolCallTrace) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *AgentToolCallTrace) GetErrorClass() string {
+	if x != nil {
+		return x.ErrorClass
+	}
+	return ""
+}
+
+func (x *AgentToolCallTrace) GetAttempts() int32 {
+	if x != nil {
+		return x.Attempts
+	}
+	return 0
+}
+
+func (x *AgentToolCallTrace) GetArgumentsHash() string {
+	if x != nil {
+		return x.ArgumentsHash
+	}
+	return ""
+}
+
+func (x *AgentToolCallTrace) GetArgumentsLength() int32 {
+	if x != nil {
+		return x.ArgumentsLength
+	}
+	return 0
+}
+
+func (x *AgentToolCallTrace) GetOutputHash() string {
+	if x != nil {
+		return x.OutputHash
+	}
+	return ""
+}
+
+func (x *AgentToolCallTrace) GetOutputLength() int32 {
+	if x != nil {
+		return x.OutputLength
+	}
+	return 0
+}
+
+func (x *AgentToolCallTrace) GetStartedAtMs() int64 {
+	if x != nil {
+		return x.StartedAtMs
+	}
+	return 0
+}
+
+func (x *AgentToolCallTrace) GetFinishedAtMs() int64 {
+	if x != nil {
+		return x.FinishedAtMs
+	}
+	return 0
+}
+
+func (x *AgentToolCallTrace) GetDurationMs() int64 {
+	if x != nil {
+		return x.DurationMs
+	}
+	return 0
+}
+
+func (x *AgentToolCallTrace) GetUpdatedAtMs() int64 {
+	if x != nil {
+		return x.UpdatedAtMs
+	}
+	return 0
+}
+
+func (x *AgentToolCallTrace) GetOutputStorage() string {
+	if x != nil {
+		return x.OutputStorage
+	}
+	return ""
+}
+
+func (x *AgentToolCallTrace) GetOutputReference() string {
+	if x != nil {
+		return x.OutputReference
+	}
+	return ""
+}
+
+func (x *AgentToolCallTrace) GetOutputContentType() string {
+	if x != nil {
+		return x.OutputContentType
+	}
+	return ""
+}
+
+type GetWorkflowRunTraceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetWorkflowRunTraceRequest) Reset() {
+	*x = GetWorkflowRunTraceRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[138]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWorkflowRunTraceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWorkflowRunTraceRequest) ProtoMessage() {}
+
+func (x *GetWorkflowRunTraceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[138]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWorkflowRunTraceRequest.ProtoReflect.Descriptor instead.
+func (*GetWorkflowRunTraceRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{138}
+}
+
+func (x *GetWorkflowRunTraceRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *GetWorkflowRunTraceRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+type GetWorkflowRunTraceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Run           *AgentRunTrace         `protobuf:"bytes,3,opt,name=run,proto3" json:"run,omitempty"`
+	Steps         []*AgentStepTrace      `protobuf:"bytes,4,rep,name=steps,proto3" json:"steps,omitempty"`
+	LlmCalls      []*AgentLLMCallTrace   `protobuf:"bytes,5,rep,name=llm_calls,json=llmCalls,proto3" json:"llm_calls,omitempty"`
+	ToolCalls     []*AgentToolCallTrace  `protobuf:"bytes,6,rep,name=tool_calls,json=toolCalls,proto3" json:"tool_calls,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetWorkflowRunTraceResponse) Reset() {
+	*x = GetWorkflowRunTraceResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[139]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWorkflowRunTraceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWorkflowRunTraceResponse) ProtoMessage() {}
+
+func (x *GetWorkflowRunTraceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[139]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWorkflowRunTraceResponse.ProtoReflect.Descriptor instead.
+func (*GetWorkflowRunTraceResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{139}
+}
+
+func (x *GetWorkflowRunTraceResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *GetWorkflowRunTraceResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *GetWorkflowRunTraceResponse) GetRun() *AgentRunTrace {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
+func (x *GetWorkflowRunTraceResponse) GetSteps() []*AgentStepTrace {
+	if x != nil {
+		return x.Steps
+	}
+	return nil
+}
+
+func (x *GetWorkflowRunTraceResponse) GetLlmCalls() []*AgentLLMCallTrace {
+	if x != nil {
+		return x.LlmCalls
+	}
+	return nil
+}
+
+func (x *GetWorkflowRunTraceResponse) GetToolCalls() []*AgentToolCallTrace {
+	if x != nil {
+		return x.ToolCalls
+	}
+	return nil
+}
+
+type SearchWorkflowBlackboardRequest struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	UserId uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RunId  string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	// 0 表示最新已持久化版本；分页游标会固定首次查询的版本。
+	StateVersion  int64  `protobuf:"varint,3,opt,name=state_version,json=stateVersion,proto3" json:"state_version,omitempty"`
+	Query         string `protobuf:"bytes,4,opt,name=query,proto3" json:"query,omitempty"`
+	PathPrefix    string `protobuf:"bytes,5,opt,name=path_prefix,json=pathPrefix,proto3" json:"path_prefix,omitempty"`
+	AfterCursor   string `protobuf:"bytes,6,opt,name=after_cursor,json=afterCursor,proto3" json:"after_cursor,omitempty"`
+	PageSize      uint32 `protobuf:"varint,7,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchWorkflowBlackboardRequest) Reset() {
+	*x = SearchWorkflowBlackboardRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[140]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchWorkflowBlackboardRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchWorkflowBlackboardRequest) ProtoMessage() {}
+
+func (x *SearchWorkflowBlackboardRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[140]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchWorkflowBlackboardRequest.ProtoReflect.Descriptor instead.
+func (*SearchWorkflowBlackboardRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{140}
+}
+
+func (x *SearchWorkflowBlackboardRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *SearchWorkflowBlackboardRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *SearchWorkflowBlackboardRequest) GetStateVersion() int64 {
+	if x != nil {
+		return x.StateVersion
+	}
+	return 0
+}
+
+func (x *SearchWorkflowBlackboardRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
+func (x *SearchWorkflowBlackboardRequest) GetPathPrefix() string {
+	if x != nil {
+		return x.PathPrefix
+	}
+	return ""
+}
+
+func (x *SearchWorkflowBlackboardRequest) GetAfterCursor() string {
+	if x != nil {
+		return x.AfterCursor
+	}
+	return ""
+}
+
+func (x *SearchWorkflowBlackboardRequest) GetPageSize() uint32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type WorkflowBlackboardEntry struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Path  string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	// 仅在脱敏后的 JSON 不超过服务端预览上限时返回。
+	ValueJson     string `protobuf:"bytes,2,opt,name=value_json,json=valueJson,proto3" json:"value_json,omitempty"`
+	ValueType     string `protobuf:"bytes,3,opt,name=value_type,json=valueType,proto3" json:"value_type,omitempty"`
+	ValueHash     string `protobuf:"bytes,4,opt,name=value_hash,json=valueHash,proto3" json:"value_hash,omitempty"`
+	ValueLength   int64  `protobuf:"varint,5,opt,name=value_length,json=valueLength,proto3" json:"value_length,omitempty"`
+	Truncated     bool   `protobuf:"varint,6,opt,name=truncated,proto3" json:"truncated,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkflowBlackboardEntry) Reset() {
+	*x = WorkflowBlackboardEntry{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[141]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkflowBlackboardEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkflowBlackboardEntry) ProtoMessage() {}
+
+func (x *WorkflowBlackboardEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[141]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkflowBlackboardEntry.ProtoReflect.Descriptor instead.
+func (*WorkflowBlackboardEntry) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{141}
+}
+
+func (x *WorkflowBlackboardEntry) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *WorkflowBlackboardEntry) GetValueJson() string {
+	if x != nil {
+		return x.ValueJson
+	}
+	return ""
+}
+
+func (x *WorkflowBlackboardEntry) GetValueType() string {
+	if x != nil {
+		return x.ValueType
+	}
+	return ""
+}
+
+func (x *WorkflowBlackboardEntry) GetValueHash() string {
+	if x != nil {
+		return x.ValueHash
+	}
+	return ""
+}
+
+func (x *WorkflowBlackboardEntry) GetValueLength() int64 {
+	if x != nil {
+		return x.ValueLength
+	}
+	return 0
+}
+
+func (x *WorkflowBlackboardEntry) GetTruncated() bool {
+	if x != nil {
+		return x.Truncated
+	}
+	return false
+}
+
+type SearchWorkflowBlackboardResponse struct {
+	state               protoimpl.MessageState     `protogen:"open.v1"`
+	Code                uint64                     `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg                 string                     `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	RunId               string                     `protobuf:"bytes,3,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	StateVersion        int64                      `protobuf:"varint,4,opt,name=state_version,json=stateVersion,proto3" json:"state_version,omitempty"`
+	BaseSnapshotVersion int64                      `protobuf:"varint,5,opt,name=base_snapshot_version,json=baseSnapshotVersion,proto3" json:"base_snapshot_version,omitempty"`
+	BaseSnapshotHash    string                     `protobuf:"bytes,6,opt,name=base_snapshot_hash,json=baseSnapshotHash,proto3" json:"base_snapshot_hash,omitempty"`
+	StateHash           string                     `protobuf:"bytes,7,opt,name=state_hash,json=stateHash,proto3" json:"state_hash,omitempty"`
+	Verified            bool                       `protobuf:"varint,8,opt,name=verified,proto3" json:"verified,omitempty"`
+	Entries             []*WorkflowBlackboardEntry `protobuf:"bytes,9,rep,name=entries,proto3" json:"entries,omitempty"`
+	MatchedTotal        int64                      `protobuf:"varint,10,opt,name=matched_total,json=matchedTotal,proto3" json:"matched_total,omitempty"`
+	NextCursor          string                     `protobuf:"bytes,11,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	HasMore             bool                       `protobuf:"varint,12,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *SearchWorkflowBlackboardResponse) Reset() {
+	*x = SearchWorkflowBlackboardResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[142]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchWorkflowBlackboardResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchWorkflowBlackboardResponse) ProtoMessage() {}
+
+func (x *SearchWorkflowBlackboardResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[142]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchWorkflowBlackboardResponse.ProtoReflect.Descriptor instead.
+func (*SearchWorkflowBlackboardResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{142}
+}
+
+func (x *SearchWorkflowBlackboardResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *SearchWorkflowBlackboardResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *SearchWorkflowBlackboardResponse) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *SearchWorkflowBlackboardResponse) GetStateVersion() int64 {
+	if x != nil {
+		return x.StateVersion
+	}
+	return 0
+}
+
+func (x *SearchWorkflowBlackboardResponse) GetBaseSnapshotVersion() int64 {
+	if x != nil {
+		return x.BaseSnapshotVersion
+	}
+	return 0
+}
+
+func (x *SearchWorkflowBlackboardResponse) GetBaseSnapshotHash() string {
+	if x != nil {
+		return x.BaseSnapshotHash
+	}
+	return ""
+}
+
+func (x *SearchWorkflowBlackboardResponse) GetStateHash() string {
+	if x != nil {
+		return x.StateHash
+	}
+	return ""
+}
+
+func (x *SearchWorkflowBlackboardResponse) GetVerified() bool {
+	if x != nil {
+		return x.Verified
+	}
+	return false
+}
+
+func (x *SearchWorkflowBlackboardResponse) GetEntries() []*WorkflowBlackboardEntry {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
+func (x *SearchWorkflowBlackboardResponse) GetMatchedTotal() int64 {
+	if x != nil {
+		return x.MatchedTotal
+	}
+	return 0
+}
+
+func (x *SearchWorkflowBlackboardResponse) GetNextCursor() string {
+	if x != nil {
+		return x.NextCursor
+	}
+	return ""
+}
+
+func (x *SearchWorkflowBlackboardResponse) GetHasMore() bool {
+	if x != nil {
+		return x.HasMore
+	}
+	return false
+}
+
+type WatchWorkflowRunEventsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	AfterCursor   string                 `protobuf:"bytes,3,opt,name=after_cursor,json=afterCursor,proto3" json:"after_cursor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WatchWorkflowRunEventsRequest) Reset() {
+	*x = WatchWorkflowRunEventsRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[143]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WatchWorkflowRunEventsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WatchWorkflowRunEventsRequest) ProtoMessage() {}
+
+func (x *WatchWorkflowRunEventsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[143]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WatchWorkflowRunEventsRequest.ProtoReflect.Descriptor instead.
+func (*WatchWorkflowRunEventsRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{143}
+}
+
+func (x *WatchWorkflowRunEventsRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *WatchWorkflowRunEventsRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *WatchWorkflowRunEventsRequest) GetAfterCursor() string {
+	if x != nil {
+		return x.AfterCursor
+	}
+	return ""
+}
+
+type WorkflowRunEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Cursor        string                 `protobuf:"bytes,1,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	Kind          string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	Reset_        bool                   `protobuf:"varint,3,opt,name=reset,proto3" json:"reset,omitempty"`
+	Heartbeat     bool                   `protobuf:"varint,4,opt,name=heartbeat,proto3" json:"heartbeat,omitempty"`
+	Terminal      bool                   `protobuf:"varint,5,opt,name=terminal,proto3" json:"terminal,omitempty"`
+	Reason        string                 `protobuf:"bytes,6,opt,name=reason,proto3" json:"reason,omitempty"`
+	CreatedAtMs   int64                  `protobuf:"varint,7,opt,name=created_at_ms,json=createdAtMs,proto3" json:"created_at_ms,omitempty"`
+	Run           *AgentRunTrace         `protobuf:"bytes,8,opt,name=run,proto3" json:"run,omitempty"`
+	Step          *AgentStepTrace        `protobuf:"bytes,9,opt,name=step,proto3" json:"step,omitempty"`
+	LlmCall       *AgentLLMCallTrace     `protobuf:"bytes,10,opt,name=llm_call,json=llmCall,proto3" json:"llm_call,omitempty"`
+	ToolCall      *AgentToolCallTrace    `protobuf:"bytes,11,opt,name=tool_call,json=toolCall,proto3" json:"tool_call,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkflowRunEvent) Reset() {
+	*x = WorkflowRunEvent{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[144]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkflowRunEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkflowRunEvent) ProtoMessage() {}
+
+func (x *WorkflowRunEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[144]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkflowRunEvent.ProtoReflect.Descriptor instead.
+func (*WorkflowRunEvent) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{144}
+}
+
+func (x *WorkflowRunEvent) GetCursor() string {
+	if x != nil {
+		return x.Cursor
+	}
+	return ""
+}
+
+func (x *WorkflowRunEvent) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *WorkflowRunEvent) GetReset_() bool {
+	if x != nil {
+		return x.Reset_
+	}
+	return false
+}
+
+func (x *WorkflowRunEvent) GetHeartbeat() bool {
+	if x != nil {
+		return x.Heartbeat
+	}
+	return false
+}
+
+func (x *WorkflowRunEvent) GetTerminal() bool {
+	if x != nil {
+		return x.Terminal
+	}
+	return false
+}
+
+func (x *WorkflowRunEvent) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *WorkflowRunEvent) GetCreatedAtMs() int64 {
+	if x != nil {
+		return x.CreatedAtMs
+	}
+	return 0
+}
+
+func (x *WorkflowRunEvent) GetRun() *AgentRunTrace {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
+func (x *WorkflowRunEvent) GetStep() *AgentStepTrace {
+	if x != nil {
+		return x.Step
+	}
+	return nil
+}
+
+func (x *WorkflowRunEvent) GetLlmCall() *AgentLLMCallTrace {
+	if x != nil {
+		return x.LlmCall
+	}
+	return nil
+}
+
+func (x *WorkflowRunEvent) GetToolCall() *AgentToolCallTrace {
+	if x != nil {
+		return x.ToolCall
+	}
+	return nil
+}
+
+type ListWorkflowRunsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	WorkflowId    string                 `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	Page          uint32                 `protobuf:"varint,4,opt,name=page,proto3" json:"page,omitempty"`
+	PageSize      uint32                 `protobuf:"varint,5,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListWorkflowRunsRequest) Reset() {
+	*x = ListWorkflowRunsRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[145]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListWorkflowRunsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListWorkflowRunsRequest) ProtoMessage() {}
+
+func (x *ListWorkflowRunsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[145]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListWorkflowRunsRequest.ProtoReflect.Descriptor instead.
+func (*ListWorkflowRunsRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{145}
+}
+
+func (x *ListWorkflowRunsRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ListWorkflowRunsRequest) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *ListWorkflowRunsRequest) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ListWorkflowRunsRequest) GetPage() uint32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListWorkflowRunsRequest) GetPageSize() uint32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type ListWorkflowRunsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Runs          []*WorkflowRunSummary  `protobuf:"bytes,3,rep,name=runs,proto3" json:"runs,omitempty"`
+	Total         int64                  `protobuf:"varint,4,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListWorkflowRunsResponse) Reset() {
+	*x = ListWorkflowRunsResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[146]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListWorkflowRunsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListWorkflowRunsResponse) ProtoMessage() {}
+
+func (x *ListWorkflowRunsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[146]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListWorkflowRunsResponse.ProtoReflect.Descriptor instead.
+func (*ListWorkflowRunsResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{146}
+}
+
+func (x *ListWorkflowRunsResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *ListWorkflowRunsResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *ListWorkflowRunsResponse) GetRuns() []*WorkflowRunSummary {
+	if x != nil {
+		return x.Runs
+	}
+	return nil
+}
+
+func (x *ListWorkflowRunsResponse) GetTotal() int64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+type CancelWorkflowRunRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelWorkflowRunRequest) Reset() {
+	*x = CancelWorkflowRunRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[147]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelWorkflowRunRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelWorkflowRunRequest) ProtoMessage() {}
+
+func (x *CancelWorkflowRunRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[147]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelWorkflowRunRequest.ProtoReflect.Descriptor instead.
+func (*CancelWorkflowRunRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{147}
+}
+
+func (x *CancelWorkflowRunRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *CancelWorkflowRunRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *CancelWorkflowRunRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type CancelWorkflowRunResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Run           *WorkflowRunSummary    `protobuf:"bytes,3,opt,name=run,proto3" json:"run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelWorkflowRunResponse) Reset() {
+	*x = CancelWorkflowRunResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[148]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelWorkflowRunResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelWorkflowRunResponse) ProtoMessage() {}
+
+func (x *CancelWorkflowRunResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[148]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelWorkflowRunResponse.ProtoReflect.Descriptor instead.
+func (*CancelWorkflowRunResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{148}
+}
+
+func (x *CancelWorkflowRunResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *CancelWorkflowRunResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *CancelWorkflowRunResponse) GetRun() *WorkflowRunSummary {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
+type WorkflowReplayStateEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Sequence      int64                  `protobuf:"varint,1,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	NodeId        string                 `protobuf:"bytes,2,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	DeltaJson     string                 `protobuf:"bytes,3,opt,name=delta_json,json=deltaJson,proto3" json:"delta_json,omitempty"`
+	EventHash     string                 `protobuf:"bytes,4,opt,name=event_hash,json=eventHash,proto3" json:"event_hash,omitempty"`
+	AppliedAt     int64                  `protobuf:"varint,5,opt,name=applied_at,json=appliedAt,proto3" json:"applied_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkflowReplayStateEvent) Reset() {
+	*x = WorkflowReplayStateEvent{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[149]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkflowReplayStateEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkflowReplayStateEvent) ProtoMessage() {}
+
+func (x *WorkflowReplayStateEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[149]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkflowReplayStateEvent.ProtoReflect.Descriptor instead.
+func (*WorkflowReplayStateEvent) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{149}
+}
+
+func (x *WorkflowReplayStateEvent) GetSequence() int64 {
+	if x != nil {
+		return x.Sequence
+	}
+	return 0
+}
+
+func (x *WorkflowReplayStateEvent) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *WorkflowReplayStateEvent) GetDeltaJson() string {
+	if x != nil {
+		return x.DeltaJson
+	}
+	return ""
+}
+
+func (x *WorkflowReplayStateEvent) GetEventHash() string {
+	if x != nil {
+		return x.EventHash
+	}
+	return ""
+}
+
+func (x *WorkflowReplayStateEvent) GetAppliedAt() int64 {
+	if x != nil {
+		return x.AppliedAt
+	}
+	return 0
+}
+
+type WorkflowReplaySnapshot struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	StateVersion  int64                  `protobuf:"varint,1,opt,name=state_version,json=stateVersion,proto3" json:"state_version,omitempty"`
+	SnapshotHash  string                 `protobuf:"bytes,2,opt,name=snapshot_hash,json=snapshotHash,proto3" json:"snapshot_hash,omitempty"`
+	CreatedAt     int64                  `protobuf:"varint,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkflowReplaySnapshot) Reset() {
+	*x = WorkflowReplaySnapshot{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[150]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkflowReplaySnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkflowReplaySnapshot) ProtoMessage() {}
+
+func (x *WorkflowReplaySnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[150]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkflowReplaySnapshot.ProtoReflect.Descriptor instead.
+func (*WorkflowReplaySnapshot) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{150}
+}
+
+func (x *WorkflowReplaySnapshot) GetStateVersion() int64 {
+	if x != nil {
+		return x.StateVersion
+	}
+	return 0
+}
+
+func (x *WorkflowReplaySnapshot) GetSnapshotHash() string {
+	if x != nil {
+		return x.SnapshotHash
+	}
+	return ""
+}
+
+func (x *WorkflowReplaySnapshot) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+type WorkflowReplayCompensation struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Sequence          int32                  `protobuf:"varint,1,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	SourceNodeId      string                 `protobuf:"bytes,2,opt,name=source_node_id,json=sourceNodeId,proto3" json:"source_node_id,omitempty"`
+	StepId            string                 `protobuf:"bytes,3,opt,name=step_id,json=stepId,proto3" json:"step_id,omitempty"`
+	ToolName          string                 `protobuf:"bytes,4,opt,name=tool_name,json=toolName,proto3" json:"tool_name,omitempty"`
+	InputHash         string                 `protobuf:"bytes,5,opt,name=input_hash,json=inputHash,proto3" json:"input_hash,omitempty"`
+	PlanHash          string                 `protobuf:"bytes,6,opt,name=plan_hash,json=planHash,proto3" json:"plan_hash,omitempty"`
+	Status            string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
+	Attempt           int32                  `protobuf:"varint,8,opt,name=attempt,proto3" json:"attempt,omitempty"`
+	ErrorMessage      string                 `protobuf:"bytes,9,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	ApprovalRequestId string                 `protobuf:"bytes,10,opt,name=approval_request_id,json=approvalRequestId,proto3" json:"approval_request_id,omitempty"`
+	LeaseUntil        int64                  `protobuf:"varint,11,opt,name=lease_until,json=leaseUntil,proto3" json:"lease_until,omitempty"`
+	CreatedAt         int64                  `protobuf:"varint,12,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt         int64                  `protobuf:"varint,13,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	FinishedAt        int64                  `protobuf:"varint,14,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *WorkflowReplayCompensation) Reset() {
+	*x = WorkflowReplayCompensation{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[151]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkflowReplayCompensation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkflowReplayCompensation) ProtoMessage() {}
+
+func (x *WorkflowReplayCompensation) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[151]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkflowReplayCompensation.ProtoReflect.Descriptor instead.
+func (*WorkflowReplayCompensation) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{151}
+}
+
+func (x *WorkflowReplayCompensation) GetSequence() int32 {
+	if x != nil {
+		return x.Sequence
+	}
+	return 0
+}
+
+func (x *WorkflowReplayCompensation) GetSourceNodeId() string {
+	if x != nil {
+		return x.SourceNodeId
+	}
+	return ""
+}
+
+func (x *WorkflowReplayCompensation) GetStepId() string {
+	if x != nil {
+		return x.StepId
+	}
+	return ""
+}
+
+func (x *WorkflowReplayCompensation) GetToolName() string {
+	if x != nil {
+		return x.ToolName
+	}
+	return ""
+}
+
+func (x *WorkflowReplayCompensation) GetInputHash() string {
+	if x != nil {
+		return x.InputHash
+	}
+	return ""
+}
+
+func (x *WorkflowReplayCompensation) GetPlanHash() string {
+	if x != nil {
+		return x.PlanHash
+	}
+	return ""
+}
+
+func (x *WorkflowReplayCompensation) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *WorkflowReplayCompensation) GetAttempt() int32 {
+	if x != nil {
+		return x.Attempt
+	}
+	return 0
+}
+
+func (x *WorkflowReplayCompensation) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
+func (x *WorkflowReplayCompensation) GetApprovalRequestId() string {
+	if x != nil {
+		return x.ApprovalRequestId
+	}
+	return ""
+}
+
+func (x *WorkflowReplayCompensation) GetLeaseUntil() int64 {
+	if x != nil {
+		return x.LeaseUntil
+	}
+	return 0
+}
+
+func (x *WorkflowReplayCompensation) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *WorkflowReplayCompensation) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+func (x *WorkflowReplayCompensation) GetFinishedAt() int64 {
+	if x != nil {
+		return x.FinishedAt
+	}
+	return 0
+}
+
+type WorkflowReplayIntegrity struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Verified        bool                   `protobuf:"varint,1,opt,name=verified,proto3" json:"verified,omitempty"`
+	StateVersion    int64                  `protobuf:"varint,2,opt,name=state_version,json=stateVersion,proto3" json:"state_version,omitempty"`
+	EventCount      int64                  `protobuf:"varint,3,opt,name=event_count,json=eventCount,proto3" json:"event_count,omitempty"`
+	LastSequence    int64                  `protobuf:"varint,4,opt,name=last_sequence,json=lastSequence,proto3" json:"last_sequence,omitempty"`
+	SnapshotVersion int64                  `protobuf:"varint,5,opt,name=snapshot_version,json=snapshotVersion,proto3" json:"snapshot_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *WorkflowReplayIntegrity) Reset() {
+	*x = WorkflowReplayIntegrity{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[152]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkflowReplayIntegrity) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkflowReplayIntegrity) ProtoMessage() {}
+
+func (x *WorkflowReplayIntegrity) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[152]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkflowReplayIntegrity.ProtoReflect.Descriptor instead.
+func (*WorkflowReplayIntegrity) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{152}
+}
+
+func (x *WorkflowReplayIntegrity) GetVerified() bool {
+	if x != nil {
+		return x.Verified
+	}
+	return false
+}
+
+func (x *WorkflowReplayIntegrity) GetStateVersion() int64 {
+	if x != nil {
+		return x.StateVersion
+	}
+	return 0
+}
+
+func (x *WorkflowReplayIntegrity) GetEventCount() int64 {
+	if x != nil {
+		return x.EventCount
+	}
+	return 0
+}
+
+func (x *WorkflowReplayIntegrity) GetLastSequence() int64 {
+	if x != nil {
+		return x.LastSequence
+	}
+	return 0
+}
+
+func (x *WorkflowReplayIntegrity) GetSnapshotVersion() int64 {
+	if x != nil {
+		return x.SnapshotVersion
+	}
+	return 0
+}
+
+type GetWorkflowRunReplayRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetWorkflowRunReplayRequest) Reset() {
+	*x = GetWorkflowRunReplayRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[153]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWorkflowRunReplayRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWorkflowRunReplayRequest) ProtoMessage() {}
+
+func (x *GetWorkflowRunReplayRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[153]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWorkflowRunReplayRequest.ProtoReflect.Descriptor instead.
+func (*GetWorkflowRunReplayRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{153}
+}
+
+func (x *GetWorkflowRunReplayRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *GetWorkflowRunReplayRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+type GetWorkflowRunReplayResponse struct {
+	state         protoimpl.MessageState        `protogen:"open.v1"`
+	Code          uint64                        `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                        `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Run           *WorkflowRun                  `protobuf:"bytes,3,opt,name=run,proto3" json:"run,omitempty"`
+	Revision      *WorkflowRevisionSummary      `protobuf:"bytes,4,opt,name=revision,proto3" json:"revision,omitempty"`
+	Events        []*WorkflowReplayStateEvent   `protobuf:"bytes,5,rep,name=events,proto3" json:"events,omitempty"`
+	Snapshot      *WorkflowReplaySnapshot       `protobuf:"bytes,6,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
+	Compensations []*WorkflowReplayCompensation `protobuf:"bytes,7,rep,name=compensations,proto3" json:"compensations,omitempty"`
+	Integrity     *WorkflowReplayIntegrity      `protobuf:"bytes,8,opt,name=integrity,proto3" json:"integrity,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetWorkflowRunReplayResponse) Reset() {
+	*x = GetWorkflowRunReplayResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[154]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWorkflowRunReplayResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWorkflowRunReplayResponse) ProtoMessage() {}
+
+func (x *GetWorkflowRunReplayResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[154]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWorkflowRunReplayResponse.ProtoReflect.Descriptor instead.
+func (*GetWorkflowRunReplayResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{154}
+}
+
+func (x *GetWorkflowRunReplayResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *GetWorkflowRunReplayResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *GetWorkflowRunReplayResponse) GetRun() *WorkflowRun {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
+func (x *GetWorkflowRunReplayResponse) GetRevision() *WorkflowRevisionSummary {
+	if x != nil {
+		return x.Revision
+	}
+	return nil
+}
+
+func (x *GetWorkflowRunReplayResponse) GetEvents() []*WorkflowReplayStateEvent {
+	if x != nil {
+		return x.Events
+	}
+	return nil
+}
+
+func (x *GetWorkflowRunReplayResponse) GetSnapshot() *WorkflowReplaySnapshot {
+	if x != nil {
+		return x.Snapshot
+	}
+	return nil
+}
+
+func (x *GetWorkflowRunReplayResponse) GetCompensations() []*WorkflowReplayCompensation {
+	if x != nil {
+		return x.Compensations
+	}
+	return nil
+}
+
+func (x *GetWorkflowRunReplayResponse) GetIntegrity() *WorkflowReplayIntegrity {
+	if x != nil {
+		return x.Integrity
+	}
+	return nil
+}
+
+type WorkflowCompensationJournalEntry struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Sequence          int32                  `protobuf:"varint,1,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	SourceNodeId      string                 `protobuf:"bytes,2,opt,name=source_node_id,json=sourceNodeId,proto3" json:"source_node_id,omitempty"`
+	StepId            string                 `protobuf:"bytes,3,opt,name=step_id,json=stepId,proto3" json:"step_id,omitempty"`
+	ToolName          string                 `protobuf:"bytes,4,opt,name=tool_name,json=toolName,proto3" json:"tool_name,omitempty"`
+	InputHash         string                 `protobuf:"bytes,5,opt,name=input_hash,json=inputHash,proto3" json:"input_hash,omitempty"`
+	PlanHash          string                 `protobuf:"bytes,6,opt,name=plan_hash,json=planHash,proto3" json:"plan_hash,omitempty"`
+	Status            string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
+	Attempt           int32                  `protobuf:"varint,8,opt,name=attempt,proto3" json:"attempt,omitempty"`
+	ErrorMessage      string                 `protobuf:"bytes,9,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	ApprovalRequestId string                 `protobuf:"bytes,10,opt,name=approval_request_id,json=approvalRequestId,proto3" json:"approval_request_id,omitempty"`
+	LeaseUntil        int64                  `protobuf:"varint,11,opt,name=lease_until,json=leaseUntil,proto3" json:"lease_until,omitempty"`
+	CreatedAt         int64                  `protobuf:"varint,12,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt         int64                  `protobuf:"varint,13,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	FinishedAt        int64                  `protobuf:"varint,14,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
+	IsNext            bool                   `protobuf:"varint,15,opt,name=is_next,json=isNext,proto3" json:"is_next,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *WorkflowCompensationJournalEntry) Reset() {
+	*x = WorkflowCompensationJournalEntry{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[155]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkflowCompensationJournalEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkflowCompensationJournalEntry) ProtoMessage() {}
+
+func (x *WorkflowCompensationJournalEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[155]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkflowCompensationJournalEntry.ProtoReflect.Descriptor instead.
+func (*WorkflowCompensationJournalEntry) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{155}
+}
+
+func (x *WorkflowCompensationJournalEntry) GetSequence() int32 {
+	if x != nil {
+		return x.Sequence
+	}
+	return 0
+}
+
+func (x *WorkflowCompensationJournalEntry) GetSourceNodeId() string {
+	if x != nil {
+		return x.SourceNodeId
+	}
+	return ""
+}
+
+func (x *WorkflowCompensationJournalEntry) GetStepId() string {
+	if x != nil {
+		return x.StepId
+	}
+	return ""
+}
+
+func (x *WorkflowCompensationJournalEntry) GetToolName() string {
+	if x != nil {
+		return x.ToolName
+	}
+	return ""
+}
+
+func (x *WorkflowCompensationJournalEntry) GetInputHash() string {
+	if x != nil {
+		return x.InputHash
+	}
+	return ""
+}
+
+func (x *WorkflowCompensationJournalEntry) GetPlanHash() string {
+	if x != nil {
+		return x.PlanHash
+	}
+	return ""
+}
+
+func (x *WorkflowCompensationJournalEntry) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *WorkflowCompensationJournalEntry) GetAttempt() int32 {
+	if x != nil {
+		return x.Attempt
+	}
+	return 0
+}
+
+func (x *WorkflowCompensationJournalEntry) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
+func (x *WorkflowCompensationJournalEntry) GetApprovalRequestId() string {
+	if x != nil {
+		return x.ApprovalRequestId
+	}
+	return ""
+}
+
+func (x *WorkflowCompensationJournalEntry) GetLeaseUntil() int64 {
+	if x != nil {
+		return x.LeaseUntil
+	}
+	return 0
+}
+
+func (x *WorkflowCompensationJournalEntry) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *WorkflowCompensationJournalEntry) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+func (x *WorkflowCompensationJournalEntry) GetFinishedAt() int64 {
+	if x != nil {
+		return x.FinishedAt
+	}
+	return 0
+}
+
+func (x *WorkflowCompensationJournalEntry) GetIsNext() bool {
+	if x != nil {
+		return x.IsNext
+	}
+	return false
+}
+
+type GetWorkflowCompensationJournalRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetWorkflowCompensationJournalRequest) Reset() {
+	*x = GetWorkflowCompensationJournalRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[156]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWorkflowCompensationJournalRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWorkflowCompensationJournalRequest) ProtoMessage() {}
+
+func (x *GetWorkflowCompensationJournalRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[156]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWorkflowCompensationJournalRequest.ProtoReflect.Descriptor instead.
+func (*GetWorkflowCompensationJournalRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{156}
+}
+
+func (x *GetWorkflowCompensationJournalRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *GetWorkflowCompensationJournalRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+type WorkflowCompensationRunSummary struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	RunId             string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	WorkflowId        string                 `protobuf:"bytes,2,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	Status            string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	ErrorMessage      string                 `protobuf:"bytes,4,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	StartedAt         int64                  `protobuf:"varint,5,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	FinishedAt        int64                  `protobuf:"varint,6,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
+	WaitingNodeId     string                 `protobuf:"bytes,7,opt,name=waiting_node_id,json=waitingNodeId,proto3" json:"waiting_node_id,omitempty"`
+	ApprovalRequestId string                 `protobuf:"bytes,8,opt,name=approval_request_id,json=approvalRequestId,proto3" json:"approval_request_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *WorkflowCompensationRunSummary) Reset() {
+	*x = WorkflowCompensationRunSummary{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[157]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkflowCompensationRunSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkflowCompensationRunSummary) ProtoMessage() {}
+
+func (x *WorkflowCompensationRunSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[157]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkflowCompensationRunSummary.ProtoReflect.Descriptor instead.
+func (*WorkflowCompensationRunSummary) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{157}
+}
+
+func (x *WorkflowCompensationRunSummary) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *WorkflowCompensationRunSummary) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *WorkflowCompensationRunSummary) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *WorkflowCompensationRunSummary) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
+func (x *WorkflowCompensationRunSummary) GetStartedAt() int64 {
+	if x != nil {
+		return x.StartedAt
+	}
+	return 0
+}
+
+func (x *WorkflowCompensationRunSummary) GetFinishedAt() int64 {
+	if x != nil {
+		return x.FinishedAt
+	}
+	return 0
+}
+
+func (x *WorkflowCompensationRunSummary) GetWaitingNodeId() string {
+	if x != nil {
+		return x.WaitingNodeId
+	}
+	return ""
+}
+
+func (x *WorkflowCompensationRunSummary) GetApprovalRequestId() string {
+	if x != nil {
+		return x.ApprovalRequestId
+	}
+	return ""
+}
+
+type GetWorkflowCompensationJournalResponse struct {
+	state          protoimpl.MessageState              `protogen:"open.v1"`
+	Code           uint64                              `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg            string                              `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Run            *WorkflowCompensationRunSummary     `protobuf:"bytes,3,opt,name=run,proto3" json:"run,omitempty"`
+	Entries        []*WorkflowCompensationJournalEntry `protobuf:"bytes,4,rep,name=entries,proto3" json:"entries,omitempty"`
+	NextSequence   int32                               `protobuf:"varint,5,opt,name=next_sequence,json=nextSequence,proto3" json:"next_sequence,omitempty"`
+	RetryAvailable bool                                `protobuf:"varint,6,opt,name=retry_available,json=retryAvailable,proto3" json:"retry_available,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *GetWorkflowCompensationJournalResponse) Reset() {
+	*x = GetWorkflowCompensationJournalResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[158]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWorkflowCompensationJournalResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWorkflowCompensationJournalResponse) ProtoMessage() {}
+
+func (x *GetWorkflowCompensationJournalResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[158]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWorkflowCompensationJournalResponse.ProtoReflect.Descriptor instead.
+func (*GetWorkflowCompensationJournalResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{158}
+}
+
+func (x *GetWorkflowCompensationJournalResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *GetWorkflowCompensationJournalResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *GetWorkflowCompensationJournalResponse) GetRun() *WorkflowCompensationRunSummary {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
+func (x *GetWorkflowCompensationJournalResponse) GetEntries() []*WorkflowCompensationJournalEntry {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
+func (x *GetWorkflowCompensationJournalResponse) GetNextSequence() int32 {
+	if x != nil {
+		return x.NextSequence
+	}
+	return 0
+}
+
+func (x *GetWorkflowCompensationJournalResponse) GetRetryAvailable() bool {
+	if x != nil {
+		return x.RetryAvailable
+	}
+	return false
+}
+
+type RetryWorkflowCompensationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RetryWorkflowCompensationRequest) Reset() {
+	*x = RetryWorkflowCompensationRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[159]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetryWorkflowCompensationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetryWorkflowCompensationRequest) ProtoMessage() {}
+
+func (x *RetryWorkflowCompensationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[159]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetryWorkflowCompensationRequest.ProtoReflect.Descriptor instead.
+func (*RetryWorkflowCompensationRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{159}
+}
+
+func (x *RetryWorkflowCompensationRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *RetryWorkflowCompensationRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+type RetryWorkflowCompensationResponse struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Code     uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg      string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Run      *WorkflowRun           `protobuf:"bytes,3,opt,name=run,proto3" json:"run,omitempty"`
+	Response string                 `protobuf:"bytes,4,opt,name=response,proto3" json:"response,omitempty"`
+	// 补偿若需要审批，仅在本次响应返回一次性恢复令牌。
+	ResumeToken   string `protobuf:"bytes,5,opt,name=resume_token,json=resumeToken,proto3" json:"resume_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RetryWorkflowCompensationResponse) Reset() {
+	*x = RetryWorkflowCompensationResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[160]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetryWorkflowCompensationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetryWorkflowCompensationResponse) ProtoMessage() {}
+
+func (x *RetryWorkflowCompensationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[160]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetryWorkflowCompensationResponse.ProtoReflect.Descriptor instead.
+func (*RetryWorkflowCompensationResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{160}
+}
+
+func (x *RetryWorkflowCompensationResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *RetryWorkflowCompensationResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *RetryWorkflowCompensationResponse) GetRun() *WorkflowRun {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
+func (x *RetryWorkflowCompensationResponse) GetResponse() string {
+	if x != nil {
+		return x.Response
+	}
+	return ""
+}
+
+func (x *RetryWorkflowCompensationResponse) GetResumeToken() string {
+	if x != nil {
+		return x.ResumeToken
+	}
+	return ""
+}
+
+type ToolApprovalRequest struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	ApprovalId         string                 `protobuf:"bytes,1,opt,name=approval_id,json=approvalId,proto3" json:"approval_id,omitempty"`
+	UserId             uint64                 `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RunId              string                 `protobuf:"bytes,3,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	StepId             string                 `protobuf:"bytes,4,opt,name=step_id,json=stepId,proto3" json:"step_id,omitempty"`
+	ToolName           string                 `protobuf:"bytes,5,opt,name=tool_name,json=toolName,proto3" json:"tool_name,omitempty"`
+	Source             string                 `protobuf:"bytes,6,opt,name=source,proto3" json:"source,omitempty"`
+	Category           string                 `protobuf:"bytes,7,opt,name=category,proto3" json:"category,omitempty"`
+	Status             string                 `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
+	RedactedInputsJson string                 `protobuf:"bytes,9,opt,name=redacted_inputs_json,json=redactedInputsJson,proto3" json:"redacted_inputs_json,omitempty"`
+	IdempotencyKey     string                 `protobuf:"bytes,10,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	Reason             string                 `protobuf:"bytes,11,opt,name=reason,proto3" json:"reason,omitempty"`
+	Revision           int64                  `protobuf:"varint,12,opt,name=revision,proto3" json:"revision,omitempty"`
+	CreatedAt          int64                  `protobuf:"varint,13,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ExpiresAt          int64                  `protobuf:"varint,14,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	DecidedAt          int64                  `protobuf:"varint,15,opt,name=decided_at,json=decidedAt,proto3" json:"decided_at,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *ToolApprovalRequest) Reset() {
+	*x = ToolApprovalRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[161]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ToolApprovalRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ToolApprovalRequest) ProtoMessage() {}
+
+func (x *ToolApprovalRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[161]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ToolApprovalRequest.ProtoReflect.Descriptor instead.
+func (*ToolApprovalRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{161}
+}
+
+func (x *ToolApprovalRequest) GetApprovalId() string {
+	if x != nil {
+		return x.ApprovalId
+	}
+	return ""
+}
+
+func (x *ToolApprovalRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ToolApprovalRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *ToolApprovalRequest) GetStepId() string {
+	if x != nil {
+		return x.StepId
+	}
+	return ""
+}
+
+func (x *ToolApprovalRequest) GetToolName() string {
+	if x != nil {
+		return x.ToolName
+	}
+	return ""
+}
+
+func (x *ToolApprovalRequest) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *ToolApprovalRequest) GetCategory() string {
+	if x != nil {
+		return x.Category
+	}
+	return ""
+}
+
+func (x *ToolApprovalRequest) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ToolApprovalRequest) GetRedactedInputsJson() string {
+	if x != nil {
+		return x.RedactedInputsJson
+	}
+	return ""
+}
+
+func (x *ToolApprovalRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+func (x *ToolApprovalRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *ToolApprovalRequest) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *ToolApprovalRequest) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *ToolApprovalRequest) GetExpiresAt() int64 {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return 0
+}
+
+func (x *ToolApprovalRequest) GetDecidedAt() int64 {
+	if x != nil {
+		return x.DecidedAt
+	}
+	return 0
+}
+
+type ListToolApprovalsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Page          uint32                 `protobuf:"varint,3,opt,name=page,proto3" json:"page,omitempty"`
+	PageSize      uint32                 `protobuf:"varint,4,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListToolApprovalsRequest) Reset() {
+	*x = ListToolApprovalsRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[162]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListToolApprovalsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListToolApprovalsRequest) ProtoMessage() {}
+
+func (x *ListToolApprovalsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[162]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListToolApprovalsRequest.ProtoReflect.Descriptor instead.
+func (*ListToolApprovalsRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{162}
+}
+
+func (x *ListToolApprovalsRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ListToolApprovalsRequest) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ListToolApprovalsRequest) GetPage() uint32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListToolApprovalsRequest) GetPageSize() uint32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type ListToolApprovalsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Approvals     []*ToolApprovalRequest `protobuf:"bytes,3,rep,name=approvals,proto3" json:"approvals,omitempty"`
+	Total         int64                  `protobuf:"varint,4,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListToolApprovalsResponse) Reset() {
+	*x = ListToolApprovalsResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[163]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListToolApprovalsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListToolApprovalsResponse) ProtoMessage() {}
+
+func (x *ListToolApprovalsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[163]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListToolApprovalsResponse.ProtoReflect.Descriptor instead.
+func (*ListToolApprovalsResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{163}
+}
+
+func (x *ListToolApprovalsResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *ListToolApprovalsResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *ListToolApprovalsResponse) GetApprovals() []*ToolApprovalRequest {
+	if x != nil {
+		return x.Approvals
+	}
+	return nil
+}
+
+func (x *ListToolApprovalsResponse) GetTotal() int64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+type DecideToolApprovalRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	UserId           uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	ApprovalId       string                 `protobuf:"bytes,2,opt,name=approval_id,json=approvalId,proto3" json:"approval_id,omitempty"`
+	Decision         string                 `protobuf:"bytes,3,opt,name=decision,proto3" json:"decision,omitempty"`
+	Reason           string                 `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
+	ExpectedRevision int64                  `protobuf:"varint,5,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *DecideToolApprovalRequest) Reset() {
+	*x = DecideToolApprovalRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[164]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecideToolApprovalRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecideToolApprovalRequest) ProtoMessage() {}
+
+func (x *DecideToolApprovalRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[164]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecideToolApprovalRequest.ProtoReflect.Descriptor instead.
+func (*DecideToolApprovalRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{164}
+}
+
+func (x *DecideToolApprovalRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *DecideToolApprovalRequest) GetApprovalId() string {
+	if x != nil {
+		return x.ApprovalId
+	}
+	return ""
+}
+
+func (x *DecideToolApprovalRequest) GetDecision() string {
+	if x != nil {
+		return x.Decision
+	}
+	return ""
+}
+
+func (x *DecideToolApprovalRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *DecideToolApprovalRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+type DecideToolApprovalResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Approval      *ToolApprovalRequest   `protobuf:"bytes,3,opt,name=approval,proto3" json:"approval,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DecideToolApprovalResponse) Reset() {
+	*x = DecideToolApprovalResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[165]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecideToolApprovalResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecideToolApprovalResponse) ProtoMessage() {}
+
+func (x *DecideToolApprovalResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[165]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecideToolApprovalResponse.ProtoReflect.Descriptor instead.
+func (*DecideToolApprovalResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{165}
+}
+
+func (x *DecideToolApprovalResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *DecideToolApprovalResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *DecideToolApprovalResponse) GetApproval() *ToolApprovalRequest {
+	if x != nil {
+		return x.Approval
+	}
+	return nil
+}
+
+type IssueWorkflowResumeGrantRequest struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	UserId              uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	ApprovalId          string                 `protobuf:"bytes,2,opt,name=approval_id,json=approvalId,proto3" json:"approval_id,omitempty"`
+	ExpectedRunRevision int64                  `protobuf:"varint,3,opt,name=expected_run_revision,json=expectedRunRevision,proto3" json:"expected_run_revision,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *IssueWorkflowResumeGrantRequest) Reset() {
+	*x = IssueWorkflowResumeGrantRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[166]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IssueWorkflowResumeGrantRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IssueWorkflowResumeGrantRequest) ProtoMessage() {}
+
+func (x *IssueWorkflowResumeGrantRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[166]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IssueWorkflowResumeGrantRequest.ProtoReflect.Descriptor instead.
+func (*IssueWorkflowResumeGrantRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{166}
+}
+
+func (x *IssueWorkflowResumeGrantRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *IssueWorkflowResumeGrantRequest) GetApprovalId() string {
+	if x != nil {
+		return x.ApprovalId
+	}
+	return ""
+}
+
+func (x *IssueWorkflowResumeGrantRequest) GetExpectedRunRevision() int64 {
+	if x != nil {
+		return x.ExpectedRunRevision
+	}
+	return 0
+}
+
+type IssueWorkflowResumeGrantResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Code  uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg   string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Run   *WorkflowRun           `protobuf:"bytes,3,opt,name=run,proto3" json:"run,omitempty"`
+	// 仅在本次响应返回；服务端只保存哈希，后续签发会使其失效。
+	ResumeToken   string `protobuf:"bytes,4,opt,name=resume_token,json=resumeToken,proto3" json:"resume_token,omitempty"`
+	ExpiresAt     int64  `protobuf:"varint,5,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IssueWorkflowResumeGrantResponse) Reset() {
+	*x = IssueWorkflowResumeGrantResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[167]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IssueWorkflowResumeGrantResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IssueWorkflowResumeGrantResponse) ProtoMessage() {}
+
+func (x *IssueWorkflowResumeGrantResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[167]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IssueWorkflowResumeGrantResponse.ProtoReflect.Descriptor instead.
+func (*IssueWorkflowResumeGrantResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{167}
+}
+
+func (x *IssueWorkflowResumeGrantResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *IssueWorkflowResumeGrantResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *IssueWorkflowResumeGrantResponse) GetRun() *WorkflowRun {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
+func (x *IssueWorkflowResumeGrantResponse) GetResumeToken() string {
+	if x != nil {
+		return x.ResumeToken
+	}
+	return ""
+}
+
+func (x *IssueWorkflowResumeGrantResponse) GetExpiresAt() int64 {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return 0
+}
+
+type ResumeWorkflowRunRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	ApprovalId    string                 `protobuf:"bytes,3,opt,name=approval_id,json=approvalId,proto3" json:"approval_id,omitempty"`
+	ResumeToken   string                 `protobuf:"bytes,4,opt,name=resume_token,json=resumeToken,proto3" json:"resume_token,omitempty"`
+	InputJson     string                 `protobuf:"bytes,5,opt,name=input_json,json=inputJson,proto3" json:"input_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResumeWorkflowRunRequest) Reset() {
+	*x = ResumeWorkflowRunRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[168]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResumeWorkflowRunRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResumeWorkflowRunRequest) ProtoMessage() {}
+
+func (x *ResumeWorkflowRunRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[168]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResumeWorkflowRunRequest.ProtoReflect.Descriptor instead.
+func (*ResumeWorkflowRunRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{168}
+}
+
+func (x *ResumeWorkflowRunRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ResumeWorkflowRunRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *ResumeWorkflowRunRequest) GetApprovalId() string {
+	if x != nil {
+		return x.ApprovalId
+	}
+	return ""
+}
+
+func (x *ResumeWorkflowRunRequest) GetResumeToken() string {
+	if x != nil {
+		return x.ResumeToken
+	}
+	return ""
+}
+
+func (x *ResumeWorkflowRunRequest) GetInputJson() string {
+	if x != nil {
+		return x.InputJson
+	}
+	return ""
+}
+
+type ResumeWorkflowRunResponse struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Code     uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg      string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Run      *WorkflowRun           `protobuf:"bytes,3,opt,name=run,proto3" json:"run,omitempty"`
+	Response string                 `protobuf:"bytes,4,opt,name=response,proto3" json:"response,omitempty"`
+	// 工作流若在后续节点再次挂起，会返回新的令牌。
+	ResumeToken   string `protobuf:"bytes,5,opt,name=resume_token,json=resumeToken,proto3" json:"resume_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResumeWorkflowRunResponse) Reset() {
+	*x = ResumeWorkflowRunResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[169]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResumeWorkflowRunResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResumeWorkflowRunResponse) ProtoMessage() {}
+
+func (x *ResumeWorkflowRunResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[169]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResumeWorkflowRunResponse.ProtoReflect.Descriptor instead.
+func (*ResumeWorkflowRunResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{169}
+}
+
+func (x *ResumeWorkflowRunResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *ResumeWorkflowRunResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *ResumeWorkflowRunResponse) GetRun() *WorkflowRun {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
+func (x *ResumeWorkflowRunResponse) GetResponse() string {
+	if x != nil {
+		return x.Response
+	}
+	return ""
+}
+
+func (x *ResumeWorkflowRunResponse) GetResumeToken() string {
+	if x != nil {
+		return x.ResumeToken
+	}
+	return ""
+}
+
+type ProviderConfig struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	ProviderConfigId  string                 `protobuf:"bytes,1,opt,name=provider_config_id,json=providerConfigId,proto3" json:"provider_config_id,omitempty"`
+	UserId            uint64                 `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Name              string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Provider          string                 `protobuf:"bytes,4,opt,name=provider,proto3" json:"provider,omitempty"`
+	BaseUrl           string                 `protobuf:"bytes,5,opt,name=base_url,json=baseUrl,proto3" json:"base_url,omitempty"`
+	Model             string                 `protobuf:"bytes,6,opt,name=model,proto3" json:"model,omitempty"`
+	Status            string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
+	HasSecret         bool                   `protobuf:"varint,8,opt,name=has_secret,json=hasSecret,proto3" json:"has_secret,omitempty"`
+	CredentialVersion int64                  `protobuf:"varint,9,opt,name=credential_version,json=credentialVersion,proto3" json:"credential_version,omitempty"`
+	Revision          int64                  `protobuf:"varint,10,opt,name=revision,proto3" json:"revision,omitempty"`
+	CreatedAt         int64                  `protobuf:"varint,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt         int64                  `protobuf:"varint,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// llm or web_search. Missing legacy values are interpreted as llm.
+	Kind          string `protobuf:"bytes,13,opt,name=kind,proto3" json:"kind,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProviderConfig) Reset() {
+	*x = ProviderConfig{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[170]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProviderConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProviderConfig) ProtoMessage() {}
+
+func (x *ProviderConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[170]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProviderConfig.ProtoReflect.Descriptor instead.
+func (*ProviderConfig) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{170}
+}
+
+func (x *ProviderConfig) GetProviderConfigId() string {
+	if x != nil {
+		return x.ProviderConfigId
+	}
+	return ""
+}
+
+func (x *ProviderConfig) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ProviderConfig) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ProviderConfig) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *ProviderConfig) GetBaseUrl() string {
+	if x != nil {
+		return x.BaseUrl
+	}
+	return ""
+}
+
+func (x *ProviderConfig) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *ProviderConfig) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ProviderConfig) GetHasSecret() bool {
+	if x != nil {
+		return x.HasSecret
+	}
+	return false
+}
+
+func (x *ProviderConfig) GetCredentialVersion() int64 {
+	if x != nil {
+		return x.CredentialVersion
+	}
+	return 0
+}
+
+func (x *ProviderConfig) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *ProviderConfig) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *ProviderConfig) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+func (x *ProviderConfig) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+type CreateProviderConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Provider      string                 `protobuf:"bytes,3,opt,name=provider,proto3" json:"provider,omitempty"`
+	BaseUrl       string                 `protobuf:"bytes,4,opt,name=base_url,json=baseUrl,proto3" json:"base_url,omitempty"`
+	Model         string                 `protobuf:"bytes,5,opt,name=model,proto3" json:"model,omitempty"`
+	ApiKey        string                 `protobuf:"bytes,6,opt,name=api_key,json=apiKey,proto3" json:"api_key,omitempty"`
+	Kind          string                 `protobuf:"bytes,7,opt,name=kind,proto3" json:"kind,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateProviderConfigRequest) Reset() {
+	*x = CreateProviderConfigRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[171]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateProviderConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateProviderConfigRequest) ProtoMessage() {}
+
+func (x *CreateProviderConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[171]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateProviderConfigRequest.ProtoReflect.Descriptor instead.
+func (*CreateProviderConfigRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{171}
+}
+
+func (x *CreateProviderConfigRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *CreateProviderConfigRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateProviderConfigRequest) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *CreateProviderConfigRequest) GetBaseUrl() string {
+	if x != nil {
+		return x.BaseUrl
+	}
+	return ""
+}
+
+func (x *CreateProviderConfigRequest) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *CreateProviderConfigRequest) GetApiKey() string {
+	if x != nil {
+		return x.ApiKey
+	}
+	return ""
+}
+
+func (x *CreateProviderConfigRequest) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+type CreateProviderConfigResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Code           uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg            string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	ProviderConfig *ProviderConfig        `protobuf:"bytes,3,opt,name=provider_config,json=providerConfig,proto3" json:"provider_config,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CreateProviderConfigResponse) Reset() {
+	*x = CreateProviderConfigResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[172]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateProviderConfigResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateProviderConfigResponse) ProtoMessage() {}
+
+func (x *CreateProviderConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[172]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateProviderConfigResponse.ProtoReflect.Descriptor instead.
+func (*CreateProviderConfigResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{172}
+}
+
+func (x *CreateProviderConfigResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *CreateProviderConfigResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *CreateProviderConfigResponse) GetProviderConfig() *ProviderConfig {
+	if x != nil {
+		return x.ProviderConfig
+	}
+	return nil
+}
+
+type UpdateProviderConfigRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	UserId           uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	ProviderConfigId string                 `protobuf:"bytes,2,opt,name=provider_config_id,json=providerConfigId,proto3" json:"provider_config_id,omitempty"`
+	Name             string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Provider         string                 `protobuf:"bytes,4,opt,name=provider,proto3" json:"provider,omitempty"`
+	BaseUrl          string                 `protobuf:"bytes,5,opt,name=base_url,json=baseUrl,proto3" json:"base_url,omitempty"`
+	Model            string                 `protobuf:"bytes,6,opt,name=model,proto3" json:"model,omitempty"`
+	ApiKey           string                 `protobuf:"bytes,7,opt,name=api_key,json=apiKey,proto3" json:"api_key,omitempty"`
+	Revision         int64                  `protobuf:"varint,8,opt,name=revision,proto3" json:"revision,omitempty"`
+	Kind             string                 `protobuf:"bytes,9,opt,name=kind,proto3" json:"kind,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *UpdateProviderConfigRequest) Reset() {
+	*x = UpdateProviderConfigRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[173]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateProviderConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateProviderConfigRequest) ProtoMessage() {}
+
+func (x *UpdateProviderConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[173]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateProviderConfigRequest.ProtoReflect.Descriptor instead.
+func (*UpdateProviderConfigRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{173}
+}
+
+func (x *UpdateProviderConfigRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *UpdateProviderConfigRequest) GetProviderConfigId() string {
+	if x != nil {
+		return x.ProviderConfigId
+	}
+	return ""
+}
+
+func (x *UpdateProviderConfigRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *UpdateProviderConfigRequest) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *UpdateProviderConfigRequest) GetBaseUrl() string {
+	if x != nil {
+		return x.BaseUrl
+	}
+	return ""
+}
+
+func (x *UpdateProviderConfigRequest) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *UpdateProviderConfigRequest) GetApiKey() string {
+	if x != nil {
+		return x.ApiKey
+	}
+	return ""
+}
+
+func (x *UpdateProviderConfigRequest) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *UpdateProviderConfigRequest) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+type UpdateProviderConfigResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Code           uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg            string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	ProviderConfig *ProviderConfig        `protobuf:"bytes,3,opt,name=provider_config,json=providerConfig,proto3" json:"provider_config,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *UpdateProviderConfigResponse) Reset() {
+	*x = UpdateProviderConfigResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[174]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateProviderConfigResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateProviderConfigResponse) ProtoMessage() {}
+
+func (x *UpdateProviderConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[174]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateProviderConfigResponse.ProtoReflect.Descriptor instead.
+func (*UpdateProviderConfigResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{174}
+}
+
+func (x *UpdateProviderConfigResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *UpdateProviderConfigResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *UpdateProviderConfigResponse) GetProviderConfig() *ProviderConfig {
+	if x != nil {
+		return x.ProviderConfig
+	}
+	return nil
+}
+
+type ListProviderConfigsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Page          uint32                 `protobuf:"varint,2,opt,name=page,proto3" json:"page,omitempty"`
+	PageSize      uint32                 `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	Kind          string                 `protobuf:"bytes,4,opt,name=kind,proto3" json:"kind,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListProviderConfigsRequest) Reset() {
+	*x = ListProviderConfigsRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[175]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListProviderConfigsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListProviderConfigsRequest) ProtoMessage() {}
+
+func (x *ListProviderConfigsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[175]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListProviderConfigsRequest.ProtoReflect.Descriptor instead.
+func (*ListProviderConfigsRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{175}
+}
+
+func (x *ListProviderConfigsRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ListProviderConfigsRequest) GetPage() uint32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListProviderConfigsRequest) GetPageSize() uint32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+func (x *ListProviderConfigsRequest) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+type ListProviderConfigsResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Code            uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg             string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	ProviderConfigs []*ProviderConfig      `protobuf:"bytes,3,rep,name=provider_configs,json=providerConfigs,proto3" json:"provider_configs,omitempty"`
+	Total           int64                  `protobuf:"varint,4,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ListProviderConfigsResponse) Reset() {
+	*x = ListProviderConfigsResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[176]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListProviderConfigsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListProviderConfigsResponse) ProtoMessage() {}
+
+func (x *ListProviderConfigsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[176]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListProviderConfigsResponse.ProtoReflect.Descriptor instead.
+func (*ListProviderConfigsResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{176}
+}
+
+func (x *ListProviderConfigsResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *ListProviderConfigsResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *ListProviderConfigsResponse) GetProviderConfigs() []*ProviderConfig {
+	if x != nil {
+		return x.ProviderConfigs
+	}
+	return nil
+}
+
+func (x *ListProviderConfigsResponse) GetTotal() int64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+type GetProviderConfigRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	UserId           uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	ProviderConfigId string                 `protobuf:"bytes,2,opt,name=provider_config_id,json=providerConfigId,proto3" json:"provider_config_id,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *GetProviderConfigRequest) Reset() {
+	*x = GetProviderConfigRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[177]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetProviderConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetProviderConfigRequest) ProtoMessage() {}
+
+func (x *GetProviderConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[177]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetProviderConfigRequest.ProtoReflect.Descriptor instead.
+func (*GetProviderConfigRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{177}
+}
+
+func (x *GetProviderConfigRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *GetProviderConfigRequest) GetProviderConfigId() string {
+	if x != nil {
+		return x.ProviderConfigId
+	}
+	return ""
+}
+
+type GetProviderConfigResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Code           uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg            string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	ProviderConfig *ProviderConfig        `protobuf:"bytes,3,opt,name=provider_config,json=providerConfig,proto3" json:"provider_config,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *GetProviderConfigResponse) Reset() {
+	*x = GetProviderConfigResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[178]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetProviderConfigResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetProviderConfigResponse) ProtoMessage() {}
+
+func (x *GetProviderConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[178]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetProviderConfigResponse.ProtoReflect.Descriptor instead.
+func (*GetProviderConfigResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{178}
+}
+
+func (x *GetProviderConfigResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *GetProviderConfigResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *GetProviderConfigResponse) GetProviderConfig() *ProviderConfig {
+	if x != nil {
+		return x.ProviderConfig
+	}
+	return nil
+}
+
+type RevokeProviderConfigRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	UserId           uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	ProviderConfigId string                 `protobuf:"bytes,2,opt,name=provider_config_id,json=providerConfigId,proto3" json:"provider_config_id,omitempty"`
+	Revision         int64                  `protobuf:"varint,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *RevokeProviderConfigRequest) Reset() {
+	*x = RevokeProviderConfigRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[179]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeProviderConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeProviderConfigRequest) ProtoMessage() {}
+
+func (x *RevokeProviderConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[179]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeProviderConfigRequest.ProtoReflect.Descriptor instead.
+func (*RevokeProviderConfigRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{179}
+}
+
+func (x *RevokeProviderConfigRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *RevokeProviderConfigRequest) GetProviderConfigId() string {
+	if x != nil {
+		return x.ProviderConfigId
+	}
+	return ""
+}
+
+func (x *RevokeProviderConfigRequest) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+type RevokeProviderConfigResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeProviderConfigResponse) Reset() {
+	*x = RevokeProviderConfigResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[180]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeProviderConfigResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeProviderConfigResponse) ProtoMessage() {}
+
+func (x *RevokeProviderConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[180]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeProviderConfigResponse.ProtoReflect.Descriptor instead.
+func (*RevokeProviderConfigResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{180}
+}
+
+func (x *RevokeProviderConfigResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *RevokeProviderConfigResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+type AgentProfileSpec struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	ProfileId              string                 `protobuf:"bytes,1,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	Version                string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	PromptId               string                 `protobuf:"bytes,3,opt,name=prompt_id,json=promptId,proto3" json:"prompt_id,omitempty"`
+	PromptVersion          string                 `protobuf:"bytes,4,opt,name=prompt_version,json=promptVersion,proto3" json:"prompt_version,omitempty"`
+	SystemPrompt           string                 `protobuf:"bytes,5,opt,name=system_prompt,json=systemPrompt,proto3" json:"system_prompt,omitempty"`
+	MaxSteps               int32                  `protobuf:"varint,6,opt,name=max_steps,json=maxSteps,proto3" json:"max_steps,omitempty"`
+	MaxInputTokens         int32                  `protobuf:"varint,7,opt,name=max_input_tokens,json=maxInputTokens,proto3" json:"max_input_tokens,omitempty"`
+	MaxOutputTokens        int32                  `protobuf:"varint,8,opt,name=max_output_tokens,json=maxOutputTokens,proto3" json:"max_output_tokens,omitempty"`
+	MaxTotalTokens         int32                  `protobuf:"varint,9,opt,name=max_total_tokens,json=maxTotalTokens,proto3" json:"max_total_tokens,omitempty"`
+	MaxEstimatedCostMicros int64                  `protobuf:"varint,10,opt,name=max_estimated_cost_micros,json=maxEstimatedCostMicros,proto3" json:"max_estimated_cost_micros,omitempty"`
+	TimeoutMillis          int64                  `protobuf:"varint,11,opt,name=timeout_millis,json=timeoutMillis,proto3" json:"timeout_millis,omitempty"`
+	AllowedTools           []string               `protobuf:"bytes,12,rep,name=allowed_tools,json=allowedTools,proto3" json:"allowed_tools,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *AgentProfileSpec) Reset() {
+	*x = AgentProfileSpec{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[181]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentProfileSpec) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentProfileSpec) ProtoMessage() {}
+
+func (x *AgentProfileSpec) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[181]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentProfileSpec.ProtoReflect.Descriptor instead.
+func (*AgentProfileSpec) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{181}
+}
+
+func (x *AgentProfileSpec) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
+	}
+	return ""
+}
+
+func (x *AgentProfileSpec) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *AgentProfileSpec) GetPromptId() string {
+	if x != nil {
+		return x.PromptId
+	}
+	return ""
+}
+
+func (x *AgentProfileSpec) GetPromptVersion() string {
+	if x != nil {
+		return x.PromptVersion
+	}
+	return ""
+}
+
+func (x *AgentProfileSpec) GetSystemPrompt() string {
+	if x != nil {
+		return x.SystemPrompt
+	}
+	return ""
+}
+
+func (x *AgentProfileSpec) GetMaxSteps() int32 {
+	if x != nil {
+		return x.MaxSteps
+	}
+	return 0
+}
+
+func (x *AgentProfileSpec) GetMaxInputTokens() int32 {
+	if x != nil {
+		return x.MaxInputTokens
+	}
+	return 0
+}
+
+func (x *AgentProfileSpec) GetMaxOutputTokens() int32 {
+	if x != nil {
+		return x.MaxOutputTokens
+	}
+	return 0
+}
+
+func (x *AgentProfileSpec) GetMaxTotalTokens() int32 {
+	if x != nil {
+		return x.MaxTotalTokens
+	}
+	return 0
+}
+
+func (x *AgentProfileSpec) GetMaxEstimatedCostMicros() int64 {
+	if x != nil {
+		return x.MaxEstimatedCostMicros
+	}
+	return 0
+}
+
+func (x *AgentProfileSpec) GetTimeoutMillis() int64 {
+	if x != nil {
+		return x.TimeoutMillis
+	}
+	return 0
+}
+
+func (x *AgentProfileSpec) GetAllowedTools() []string {
+	if x != nil {
+		return x.AllowedTools
+	}
+	return nil
+}
+
+type AgentProfileVersion struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Spec          *AgentProfileSpec      `protobuf:"bytes,2,opt,name=spec,proto3" json:"spec,omitempty"`
+	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	Revision      int64                  `protobuf:"varint,4,opt,name=revision,proto3" json:"revision,omitempty"`
+	CreatedBy     uint64                 `protobuf:"varint,5,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
+	PublishedBy   uint64                 `protobuf:"varint,6,opt,name=published_by,json=publishedBy,proto3" json:"published_by,omitempty"`
+	CreatedAt     int64                  `protobuf:"varint,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt     int64                  `protobuf:"varint,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	PublishedAt   int64                  `protobuf:"varint,9,opt,name=published_at,json=publishedAt,proto3" json:"published_at,omitempty"`
+	SnapshotHash  string                 `protobuf:"bytes,10,opt,name=snapshot_hash,json=snapshotHash,proto3" json:"snapshot_hash,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentProfileVersion) Reset() {
+	*x = AgentProfileVersion{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[182]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentProfileVersion) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentProfileVersion) ProtoMessage() {}
+
+func (x *AgentProfileVersion) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[182]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentProfileVersion.ProtoReflect.Descriptor instead.
+func (*AgentProfileVersion) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{182}
+}
+
+func (x *AgentProfileVersion) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *AgentProfileVersion) GetSpec() *AgentProfileSpec {
+	if x != nil {
+		return x.Spec
+	}
+	return nil
+}
+
+func (x *AgentProfileVersion) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *AgentProfileVersion) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *AgentProfileVersion) GetCreatedBy() uint64 {
+	if x != nil {
+		return x.CreatedBy
+	}
+	return 0
+}
+
+func (x *AgentProfileVersion) GetPublishedBy() uint64 {
+	if x != nil {
+		return x.PublishedBy
+	}
+	return 0
+}
+
+func (x *AgentProfileVersion) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *AgentProfileVersion) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+func (x *AgentProfileVersion) GetPublishedAt() int64 {
+	if x != nil {
+		return x.PublishedAt
+	}
+	return 0
+}
+
+func (x *AgentProfileVersion) GetSnapshotHash() string {
+	if x != nil {
+		return x.SnapshotHash
+	}
+	return ""
+}
+
+type AgentProfileRelease struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	ProfileId            string                 `protobuf:"bytes,1,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	StableVersion        string                 `protobuf:"bytes,2,opt,name=stable_version,json=stableVersion,proto3" json:"stable_version,omitempty"`
+	CandidateVersion     string                 `protobuf:"bytes,3,opt,name=candidate_version,json=candidateVersion,proto3" json:"candidate_version,omitempty"`
+	CandidateBasisPoints int32                  `protobuf:"varint,4,opt,name=candidate_basis_points,json=candidateBasisPoints,proto3" json:"candidate_basis_points,omitempty"`
+	Salt                 string                 `protobuf:"bytes,5,opt,name=salt,proto3" json:"salt,omitempty"`
+	Revision             int64                  `protobuf:"varint,6,opt,name=revision,proto3" json:"revision,omitempty"`
+	CreatedBy            uint64                 `protobuf:"varint,7,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
+	UpdatedBy            uint64                 `protobuf:"varint,8,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
+	CreatedAt            int64                  `protobuf:"varint,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt            int64                  `protobuf:"varint,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *AgentProfileRelease) Reset() {
+	*x = AgentProfileRelease{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[183]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentProfileRelease) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentProfileRelease) ProtoMessage() {}
+
+func (x *AgentProfileRelease) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[183]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentProfileRelease.ProtoReflect.Descriptor instead.
+func (*AgentProfileRelease) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{183}
+}
+
+func (x *AgentProfileRelease) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
+	}
+	return ""
+}
+
+func (x *AgentProfileRelease) GetStableVersion() string {
+	if x != nil {
+		return x.StableVersion
+	}
+	return ""
+}
+
+func (x *AgentProfileRelease) GetCandidateVersion() string {
+	if x != nil {
+		return x.CandidateVersion
+	}
+	return ""
+}
+
+func (x *AgentProfileRelease) GetCandidateBasisPoints() int32 {
+	if x != nil {
+		return x.CandidateBasisPoints
+	}
+	return 0
+}
+
+func (x *AgentProfileRelease) GetSalt() string {
+	if x != nil {
+		return x.Salt
+	}
+	return ""
+}
+
+func (x *AgentProfileRelease) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *AgentProfileRelease) GetCreatedBy() uint64 {
+	if x != nil {
+		return x.CreatedBy
+	}
+	return 0
+}
+
+func (x *AgentProfileRelease) GetUpdatedBy() uint64 {
+	if x != nil {
+		return x.UpdatedBy
+	}
+	return 0
+}
+
+func (x *AgentProfileRelease) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *AgentProfileRelease) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+type AgentProfileAuditEvent struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	OperationId     string                 `protobuf:"bytes,2,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	Action          string                 `protobuf:"bytes,3,opt,name=action,proto3" json:"action,omitempty"`
+	Outcome         string                 `protobuf:"bytes,4,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	ProfileId       string                 `protobuf:"bytes,5,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	Version         string                 `protobuf:"bytes,6,opt,name=version,proto3" json:"version,omitempty"`
+	ActorUserId     uint64                 `protobuf:"varint,7,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	VersionRevision int64                  `protobuf:"varint,8,opt,name=version_revision,json=versionRevision,proto3" json:"version_revision,omitempty"`
+	ReleaseRevision int64                  `protobuf:"varint,9,opt,name=release_revision,json=releaseRevision,proto3" json:"release_revision,omitempty"`
+	SnapshotHash    string                 `protobuf:"bytes,10,opt,name=snapshot_hash,json=snapshotHash,proto3" json:"snapshot_hash,omitempty"`
+	ErrorCode       string                 `protobuf:"bytes,11,opt,name=error_code,json=errorCode,proto3" json:"error_code,omitempty"`
+	CreatedAt       int64                  `protobuf:"varint,12,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ApprovalId      string                 `protobuf:"bytes,13,opt,name=approval_id,json=approvalId,proto3" json:"approval_id,omitempty"`
+	ExperimentId    string                 `protobuf:"bytes,14,opt,name=experiment_id,json=experimentId,proto3" json:"experiment_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *AgentProfileAuditEvent) Reset() {
+	*x = AgentProfileAuditEvent{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[184]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentProfileAuditEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentProfileAuditEvent) ProtoMessage() {}
+
+func (x *AgentProfileAuditEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[184]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentProfileAuditEvent.ProtoReflect.Descriptor instead.
+func (*AgentProfileAuditEvent) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{184}
+}
+
+func (x *AgentProfileAuditEvent) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *AgentProfileAuditEvent) GetOperationId() string {
+	if x != nil {
+		return x.OperationId
+	}
+	return ""
+}
+
+func (x *AgentProfileAuditEvent) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *AgentProfileAuditEvent) GetOutcome() string {
+	if x != nil {
+		return x.Outcome
+	}
+	return ""
+}
+
+func (x *AgentProfileAuditEvent) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
+	}
+	return ""
+}
+
+func (x *AgentProfileAuditEvent) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *AgentProfileAuditEvent) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *AgentProfileAuditEvent) GetVersionRevision() int64 {
+	if x != nil {
+		return x.VersionRevision
+	}
+	return 0
+}
+
+func (x *AgentProfileAuditEvent) GetReleaseRevision() int64 {
+	if x != nil {
+		return x.ReleaseRevision
+	}
+	return 0
+}
+
+func (x *AgentProfileAuditEvent) GetSnapshotHash() string {
+	if x != nil {
+		return x.SnapshotHash
+	}
+	return ""
+}
+
+func (x *AgentProfileAuditEvent) GetErrorCode() string {
+	if x != nil {
+		return x.ErrorCode
+	}
+	return ""
+}
+
+func (x *AgentProfileAuditEvent) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *AgentProfileAuditEvent) GetApprovalId() string {
+	if x != nil {
+		return x.ApprovalId
+	}
+	return ""
+}
+
+func (x *AgentProfileAuditEvent) GetExperimentId() string {
+	if x != nil {
+		return x.ExperimentId
+	}
+	return ""
+}
+
+type AgentProfileExperimentPolicy struct {
+	state                             protoimpl.MessageState `protogen:"open.v1"`
+	MinSamplesPerArm                  int32                  `protobuf:"varint,1,opt,name=min_samples_per_arm,json=minSamplesPerArm,proto3" json:"min_samples_per_arm,omitempty"`
+	TargetSamplesPerArm               int32                  `protobuf:"varint,2,opt,name=target_samples_per_arm,json=targetSamplesPerArm,proto3" json:"target_samples_per_arm,omitempty"`
+	MaxErrorRateIncreaseBasisPoints   int32                  `protobuf:"varint,3,opt,name=max_error_rate_increase_basis_points,json=maxErrorRateIncreaseBasisPoints,proto3" json:"max_error_rate_increase_basis_points,omitempty"`
+	MaxP95LatencyIncreaseBasisPoints  int32                  `protobuf:"varint,4,opt,name=max_p95_latency_increase_basis_points,json=maxP95LatencyIncreaseBasisPoints,proto3" json:"max_p95_latency_increase_basis_points,omitempty"`
+	MaxAverageCostIncreaseBasisPoints int32                  `protobuf:"varint,5,opt,name=max_average_cost_increase_basis_points,json=maxAverageCostIncreaseBasisPoints,proto3" json:"max_average_cost_increase_basis_points,omitempty"`
+	OutcomeSignal                     string                 `protobuf:"bytes,6,opt,name=outcome_signal,json=outcomeSignal,proto3" json:"outcome_signal,omitempty"`
+	MinOutcomeSamplesPerArm           int32                  `protobuf:"varint,7,opt,name=min_outcome_samples_per_arm,json=minOutcomeSamplesPerArm,proto3" json:"min_outcome_samples_per_arm,omitempty"`
+	MaxOutcomeRateDecreaseBasisPoints int32                  `protobuf:"varint,8,opt,name=max_outcome_rate_decrease_basis_points,json=maxOutcomeRateDecreaseBasisPoints,proto3" json:"max_outcome_rate_decrease_basis_points,omitempty"`
+	unknownFields                     protoimpl.UnknownFields
+	sizeCache                         protoimpl.SizeCache
+}
+
+func (x *AgentProfileExperimentPolicy) Reset() {
+	*x = AgentProfileExperimentPolicy{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[185]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentProfileExperimentPolicy) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentProfileExperimentPolicy) ProtoMessage() {}
+
+func (x *AgentProfileExperimentPolicy) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[185]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentProfileExperimentPolicy.ProtoReflect.Descriptor instead.
+func (*AgentProfileExperimentPolicy) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{185}
+}
+
+func (x *AgentProfileExperimentPolicy) GetMinSamplesPerArm() int32 {
+	if x != nil {
+		return x.MinSamplesPerArm
+	}
+	return 0
+}
+
+func (x *AgentProfileExperimentPolicy) GetTargetSamplesPerArm() int32 {
+	if x != nil {
+		return x.TargetSamplesPerArm
+	}
+	return 0
+}
+
+func (x *AgentProfileExperimentPolicy) GetMaxErrorRateIncreaseBasisPoints() int32 {
+	if x != nil {
+		return x.MaxErrorRateIncreaseBasisPoints
+	}
+	return 0
+}
+
+func (x *AgentProfileExperimentPolicy) GetMaxP95LatencyIncreaseBasisPoints() int32 {
+	if x != nil {
+		return x.MaxP95LatencyIncreaseBasisPoints
+	}
+	return 0
+}
+
+func (x *AgentProfileExperimentPolicy) GetMaxAverageCostIncreaseBasisPoints() int32 {
+	if x != nil {
+		return x.MaxAverageCostIncreaseBasisPoints
+	}
+	return 0
+}
+
+func (x *AgentProfileExperimentPolicy) GetOutcomeSignal() string {
+	if x != nil {
+		return x.OutcomeSignal
+	}
+	return ""
+}
+
+func (x *AgentProfileExperimentPolicy) GetMinOutcomeSamplesPerArm() int32 {
+	if x != nil {
+		return x.MinOutcomeSamplesPerArm
+	}
+	return 0
+}
+
+func (x *AgentProfileExperimentPolicy) GetMaxOutcomeRateDecreaseBasisPoints() int32 {
+	if x != nil {
+		return x.MaxOutcomeRateDecreaseBasisPoints
+	}
+	return 0
+}
+
+type AgentProfileExperimentArmStats struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	Samples                int32                  `protobuf:"varint,1,opt,name=samples,proto3" json:"samples,omitempty"`
+	Successes              int32                  `protobuf:"varint,2,opt,name=successes,proto3" json:"successes,omitempty"`
+	Failures               int32                  `protobuf:"varint,3,opt,name=failures,proto3" json:"failures,omitempty"`
+	ErrorRateBasisPoints   int32                  `protobuf:"varint,4,opt,name=error_rate_basis_points,json=errorRateBasisPoints,proto3" json:"error_rate_basis_points,omitempty"`
+	P95LatencyMillis       int64                  `protobuf:"varint,5,opt,name=p95_latency_millis,json=p95LatencyMillis,proto3" json:"p95_latency_millis,omitempty"`
+	AverageCostMicros      int64                  `protobuf:"varint,6,opt,name=average_cost_micros,json=averageCostMicros,proto3" json:"average_cost_micros,omitempty"`
+	OutcomeSamples         int32                  `protobuf:"varint,7,opt,name=outcome_samples,json=outcomeSamples,proto3" json:"outcome_samples,omitempty"`
+	OutcomePositives       int32                  `protobuf:"varint,8,opt,name=outcome_positives,json=outcomePositives,proto3" json:"outcome_positives,omitempty"`
+	OutcomeRateBasisPoints int32                  `protobuf:"varint,9,opt,name=outcome_rate_basis_points,json=outcomeRateBasisPoints,proto3" json:"outcome_rate_basis_points,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *AgentProfileExperimentArmStats) Reset() {
+	*x = AgentProfileExperimentArmStats{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[186]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentProfileExperimentArmStats) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentProfileExperimentArmStats) ProtoMessage() {}
+
+func (x *AgentProfileExperimentArmStats) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[186]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentProfileExperimentArmStats.ProtoReflect.Descriptor instead.
+func (*AgentProfileExperimentArmStats) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{186}
+}
+
+func (x *AgentProfileExperimentArmStats) GetSamples() int32 {
+	if x != nil {
+		return x.Samples
+	}
+	return 0
+}
+
+func (x *AgentProfileExperimentArmStats) GetSuccesses() int32 {
+	if x != nil {
+		return x.Successes
+	}
+	return 0
+}
+
+func (x *AgentProfileExperimentArmStats) GetFailures() int32 {
+	if x != nil {
+		return x.Failures
+	}
+	return 0
+}
+
+func (x *AgentProfileExperimentArmStats) GetErrorRateBasisPoints() int32 {
+	if x != nil {
+		return x.ErrorRateBasisPoints
+	}
+	return 0
+}
+
+func (x *AgentProfileExperimentArmStats) GetP95LatencyMillis() int64 {
+	if x != nil {
+		return x.P95LatencyMillis
+	}
+	return 0
+}
+
+func (x *AgentProfileExperimentArmStats) GetAverageCostMicros() int64 {
+	if x != nil {
+		return x.AverageCostMicros
+	}
+	return 0
+}
+
+func (x *AgentProfileExperimentArmStats) GetOutcomeSamples() int32 {
+	if x != nil {
+		return x.OutcomeSamples
+	}
+	return 0
+}
+
+func (x *AgentProfileExperimentArmStats) GetOutcomePositives() int32 {
+	if x != nil {
+		return x.OutcomePositives
+	}
+	return 0
+}
+
+func (x *AgentProfileExperimentArmStats) GetOutcomeRateBasisPoints() int32 {
+	if x != nil {
+		return x.OutcomeRateBasisPoints
+	}
+	return 0
+}
+
+type AgentProfileExperimentStats struct {
+	state         protoimpl.MessageState          `protogen:"open.v1"`
+	Stable        *AgentProfileExperimentArmStats `protobuf:"bytes,1,opt,name=stable,proto3" json:"stable,omitempty"`
+	Candidate     *AgentProfileExperimentArmStats `protobuf:"bytes,2,opt,name=candidate,proto3" json:"candidate,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentProfileExperimentStats) Reset() {
+	*x = AgentProfileExperimentStats{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[187]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentProfileExperimentStats) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentProfileExperimentStats) ProtoMessage() {}
+
+func (x *AgentProfileExperimentStats) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[187]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentProfileExperimentStats.ProtoReflect.Descriptor instead.
+func (*AgentProfileExperimentStats) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{187}
+}
+
+func (x *AgentProfileExperimentStats) GetStable() *AgentProfileExperimentArmStats {
+	if x != nil {
+		return x.Stable
+	}
+	return nil
+}
+
+func (x *AgentProfileExperimentStats) GetCandidate() *AgentProfileExperimentArmStats {
+	if x != nil {
+		return x.Candidate
+	}
+	return nil
+}
+
+type AgentProfileExperiment struct {
+	state                protoimpl.MessageState        `protogen:"open.v1"`
+	ExperimentId         string                        `protobuf:"bytes,1,opt,name=experiment_id,json=experimentId,proto3" json:"experiment_id,omitempty"`
+	ProfileId            string                        `protobuf:"bytes,2,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	StableVersion        string                        `protobuf:"bytes,3,opt,name=stable_version,json=stableVersion,proto3" json:"stable_version,omitempty"`
+	CandidateVersion     string                        `protobuf:"bytes,4,opt,name=candidate_version,json=candidateVersion,proto3" json:"candidate_version,omitempty"`
+	CandidateBasisPoints int32                         `protobuf:"varint,5,opt,name=candidate_basis_points,json=candidateBasisPoints,proto3" json:"candidate_basis_points,omitempty"`
+	ReleaseRevision      int64                         `protobuf:"varint,6,opt,name=release_revision,json=releaseRevision,proto3" json:"release_revision,omitempty"`
+	Policy               *AgentProfileExperimentPolicy `protobuf:"bytes,7,opt,name=policy,proto3" json:"policy,omitempty"`
+	Status               string                        `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
+	Decision             string                        `protobuf:"bytes,9,opt,name=decision,proto3" json:"decision,omitempty"`
+	DecisionReason       string                        `protobuf:"bytes,10,opt,name=decision_reason,json=decisionReason,proto3" json:"decision_reason,omitempty"`
+	Stats                *AgentProfileExperimentStats  `protobuf:"bytes,11,opt,name=stats,proto3" json:"stats,omitempty"`
+	Revision             int64                         `protobuf:"varint,12,opt,name=revision,proto3" json:"revision,omitempty"`
+	CreatedBy            uint64                        `protobuf:"varint,13,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
+	UpdatedBy            uint64                        `protobuf:"varint,14,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
+	StartedAt            int64                         `protobuf:"varint,15,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	CompletedAt          int64                         `protobuf:"varint,16,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
+	UpdatedAt            int64                         `protobuf:"varint,17,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *AgentProfileExperiment) Reset() {
+	*x = AgentProfileExperiment{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[188]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentProfileExperiment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentProfileExperiment) ProtoMessage() {}
+
+func (x *AgentProfileExperiment) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[188]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentProfileExperiment.ProtoReflect.Descriptor instead.
+func (*AgentProfileExperiment) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{188}
+}
+
+func (x *AgentProfileExperiment) GetExperimentId() string {
+	if x != nil {
+		return x.ExperimentId
+	}
+	return ""
+}
+
+func (x *AgentProfileExperiment) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
+	}
+	return ""
+}
+
+func (x *AgentProfileExperiment) GetStableVersion() string {
+	if x != nil {
+		return x.StableVersion
+	}
+	return ""
+}
+
+func (x *AgentProfileExperiment) GetCandidateVersion() string {
+	if x != nil {
+		return x.CandidateVersion
+	}
+	return ""
+}
+
+func (x *AgentProfileExperiment) GetCandidateBasisPoints() int32 {
+	if x != nil {
+		return x.CandidateBasisPoints
+	}
+	return 0
+}
+
+func (x *AgentProfileExperiment) GetReleaseRevision() int64 {
+	if x != nil {
+		return x.ReleaseRevision
+	}
+	return 0
+}
+
+func (x *AgentProfileExperiment) GetPolicy() *AgentProfileExperimentPolicy {
+	if x != nil {
+		return x.Policy
+	}
+	return nil
+}
+
+func (x *AgentProfileExperiment) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *AgentProfileExperiment) GetDecision() string {
+	if x != nil {
+		return x.Decision
+	}
+	return ""
+}
+
+func (x *AgentProfileExperiment) GetDecisionReason() string {
+	if x != nil {
+		return x.DecisionReason
+	}
+	return ""
+}
+
+func (x *AgentProfileExperiment) GetStats() *AgentProfileExperimentStats {
+	if x != nil {
+		return x.Stats
+	}
+	return nil
+}
+
+func (x *AgentProfileExperiment) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *AgentProfileExperiment) GetCreatedBy() uint64 {
+	if x != nil {
+		return x.CreatedBy
+	}
+	return 0
+}
+
+func (x *AgentProfileExperiment) GetUpdatedBy() uint64 {
+	if x != nil {
+		return x.UpdatedBy
+	}
+	return 0
+}
+
+func (x *AgentProfileExperiment) GetStartedAt() int64 {
+	if x != nil {
+		return x.StartedAt
+	}
+	return 0
+}
+
+func (x *AgentProfileExperiment) GetCompletedAt() int64 {
+	if x != nil {
+		return x.CompletedAt
+	}
+	return 0
+}
+
+func (x *AgentProfileExperiment) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+type AgentEvalEvidenceReference struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Storage               string                 `protobuf:"bytes,1,opt,name=storage,proto3" json:"storage,omitempty"`
+	Bucket                string                 `protobuf:"bytes,2,opt,name=bucket,proto3" json:"bucket,omitempty"`
+	Key                   string                 `protobuf:"bytes,3,opt,name=key,proto3" json:"key,omitempty"`
+	VersionId             string                 `protobuf:"bytes,4,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
+	Etag                  string                 `protobuf:"bytes,5,opt,name=etag,proto3" json:"etag,omitempty"`
+	ReportSha256          string                 `protobuf:"bytes,6,opt,name=report_sha256,json=reportSha256,proto3" json:"report_sha256,omitempty"`
+	Length                int32                  `protobuf:"varint,7,opt,name=length,proto3" json:"length,omitempty"`
+	ContentType           string                 `protobuf:"bytes,8,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	RetentionMode         string                 `protobuf:"bytes,9,opt,name=retention_mode,json=retentionMode,proto3" json:"retention_mode,omitempty"`
+	RetainUntil           int64                  `protobuf:"varint,10,opt,name=retain_until,json=retainUntil,proto3" json:"retain_until,omitempty"`
+	ArchivedAt            int64                  `protobuf:"varint,11,opt,name=archived_at,json=archivedAt,proto3" json:"archived_at,omitempty"`
+	DatasetVersion        string                 `protobuf:"bytes,12,opt,name=dataset_version,json=datasetVersion,proto3" json:"dataset_version,omitempty"`
+	DatasetSha256         string                 `protobuf:"bytes,13,opt,name=dataset_sha256,json=datasetSha256,proto3" json:"dataset_sha256,omitempty"`
+	ExecutionConfigSha256 string                 `protobuf:"bytes,14,opt,name=execution_config_sha256,json=executionConfigSha256,proto3" json:"execution_config_sha256,omitempty"`
+	IntegrityKeyId        string                 `protobuf:"bytes,15,opt,name=integrity_key_id,json=integrityKeyId,proto3" json:"integrity_key_id,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *AgentEvalEvidenceReference) Reset() {
+	*x = AgentEvalEvidenceReference{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[189]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentEvalEvidenceReference) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentEvalEvidenceReference) ProtoMessage() {}
+
+func (x *AgentEvalEvidenceReference) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[189]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentEvalEvidenceReference.ProtoReflect.Descriptor instead.
+func (*AgentEvalEvidenceReference) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{189}
+}
+
+func (x *AgentEvalEvidenceReference) GetStorage() string {
+	if x != nil {
+		return x.Storage
+	}
+	return ""
+}
+
+func (x *AgentEvalEvidenceReference) GetBucket() string {
+	if x != nil {
+		return x.Bucket
+	}
+	return ""
+}
+
+func (x *AgentEvalEvidenceReference) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *AgentEvalEvidenceReference) GetVersionId() string {
+	if x != nil {
+		return x.VersionId
+	}
+	return ""
+}
+
+func (x *AgentEvalEvidenceReference) GetEtag() string {
+	if x != nil {
+		return x.Etag
+	}
+	return ""
+}
+
+func (x *AgentEvalEvidenceReference) GetReportSha256() string {
+	if x != nil {
+		return x.ReportSha256
+	}
+	return ""
+}
+
+func (x *AgentEvalEvidenceReference) GetLength() int32 {
+	if x != nil {
+		return x.Length
+	}
+	return 0
+}
+
+func (x *AgentEvalEvidenceReference) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
+}
+
+func (x *AgentEvalEvidenceReference) GetRetentionMode() string {
+	if x != nil {
+		return x.RetentionMode
+	}
+	return ""
+}
+
+func (x *AgentEvalEvidenceReference) GetRetainUntil() int64 {
+	if x != nil {
+		return x.RetainUntil
+	}
+	return 0
+}
+
+func (x *AgentEvalEvidenceReference) GetArchivedAt() int64 {
+	if x != nil {
+		return x.ArchivedAt
+	}
+	return 0
+}
+
+func (x *AgentEvalEvidenceReference) GetDatasetVersion() string {
+	if x != nil {
+		return x.DatasetVersion
+	}
+	return ""
+}
+
+func (x *AgentEvalEvidenceReference) GetDatasetSha256() string {
+	if x != nil {
+		return x.DatasetSha256
+	}
+	return ""
+}
+
+func (x *AgentEvalEvidenceReference) GetExecutionConfigSha256() string {
+	if x != nil {
+		return x.ExecutionConfigSha256
+	}
+	return ""
+}
+
+func (x *AgentEvalEvidenceReference) GetIntegrityKeyId() string {
+	if x != nil {
+		return x.IntegrityKeyId
+	}
+	return ""
+}
+
+type AgentProfileQualityEvidence struct {
+	state                        protoimpl.MessageState      `protogen:"open.v1"`
+	Reference                    *AgentEvalEvidenceReference `protobuf:"bytes,1,opt,name=reference,proto3" json:"reference,omitempty"`
+	ProfileId                    string                      `protobuf:"bytes,2,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	ProfileVersion               string                      `protobuf:"bytes,3,opt,name=profile_version,json=profileVersion,proto3" json:"profile_version,omitempty"`
+	GateStatus                   string                      `protobuf:"bytes,4,opt,name=gate_status,json=gateStatus,proto3" json:"gate_status,omitempty"`
+	Cases                        int32                       `protobuf:"varint,5,opt,name=cases,proto3" json:"cases,omitempty"`
+	Passed                       int32                       `protobuf:"varint,6,opt,name=passed,proto3" json:"passed,omitempty"`
+	TaskCompletionRateBps        int32                       `protobuf:"varint,7,opt,name=task_completion_rate_bps,json=taskCompletionRateBps,proto3" json:"task_completion_rate_bps,omitempty"`
+	ReadToolSelectionAccuracyBps int32                       `protobuf:"varint,8,opt,name=read_tool_selection_accuracy_bps,json=readToolSelectionAccuracyBps,proto3" json:"read_tool_selection_accuracy_bps,omitempty"`
+	SemanticPassRateBps          int32                       `protobuf:"varint,9,opt,name=semantic_pass_rate_bps,json=semanticPassRateBps,proto3" json:"semantic_pass_rate_bps,omitempty"`
+	ApprovalPassRateBps          int32                       `protobuf:"varint,10,opt,name=approval_pass_rate_bps,json=approvalPassRateBps,proto3" json:"approval_pass_rate_bps,omitempty"`
+	ReportSignedAt               int64                       `protobuf:"varint,11,opt,name=report_signed_at,json=reportSignedAt,proto3" json:"report_signed_at,omitempty"`
+	VerifiedAt                   int64                       `protobuf:"varint,12,opt,name=verified_at,json=verifiedAt,proto3" json:"verified_at,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
+}
+
+func (x *AgentProfileQualityEvidence) Reset() {
+	*x = AgentProfileQualityEvidence{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[190]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentProfileQualityEvidence) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentProfileQualityEvidence) ProtoMessage() {}
+
+func (x *AgentProfileQualityEvidence) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[190]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentProfileQualityEvidence.ProtoReflect.Descriptor instead.
+func (*AgentProfileQualityEvidence) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{190}
+}
+
+func (x *AgentProfileQualityEvidence) GetReference() *AgentEvalEvidenceReference {
+	if x != nil {
+		return x.Reference
+	}
+	return nil
+}
+
+func (x *AgentProfileQualityEvidence) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
+	}
+	return ""
+}
+
+func (x *AgentProfileQualityEvidence) GetProfileVersion() string {
+	if x != nil {
+		return x.ProfileVersion
+	}
+	return ""
+}
+
+func (x *AgentProfileQualityEvidence) GetGateStatus() string {
+	if x != nil {
+		return x.GateStatus
+	}
+	return ""
+}
+
+func (x *AgentProfileQualityEvidence) GetCases() int32 {
+	if x != nil {
+		return x.Cases
+	}
+	return 0
+}
+
+func (x *AgentProfileQualityEvidence) GetPassed() int32 {
+	if x != nil {
+		return x.Passed
+	}
+	return 0
+}
+
+func (x *AgentProfileQualityEvidence) GetTaskCompletionRateBps() int32 {
+	if x != nil {
+		return x.TaskCompletionRateBps
+	}
+	return 0
+}
+
+func (x *AgentProfileQualityEvidence) GetReadToolSelectionAccuracyBps() int32 {
+	if x != nil {
+		return x.ReadToolSelectionAccuracyBps
+	}
+	return 0
+}
+
+func (x *AgentProfileQualityEvidence) GetSemanticPassRateBps() int32 {
+	if x != nil {
+		return x.SemanticPassRateBps
+	}
+	return 0
+}
+
+func (x *AgentProfileQualityEvidence) GetApprovalPassRateBps() int32 {
+	if x != nil {
+		return x.ApprovalPassRateBps
+	}
+	return 0
+}
+
+func (x *AgentProfileQualityEvidence) GetReportSignedAt() int64 {
+	if x != nil {
+		return x.ReportSignedAt
+	}
+	return 0
+}
+
+func (x *AgentProfileQualityEvidence) GetVerifiedAt() int64 {
+	if x != nil {
+		return x.VerifiedAt
+	}
+	return 0
+}
+
+type AgentProfilePublishApproval struct {
+	state                   protoimpl.MessageState       `protogen:"open.v1"`
+	ApprovalId              string                       `protobuf:"bytes,1,opt,name=approval_id,json=approvalId,proto3" json:"approval_id,omitempty"`
+	ProfileId               string                       `protobuf:"bytes,2,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	Version                 string                       `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
+	SnapshotHash            string                       `protobuf:"bytes,4,opt,name=snapshot_hash,json=snapshotHash,proto3" json:"snapshot_hash,omitempty"`
+	ExpectedVersionRevision int64                        `protobuf:"varint,5,opt,name=expected_version_revision,json=expectedVersionRevision,proto3" json:"expected_version_revision,omitempty"`
+	Status                  string                       `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
+	Decision                string                       `protobuf:"bytes,7,opt,name=decision,proto3" json:"decision,omitempty"`
+	Reason                  string                       `protobuf:"bytes,8,opt,name=reason,proto3" json:"reason,omitempty"`
+	Revision                int64                        `protobuf:"varint,9,opt,name=revision,proto3" json:"revision,omitempty"`
+	RequestedBy             uint64                       `protobuf:"varint,10,opt,name=requested_by,json=requestedBy,proto3" json:"requested_by,omitempty"`
+	DecidedBy               uint64                       `protobuf:"varint,11,opt,name=decided_by,json=decidedBy,proto3" json:"decided_by,omitempty"`
+	ApplyingBy              uint64                       `protobuf:"varint,12,opt,name=applying_by,json=applyingBy,proto3" json:"applying_by,omitempty"`
+	ErrorCode               string                       `protobuf:"bytes,13,opt,name=error_code,json=errorCode,proto3" json:"error_code,omitempty"`
+	RequestedAt             int64                        `protobuf:"varint,14,opt,name=requested_at,json=requestedAt,proto3" json:"requested_at,omitempty"`
+	DecidedAt               int64                        `protobuf:"varint,15,opt,name=decided_at,json=decidedAt,proto3" json:"decided_at,omitempty"`
+	ApplyLeaseUntil         int64                        `protobuf:"varint,16,opt,name=apply_lease_until,json=applyLeaseUntil,proto3" json:"apply_lease_until,omitempty"`
+	AppliedAt               int64                        `protobuf:"varint,17,opt,name=applied_at,json=appliedAt,proto3" json:"applied_at,omitempty"`
+	UpdatedAt               int64                        `protobuf:"varint,18,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	QualityEvidence         *AgentProfileQualityEvidence `protobuf:"bytes,19,opt,name=quality_evidence,json=qualityEvidence,proto3" json:"quality_evidence,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *AgentProfilePublishApproval) Reset() {
+	*x = AgentProfilePublishApproval{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[191]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentProfilePublishApproval) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentProfilePublishApproval) ProtoMessage() {}
+
+func (x *AgentProfilePublishApproval) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[191]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentProfilePublishApproval.ProtoReflect.Descriptor instead.
+func (*AgentProfilePublishApproval) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{191}
+}
+
+func (x *AgentProfilePublishApproval) GetApprovalId() string {
+	if x != nil {
+		return x.ApprovalId
+	}
+	return ""
+}
+
+func (x *AgentProfilePublishApproval) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
+	}
+	return ""
+}
+
+func (x *AgentProfilePublishApproval) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *AgentProfilePublishApproval) GetSnapshotHash() string {
+	if x != nil {
+		return x.SnapshotHash
+	}
+	return ""
+}
+
+func (x *AgentProfilePublishApproval) GetExpectedVersionRevision() int64 {
+	if x != nil {
+		return x.ExpectedVersionRevision
+	}
+	return 0
+}
+
+func (x *AgentProfilePublishApproval) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *AgentProfilePublishApproval) GetDecision() string {
+	if x != nil {
+		return x.Decision
+	}
+	return ""
+}
+
+func (x *AgentProfilePublishApproval) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *AgentProfilePublishApproval) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *AgentProfilePublishApproval) GetRequestedBy() uint64 {
+	if x != nil {
+		return x.RequestedBy
+	}
+	return 0
+}
+
+func (x *AgentProfilePublishApproval) GetDecidedBy() uint64 {
+	if x != nil {
+		return x.DecidedBy
+	}
+	return 0
+}
+
+func (x *AgentProfilePublishApproval) GetApplyingBy() uint64 {
+	if x != nil {
+		return x.ApplyingBy
+	}
+	return 0
+}
+
+func (x *AgentProfilePublishApproval) GetErrorCode() string {
+	if x != nil {
+		return x.ErrorCode
+	}
+	return ""
+}
+
+func (x *AgentProfilePublishApproval) GetRequestedAt() int64 {
+	if x != nil {
+		return x.RequestedAt
+	}
+	return 0
+}
+
+func (x *AgentProfilePublishApproval) GetDecidedAt() int64 {
+	if x != nil {
+		return x.DecidedAt
+	}
+	return 0
+}
+
+func (x *AgentProfilePublishApproval) GetApplyLeaseUntil() int64 {
+	if x != nil {
+		return x.ApplyLeaseUntil
+	}
+	return 0
+}
+
+func (x *AgentProfilePublishApproval) GetAppliedAt() int64 {
+	if x != nil {
+		return x.AppliedAt
+	}
+	return 0
+}
+
+func (x *AgentProfilePublishApproval) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+func (x *AgentProfilePublishApproval) GetQualityEvidence() *AgentProfileQualityEvidence {
+	if x != nil {
+		return x.QualityEvidence
+	}
+	return nil
+}
+
+type CreateAgentProfileDraftRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId   uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	Spec          *AgentProfileSpec      `protobuf:"bytes,2,opt,name=spec,proto3" json:"spec,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateAgentProfileDraftRequest) Reset() {
+	*x = CreateAgentProfileDraftRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[192]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateAgentProfileDraftRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateAgentProfileDraftRequest) ProtoMessage() {}
+
+func (x *CreateAgentProfileDraftRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[192]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateAgentProfileDraftRequest.ProtoReflect.Descriptor instead.
+func (*CreateAgentProfileDraftRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{192}
+}
+
+func (x *CreateAgentProfileDraftRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *CreateAgentProfileDraftRequest) GetSpec() *AgentProfileSpec {
+	if x != nil {
+		return x.Spec
+	}
+	return nil
+}
+
+type CreateAgentProfileDraftResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Code           uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg            string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	ProfileVersion *AgentProfileVersion   `protobuf:"bytes,3,opt,name=profile_version,json=profileVersion,proto3" json:"profile_version,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CreateAgentProfileDraftResponse) Reset() {
+	*x = CreateAgentProfileDraftResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[193]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateAgentProfileDraftResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateAgentProfileDraftResponse) ProtoMessage() {}
+
+func (x *CreateAgentProfileDraftResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[193]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateAgentProfileDraftResponse.ProtoReflect.Descriptor instead.
+func (*CreateAgentProfileDraftResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{193}
+}
+
+func (x *CreateAgentProfileDraftResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *CreateAgentProfileDraftResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *CreateAgentProfileDraftResponse) GetProfileVersion() *AgentProfileVersion {
+	if x != nil {
+		return x.ProfileVersion
+	}
+	return nil
+}
+
+type PublishAgentProfileVersionRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId      uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	ProfileId        string                 `protobuf:"bytes,2,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	Version          string                 `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
+	ExpectedRevision int64                  `protobuf:"varint,4,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *PublishAgentProfileVersionRequest) Reset() {
+	*x = PublishAgentProfileVersionRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[194]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PublishAgentProfileVersionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PublishAgentProfileVersionRequest) ProtoMessage() {}
+
+func (x *PublishAgentProfileVersionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[194]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PublishAgentProfileVersionRequest.ProtoReflect.Descriptor instead.
+func (*PublishAgentProfileVersionRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{194}
+}
+
+func (x *PublishAgentProfileVersionRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *PublishAgentProfileVersionRequest) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
+	}
+	return ""
+}
+
+func (x *PublishAgentProfileVersionRequest) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *PublishAgentProfileVersionRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+type PublishAgentProfileVersionResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Code           uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg            string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	ProfileVersion *AgentProfileVersion   `protobuf:"bytes,3,opt,name=profile_version,json=profileVersion,proto3" json:"profile_version,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *PublishAgentProfileVersionResponse) Reset() {
+	*x = PublishAgentProfileVersionResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[195]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PublishAgentProfileVersionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PublishAgentProfileVersionResponse) ProtoMessage() {}
+
+func (x *PublishAgentProfileVersionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[195]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PublishAgentProfileVersionResponse.ProtoReflect.Descriptor instead.
+func (*PublishAgentProfileVersionResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{195}
+}
+
+func (x *PublishAgentProfileVersionResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *PublishAgentProfileVersionResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *PublishAgentProfileVersionResponse) GetProfileVersion() *AgentProfileVersion {
+	if x != nil {
+		return x.ProfileVersion
+	}
+	return nil
+}
+
+type RequestAgentProfilePublishApprovalRequest struct {
+	state                   protoimpl.MessageState      `protogen:"open.v1"`
+	ActorUserId             uint64                      `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	ProfileId               string                      `protobuf:"bytes,2,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	Version                 string                      `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
+	ExpectedVersionRevision int64                       `protobuf:"varint,4,opt,name=expected_version_revision,json=expectedVersionRevision,proto3" json:"expected_version_revision,omitempty"`
+	QualityEvidence         *AgentEvalEvidenceReference `protobuf:"bytes,5,opt,name=quality_evidence,json=qualityEvidence,proto3" json:"quality_evidence,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *RequestAgentProfilePublishApprovalRequest) Reset() {
+	*x = RequestAgentProfilePublishApprovalRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[196]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestAgentProfilePublishApprovalRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestAgentProfilePublishApprovalRequest) ProtoMessage() {}
+
+func (x *RequestAgentProfilePublishApprovalRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[196]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RequestAgentProfilePublishApprovalRequest.ProtoReflect.Descriptor instead.
+func (*RequestAgentProfilePublishApprovalRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{196}
+}
+
+func (x *RequestAgentProfilePublishApprovalRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *RequestAgentProfilePublishApprovalRequest) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
+	}
+	return ""
+}
+
+func (x *RequestAgentProfilePublishApprovalRequest) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *RequestAgentProfilePublishApprovalRequest) GetExpectedVersionRevision() int64 {
+	if x != nil {
+		return x.ExpectedVersionRevision
+	}
+	return 0
+}
+
+func (x *RequestAgentProfilePublishApprovalRequest) GetQualityEvidence() *AgentEvalEvidenceReference {
+	if x != nil {
+		return x.QualityEvidence
+	}
+	return nil
+}
+
+type RequestAgentProfilePublishApprovalResponse struct {
+	state         protoimpl.MessageState       `protogen:"open.v1"`
+	Code          uint64                       `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                       `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Approval      *AgentProfilePublishApproval `protobuf:"bytes,3,opt,name=approval,proto3" json:"approval,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RequestAgentProfilePublishApprovalResponse) Reset() {
+	*x = RequestAgentProfilePublishApprovalResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[197]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestAgentProfilePublishApprovalResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestAgentProfilePublishApprovalResponse) ProtoMessage() {}
+
+func (x *RequestAgentProfilePublishApprovalResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[197]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RequestAgentProfilePublishApprovalResponse.ProtoReflect.Descriptor instead.
+func (*RequestAgentProfilePublishApprovalResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{197}
+}
+
+func (x *RequestAgentProfilePublishApprovalResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *RequestAgentProfilePublishApprovalResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *RequestAgentProfilePublishApprovalResponse) GetApproval() *AgentProfilePublishApproval {
+	if x != nil {
+		return x.Approval
+	}
+	return nil
+}
+
+type ListAgentProfilePublishApprovalsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId   uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	ProfileId     string                 `protobuf:"bytes,2,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	Page          uint32                 `protobuf:"varint,4,opt,name=page,proto3" json:"page,omitempty"`
+	PageSize      uint32                 `protobuf:"varint,5,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentProfilePublishApprovalsRequest) Reset() {
+	*x = ListAgentProfilePublishApprovalsRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[198]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentProfilePublishApprovalsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentProfilePublishApprovalsRequest) ProtoMessage() {}
+
+func (x *ListAgentProfilePublishApprovalsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[198]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentProfilePublishApprovalsRequest.ProtoReflect.Descriptor instead.
+func (*ListAgentProfilePublishApprovalsRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{198}
+}
+
+func (x *ListAgentProfilePublishApprovalsRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *ListAgentProfilePublishApprovalsRequest) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
+	}
+	return ""
+}
+
+func (x *ListAgentProfilePublishApprovalsRequest) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ListAgentProfilePublishApprovalsRequest) GetPage() uint32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListAgentProfilePublishApprovalsRequest) GetPageSize() uint32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type ListAgentProfilePublishApprovalsResponse struct {
+	state         protoimpl.MessageState         `protogen:"open.v1"`
+	Code          uint64                         `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                         `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Approvals     []*AgentProfilePublishApproval `protobuf:"bytes,3,rep,name=approvals,proto3" json:"approvals,omitempty"`
+	Total         int64                          `protobuf:"varint,4,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentProfilePublishApprovalsResponse) Reset() {
+	*x = ListAgentProfilePublishApprovalsResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[199]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentProfilePublishApprovalsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentProfilePublishApprovalsResponse) ProtoMessage() {}
+
+func (x *ListAgentProfilePublishApprovalsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[199]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentProfilePublishApprovalsResponse.ProtoReflect.Descriptor instead.
+func (*ListAgentProfilePublishApprovalsResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{199}
+}
+
+func (x *ListAgentProfilePublishApprovalsResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *ListAgentProfilePublishApprovalsResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *ListAgentProfilePublishApprovalsResponse) GetApprovals() []*AgentProfilePublishApproval {
+	if x != nil {
+		return x.Approvals
+	}
+	return nil
+}
+
+func (x *ListAgentProfilePublishApprovalsResponse) GetTotal() int64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+type GetAgentProfilePublishApprovalRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId   uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	ApprovalId    string                 `protobuf:"bytes,2,opt,name=approval_id,json=approvalId,proto3" json:"approval_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentProfilePublishApprovalRequest) Reset() {
+	*x = GetAgentProfilePublishApprovalRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[200]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentProfilePublishApprovalRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentProfilePublishApprovalRequest) ProtoMessage() {}
+
+func (x *GetAgentProfilePublishApprovalRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[200]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentProfilePublishApprovalRequest.ProtoReflect.Descriptor instead.
+func (*GetAgentProfilePublishApprovalRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{200}
+}
+
+func (x *GetAgentProfilePublishApprovalRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *GetAgentProfilePublishApprovalRequest) GetApprovalId() string {
+	if x != nil {
+		return x.ApprovalId
+	}
+	return ""
+}
+
+type GetAgentProfilePublishApprovalResponse struct {
+	state         protoimpl.MessageState       `protogen:"open.v1"`
+	Code          uint64                       `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                       `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Approval      *AgentProfilePublishApproval `protobuf:"bytes,3,opt,name=approval,proto3" json:"approval,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentProfilePublishApprovalResponse) Reset() {
+	*x = GetAgentProfilePublishApprovalResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[201]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentProfilePublishApprovalResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentProfilePublishApprovalResponse) ProtoMessage() {}
+
+func (x *GetAgentProfilePublishApprovalResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[201]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentProfilePublishApprovalResponse.ProtoReflect.Descriptor instead.
+func (*GetAgentProfilePublishApprovalResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{201}
+}
+
+func (x *GetAgentProfilePublishApprovalResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *GetAgentProfilePublishApprovalResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *GetAgentProfilePublishApprovalResponse) GetApproval() *AgentProfilePublishApproval {
+	if x != nil {
+		return x.Approval
+	}
+	return nil
+}
+
+type DecideAgentProfilePublishApprovalRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId      uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	ApprovalId       string                 `protobuf:"bytes,2,opt,name=approval_id,json=approvalId,proto3" json:"approval_id,omitempty"`
+	Decision         string                 `protobuf:"bytes,3,opt,name=decision,proto3" json:"decision,omitempty"`
+	Reason           string                 `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
+	ExpectedRevision int64                  `protobuf:"varint,5,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *DecideAgentProfilePublishApprovalRequest) Reset() {
+	*x = DecideAgentProfilePublishApprovalRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[202]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecideAgentProfilePublishApprovalRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecideAgentProfilePublishApprovalRequest) ProtoMessage() {}
+
+func (x *DecideAgentProfilePublishApprovalRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[202]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecideAgentProfilePublishApprovalRequest.ProtoReflect.Descriptor instead.
+func (*DecideAgentProfilePublishApprovalRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{202}
+}
+
+func (x *DecideAgentProfilePublishApprovalRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *DecideAgentProfilePublishApprovalRequest) GetApprovalId() string {
+	if x != nil {
+		return x.ApprovalId
+	}
+	return ""
+}
+
+func (x *DecideAgentProfilePublishApprovalRequest) GetDecision() string {
+	if x != nil {
+		return x.Decision
+	}
+	return ""
+}
+
+func (x *DecideAgentProfilePublishApprovalRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *DecideAgentProfilePublishApprovalRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+type DecideAgentProfilePublishApprovalResponse struct {
+	state         protoimpl.MessageState       `protogen:"open.v1"`
+	Code          uint64                       `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                       `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Approval      *AgentProfilePublishApproval `protobuf:"bytes,3,opt,name=approval,proto3" json:"approval,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DecideAgentProfilePublishApprovalResponse) Reset() {
+	*x = DecideAgentProfilePublishApprovalResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[203]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecideAgentProfilePublishApprovalResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecideAgentProfilePublishApprovalResponse) ProtoMessage() {}
+
+func (x *DecideAgentProfilePublishApprovalResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[203]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecideAgentProfilePublishApprovalResponse.ProtoReflect.Descriptor instead.
+func (*DecideAgentProfilePublishApprovalResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{203}
+}
+
+func (x *DecideAgentProfilePublishApprovalResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *DecideAgentProfilePublishApprovalResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *DecideAgentProfilePublishApprovalResponse) GetApproval() *AgentProfilePublishApproval {
+	if x != nil {
+		return x.Approval
+	}
+	return nil
+}
+
+type RetryAgentProfilePublishApprovalRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId      uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	ApprovalId       string                 `protobuf:"bytes,2,opt,name=approval_id,json=approvalId,proto3" json:"approval_id,omitempty"`
+	ExpectedRevision int64                  `protobuf:"varint,3,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *RetryAgentProfilePublishApprovalRequest) Reset() {
+	*x = RetryAgentProfilePublishApprovalRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[204]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetryAgentProfilePublishApprovalRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetryAgentProfilePublishApprovalRequest) ProtoMessage() {}
+
+func (x *RetryAgentProfilePublishApprovalRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[204]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetryAgentProfilePublishApprovalRequest.ProtoReflect.Descriptor instead.
+func (*RetryAgentProfilePublishApprovalRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{204}
+}
+
+func (x *RetryAgentProfilePublishApprovalRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *RetryAgentProfilePublishApprovalRequest) GetApprovalId() string {
+	if x != nil {
+		return x.ApprovalId
+	}
+	return ""
+}
+
+func (x *RetryAgentProfilePublishApprovalRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+type RetryAgentProfilePublishApprovalResponse struct {
+	state         protoimpl.MessageState       `protogen:"open.v1"`
+	Code          uint64                       `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                       `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Approval      *AgentProfilePublishApproval `protobuf:"bytes,3,opt,name=approval,proto3" json:"approval,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RetryAgentProfilePublishApprovalResponse) Reset() {
+	*x = RetryAgentProfilePublishApprovalResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[205]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetryAgentProfilePublishApprovalResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetryAgentProfilePublishApprovalResponse) ProtoMessage() {}
+
+func (x *RetryAgentProfilePublishApprovalResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[205]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetryAgentProfilePublishApprovalResponse.ProtoReflect.Descriptor instead.
+func (*RetryAgentProfilePublishApprovalResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{205}
+}
+
+func (x *RetryAgentProfilePublishApprovalResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *RetryAgentProfilePublishApprovalResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *RetryAgentProfilePublishApprovalResponse) GetApproval() *AgentProfilePublishApproval {
+	if x != nil {
+		return x.Approval
+	}
+	return nil
+}
+
+type ListAgentProfileVersionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId   uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	ProfileId     string                 `protobuf:"bytes,2,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	Page          uint32                 `protobuf:"varint,3,opt,name=page,proto3" json:"page,omitempty"`
+	PageSize      uint32                 `protobuf:"varint,4,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentProfileVersionsRequest) Reset() {
+	*x = ListAgentProfileVersionsRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[206]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentProfileVersionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentProfileVersionsRequest) ProtoMessage() {}
+
+func (x *ListAgentProfileVersionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[206]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentProfileVersionsRequest.ProtoReflect.Descriptor instead.
+func (*ListAgentProfileVersionsRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{206}
+}
+
+func (x *ListAgentProfileVersionsRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *ListAgentProfileVersionsRequest) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
+	}
+	return ""
+}
+
+func (x *ListAgentProfileVersionsRequest) GetPage() uint32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListAgentProfileVersionsRequest) GetPageSize() uint32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type ListAgentProfileVersionsResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Code            uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg             string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	ProfileVersions []*AgentProfileVersion `protobuf:"bytes,3,rep,name=profile_versions,json=profileVersions,proto3" json:"profile_versions,omitempty"`
+	Total           int64                  `protobuf:"varint,4,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ListAgentProfileVersionsResponse) Reset() {
+	*x = ListAgentProfileVersionsResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[207]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentProfileVersionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentProfileVersionsResponse) ProtoMessage() {}
+
+func (x *ListAgentProfileVersionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[207]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentProfileVersionsResponse.ProtoReflect.Descriptor instead.
+func (*ListAgentProfileVersionsResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{207}
+}
+
+func (x *ListAgentProfileVersionsResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *ListAgentProfileVersionsResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *ListAgentProfileVersionsResponse) GetProfileVersions() []*AgentProfileVersion {
+	if x != nil {
+		return x.ProfileVersions
+	}
+	return nil
+}
+
+func (x *ListAgentProfileVersionsResponse) GetTotal() int64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+type GetAgentProfileVersionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId   uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	ProfileId     string                 `protobuf:"bytes,2,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	Version       string                 `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentProfileVersionRequest) Reset() {
+	*x = GetAgentProfileVersionRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[208]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentProfileVersionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentProfileVersionRequest) ProtoMessage() {}
+
+func (x *GetAgentProfileVersionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[208]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentProfileVersionRequest.ProtoReflect.Descriptor instead.
+func (*GetAgentProfileVersionRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{208}
+}
+
+func (x *GetAgentProfileVersionRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *GetAgentProfileVersionRequest) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
+	}
+	return ""
+}
+
+func (x *GetAgentProfileVersionRequest) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+type GetAgentProfileVersionResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Code           uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg            string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	ProfileVersion *AgentProfileVersion   `protobuf:"bytes,3,opt,name=profile_version,json=profileVersion,proto3" json:"profile_version,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *GetAgentProfileVersionResponse) Reset() {
+	*x = GetAgentProfileVersionResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[209]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentProfileVersionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentProfileVersionResponse) ProtoMessage() {}
+
+func (x *GetAgentProfileVersionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[209]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentProfileVersionResponse.ProtoReflect.Descriptor instead.
+func (*GetAgentProfileVersionResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{209}
+}
+
+func (x *GetAgentProfileVersionResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *GetAgentProfileVersionResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *GetAgentProfileVersionResponse) GetProfileVersion() *AgentProfileVersion {
+	if x != nil {
+		return x.ProfileVersion
+	}
+	return nil
+}
+
+type GetAgentProfileReleaseRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId   uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	ProfileId     string                 `protobuf:"bytes,2,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentProfileReleaseRequest) Reset() {
+	*x = GetAgentProfileReleaseRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[210]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentProfileReleaseRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentProfileReleaseRequest) ProtoMessage() {}
+
+func (x *GetAgentProfileReleaseRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[210]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentProfileReleaseRequest.ProtoReflect.Descriptor instead.
+func (*GetAgentProfileReleaseRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{210}
+}
+
+func (x *GetAgentProfileReleaseRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *GetAgentProfileReleaseRequest) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
+	}
+	return ""
+}
+
+type GetAgentProfileReleaseResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Code           uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg            string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	ProfileRelease *AgentProfileRelease   `protobuf:"bytes,3,opt,name=profile_release,json=profileRelease,proto3" json:"profile_release,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *GetAgentProfileReleaseResponse) Reset() {
+	*x = GetAgentProfileReleaseResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[211]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentProfileReleaseResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentProfileReleaseResponse) ProtoMessage() {}
+
+func (x *GetAgentProfileReleaseResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[211]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentProfileReleaseResponse.ProtoReflect.Descriptor instead.
+func (*GetAgentProfileReleaseResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{211}
+}
+
+func (x *GetAgentProfileReleaseResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *GetAgentProfileReleaseResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *GetAgentProfileReleaseResponse) GetProfileRelease() *AgentProfileRelease {
+	if x != nil {
+		return x.ProfileRelease
+	}
+	return nil
+}
+
+type UpsertAgentProfileReleaseRequest struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId          uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	ProfileId            string                 `protobuf:"bytes,2,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	StableVersion        string                 `protobuf:"bytes,3,opt,name=stable_version,json=stableVersion,proto3" json:"stable_version,omitempty"`
+	CandidateVersion     string                 `protobuf:"bytes,4,opt,name=candidate_version,json=candidateVersion,proto3" json:"candidate_version,omitempty"`
+	CandidateBasisPoints int32                  `protobuf:"varint,5,opt,name=candidate_basis_points,json=candidateBasisPoints,proto3" json:"candidate_basis_points,omitempty"`
+	Salt                 string                 `protobuf:"bytes,6,opt,name=salt,proto3" json:"salt,omitempty"`
+	ExpectedRevision     int64                  `protobuf:"varint,7,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *UpsertAgentProfileReleaseRequest) Reset() {
+	*x = UpsertAgentProfileReleaseRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[212]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpsertAgentProfileReleaseRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpsertAgentProfileReleaseRequest) ProtoMessage() {}
+
+func (x *UpsertAgentProfileReleaseRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[212]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpsertAgentProfileReleaseRequest.ProtoReflect.Descriptor instead.
+func (*UpsertAgentProfileReleaseRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{212}
+}
+
+func (x *UpsertAgentProfileReleaseRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *UpsertAgentProfileReleaseRequest) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
+	}
+	return ""
+}
+
+func (x *UpsertAgentProfileReleaseRequest) GetStableVersion() string {
+	if x != nil {
+		return x.StableVersion
+	}
+	return ""
+}
+
+func (x *UpsertAgentProfileReleaseRequest) GetCandidateVersion() string {
+	if x != nil {
+		return x.CandidateVersion
+	}
+	return ""
+}
+
+func (x *UpsertAgentProfileReleaseRequest) GetCandidateBasisPoints() int32 {
+	if x != nil {
+		return x.CandidateBasisPoints
+	}
+	return 0
+}
+
+func (x *UpsertAgentProfileReleaseRequest) GetSalt() string {
+	if x != nil {
+		return x.Salt
+	}
+	return ""
+}
+
+func (x *UpsertAgentProfileReleaseRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+type UpsertAgentProfileReleaseResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Code           uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg            string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	ProfileRelease *AgentProfileRelease   `protobuf:"bytes,3,opt,name=profile_release,json=profileRelease,proto3" json:"profile_release,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *UpsertAgentProfileReleaseResponse) Reset() {
+	*x = UpsertAgentProfileReleaseResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[213]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpsertAgentProfileReleaseResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpsertAgentProfileReleaseResponse) ProtoMessage() {}
+
+func (x *UpsertAgentProfileReleaseResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[213]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpsertAgentProfileReleaseResponse.ProtoReflect.Descriptor instead.
+func (*UpsertAgentProfileReleaseResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{213}
+}
+
+func (x *UpsertAgentProfileReleaseResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *UpsertAgentProfileReleaseResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *UpsertAgentProfileReleaseResponse) GetProfileRelease() *AgentProfileRelease {
+	if x != nil {
+		return x.ProfileRelease
+	}
+	return nil
+}
+
+type ListAgentProfileAuditEventsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId   uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	ProfileId     string                 `protobuf:"bytes,2,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	Page          uint32                 `protobuf:"varint,3,opt,name=page,proto3" json:"page,omitempty"`
+	PageSize      uint32                 `protobuf:"varint,4,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentProfileAuditEventsRequest) Reset() {
+	*x = ListAgentProfileAuditEventsRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[214]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentProfileAuditEventsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentProfileAuditEventsRequest) ProtoMessage() {}
+
+func (x *ListAgentProfileAuditEventsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[214]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentProfileAuditEventsRequest.ProtoReflect.Descriptor instead.
+func (*ListAgentProfileAuditEventsRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{214}
+}
+
+func (x *ListAgentProfileAuditEventsRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *ListAgentProfileAuditEventsRequest) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
+	}
+	return ""
+}
+
+func (x *ListAgentProfileAuditEventsRequest) GetPage() uint32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListAgentProfileAuditEventsRequest) GetPageSize() uint32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type ListAgentProfileAuditEventsResponse struct {
+	state         protoimpl.MessageState    `protogen:"open.v1"`
+	Code          uint64                    `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                    `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	AuditEvents   []*AgentProfileAuditEvent `protobuf:"bytes,3,rep,name=audit_events,json=auditEvents,proto3" json:"audit_events,omitempty"`
+	Total         int64                     `protobuf:"varint,4,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentProfileAuditEventsResponse) Reset() {
+	*x = ListAgentProfileAuditEventsResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[215]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentProfileAuditEventsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentProfileAuditEventsResponse) ProtoMessage() {}
+
+func (x *ListAgentProfileAuditEventsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[215]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentProfileAuditEventsResponse.ProtoReflect.Descriptor instead.
+func (*ListAgentProfileAuditEventsResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{215}
+}
+
+func (x *ListAgentProfileAuditEventsResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *ListAgentProfileAuditEventsResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *ListAgentProfileAuditEventsResponse) GetAuditEvents() []*AgentProfileAuditEvent {
+	if x != nil {
+		return x.AuditEvents
+	}
+	return nil
+}
+
+func (x *ListAgentProfileAuditEventsResponse) GetTotal() int64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+type AgentProfileManagementAccess struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Roles              []string               `protobuf:"bytes,1,rep,name=roles,proto3" json:"roles,omitempty"`
+	StaticRoles        []string               `protobuf:"bytes,2,rep,name=static_roles,json=staticRoles,proto3" json:"static_roles,omitempty"`
+	DynamicRoles       []string               `protobuf:"bytes,3,rep,name=dynamic_roles,json=dynamicRoles,proto3" json:"dynamic_roles,omitempty"`
+	RootAdmin          bool                   `protobuf:"varint,4,opt,name=root_admin,json=rootAdmin,proto3" json:"root_admin,omitempty"`
+	DynamicRbacEnabled bool                   `protobuf:"varint,5,opt,name=dynamic_rbac_enabled,json=dynamicRbacEnabled,proto3" json:"dynamic_rbac_enabled,omitempty"`
+	ExperimentsEnabled bool                   `protobuf:"varint,6,opt,name=experiments_enabled,json=experimentsEnabled,proto3" json:"experiments_enabled,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *AgentProfileManagementAccess) Reset() {
+	*x = AgentProfileManagementAccess{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[216]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentProfileManagementAccess) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentProfileManagementAccess) ProtoMessage() {}
+
+func (x *AgentProfileManagementAccess) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[216]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentProfileManagementAccess.ProtoReflect.Descriptor instead.
+func (*AgentProfileManagementAccess) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{216}
+}
+
+func (x *AgentProfileManagementAccess) GetRoles() []string {
+	if x != nil {
+		return x.Roles
+	}
+	return nil
+}
+
+func (x *AgentProfileManagementAccess) GetStaticRoles() []string {
+	if x != nil {
+		return x.StaticRoles
+	}
+	return nil
+}
+
+func (x *AgentProfileManagementAccess) GetDynamicRoles() []string {
+	if x != nil {
+		return x.DynamicRoles
+	}
+	return nil
+}
+
+func (x *AgentProfileManagementAccess) GetRootAdmin() bool {
+	if x != nil {
+		return x.RootAdmin
+	}
+	return false
+}
+
+func (x *AgentProfileManagementAccess) GetDynamicRbacEnabled() bool {
+	if x != nil {
+		return x.DynamicRbacEnabled
+	}
+	return false
+}
+
+func (x *AgentProfileManagementAccess) GetExperimentsEnabled() bool {
+	if x != nil {
+		return x.ExperimentsEnabled
+	}
+	return false
+}
+
+type AgentProfileRoleBinding struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Roles         []string               `protobuf:"bytes,2,rep,name=roles,proto3" json:"roles,omitempty"`
+	Revision      int64                  `protobuf:"varint,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	CreatedBy     uint64                 `protobuf:"varint,4,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
+	UpdatedBy     uint64                 `protobuf:"varint,5,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
+	CreatedAt     int64                  `protobuf:"varint,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt     int64                  `protobuf:"varint,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentProfileRoleBinding) Reset() {
+	*x = AgentProfileRoleBinding{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[217]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentProfileRoleBinding) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentProfileRoleBinding) ProtoMessage() {}
+
+func (x *AgentProfileRoleBinding) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[217]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentProfileRoleBinding.ProtoReflect.Descriptor instead.
+func (*AgentProfileRoleBinding) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{217}
+}
+
+func (x *AgentProfileRoleBinding) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *AgentProfileRoleBinding) GetRoles() []string {
+	if x != nil {
+		return x.Roles
+	}
+	return nil
+}
+
+func (x *AgentProfileRoleBinding) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *AgentProfileRoleBinding) GetCreatedBy() uint64 {
+	if x != nil {
+		return x.CreatedBy
+	}
+	return 0
+}
+
+func (x *AgentProfileRoleBinding) GetUpdatedBy() uint64 {
+	if x != nil {
+		return x.UpdatedBy
+	}
+	return 0
+}
+
+func (x *AgentProfileRoleBinding) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *AgentProfileRoleBinding) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+type AgentProfileRoleAuditEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	OperationId   string                 `protobuf:"bytes,2,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	Action        string                 `protobuf:"bytes,3,opt,name=action,proto3" json:"action,omitempty"`
+	Outcome       string                 `protobuf:"bytes,4,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	ActorUserId   uint64                 `protobuf:"varint,5,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	SubjectUserId uint64                 `protobuf:"varint,6,opt,name=subject_user_id,json=subjectUserId,proto3" json:"subject_user_id,omitempty"`
+	Roles         []string               `protobuf:"bytes,7,rep,name=roles,proto3" json:"roles,omitempty"`
+	Revision      int64                  `protobuf:"varint,8,opt,name=revision,proto3" json:"revision,omitempty"`
+	ErrorCode     string                 `protobuf:"bytes,9,opt,name=error_code,json=errorCode,proto3" json:"error_code,omitempty"`
+	CreatedAt     int64                  `protobuf:"varint,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentProfileRoleAuditEvent) Reset() {
+	*x = AgentProfileRoleAuditEvent{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[218]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentProfileRoleAuditEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentProfileRoleAuditEvent) ProtoMessage() {}
+
+func (x *AgentProfileRoleAuditEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[218]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentProfileRoleAuditEvent.ProtoReflect.Descriptor instead.
+func (*AgentProfileRoleAuditEvent) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{218}
+}
+
+func (x *AgentProfileRoleAuditEvent) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *AgentProfileRoleAuditEvent) GetOperationId() string {
+	if x != nil {
+		return x.OperationId
+	}
+	return ""
+}
+
+func (x *AgentProfileRoleAuditEvent) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *AgentProfileRoleAuditEvent) GetOutcome() string {
+	if x != nil {
+		return x.Outcome
+	}
+	return ""
+}
+
+func (x *AgentProfileRoleAuditEvent) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *AgentProfileRoleAuditEvent) GetSubjectUserId() uint64 {
+	if x != nil {
+		return x.SubjectUserId
+	}
+	return 0
+}
+
+func (x *AgentProfileRoleAuditEvent) GetRoles() []string {
+	if x != nil {
+		return x.Roles
+	}
+	return nil
+}
+
+func (x *AgentProfileRoleAuditEvent) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *AgentProfileRoleAuditEvent) GetErrorCode() string {
+	if x != nil {
+		return x.ErrorCode
+	}
+	return ""
+}
+
+func (x *AgentProfileRoleAuditEvent) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+type GetAgentProfileManagementAccessRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId   uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentProfileManagementAccessRequest) Reset() {
+	*x = GetAgentProfileManagementAccessRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[219]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentProfileManagementAccessRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentProfileManagementAccessRequest) ProtoMessage() {}
+
+func (x *GetAgentProfileManagementAccessRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[219]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentProfileManagementAccessRequest.ProtoReflect.Descriptor instead.
+func (*GetAgentProfileManagementAccessRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{219}
+}
+
+func (x *GetAgentProfileManagementAccessRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+type GetAgentProfileManagementAccessResponse struct {
+	state         protoimpl.MessageState        `protogen:"open.v1"`
+	Code          uint64                        `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                        `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Access        *AgentProfileManagementAccess `protobuf:"bytes,3,opt,name=access,proto3" json:"access,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentProfileManagementAccessResponse) Reset() {
+	*x = GetAgentProfileManagementAccessResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[220]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentProfileManagementAccessResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentProfileManagementAccessResponse) ProtoMessage() {}
+
+func (x *GetAgentProfileManagementAccessResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[220]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentProfileManagementAccessResponse.ProtoReflect.Descriptor instead.
+func (*GetAgentProfileManagementAccessResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{220}
+}
+
+func (x *GetAgentProfileManagementAccessResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *GetAgentProfileManagementAccessResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *GetAgentProfileManagementAccessResponse) GetAccess() *AgentProfileManagementAccess {
+	if x != nil {
+		return x.Access
+	}
+	return nil
+}
+
+type ListAgentProfileRoleBindingsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId   uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	Page          uint32                 `protobuf:"varint,2,opt,name=page,proto3" json:"page,omitempty"`
+	PageSize      uint32                 `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentProfileRoleBindingsRequest) Reset() {
+	*x = ListAgentProfileRoleBindingsRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[221]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentProfileRoleBindingsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentProfileRoleBindingsRequest) ProtoMessage() {}
+
+func (x *ListAgentProfileRoleBindingsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[221]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentProfileRoleBindingsRequest.ProtoReflect.Descriptor instead.
+func (*ListAgentProfileRoleBindingsRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{221}
+}
+
+func (x *ListAgentProfileRoleBindingsRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *ListAgentProfileRoleBindingsRequest) GetPage() uint32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListAgentProfileRoleBindingsRequest) GetPageSize() uint32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type ListAgentProfileRoleBindingsResponse struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	Code          uint64                     `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                     `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	RoleBindings  []*AgentProfileRoleBinding `protobuf:"bytes,3,rep,name=role_bindings,json=roleBindings,proto3" json:"role_bindings,omitempty"`
+	Total         int64                      `protobuf:"varint,4,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentProfileRoleBindingsResponse) Reset() {
+	*x = ListAgentProfileRoleBindingsResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[222]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentProfileRoleBindingsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentProfileRoleBindingsResponse) ProtoMessage() {}
+
+func (x *ListAgentProfileRoleBindingsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[222]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentProfileRoleBindingsResponse.ProtoReflect.Descriptor instead.
+func (*ListAgentProfileRoleBindingsResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{222}
+}
+
+func (x *ListAgentProfileRoleBindingsResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *ListAgentProfileRoleBindingsResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *ListAgentProfileRoleBindingsResponse) GetRoleBindings() []*AgentProfileRoleBinding {
+	if x != nil {
+		return x.RoleBindings
+	}
+	return nil
+}
+
+func (x *ListAgentProfileRoleBindingsResponse) GetTotal() int64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+type UpsertAgentProfileRoleBindingRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId      uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	SubjectUserId    uint64                 `protobuf:"varint,2,opt,name=subject_user_id,json=subjectUserId,proto3" json:"subject_user_id,omitempty"`
+	Roles            []string               `protobuf:"bytes,3,rep,name=roles,proto3" json:"roles,omitempty"`
+	ExpectedRevision int64                  `protobuf:"varint,4,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *UpsertAgentProfileRoleBindingRequest) Reset() {
+	*x = UpsertAgentProfileRoleBindingRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[223]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpsertAgentProfileRoleBindingRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpsertAgentProfileRoleBindingRequest) ProtoMessage() {}
+
+func (x *UpsertAgentProfileRoleBindingRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[223]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpsertAgentProfileRoleBindingRequest.ProtoReflect.Descriptor instead.
+func (*UpsertAgentProfileRoleBindingRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{223}
+}
+
+func (x *UpsertAgentProfileRoleBindingRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *UpsertAgentProfileRoleBindingRequest) GetSubjectUserId() uint64 {
+	if x != nil {
+		return x.SubjectUserId
+	}
+	return 0
+}
+
+func (x *UpsertAgentProfileRoleBindingRequest) GetRoles() []string {
+	if x != nil {
+		return x.Roles
+	}
+	return nil
+}
+
+func (x *UpsertAgentProfileRoleBindingRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+type UpsertAgentProfileRoleBindingResponse struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	Code          uint64                   `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                   `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	RoleBinding   *AgentProfileRoleBinding `protobuf:"bytes,3,opt,name=role_binding,json=roleBinding,proto3" json:"role_binding,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpsertAgentProfileRoleBindingResponse) Reset() {
+	*x = UpsertAgentProfileRoleBindingResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[224]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpsertAgentProfileRoleBindingResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpsertAgentProfileRoleBindingResponse) ProtoMessage() {}
+
+func (x *UpsertAgentProfileRoleBindingResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[224]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpsertAgentProfileRoleBindingResponse.ProtoReflect.Descriptor instead.
+func (*UpsertAgentProfileRoleBindingResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{224}
+}
+
+func (x *UpsertAgentProfileRoleBindingResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *UpsertAgentProfileRoleBindingResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *UpsertAgentProfileRoleBindingResponse) GetRoleBinding() *AgentProfileRoleBinding {
+	if x != nil {
+		return x.RoleBinding
+	}
+	return nil
+}
+
+type DeleteAgentProfileRoleBindingRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId      uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	SubjectUserId    uint64                 `protobuf:"varint,2,opt,name=subject_user_id,json=subjectUserId,proto3" json:"subject_user_id,omitempty"`
+	ExpectedRevision int64                  `protobuf:"varint,3,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *DeleteAgentProfileRoleBindingRequest) Reset() {
+	*x = DeleteAgentProfileRoleBindingRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[225]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteAgentProfileRoleBindingRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteAgentProfileRoleBindingRequest) ProtoMessage() {}
+
+func (x *DeleteAgentProfileRoleBindingRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[225]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteAgentProfileRoleBindingRequest.ProtoReflect.Descriptor instead.
+func (*DeleteAgentProfileRoleBindingRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{225}
+}
+
+func (x *DeleteAgentProfileRoleBindingRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *DeleteAgentProfileRoleBindingRequest) GetSubjectUserId() uint64 {
+	if x != nil {
+		return x.SubjectUserId
+	}
+	return 0
+}
+
+func (x *DeleteAgentProfileRoleBindingRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+type DeleteAgentProfileRoleBindingResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteAgentProfileRoleBindingResponse) Reset() {
+	*x = DeleteAgentProfileRoleBindingResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[226]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteAgentProfileRoleBindingResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteAgentProfileRoleBindingResponse) ProtoMessage() {}
+
+func (x *DeleteAgentProfileRoleBindingResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[226]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteAgentProfileRoleBindingResponse.ProtoReflect.Descriptor instead.
+func (*DeleteAgentProfileRoleBindingResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{226}
+}
+
+func (x *DeleteAgentProfileRoleBindingResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *DeleteAgentProfileRoleBindingResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+type ListAgentProfileRoleAuditEventsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId   uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	Page          uint32                 `protobuf:"varint,2,opt,name=page,proto3" json:"page,omitempty"`
+	PageSize      uint32                 `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentProfileRoleAuditEventsRequest) Reset() {
+	*x = ListAgentProfileRoleAuditEventsRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[227]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentProfileRoleAuditEventsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentProfileRoleAuditEventsRequest) ProtoMessage() {}
+
+func (x *ListAgentProfileRoleAuditEventsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[227]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentProfileRoleAuditEventsRequest.ProtoReflect.Descriptor instead.
+func (*ListAgentProfileRoleAuditEventsRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{227}
+}
+
+func (x *ListAgentProfileRoleAuditEventsRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *ListAgentProfileRoleAuditEventsRequest) GetPage() uint32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListAgentProfileRoleAuditEventsRequest) GetPageSize() uint32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type ListAgentProfileRoleAuditEventsResponse struct {
+	state         protoimpl.MessageState        `protogen:"open.v1"`
+	Code          uint64                        `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                        `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	AuditEvents   []*AgentProfileRoleAuditEvent `protobuf:"bytes,3,rep,name=audit_events,json=auditEvents,proto3" json:"audit_events,omitempty"`
+	Total         int64                         `protobuf:"varint,4,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentProfileRoleAuditEventsResponse) Reset() {
+	*x = ListAgentProfileRoleAuditEventsResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[228]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentProfileRoleAuditEventsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentProfileRoleAuditEventsResponse) ProtoMessage() {}
+
+func (x *ListAgentProfileRoleAuditEventsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[228]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentProfileRoleAuditEventsResponse.ProtoReflect.Descriptor instead.
+func (*ListAgentProfileRoleAuditEventsResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{228}
+}
+
+func (x *ListAgentProfileRoleAuditEventsResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *ListAgentProfileRoleAuditEventsResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *ListAgentProfileRoleAuditEventsResponse) GetAuditEvents() []*AgentProfileRoleAuditEvent {
+	if x != nil {
+		return x.AuditEvents
+	}
+	return nil
+}
+
+func (x *ListAgentProfileRoleAuditEventsResponse) GetTotal() int64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+type StartAgentProfileExperimentRequest struct {
+	state                   protoimpl.MessageState        `protogen:"open.v1"`
+	ActorUserId             uint64                        `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	ProfileId               string                        `protobuf:"bytes,2,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	ExpectedReleaseRevision int64                         `protobuf:"varint,3,opt,name=expected_release_revision,json=expectedReleaseRevision,proto3" json:"expected_release_revision,omitempty"`
+	Policy                  *AgentProfileExperimentPolicy `protobuf:"bytes,4,opt,name=policy,proto3" json:"policy,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *StartAgentProfileExperimentRequest) Reset() {
+	*x = StartAgentProfileExperimentRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[229]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartAgentProfileExperimentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartAgentProfileExperimentRequest) ProtoMessage() {}
+
+func (x *StartAgentProfileExperimentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[229]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartAgentProfileExperimentRequest.ProtoReflect.Descriptor instead.
+func (*StartAgentProfileExperimentRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{229}
+}
+
+func (x *StartAgentProfileExperimentRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *StartAgentProfileExperimentRequest) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
+	}
+	return ""
+}
+
+func (x *StartAgentProfileExperimentRequest) GetExpectedReleaseRevision() int64 {
+	if x != nil {
+		return x.ExpectedReleaseRevision
+	}
+	return 0
+}
+
+func (x *StartAgentProfileExperimentRequest) GetPolicy() *AgentProfileExperimentPolicy {
+	if x != nil {
+		return x.Policy
+	}
+	return nil
+}
+
+type StartAgentProfileExperimentResponse struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Code          uint64                  `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                  `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Experiment    *AgentProfileExperiment `protobuf:"bytes,3,opt,name=experiment,proto3" json:"experiment,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartAgentProfileExperimentResponse) Reset() {
+	*x = StartAgentProfileExperimentResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[230]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartAgentProfileExperimentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartAgentProfileExperimentResponse) ProtoMessage() {}
+
+func (x *StartAgentProfileExperimentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[230]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartAgentProfileExperimentResponse.ProtoReflect.Descriptor instead.
+func (*StartAgentProfileExperimentResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{230}
+}
+
+func (x *StartAgentProfileExperimentResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *StartAgentProfileExperimentResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *StartAgentProfileExperimentResponse) GetExperiment() *AgentProfileExperiment {
+	if x != nil {
+		return x.Experiment
+	}
+	return nil
+}
+
+type ListAgentProfileExperimentsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId   uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	ProfileId     string                 `protobuf:"bytes,2,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	Page          uint32                 `protobuf:"varint,4,opt,name=page,proto3" json:"page,omitempty"`
+	PageSize      uint32                 `protobuf:"varint,5,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentProfileExperimentsRequest) Reset() {
+	*x = ListAgentProfileExperimentsRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[231]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentProfileExperimentsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentProfileExperimentsRequest) ProtoMessage() {}
+
+func (x *ListAgentProfileExperimentsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[231]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentProfileExperimentsRequest.ProtoReflect.Descriptor instead.
+func (*ListAgentProfileExperimentsRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{231}
+}
+
+func (x *ListAgentProfileExperimentsRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *ListAgentProfileExperimentsRequest) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
+	}
+	return ""
+}
+
+func (x *ListAgentProfileExperimentsRequest) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ListAgentProfileExperimentsRequest) GetPage() uint32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListAgentProfileExperimentsRequest) GetPageSize() uint32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type ListAgentProfileExperimentsResponse struct {
+	state         protoimpl.MessageState    `protogen:"open.v1"`
+	Code          uint64                    `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                    `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Experiments   []*AgentProfileExperiment `protobuf:"bytes,3,rep,name=experiments,proto3" json:"experiments,omitempty"`
+	Total         int64                     `protobuf:"varint,4,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentProfileExperimentsResponse) Reset() {
+	*x = ListAgentProfileExperimentsResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[232]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentProfileExperimentsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentProfileExperimentsResponse) ProtoMessage() {}
+
+func (x *ListAgentProfileExperimentsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[232]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentProfileExperimentsResponse.ProtoReflect.Descriptor instead.
+func (*ListAgentProfileExperimentsResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{232}
+}
+
+func (x *ListAgentProfileExperimentsResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *ListAgentProfileExperimentsResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *ListAgentProfileExperimentsResponse) GetExperiments() []*AgentProfileExperiment {
+	if x != nil {
+		return x.Experiments
+	}
+	return nil
+}
+
+func (x *ListAgentProfileExperimentsResponse) GetTotal() int64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+type GetAgentProfileExperimentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId   uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	ExperimentId  string                 `protobuf:"bytes,2,opt,name=experiment_id,json=experimentId,proto3" json:"experiment_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentProfileExperimentRequest) Reset() {
+	*x = GetAgentProfileExperimentRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[233]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentProfileExperimentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentProfileExperimentRequest) ProtoMessage() {}
+
+func (x *GetAgentProfileExperimentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[233]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentProfileExperimentRequest.ProtoReflect.Descriptor instead.
+func (*GetAgentProfileExperimentRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{233}
+}
+
+func (x *GetAgentProfileExperimentRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *GetAgentProfileExperimentRequest) GetExperimentId() string {
+	if x != nil {
+		return x.ExperimentId
+	}
+	return ""
+}
+
+type GetAgentProfileExperimentResponse struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Code          uint64                  `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                  `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Experiment    *AgentProfileExperiment `protobuf:"bytes,3,opt,name=experiment,proto3" json:"experiment,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentProfileExperimentResponse) Reset() {
+	*x = GetAgentProfileExperimentResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[234]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentProfileExperimentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentProfileExperimentResponse) ProtoMessage() {}
+
+func (x *GetAgentProfileExperimentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[234]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentProfileExperimentResponse.ProtoReflect.Descriptor instead.
+func (*GetAgentProfileExperimentResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{234}
+}
+
+func (x *GetAgentProfileExperimentResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *GetAgentProfileExperimentResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *GetAgentProfileExperimentResponse) GetExperiment() *AgentProfileExperiment {
+	if x != nil {
+		return x.Experiment
+	}
+	return nil
+}
+
+type EvaluateAgentProfileExperimentRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId      uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	ExperimentId     string                 `protobuf:"bytes,2,opt,name=experiment_id,json=experimentId,proto3" json:"experiment_id,omitempty"`
+	ExpectedRevision int64                  `protobuf:"varint,3,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *EvaluateAgentProfileExperimentRequest) Reset() {
+	*x = EvaluateAgentProfileExperimentRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[235]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EvaluateAgentProfileExperimentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EvaluateAgentProfileExperimentRequest) ProtoMessage() {}
+
+func (x *EvaluateAgentProfileExperimentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[235]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EvaluateAgentProfileExperimentRequest.ProtoReflect.Descriptor instead.
+func (*EvaluateAgentProfileExperimentRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{235}
+}
+
+func (x *EvaluateAgentProfileExperimentRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *EvaluateAgentProfileExperimentRequest) GetExperimentId() string {
+	if x != nil {
+		return x.ExperimentId
+	}
+	return ""
+}
+
+func (x *EvaluateAgentProfileExperimentRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+type EvaluateAgentProfileExperimentResponse struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Code          uint64                  `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                  `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Experiment    *AgentProfileExperiment `protobuf:"bytes,3,opt,name=experiment,proto3" json:"experiment,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EvaluateAgentProfileExperimentResponse) Reset() {
+	*x = EvaluateAgentProfileExperimentResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[236]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EvaluateAgentProfileExperimentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EvaluateAgentProfileExperimentResponse) ProtoMessage() {}
+
+func (x *EvaluateAgentProfileExperimentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[236]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EvaluateAgentProfileExperimentResponse.ProtoReflect.Descriptor instead.
+func (*EvaluateAgentProfileExperimentResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{236}
+}
+
+func (x *EvaluateAgentProfileExperimentResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *EvaluateAgentProfileExperimentResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *EvaluateAgentProfileExperimentResponse) GetExperiment() *AgentProfileExperiment {
+	if x != nil {
+		return x.Experiment
+	}
+	return nil
+}
+
+type StopAgentProfileExperimentRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId      uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	ExperimentId     string                 `protobuf:"bytes,2,opt,name=experiment_id,json=experimentId,proto3" json:"experiment_id,omitempty"`
+	ExpectedRevision int64                  `protobuf:"varint,3,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *StopAgentProfileExperimentRequest) Reset() {
+	*x = StopAgentProfileExperimentRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[237]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StopAgentProfileExperimentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StopAgentProfileExperimentRequest) ProtoMessage() {}
+
+func (x *StopAgentProfileExperimentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[237]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StopAgentProfileExperimentRequest.ProtoReflect.Descriptor instead.
+func (*StopAgentProfileExperimentRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{237}
+}
+
+func (x *StopAgentProfileExperimentRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *StopAgentProfileExperimentRequest) GetExperimentId() string {
+	if x != nil {
+		return x.ExperimentId
+	}
+	return ""
+}
+
+func (x *StopAgentProfileExperimentRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+type StopAgentProfileExperimentResponse struct {
+	state         protoimpl.MessageState  `protogen:"open.v1"`
+	Code          uint64                  `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                  `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Experiment    *AgentProfileExperiment `protobuf:"bytes,3,opt,name=experiment,proto3" json:"experiment,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StopAgentProfileExperimentResponse) Reset() {
+	*x = StopAgentProfileExperimentResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[238]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StopAgentProfileExperimentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StopAgentProfileExperimentResponse) ProtoMessage() {}
+
+func (x *StopAgentProfileExperimentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[238]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StopAgentProfileExperimentResponse.ProtoReflect.Descriptor instead.
+func (*StopAgentProfileExperimentResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{238}
+}
+
+func (x *StopAgentProfileExperimentResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *StopAgentProfileExperimentResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *StopAgentProfileExperimentResponse) GetExperiment() *AgentProfileExperiment {
+	if x != nil {
+		return x.Experiment
+	}
+	return nil
+}
+
+type RecordAgentProfileExperimentOutcomeRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId   uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	ExperimentId  string                 `protobuf:"bytes,2,opt,name=experiment_id,json=experimentId,proto3" json:"experiment_id,omitempty"`
+	EventId       string                 `protobuf:"bytes,3,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	Signal        string                 `protobuf:"bytes,4,opt,name=signal,proto3" json:"signal,omitempty"`
+	Positive      bool                   `protobuf:"varint,5,opt,name=positive,proto3" json:"positive,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordAgentProfileExperimentOutcomeRequest) Reset() {
+	*x = RecordAgentProfileExperimentOutcomeRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[239]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordAgentProfileExperimentOutcomeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordAgentProfileExperimentOutcomeRequest) ProtoMessage() {}
+
+func (x *RecordAgentProfileExperimentOutcomeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[239]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordAgentProfileExperimentOutcomeRequest.ProtoReflect.Descriptor instead.
+func (*RecordAgentProfileExperimentOutcomeRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{239}
+}
+
+func (x *RecordAgentProfileExperimentOutcomeRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *RecordAgentProfileExperimentOutcomeRequest) GetExperimentId() string {
+	if x != nil {
+		return x.ExperimentId
+	}
+	return ""
+}
+
+func (x *RecordAgentProfileExperimentOutcomeRequest) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *RecordAgentProfileExperimentOutcomeRequest) GetSignal() string {
+	if x != nil {
+		return x.Signal
+	}
+	return ""
+}
+
+func (x *RecordAgentProfileExperimentOutcomeRequest) GetPositive() bool {
+	if x != nil {
+		return x.Positive
+	}
+	return false
+}
+
+type RecordAgentProfileExperimentOutcomeResponse struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Code             uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg              string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	IdempotentReplay bool                   `protobuf:"varint,3,opt,name=idempotent_replay,json=idempotentReplay,proto3" json:"idempotent_replay,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *RecordAgentProfileExperimentOutcomeResponse) Reset() {
+	*x = RecordAgentProfileExperimentOutcomeResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[240]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordAgentProfileExperimentOutcomeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordAgentProfileExperimentOutcomeResponse) ProtoMessage() {}
+
+func (x *RecordAgentProfileExperimentOutcomeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[240]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordAgentProfileExperimentOutcomeResponse.ProtoReflect.Descriptor instead.
+func (*RecordAgentProfileExperimentOutcomeResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{240}
+}
+
+func (x *RecordAgentProfileExperimentOutcomeResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *RecordAgentProfileExperimentOutcomeResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *RecordAgentProfileExperimentOutcomeResponse) GetIdempotentReplay() bool {
+	if x != nil {
+		return x.IdempotentReplay
+	}
+	return false
+}
+
+type ExternalMCPConnection struct {
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	ConnectionId             string                 `protobuf:"bytes,1,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
+	UserId                   uint64                 `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Scope                    string                 `protobuf:"bytes,3,opt,name=scope,proto3" json:"scope,omitempty"`
+	ProjectId                string                 `protobuf:"bytes,4,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	ServerId                 string                 `protobuf:"bytes,5,opt,name=server_id,json=serverId,proto3" json:"server_id,omitempty"`
+	Name                     string                 `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`
+	Transport                string                 `protobuf:"bytes,7,opt,name=transport,proto3" json:"transport,omitempty"`
+	Endpoint                 string                 `protobuf:"bytes,8,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
+	AuthType                 string                 `protobuf:"bytes,9,opt,name=auth_type,json=authType,proto3" json:"auth_type,omitempty"`
+	CredentialSource         string                 `protobuf:"bytes,10,opt,name=credential_source,json=credentialSource,proto3" json:"credential_source,omitempty"`
+	Status                   string                 `protobuf:"bytes,11,opt,name=status,proto3" json:"status,omitempty"`
+	HasSecret                bool                   `protobuf:"varint,12,opt,name=has_secret,json=hasSecret,proto3" json:"has_secret,omitempty"`
+	CredentialVersion        int64                  `protobuf:"varint,13,opt,name=credential_version,json=credentialVersion,proto3" json:"credential_version,omitempty"`
+	LatestSnapshotId         string                 `protobuf:"bytes,14,opt,name=latest_snapshot_id,json=latestSnapshotId,proto3" json:"latest_snapshot_id,omitempty"`
+	PendingSnapshotId        string                 `protobuf:"bytes,15,opt,name=pending_snapshot_id,json=pendingSnapshotId,proto3" json:"pending_snapshot_id,omitempty"`
+	ActiveSnapshotId         string                 `protobuf:"bytes,16,opt,name=active_snapshot_id,json=activeSnapshotId,proto3" json:"active_snapshot_id,omitempty"`
+	DiscoveryStatus          string                 `protobuf:"bytes,17,opt,name=discovery_status,json=discoveryStatus,proto3" json:"discovery_status,omitempty"`
+	LastErrorCode            string                 `protobuf:"bytes,18,opt,name=last_error_code,json=lastErrorCode,proto3" json:"last_error_code,omitempty"`
+	LastCheckedAt            int64                  `protobuf:"varint,19,opt,name=last_checked_at,json=lastCheckedAt,proto3" json:"last_checked_at,omitempty"`
+	Revision                 int64                  `protobuf:"varint,20,opt,name=revision,proto3" json:"revision,omitempty"`
+	CreatedAt                int64                  `protobuf:"varint,21,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt                int64                  `protobuf:"varint,22,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	HealthStatus             string                 `protobuf:"bytes,23,opt,name=health_status,json=healthStatus,proto3" json:"health_status,omitempty"`
+	HealthErrorCode          string                 `protobuf:"bytes,24,opt,name=health_error_code,json=healthErrorCode,proto3" json:"health_error_code,omitempty"`
+	HealthFailureCount       int64                  `protobuf:"varint,25,opt,name=health_failure_count,json=healthFailureCount,proto3" json:"health_failure_count,omitempty"`
+	LastHealthCheckedAt      int64                  `protobuf:"varint,26,opt,name=last_health_checked_at,json=lastHealthCheckedAt,proto3" json:"last_health_checked_at,omitempty"`
+	LastHealthyAt            int64                  `protobuf:"varint,27,opt,name=last_healthy_at,json=lastHealthyAt,proto3" json:"last_healthy_at,omitempty"`
+	NextHealthCheckAt        int64                  `protobuf:"varint,28,opt,name=next_health_check_at,json=nextHealthCheckAt,proto3" json:"next_health_check_at,omitempty"`
+	ManagedCredentialRef     string                 `protobuf:"bytes,29,opt,name=managed_credential_ref,json=managedCredentialRef,proto3" json:"managed_credential_ref,omitempty"`
+	ManagedCredentialVersion int64                  `protobuf:"varint,30,opt,name=managed_credential_version,json=managedCredentialVersion,proto3" json:"managed_credential_version,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *ExternalMCPConnection) Reset() {
+	*x = ExternalMCPConnection{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[241]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExternalMCPConnection) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExternalMCPConnection) ProtoMessage() {}
+
+func (x *ExternalMCPConnection) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[241]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExternalMCPConnection.ProtoReflect.Descriptor instead.
+func (*ExternalMCPConnection) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{241}
+}
+
+func (x *ExternalMCPConnection) GetConnectionId() string {
+	if x != nil {
+		return x.ConnectionId
+	}
+	return ""
+}
+
+func (x *ExternalMCPConnection) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ExternalMCPConnection) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *ExternalMCPConnection) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *ExternalMCPConnection) GetServerId() string {
+	if x != nil {
+		return x.ServerId
+	}
+	return ""
+}
+
+func (x *ExternalMCPConnection) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ExternalMCPConnection) GetTransport() string {
+	if x != nil {
+		return x.Transport
+	}
+	return ""
+}
+
+func (x *ExternalMCPConnection) GetEndpoint() string {
+	if x != nil {
+		return x.Endpoint
+	}
+	return ""
+}
+
+func (x *ExternalMCPConnection) GetAuthType() string {
+	if x != nil {
+		return x.AuthType
+	}
+	return ""
+}
+
+func (x *ExternalMCPConnection) GetCredentialSource() string {
+	if x != nil {
+		return x.CredentialSource
+	}
+	return ""
+}
+
+func (x *ExternalMCPConnection) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ExternalMCPConnection) GetHasSecret() bool {
+	if x != nil {
+		return x.HasSecret
+	}
+	return false
+}
+
+func (x *ExternalMCPConnection) GetCredentialVersion() int64 {
+	if x != nil {
+		return x.CredentialVersion
+	}
+	return 0
+}
+
+func (x *ExternalMCPConnection) GetLatestSnapshotId() string {
+	if x != nil {
+		return x.LatestSnapshotId
+	}
+	return ""
+}
+
+func (x *ExternalMCPConnection) GetPendingSnapshotId() string {
+	if x != nil {
+		return x.PendingSnapshotId
+	}
+	return ""
+}
+
+func (x *ExternalMCPConnection) GetActiveSnapshotId() string {
+	if x != nil {
+		return x.ActiveSnapshotId
+	}
+	return ""
+}
+
+func (x *ExternalMCPConnection) GetDiscoveryStatus() string {
+	if x != nil {
+		return x.DiscoveryStatus
+	}
+	return ""
+}
+
+func (x *ExternalMCPConnection) GetLastErrorCode() string {
+	if x != nil {
+		return x.LastErrorCode
+	}
+	return ""
+}
+
+func (x *ExternalMCPConnection) GetLastCheckedAt() int64 {
+	if x != nil {
+		return x.LastCheckedAt
+	}
+	return 0
+}
+
+func (x *ExternalMCPConnection) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *ExternalMCPConnection) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *ExternalMCPConnection) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+func (x *ExternalMCPConnection) GetHealthStatus() string {
+	if x != nil {
+		return x.HealthStatus
+	}
+	return ""
+}
+
+func (x *ExternalMCPConnection) GetHealthErrorCode() string {
+	if x != nil {
+		return x.HealthErrorCode
+	}
+	return ""
+}
+
+func (x *ExternalMCPConnection) GetHealthFailureCount() int64 {
+	if x != nil {
+		return x.HealthFailureCount
+	}
+	return 0
+}
+
+func (x *ExternalMCPConnection) GetLastHealthCheckedAt() int64 {
+	if x != nil {
+		return x.LastHealthCheckedAt
+	}
+	return 0
+}
+
+func (x *ExternalMCPConnection) GetLastHealthyAt() int64 {
+	if x != nil {
+		return x.LastHealthyAt
+	}
+	return 0
+}
+
+func (x *ExternalMCPConnection) GetNextHealthCheckAt() int64 {
+	if x != nil {
+		return x.NextHealthCheckAt
+	}
+	return 0
+}
+
+func (x *ExternalMCPConnection) GetManagedCredentialRef() string {
+	if x != nil {
+		return x.ManagedCredentialRef
+	}
+	return ""
+}
+
+func (x *ExternalMCPConnection) GetManagedCredentialVersion() int64 {
+	if x != nil {
+		return x.ManagedCredentialVersion
+	}
+	return 0
+}
+
+type AgentProjectMember struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Role          string                 `protobuf:"bytes,2,opt,name=role,proto3" json:"role,omitempty"`
+	AddedBy       uint64                 `protobuf:"varint,3,opt,name=added_by,json=addedBy,proto3" json:"added_by,omitempty"`
+	CreatedAt     int64                  `protobuf:"varint,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt     int64                  `protobuf:"varint,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentProjectMember) Reset() {
+	*x = AgentProjectMember{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[242]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentProjectMember) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentProjectMember) ProtoMessage() {}
+
+func (x *AgentProjectMember) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[242]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentProjectMember.ProtoReflect.Descriptor instead.
+func (*AgentProjectMember) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{242}
+}
+
+func (x *AgentProjectMember) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *AgentProjectMember) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *AgentProjectMember) GetAddedBy() uint64 {
+	if x != nil {
+		return x.AddedBy
+	}
+	return 0
+}
+
+func (x *AgentProjectMember) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *AgentProjectMember) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+type AgentProject struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	OwnerId       uint64                 `protobuf:"varint,3,opt,name=owner_id,json=ownerId,proto3" json:"owner_id,omitempty"`
+	Members       []*AgentProjectMember  `protobuf:"bytes,4,rep,name=members,proto3" json:"members,omitempty"`
+	Revision      int64                  `protobuf:"varint,5,opt,name=revision,proto3" json:"revision,omitempty"`
+	CreatedAt     int64                  `protobuf:"varint,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt     int64                  `protobuf:"varint,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	CurrentRole   string                 `protobuf:"bytes,8,opt,name=current_role,json=currentRole,proto3" json:"current_role,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentProject) Reset() {
+	*x = AgentProject{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[243]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentProject) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentProject) ProtoMessage() {}
+
+func (x *AgentProject) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[243]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentProject.ProtoReflect.Descriptor instead.
+func (*AgentProject) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{243}
+}
+
+func (x *AgentProject) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *AgentProject) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *AgentProject) GetOwnerId() uint64 {
+	if x != nil {
+		return x.OwnerId
+	}
+	return 0
+}
+
+func (x *AgentProject) GetMembers() []*AgentProjectMember {
+	if x != nil {
+		return x.Members
+	}
+	return nil
+}
+
+func (x *AgentProject) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *AgentProject) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *AgentProject) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+func (x *AgentProject) GetCurrentRole() string {
+	if x != nil {
+		return x.CurrentRole
+	}
+	return ""
+}
+
+type CreateAgentProjectRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId   uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateAgentProjectRequest) Reset() {
+	*x = CreateAgentProjectRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[244]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateAgentProjectRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateAgentProjectRequest) ProtoMessage() {}
+
+func (x *CreateAgentProjectRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[244]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateAgentProjectRequest.ProtoReflect.Descriptor instead.
+func (*CreateAgentProjectRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{244}
+}
+
+func (x *CreateAgentProjectRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *CreateAgentProjectRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type CreateAgentProjectResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Project       *AgentProject          `protobuf:"bytes,3,opt,name=project,proto3" json:"project,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateAgentProjectResponse) Reset() {
+	*x = CreateAgentProjectResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[245]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateAgentProjectResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateAgentProjectResponse) ProtoMessage() {}
+
+func (x *CreateAgentProjectResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[245]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateAgentProjectResponse.ProtoReflect.Descriptor instead.
+func (*CreateAgentProjectResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{245}
+}
+
+func (x *CreateAgentProjectResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *CreateAgentProjectResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *CreateAgentProjectResponse) GetProject() *AgentProject {
+	if x != nil {
+		return x.Project
+	}
+	return nil
+}
+
+type ListAgentProjectsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Page          uint32                 `protobuf:"varint,2,opt,name=page,proto3" json:"page,omitempty"`
+	PageSize      uint32                 `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentProjectsRequest) Reset() {
+	*x = ListAgentProjectsRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[246]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentProjectsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentProjectsRequest) ProtoMessage() {}
+
+func (x *ListAgentProjectsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[246]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentProjectsRequest.ProtoReflect.Descriptor instead.
+func (*ListAgentProjectsRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{246}
+}
+
+func (x *ListAgentProjectsRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ListAgentProjectsRequest) GetPage() uint32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListAgentProjectsRequest) GetPageSize() uint32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type ListAgentProjectsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Projects      []*AgentProject        `protobuf:"bytes,3,rep,name=projects,proto3" json:"projects,omitempty"`
+	Total         int64                  `protobuf:"varint,4,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentProjectsResponse) Reset() {
+	*x = ListAgentProjectsResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[247]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentProjectsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentProjectsResponse) ProtoMessage() {}
+
+func (x *ListAgentProjectsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[247]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentProjectsResponse.ProtoReflect.Descriptor instead.
+func (*ListAgentProjectsResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{247}
+}
+
+func (x *ListAgentProjectsResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *ListAgentProjectsResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *ListAgentProjectsResponse) GetProjects() []*AgentProject {
+	if x != nil {
+		return x.Projects
+	}
+	return nil
+}
+
+func (x *ListAgentProjectsResponse) GetTotal() int64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+type GetAgentProjectRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentProjectRequest) Reset() {
+	*x = GetAgentProjectRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[248]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentProjectRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentProjectRequest) ProtoMessage() {}
+
+func (x *GetAgentProjectRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[248]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentProjectRequest.ProtoReflect.Descriptor instead.
+func (*GetAgentProjectRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{248}
+}
+
+func (x *GetAgentProjectRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *GetAgentProjectRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+type GetAgentProjectResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Project       *AgentProject          `protobuf:"bytes,3,opt,name=project,proto3" json:"project,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentProjectResponse) Reset() {
+	*x = GetAgentProjectResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[249]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentProjectResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentProjectResponse) ProtoMessage() {}
+
+func (x *GetAgentProjectResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[249]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentProjectResponse.ProtoReflect.Descriptor instead.
+func (*GetAgentProjectResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{249}
+}
+
+func (x *GetAgentProjectResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *GetAgentProjectResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *GetAgentProjectResponse) GetProject() *AgentProject {
+	if x != nil {
+		return x.Project
+	}
+	return nil
+}
+
+type UpsertAgentProjectMemberRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId      uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	ProjectId        string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	TargetUserId     uint64                 `protobuf:"varint,3,opt,name=target_user_id,json=targetUserId,proto3" json:"target_user_id,omitempty"`
+	Role             string                 `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
+	ExpectedRevision int64                  `protobuf:"varint,5,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *UpsertAgentProjectMemberRequest) Reset() {
+	*x = UpsertAgentProjectMemberRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[250]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpsertAgentProjectMemberRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpsertAgentProjectMemberRequest) ProtoMessage() {}
+
+func (x *UpsertAgentProjectMemberRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[250]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpsertAgentProjectMemberRequest.ProtoReflect.Descriptor instead.
+func (*UpsertAgentProjectMemberRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{250}
+}
+
+func (x *UpsertAgentProjectMemberRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *UpsertAgentProjectMemberRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *UpsertAgentProjectMemberRequest) GetTargetUserId() uint64 {
+	if x != nil {
+		return x.TargetUserId
+	}
+	return 0
+}
+
+func (x *UpsertAgentProjectMemberRequest) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *UpsertAgentProjectMemberRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+type UpsertAgentProjectMemberResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Project       *AgentProject          `protobuf:"bytes,3,opt,name=project,proto3" json:"project,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpsertAgentProjectMemberResponse) Reset() {
+	*x = UpsertAgentProjectMemberResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[251]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpsertAgentProjectMemberResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpsertAgentProjectMemberResponse) ProtoMessage() {}
+
+func (x *UpsertAgentProjectMemberResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[251]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpsertAgentProjectMemberResponse.ProtoReflect.Descriptor instead.
+func (*UpsertAgentProjectMemberResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{251}
+}
+
+func (x *UpsertAgentProjectMemberResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *UpsertAgentProjectMemberResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *UpsertAgentProjectMemberResponse) GetProject() *AgentProject {
+	if x != nil {
+		return x.Project
+	}
+	return nil
+}
+
+type RemoveAgentProjectMemberRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ActorUserId      uint64                 `protobuf:"varint,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	ProjectId        string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	TargetUserId     uint64                 `protobuf:"varint,3,opt,name=target_user_id,json=targetUserId,proto3" json:"target_user_id,omitempty"`
+	ExpectedRevision int64                  `protobuf:"varint,4,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *RemoveAgentProjectMemberRequest) Reset() {
+	*x = RemoveAgentProjectMemberRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[252]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveAgentProjectMemberRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveAgentProjectMemberRequest) ProtoMessage() {}
+
+func (x *RemoveAgentProjectMemberRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[252]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveAgentProjectMemberRequest.ProtoReflect.Descriptor instead.
+func (*RemoveAgentProjectMemberRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{252}
+}
+
+func (x *RemoveAgentProjectMemberRequest) GetActorUserId() uint64 {
+	if x != nil {
+		return x.ActorUserId
+	}
+	return 0
+}
+
+func (x *RemoveAgentProjectMemberRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *RemoveAgentProjectMemberRequest) GetTargetUserId() uint64 {
+	if x != nil {
+		return x.TargetUserId
+	}
+	return 0
+}
+
+func (x *RemoveAgentProjectMemberRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+type RemoveAgentProjectMemberResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Project       *AgentProject          `protobuf:"bytes,3,opt,name=project,proto3" json:"project,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveAgentProjectMemberResponse) Reset() {
+	*x = RemoveAgentProjectMemberResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[253]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveAgentProjectMemberResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveAgentProjectMemberResponse) ProtoMessage() {}
+
+func (x *RemoveAgentProjectMemberResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[253]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveAgentProjectMemberResponse.ProtoReflect.Descriptor instead.
+func (*RemoveAgentProjectMemberResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{253}
+}
+
+func (x *RemoveAgentProjectMemberResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *RemoveAgentProjectMemberResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *RemoveAgentProjectMemberResponse) GetProject() *AgentProject {
+	if x != nil {
+		return x.Project
+	}
+	return nil
+}
+
+type ExternalMCPToolSchema struct {
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	Name                     string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	QualifiedName            string                 `protobuf:"bytes,2,opt,name=qualified_name,json=qualifiedName,proto3" json:"qualified_name,omitempty"`
+	Description              string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	InputSchemaJson          string                 `protobuf:"bytes,4,opt,name=input_schema_json,json=inputSchemaJson,proto3" json:"input_schema_json,omitempty"`
+	OutputSchemaJson         string                 `protobuf:"bytes,5,opt,name=output_schema_json,json=outputSchemaJson,proto3" json:"output_schema_json,omitempty"`
+	DeclaredReadOnly         bool                   `protobuf:"varint,6,opt,name=declared_read_only,json=declaredReadOnly,proto3" json:"declared_read_only,omitempty"`
+	DeclaredIdempotent       bool                   `protobuf:"varint,7,opt,name=declared_idempotent,json=declaredIdempotent,proto3" json:"declared_idempotent,omitempty"`
+	IdempotencyKeyArgument   string                 `protobuf:"bytes,8,opt,name=idempotency_key_argument,json=idempotencyKeyArgument,proto3" json:"idempotency_key_argument,omitempty"`
+	SupportsWriteIdempotency bool                   `protobuf:"varint,9,opt,name=supports_write_idempotency,json=supportsWriteIdempotency,proto3" json:"supports_write_idempotency,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *ExternalMCPToolSchema) Reset() {
+	*x = ExternalMCPToolSchema{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[254]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExternalMCPToolSchema) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExternalMCPToolSchema) ProtoMessage() {}
+
+func (x *ExternalMCPToolSchema) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[254]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExternalMCPToolSchema.ProtoReflect.Descriptor instead.
+func (*ExternalMCPToolSchema) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{254}
+}
+
+func (x *ExternalMCPToolSchema) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ExternalMCPToolSchema) GetQualifiedName() string {
+	if x != nil {
+		return x.QualifiedName
+	}
+	return ""
+}
+
+func (x *ExternalMCPToolSchema) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *ExternalMCPToolSchema) GetInputSchemaJson() string {
+	if x != nil {
+		return x.InputSchemaJson
+	}
+	return ""
+}
+
+func (x *ExternalMCPToolSchema) GetOutputSchemaJson() string {
+	if x != nil {
+		return x.OutputSchemaJson
+	}
+	return ""
+}
+
+func (x *ExternalMCPToolSchema) GetDeclaredReadOnly() bool {
+	if x != nil {
+		return x.DeclaredReadOnly
+	}
+	return false
+}
+
+func (x *ExternalMCPToolSchema) GetDeclaredIdempotent() bool {
+	if x != nil {
+		return x.DeclaredIdempotent
+	}
+	return false
+}
+
+func (x *ExternalMCPToolSchema) GetIdempotencyKeyArgument() string {
+	if x != nil {
+		return x.IdempotencyKeyArgument
+	}
+	return ""
+}
+
+func (x *ExternalMCPToolSchema) GetSupportsWriteIdempotency() bool {
+	if x != nil {
+		return x.SupportsWriteIdempotency
+	}
+	return false
+}
+
+type ExternalMCPToolPolicy struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SnapshotId    string                 `protobuf:"bytes,1,opt,name=snapshot_id,json=snapshotId,proto3" json:"snapshot_id,omitempty"`
+	ToolName      string                 `protobuf:"bytes,2,opt,name=tool_name,json=toolName,proto3" json:"tool_name,omitempty"`
+	QualifiedName string                 `protobuf:"bytes,3,opt,name=qualified_name,json=qualifiedName,proto3" json:"qualified_name,omitempty"`
+	Category      string                 `protobuf:"bytes,4,opt,name=category,proto3" json:"category,omitempty"`
+	Enabled       bool                   `protobuf:"varint,5,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	UpdatedAt     int64                  `protobuf:"varint,6,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExternalMCPToolPolicy) Reset() {
+	*x = ExternalMCPToolPolicy{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[255]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExternalMCPToolPolicy) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExternalMCPToolPolicy) ProtoMessage() {}
+
+func (x *ExternalMCPToolPolicy) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[255]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExternalMCPToolPolicy.ProtoReflect.Descriptor instead.
+func (*ExternalMCPToolPolicy) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{255}
+}
+
+func (x *ExternalMCPToolPolicy) GetSnapshotId() string {
+	if x != nil {
+		return x.SnapshotId
+	}
+	return ""
+}
+
+func (x *ExternalMCPToolPolicy) GetToolName() string {
+	if x != nil {
+		return x.ToolName
+	}
+	return ""
+}
+
+func (x *ExternalMCPToolPolicy) GetQualifiedName() string {
+	if x != nil {
+		return x.QualifiedName
+	}
+	return ""
+}
+
+func (x *ExternalMCPToolPolicy) GetCategory() string {
+	if x != nil {
+		return x.Category
+	}
+	return ""
+}
+
+func (x *ExternalMCPToolPolicy) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *ExternalMCPToolPolicy) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+type ExternalMCPToolView struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Schema        *ExternalMCPToolSchema `protobuf:"bytes,1,opt,name=schema,proto3" json:"schema,omitempty"`
+	Policy        *ExternalMCPToolPolicy `protobuf:"bytes,2,opt,name=policy,proto3" json:"policy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExternalMCPToolView) Reset() {
+	*x = ExternalMCPToolView{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[256]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExternalMCPToolView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExternalMCPToolView) ProtoMessage() {}
+
+func (x *ExternalMCPToolView) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[256]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExternalMCPToolView.ProtoReflect.Descriptor instead.
+func (*ExternalMCPToolView) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{256}
+}
+
+func (x *ExternalMCPToolView) GetSchema() *ExternalMCPToolSchema {
+	if x != nil {
+		return x.Schema
+	}
+	return nil
+}
+
+func (x *ExternalMCPToolView) GetPolicy() *ExternalMCPToolPolicy {
+	if x != nil {
+		return x.Policy
+	}
+	return nil
+}
+
+type ExternalMCPToolSnapshot struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	SnapshotId    string                   `protobuf:"bytes,1,opt,name=snapshot_id,json=snapshotId,proto3" json:"snapshot_id,omitempty"`
+	ConnectionId  string                   `protobuf:"bytes,2,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
+	UserId        uint64                   `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	ServerId      string                   `protobuf:"bytes,4,opt,name=server_id,json=serverId,proto3" json:"server_id,omitempty"`
+	SchemaHash    string                   `protobuf:"bytes,5,opt,name=schema_hash,json=schemaHash,proto3" json:"schema_hash,omitempty"`
+	Version       int64                    `protobuf:"varint,6,opt,name=version,proto3" json:"version,omitempty"`
+	Tools         []*ExternalMCPToolSchema `protobuf:"bytes,7,rep,name=tools,proto3" json:"tools,omitempty"`
+	CreatedAt     int64                    `protobuf:"varint,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExternalMCPToolSnapshot) Reset() {
+	*x = ExternalMCPToolSnapshot{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[257]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExternalMCPToolSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExternalMCPToolSnapshot) ProtoMessage() {}
+
+func (x *ExternalMCPToolSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[257]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExternalMCPToolSnapshot.ProtoReflect.Descriptor instead.
+func (*ExternalMCPToolSnapshot) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{257}
+}
+
+func (x *ExternalMCPToolSnapshot) GetSnapshotId() string {
+	if x != nil {
+		return x.SnapshotId
+	}
+	return ""
+}
+
+func (x *ExternalMCPToolSnapshot) GetConnectionId() string {
+	if x != nil {
+		return x.ConnectionId
+	}
+	return ""
+}
+
+func (x *ExternalMCPToolSnapshot) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ExternalMCPToolSnapshot) GetServerId() string {
+	if x != nil {
+		return x.ServerId
+	}
+	return ""
+}
+
+func (x *ExternalMCPToolSnapshot) GetSchemaHash() string {
+	if x != nil {
+		return x.SchemaHash
+	}
+	return ""
+}
+
+func (x *ExternalMCPToolSnapshot) GetVersion() int64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *ExternalMCPToolSnapshot) GetTools() []*ExternalMCPToolSchema {
+	if x != nil {
+		return x.Tools
+	}
+	return nil
+}
+
+func (x *ExternalMCPToolSnapshot) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+type CreateExternalMCPConnectionRequest struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	UserId               uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Scope                string                 `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
+	ProjectId            string                 `protobuf:"bytes,3,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Name                 string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
+	Transport            string                 `protobuf:"bytes,5,opt,name=transport,proto3" json:"transport,omitempty"`
+	Endpoint             string                 `protobuf:"bytes,6,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
+	AuthType             string                 `protobuf:"bytes,7,opt,name=auth_type,json=authType,proto3" json:"auth_type,omitempty"`
+	BearerToken          string                 `protobuf:"bytes,8,opt,name=bearer_token,json=bearerToken,proto3" json:"bearer_token,omitempty"`
+	CredentialSource     string                 `protobuf:"bytes,9,opt,name=credential_source,json=credentialSource,proto3" json:"credential_source,omitempty"`
+	ManagedCredentialRef string                 `protobuf:"bytes,10,opt,name=managed_credential_ref,json=managedCredentialRef,proto3" json:"managed_credential_ref,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *CreateExternalMCPConnectionRequest) Reset() {
+	*x = CreateExternalMCPConnectionRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[258]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateExternalMCPConnectionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateExternalMCPConnectionRequest) ProtoMessage() {}
+
+func (x *CreateExternalMCPConnectionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[258]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateExternalMCPConnectionRequest.ProtoReflect.Descriptor instead.
+func (*CreateExternalMCPConnectionRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{258}
+}
+
+func (x *CreateExternalMCPConnectionRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *CreateExternalMCPConnectionRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *CreateExternalMCPConnectionRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *CreateExternalMCPConnectionRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateExternalMCPConnectionRequest) GetTransport() string {
+	if x != nil {
+		return x.Transport
+	}
+	return ""
+}
+
+func (x *CreateExternalMCPConnectionRequest) GetEndpoint() string {
+	if x != nil {
+		return x.Endpoint
+	}
+	return ""
+}
+
+func (x *CreateExternalMCPConnectionRequest) GetAuthType() string {
+	if x != nil {
+		return x.AuthType
+	}
+	return ""
+}
+
+func (x *CreateExternalMCPConnectionRequest) GetBearerToken() string {
+	if x != nil {
+		return x.BearerToken
+	}
+	return ""
+}
+
+func (x *CreateExternalMCPConnectionRequest) GetCredentialSource() string {
+	if x != nil {
+		return x.CredentialSource
+	}
+	return ""
+}
+
+func (x *CreateExternalMCPConnectionRequest) GetManagedCredentialRef() string {
+	if x != nil {
+		return x.ManagedCredentialRef
+	}
+	return ""
+}
+
+type CreateExternalMCPConnectionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Connection    *ExternalMCPConnection `protobuf:"bytes,3,opt,name=connection,proto3" json:"connection,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateExternalMCPConnectionResponse) Reset() {
+	*x = CreateExternalMCPConnectionResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[259]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateExternalMCPConnectionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateExternalMCPConnectionResponse) ProtoMessage() {}
+
+func (x *CreateExternalMCPConnectionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[259]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateExternalMCPConnectionResponse.ProtoReflect.Descriptor instead.
+func (*CreateExternalMCPConnectionResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{259}
+}
+
+func (x *CreateExternalMCPConnectionResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *CreateExternalMCPConnectionResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *CreateExternalMCPConnectionResponse) GetConnection() *ExternalMCPConnection {
+	if x != nil {
+		return x.Connection
+	}
+	return nil
+}
+
+type UpdateExternalMCPConnectionRequest struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	UserId               uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	ConnectionId         string                 `protobuf:"bytes,2,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
+	Scope                string                 `protobuf:"bytes,3,opt,name=scope,proto3" json:"scope,omitempty"`
+	ProjectId            string                 `protobuf:"bytes,4,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Name                 string                 `protobuf:"bytes,5,opt,name=name,proto3" json:"name,omitempty"`
+	Transport            string                 `protobuf:"bytes,6,opt,name=transport,proto3" json:"transport,omitempty"`
+	Endpoint             string                 `protobuf:"bytes,7,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
+	AuthType             string                 `protobuf:"bytes,8,opt,name=auth_type,json=authType,proto3" json:"auth_type,omitempty"`
+	BearerToken          string                 `protobuf:"bytes,9,opt,name=bearer_token,json=bearerToken,proto3" json:"bearer_token,omitempty"`
+	ExpectedRevision     int64                  `protobuf:"varint,10,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	CredentialSource     string                 `protobuf:"bytes,11,opt,name=credential_source,json=credentialSource,proto3" json:"credential_source,omitempty"`
+	ManagedCredentialRef string                 `protobuf:"bytes,12,opt,name=managed_credential_ref,json=managedCredentialRef,proto3" json:"managed_credential_ref,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *UpdateExternalMCPConnectionRequest) Reset() {
+	*x = UpdateExternalMCPConnectionRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[260]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateExternalMCPConnectionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateExternalMCPConnectionRequest) ProtoMessage() {}
+
+func (x *UpdateExternalMCPConnectionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[260]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateExternalMCPConnectionRequest.ProtoReflect.Descriptor instead.
+func (*UpdateExternalMCPConnectionRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{260}
+}
+
+func (x *UpdateExternalMCPConnectionRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *UpdateExternalMCPConnectionRequest) GetConnectionId() string {
+	if x != nil {
+		return x.ConnectionId
+	}
+	return ""
+}
+
+func (x *UpdateExternalMCPConnectionRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *UpdateExternalMCPConnectionRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *UpdateExternalMCPConnectionRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *UpdateExternalMCPConnectionRequest) GetTransport() string {
+	if x != nil {
+		return x.Transport
+	}
+	return ""
+}
+
+func (x *UpdateExternalMCPConnectionRequest) GetEndpoint() string {
+	if x != nil {
+		return x.Endpoint
+	}
+	return ""
+}
+
+func (x *UpdateExternalMCPConnectionRequest) GetAuthType() string {
+	if x != nil {
+		return x.AuthType
+	}
+	return ""
+}
+
+func (x *UpdateExternalMCPConnectionRequest) GetBearerToken() string {
+	if x != nil {
+		return x.BearerToken
+	}
+	return ""
+}
+
+func (x *UpdateExternalMCPConnectionRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+func (x *UpdateExternalMCPConnectionRequest) GetCredentialSource() string {
+	if x != nil {
+		return x.CredentialSource
+	}
+	return ""
+}
+
+func (x *UpdateExternalMCPConnectionRequest) GetManagedCredentialRef() string {
+	if x != nil {
+		return x.ManagedCredentialRef
+	}
+	return ""
+}
+
+type UpdateExternalMCPConnectionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Connection    *ExternalMCPConnection `protobuf:"bytes,3,opt,name=connection,proto3" json:"connection,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateExternalMCPConnectionResponse) Reset() {
+	*x = UpdateExternalMCPConnectionResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[261]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateExternalMCPConnectionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateExternalMCPConnectionResponse) ProtoMessage() {}
+
+func (x *UpdateExternalMCPConnectionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[261]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateExternalMCPConnectionResponse.ProtoReflect.Descriptor instead.
+func (*UpdateExternalMCPConnectionResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{261}
+}
+
+func (x *UpdateExternalMCPConnectionResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *UpdateExternalMCPConnectionResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *UpdateExternalMCPConnectionResponse) GetConnection() *ExternalMCPConnection {
+	if x != nil {
+		return x.Connection
+	}
+	return nil
+}
+
+type ListExternalMCPConnectionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Page          uint32                 `protobuf:"varint,2,opt,name=page,proto3" json:"page,omitempty"`
+	PageSize      uint32                 `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListExternalMCPConnectionsRequest) Reset() {
+	*x = ListExternalMCPConnectionsRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[262]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListExternalMCPConnectionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListExternalMCPConnectionsRequest) ProtoMessage() {}
+
+func (x *ListExternalMCPConnectionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[262]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListExternalMCPConnectionsRequest.ProtoReflect.Descriptor instead.
+func (*ListExternalMCPConnectionsRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{262}
+}
+
+func (x *ListExternalMCPConnectionsRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ListExternalMCPConnectionsRequest) GetPage() uint32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListExternalMCPConnectionsRequest) GetPageSize() uint32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type ListExternalMCPConnectionsResponse struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	Code          uint64                   `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                   `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Connections   []*ExternalMCPConnection `protobuf:"bytes,3,rep,name=connections,proto3" json:"connections,omitempty"`
+	Total         int64                    `protobuf:"varint,4,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListExternalMCPConnectionsResponse) Reset() {
+	*x = ListExternalMCPConnectionsResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[263]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListExternalMCPConnectionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListExternalMCPConnectionsResponse) ProtoMessage() {}
+
+func (x *ListExternalMCPConnectionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[263]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListExternalMCPConnectionsResponse.ProtoReflect.Descriptor instead.
+func (*ListExternalMCPConnectionsResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{263}
+}
+
+func (x *ListExternalMCPConnectionsResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *ListExternalMCPConnectionsResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *ListExternalMCPConnectionsResponse) GetConnections() []*ExternalMCPConnection {
+	if x != nil {
+		return x.Connections
+	}
+	return nil
+}
+
+func (x *ListExternalMCPConnectionsResponse) GetTotal() int64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+type GetExternalMCPConnectionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	ConnectionId  string                 `protobuf:"bytes,2,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetExternalMCPConnectionRequest) Reset() {
+	*x = GetExternalMCPConnectionRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[264]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetExternalMCPConnectionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetExternalMCPConnectionRequest) ProtoMessage() {}
+
+func (x *GetExternalMCPConnectionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[264]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetExternalMCPConnectionRequest.ProtoReflect.Descriptor instead.
+func (*GetExternalMCPConnectionRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{264}
+}
+
+func (x *GetExternalMCPConnectionRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *GetExternalMCPConnectionRequest) GetConnectionId() string {
+	if x != nil {
+		return x.ConnectionId
+	}
+	return ""
+}
+
+type GetExternalMCPConnectionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Connection    *ExternalMCPConnection `protobuf:"bytes,3,opt,name=connection,proto3" json:"connection,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetExternalMCPConnectionResponse) Reset() {
+	*x = GetExternalMCPConnectionResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[265]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetExternalMCPConnectionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetExternalMCPConnectionResponse) ProtoMessage() {}
+
+func (x *GetExternalMCPConnectionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[265]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetExternalMCPConnectionResponse.ProtoReflect.Descriptor instead.
+func (*GetExternalMCPConnectionResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{265}
+}
+
+func (x *GetExternalMCPConnectionResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *GetExternalMCPConnectionResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *GetExternalMCPConnectionResponse) GetConnection() *ExternalMCPConnection {
+	if x != nil {
+		return x.Connection
+	}
+	return nil
+}
+
+type RevokeExternalMCPConnectionRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	UserId           uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	ConnectionId     string                 `protobuf:"bytes,2,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
+	ExpectedRevision int64                  `protobuf:"varint,3,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *RevokeExternalMCPConnectionRequest) Reset() {
+	*x = RevokeExternalMCPConnectionRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[266]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeExternalMCPConnectionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeExternalMCPConnectionRequest) ProtoMessage() {}
+
+func (x *RevokeExternalMCPConnectionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[266]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeExternalMCPConnectionRequest.ProtoReflect.Descriptor instead.
+func (*RevokeExternalMCPConnectionRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{266}
+}
+
+func (x *RevokeExternalMCPConnectionRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *RevokeExternalMCPConnectionRequest) GetConnectionId() string {
+	if x != nil {
+		return x.ConnectionId
+	}
+	return ""
+}
+
+func (x *RevokeExternalMCPConnectionRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+type RevokeExternalMCPConnectionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeExternalMCPConnectionResponse) Reset() {
+	*x = RevokeExternalMCPConnectionResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[267]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeExternalMCPConnectionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeExternalMCPConnectionResponse) ProtoMessage() {}
+
+func (x *RevokeExternalMCPConnectionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[267]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeExternalMCPConnectionResponse.ProtoReflect.Descriptor instead.
+func (*RevokeExternalMCPConnectionResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{267}
+}
+
+func (x *RevokeExternalMCPConnectionResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *RevokeExternalMCPConnectionResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+type DiscoverExternalMCPToolsRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	UserId           uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	ConnectionId     string                 `protobuf:"bytes,2,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
+	ExpectedRevision int64                  `protobuf:"varint,3,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *DiscoverExternalMCPToolsRequest) Reset() {
+	*x = DiscoverExternalMCPToolsRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[268]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiscoverExternalMCPToolsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiscoverExternalMCPToolsRequest) ProtoMessage() {}
+
+func (x *DiscoverExternalMCPToolsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[268]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiscoverExternalMCPToolsRequest.ProtoReflect.Descriptor instead.
+func (*DiscoverExternalMCPToolsRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{268}
+}
+
+func (x *DiscoverExternalMCPToolsRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *DiscoverExternalMCPToolsRequest) GetConnectionId() string {
+	if x != nil {
+		return x.ConnectionId
+	}
+	return ""
+}
+
+func (x *DiscoverExternalMCPToolsRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+type DiscoverExternalMCPToolsResponse struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	Code          uint64                   `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                   `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Connection    *ExternalMCPConnection   `protobuf:"bytes,3,opt,name=connection,proto3" json:"connection,omitempty"`
+	Snapshot      *ExternalMCPToolSnapshot `protobuf:"bytes,4,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DiscoverExternalMCPToolsResponse) Reset() {
+	*x = DiscoverExternalMCPToolsResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[269]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiscoverExternalMCPToolsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiscoverExternalMCPToolsResponse) ProtoMessage() {}
+
+func (x *DiscoverExternalMCPToolsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[269]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiscoverExternalMCPToolsResponse.ProtoReflect.Descriptor instead.
+func (*DiscoverExternalMCPToolsResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{269}
+}
+
+func (x *DiscoverExternalMCPToolsResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *DiscoverExternalMCPToolsResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *DiscoverExternalMCPToolsResponse) GetConnection() *ExternalMCPConnection {
+	if x != nil {
+		return x.Connection
+	}
+	return nil
+}
+
+func (x *DiscoverExternalMCPToolsResponse) GetSnapshot() *ExternalMCPToolSnapshot {
+	if x != nil {
+		return x.Snapshot
+	}
+	return nil
+}
+
+type ApproveExternalMCPSnapshotRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	UserId           uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	ConnectionId     string                 `protobuf:"bytes,2,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
+	SnapshotId       string                 `protobuf:"bytes,3,opt,name=snapshot_id,json=snapshotId,proto3" json:"snapshot_id,omitempty"`
+	ExpectedRevision int64                  `protobuf:"varint,4,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ApproveExternalMCPSnapshotRequest) Reset() {
+	*x = ApproveExternalMCPSnapshotRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[270]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApproveExternalMCPSnapshotRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApproveExternalMCPSnapshotRequest) ProtoMessage() {}
+
+func (x *ApproveExternalMCPSnapshotRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[270]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApproveExternalMCPSnapshotRequest.ProtoReflect.Descriptor instead.
+func (*ApproveExternalMCPSnapshotRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{270}
+}
+
+func (x *ApproveExternalMCPSnapshotRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ApproveExternalMCPSnapshotRequest) GetConnectionId() string {
+	if x != nil {
+		return x.ConnectionId
+	}
+	return ""
+}
+
+func (x *ApproveExternalMCPSnapshotRequest) GetSnapshotId() string {
+	if x != nil {
+		return x.SnapshotId
+	}
+	return ""
+}
+
+func (x *ApproveExternalMCPSnapshotRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+type ApproveExternalMCPSnapshotResponse struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	Code          uint64                   `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                   `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Connection    *ExternalMCPConnection   `protobuf:"bytes,3,opt,name=connection,proto3" json:"connection,omitempty"`
+	Snapshot      *ExternalMCPToolSnapshot `protobuf:"bytes,4,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ApproveExternalMCPSnapshotResponse) Reset() {
+	*x = ApproveExternalMCPSnapshotResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[271]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApproveExternalMCPSnapshotResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApproveExternalMCPSnapshotResponse) ProtoMessage() {}
+
+func (x *ApproveExternalMCPSnapshotResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[271]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApproveExternalMCPSnapshotResponse.ProtoReflect.Descriptor instead.
+func (*ApproveExternalMCPSnapshotResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{271}
+}
+
+func (x *ApproveExternalMCPSnapshotResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *ApproveExternalMCPSnapshotResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *ApproveExternalMCPSnapshotResponse) GetConnection() *ExternalMCPConnection {
+	if x != nil {
+		return x.Connection
+	}
+	return nil
+}
+
+func (x *ApproveExternalMCPSnapshotResponse) GetSnapshot() *ExternalMCPToolSnapshot {
+	if x != nil {
+		return x.Snapshot
+	}
+	return nil
+}
+
+type ListExternalMCPToolsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	ConnectionId  string                 `protobuf:"bytes,2,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListExternalMCPToolsRequest) Reset() {
+	*x = ListExternalMCPToolsRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[272]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListExternalMCPToolsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListExternalMCPToolsRequest) ProtoMessage() {}
+
+func (x *ListExternalMCPToolsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[272]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListExternalMCPToolsRequest.ProtoReflect.Descriptor instead.
+func (*ListExternalMCPToolsRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{272}
+}
+
+func (x *ListExternalMCPToolsRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ListExternalMCPToolsRequest) GetConnectionId() string {
+	if x != nil {
+		return x.ConnectionId
+	}
+	return ""
+}
+
+type ListExternalMCPToolsResponse struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	Code          uint64                   `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                   `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Connection    *ExternalMCPConnection   `protobuf:"bytes,3,opt,name=connection,proto3" json:"connection,omitempty"`
+	Snapshot      *ExternalMCPToolSnapshot `protobuf:"bytes,4,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
+	Tools         []*ExternalMCPToolView   `protobuf:"bytes,5,rep,name=tools,proto3" json:"tools,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListExternalMCPToolsResponse) Reset() {
+	*x = ListExternalMCPToolsResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[273]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListExternalMCPToolsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListExternalMCPToolsResponse) ProtoMessage() {}
+
+func (x *ListExternalMCPToolsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[273]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListExternalMCPToolsResponse.ProtoReflect.Descriptor instead.
+func (*ListExternalMCPToolsResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{273}
+}
+
+func (x *ListExternalMCPToolsResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *ListExternalMCPToolsResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *ListExternalMCPToolsResponse) GetConnection() *ExternalMCPConnection {
+	if x != nil {
+		return x.Connection
+	}
+	return nil
+}
+
+func (x *ListExternalMCPToolsResponse) GetSnapshot() *ExternalMCPToolSnapshot {
+	if x != nil {
+		return x.Snapshot
+	}
+	return nil
+}
+
+func (x *ListExternalMCPToolsResponse) GetTools() []*ExternalMCPToolView {
+	if x != nil {
+		return x.Tools
+	}
+	return nil
+}
+
+type ConfigureExternalMCPToolRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	UserId           uint64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	ConnectionId     string                 `protobuf:"bytes,2,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
+	SnapshotId       string                 `protobuf:"bytes,3,opt,name=snapshot_id,json=snapshotId,proto3" json:"snapshot_id,omitempty"`
+	ToolName         string                 `protobuf:"bytes,4,opt,name=tool_name,json=toolName,proto3" json:"tool_name,omitempty"`
+	Category         string                 `protobuf:"bytes,5,opt,name=category,proto3" json:"category,omitempty"`
+	Enabled          bool                   `protobuf:"varint,6,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	ExpectedRevision int64                  `protobuf:"varint,7,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ConfigureExternalMCPToolRequest) Reset() {
+	*x = ConfigureExternalMCPToolRequest{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[274]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigureExternalMCPToolRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigureExternalMCPToolRequest) ProtoMessage() {}
+
+func (x *ConfigureExternalMCPToolRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[274]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigureExternalMCPToolRequest.ProtoReflect.Descriptor instead.
+func (*ConfigureExternalMCPToolRequest) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{274}
+}
+
+func (x *ConfigureExternalMCPToolRequest) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *ConfigureExternalMCPToolRequest) GetConnectionId() string {
+	if x != nil {
+		return x.ConnectionId
+	}
+	return ""
+}
+
+func (x *ConfigureExternalMCPToolRequest) GetSnapshotId() string {
+	if x != nil {
+		return x.SnapshotId
+	}
+	return ""
+}
+
+func (x *ConfigureExternalMCPToolRequest) GetToolName() string {
+	if x != nil {
+		return x.ToolName
+	}
+	return ""
+}
+
+func (x *ConfigureExternalMCPToolRequest) GetCategory() string {
+	if x != nil {
+		return x.Category
+	}
+	return ""
+}
+
+func (x *ConfigureExternalMCPToolRequest) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *ConfigureExternalMCPToolRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+type ConfigureExternalMCPToolResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          uint64                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Msg           string                 `protobuf:"bytes,2,opt,name=msg,proto3" json:"msg,omitempty"`
+	Connection    *ExternalMCPConnection `protobuf:"bytes,3,opt,name=connection,proto3" json:"connection,omitempty"`
+	Tool          *ExternalMCPToolView   `protobuf:"bytes,4,opt,name=tool,proto3" json:"tool,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigureExternalMCPToolResponse) Reset() {
+	*x = ConfigureExternalMCPToolResponse{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[275]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigureExternalMCPToolResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigureExternalMCPToolResponse) ProtoMessage() {}
+
+func (x *ConfigureExternalMCPToolResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[275]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigureExternalMCPToolResponse.ProtoReflect.Descriptor instead.
+func (*ConfigureExternalMCPToolResponse) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{275}
+}
+
+func (x *ConfigureExternalMCPToolResponse) GetCode() uint64 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *ConfigureExternalMCPToolResponse) GetMsg() string {
+	if x != nil {
+		return x.Msg
+	}
+	return ""
+}
+
+func (x *ConfigureExternalMCPToolResponse) GetConnection() *ExternalMCPConnection {
+	if x != nil {
+		return x.Connection
+	}
+	return nil
+}
+
+func (x *ConfigureExternalMCPToolResponse) GetTool() *ExternalMCPToolView {
+	if x != nil {
+		return x.Tool
+	}
+	return nil
+}
+
 var File_api_aiAgent_v1_aiAgent_proto protoreflect.FileDescriptor
 
 const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
@@ -3066,7 +22451,7 @@ const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
 	"\vdialogue_id\x18\x03 \x01(\x04R\n" +
 	"dialogueId\x12\x18\n" +
 	"\acontent\x18\x04 \x01(\tR\acontent\x12!\n" +
-	"\fdialogue_key\x18\x05 \x01(\tR\vdialogueKey\"\xea\x01\n" +
+	"\fdialogue_key\x18\x05 \x01(\tR\vdialogueKey\"\xae\x02\n" +
 	"\x15RepositoryContentList\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x04R\x06userId\x12\x1f\n" +
@@ -3076,7 +22461,10 @@ const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
 	"\bresponse\x18\x05 \x01(\tR\bresponse\x12!\n" +
 	"\fdialogue_key\x18\x06 \x01(\tR\vdialogueKey\x12\x12\n" +
 	"\x04role\x18\a \x01(\tR\x04role\x12\x18\n" +
-	"\acontent\x18\b \x01(\tR\acontent\"v\n" +
+	"\acontent\x18\b \x01(\tR\acontent\x12\x15\n" +
+	"\x06run_id\x18\t \x01(\tR\x05runId\x12+\n" +
+	"\x11publishable_draft\x18\n" +
+	" \x01(\bR\x10publishableDraft\"v\n" +
 	"\x12RepositoryDialogue\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x04R\x06userId\x12\x14\n" +
@@ -3159,7 +22547,15 @@ const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
 	"\x19getDialogueDetailResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
 	"\x03msg\x18\x02 \x01(\tR\x03msg\x12=\n" +
-	"\bmessages\x18\x03 \x03(\v2!.aiAgent.v1.RepositoryContentListR\bmessages\"t\n" +
+	"\bmessages\x18\x03 \x03(\v2!.aiAgent.v1.RepositoryContentListR\bmessages\"x\n" +
+	"\x19EndDialogueSessionRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x1f\n" +
+	"\vdialogue_id\x18\x02 \x01(\x04R\n" +
+	"dialogueId\x12!\n" +
+	"\fdialogue_key\x18\x03 \x01(\tR\vdialogueKey\"B\n" +
+	"\x1aEndDialogueSessionResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\"t\n" +
 	"\x14analysisFilesRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12 \n" +
 	"\ffile_kind_id\x18\x02 \x01(\x04R\n" +
@@ -3169,7 +22565,597 @@ const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
 	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
 	"\x03msg\x18\x02 \x01(\tR\x03msg\x12%\n" +
 	"\x0eparsed_content\x18\x03 \x01(\tR\rparsedContent\x12\x19\n" +
-	"\bfile_key\x18\x04 \x01(\tR\afileKey\"\x8d\x01\n" +
+	"\bfile_key\x18\x04 \x01(\tR\afileKey\"\xc6\x02\n" +
+	"\x0fRunAgentRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\"\n" +
+	"\rmodel_kind_id\x18\x02 \x01(\x04R\vmodelKindId\x12:\n" +
+	"\fmain_content\x18\x03 \x01(\v2\x17.aiAgent.v1.MainContentR\vmainContent\x128\n" +
+	"\x18preferred_capability_ids\x18\x04 \x03(\tR\x16preferredCapabilityIds\x12@\n" +
+	"\x1dweb_search_provider_config_id\x18\x05 \x01(\tR\x19webSearchProviderConfigId\x12\x19\n" +
+	"\bskill_id\x18\x06 \x01(\tR\askillId\x12#\n" +
+	"\rskill_version\x18\a \x01(\tR\fskillVersion\"\x8a\x01\n" +
+	"\x11AgentToolActivity\x12\x1d\n" +
+	"\n" +
+	"step_index\x18\x01 \x01(\x05R\tstepIndex\x12\x1b\n" +
+	"\ttool_name\x18\x02 \x01(\tR\btoolName\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12!\n" +
+	"\fresult_count\x18\x04 \x01(\x05R\vresultCount\"\xb0\x01\n" +
+	"\rAgentCitation\x12\x1f\n" +
+	"\vcitation_id\x18\x01 \x01(\tR\n" +
+	"citationId\x12\x1f\n" +
+	"\vsource_type\x18\x02 \x01(\tR\n" +
+	"sourceType\x12\x1b\n" +
+	"\tsource_id\x18\x03 \x01(\tR\bsourceId\x12\x10\n" +
+	"\x03url\x18\x04 \x01(\tR\x03url\x12\x14\n" +
+	"\x05title\x18\x05 \x01(\tR\x05title\x12\x18\n" +
+	"\asnippet\x18\x06 \x01(\tR\asnippet\"\xf2\x01\n" +
+	"\rAgentArtifact\x12\x1f\n" +
+	"\vartifact_id\x18\x01 \x01(\tR\n" +
+	"artifactId\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12!\n" +
+	"\fcontent_type\x18\x04 \x01(\tR\vcontentType\x12\x18\n" +
+	"\acontent\x18\x05 \x01(\tR\acontent\x12\"\n" +
+	"\rsource_run_id\x18\x06 \x01(\tR\vsourceRunId\x123\n" +
+	"\x15requires_confirmation\x18\a \x01(\bR\x14requiresConfirmation\"\xe2\x01\n" +
+	"\x12AgentApprovalState\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\x12\x1f\n" +
+	"\vapproval_id\x18\x02 \x01(\tR\n" +
+	"approvalId\x12\x15\n" +
+	"\x06run_id\x18\x03 \x01(\tR\x05runId\x12\x16\n" +
+	"\x06action\x18\x04 \x01(\tR\x06action\x12\x1a\n" +
+	"\brevision\x18\x05 \x01(\x03R\brevision\x12\x1d\n" +
+	"\n" +
+	"expires_at\x18\x06 \x01(\x03R\texpiresAt\x12)\n" +
+	"\x10resume_supported\x18\a \x01(\bR\x0fresumeSupported\"\xaa\x02\n" +
+	"\x1aAgentExecutionStrategyRole\x12\x17\n" +
+	"\arole_id\x18\x01 \x01(\tR\x06roleId\x12%\n" +
+	"\x0ecapability_ids\x18\x02 \x03(\tR\rcapabilityIds\x12#\n" +
+	"\rallowed_tools\x18\x03 \x03(\tR\fallowedTools\x12\x1b\n" +
+	"\tmax_steps\x18\x04 \x01(\x05R\bmaxSteps\x12(\n" +
+	"\x10max_total_tokens\x18\x05 \x01(\x05R\x0emaxTotalTokens\x129\n" +
+	"\x19max_estimated_cost_micros\x18\x06 \x01(\x03R\x16maxEstimatedCostMicros\x12%\n" +
+	"\x0etimeout_millis\x18\a \x01(\x03R\rtimeoutMillis\"\xa6\x05\n" +
+	"\x1aAgentExecutionStrategyPlan\x12\x18\n" +
+	"\aversion\x18\x01 \x01(\tR\aversion\x12\x1f\n" +
+	"\vtemplate_id\x18\x02 \x01(\tR\n" +
+	"templateId\x12-\n" +
+	"\x12candidate_strategy\x18\x03 \x01(\tR\x11candidateStrategy\x12+\n" +
+	"\x11selected_strategy\x18\x04 \x01(\tR\x10selectedStrategy\x12\x1a\n" +
+	"\bdecision\x18\x05 \x01(\tR\bdecision\x12\x1f\n" +
+	"\vreason_code\x18\x06 \x01(\tR\n" +
+	"reasonCode\x12)\n" +
+	"\x10complexity_score\x18\a \x01(\x05R\x0fcomplexityScore\x12)\n" +
+	"\x10complexity_class\x18\b \x01(\tR\x0fcomplexityClass\x12-\n" +
+	"\x12complexity_signals\x18\t \x03(\tR\x11complexitySignals\x128\n" +
+	"\x18estimated_latency_millis\x18\n" +
+	" \x01(\x03R\x16estimatedLatencyMillis\x124\n" +
+	"\x16estimated_total_tokens\x18\v \x01(\x05R\x14estimatedTotalTokens\x122\n" +
+	"\x15estimated_cost_micros\x18\f \x01(\x03R\x13estimatedCostMicros\x12,\n" +
+	"\x12max_parallel_roles\x18\r \x01(\x05R\x10maxParallelRoles\x12<\n" +
+	"\x05roles\x18\x0e \x03(\v2&.aiAgent.v1.AgentExecutionStrategyRoleR\x05roles\x12\x1f\n" +
+	"\vplan_digest\x18\x0f \x01(\tR\n" +
+	"planDigest\"\xab\a\n" +
+	"\x10RunAgentResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12\x1a\n" +
+	"\bresponse\x18\x03 \x01(\tR\bresponse\x12!\n" +
+	"\fdialogue_key\x18\x04 \x01(\tR\vdialogueKey\x12\x15\n" +
+	"\x06run_id\x18\x05 \x01(\tR\x05runId\x12+\n" +
+	"\x11execution_profile\x18\x06 \x01(\tR\x10executionProfile\x12%\n" +
+	"\x0ecapability_ids\x18\a \x03(\tR\rcapabilityIds\x126\n" +
+	"\n" +
+	"tweet_list\x18\b \x03(\v2\x17.aiAgent.v1.TweetResultR\ttweetList\x12+\n" +
+	"\x11publishable_draft\x18\t \x01(\bR\x10publishableDraft\x12F\n" +
+	"\x0ftool_activities\x18\n" +
+	" \x03(\v2\x1d.aiAgent.v1.AgentToolActivityR\x0etoolActivities\x127\n" +
+	"\tcitations\x18\v \x03(\v2\x19.aiAgent.v1.AgentCitationR\tcitations\x127\n" +
+	"\tartifacts\x18\f \x03(\v2\x19.aiAgent.v1.AgentArtifactR\tartifacts\x12E\n" +
+	"\x0eapproval_state\x18\r \x01(\v2\x1e.aiAgent.v1.AgentApprovalStateR\rapprovalState\x12\x1d\n" +
+	"\n" +
+	"run_status\x18\x0e \x01(\tR\trunStatus\x12*\n" +
+	"\x11selected_skill_id\x18\x0f \x01(\tR\x0fselectedSkillId\x124\n" +
+	"\x16selected_skill_version\x18\x10 \x01(\tR\x14selectedSkillVersion\x129\n" +
+	"\x19selected_task_template_id\x18\x11 \x01(\tR\x16selectedTaskTemplateId\x12E\n" +
+	"\x1fselected_task_template_revision\x18\x12 \x01(\x03R\x1cselectedTaskTemplateRevision\x12^\n" +
+	"\x17execution_strategy_plan\x18\x13 \x01(\v2&.aiAgent.v1.AgentExecutionStrategyPlanR\x15executionStrategyPlan\"\xe9\b\n" +
+	"\x11AgentExecutionRun\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12!\n" +
+	"\fdialogue_key\x18\x02 \x01(\tR\vdialogueKey\x12+\n" +
+	"\x11execution_profile\x18\x03 \x01(\tR\x10executionProfile\x12%\n" +
+	"\x0ecapability_ids\x18\x04 \x03(\tR\rcapabilityIds\x12\x16\n" +
+	"\x06status\x18\x05 \x01(\tR\x06status\x12\x1a\n" +
+	"\brevision\x18\x06 \x01(\x03R\brevision\x12)\n" +
+	"\x10resume_supported\x18\a \x01(\bR\x0fresumeSupported\x12.\n" +
+	"\x13pending_action_type\x18\b \x01(\tR\x11pendingActionType\x12.\n" +
+	"\x13pending_action_name\x18\t \x01(\tR\x11pendingActionName\x12\x1d\n" +
+	"\n" +
+	"step_count\x18\n" +
+	" \x01(\x05R\tstepCount\x12!\n" +
+	"\finput_tokens\x18\v \x01(\x05R\vinputTokens\x12#\n" +
+	"\routput_tokens\x18\f \x01(\x05R\foutputTokens\x12!\n" +
+	"\ftotal_tokens\x18\r \x01(\x05R\vtotalTokens\x122\n" +
+	"\x15estimated_cost_micros\x18\x0e \x01(\x03R\x13estimatedCostMicros\x12'\n" +
+	"\x0fpricing_version\x18\x0f \x01(\tR\x0epricingVersion\x12!\n" +
+	"\ffailure_code\x18\x10 \x01(\tR\vfailureCode\x12\x1d\n" +
+	"\n" +
+	"started_at\x18\x11 \x01(\x03R\tstartedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x12 \x01(\x03R\tupdatedAt\x12!\n" +
+	"\fsuspended_at\x18\x13 \x01(\x03R\vsuspendedAt\x12\x1f\n" +
+	"\vfinished_at\x18\x14 \x01(\x03R\n" +
+	"finishedAt\x12*\n" +
+	"\x11pending_action_id\x18\x15 \x01(\tR\x0fpendingActionId\x12\x1f\n" +
+	"\vapproval_id\x18\x16 \x01(\tR\n" +
+	"approvalId\x12.\n" +
+	"\x13approval_expires_at\x18\x17 \x01(\x03R\x11approvalExpiresAt\x12\x19\n" +
+	"\bskill_id\x18\x18 \x01(\tR\askillId\x12#\n" +
+	"\rskill_version\x18\x19 \x01(\tR\fskillVersion\x12(\n" +
+	"\x10task_template_id\x18\x1a \x01(\tR\x0etaskTemplateId\x124\n" +
+	"\x16task_template_revision\x18\x1b \x01(\x03R\x14taskTemplateRevision\x12^\n" +
+	"\x17execution_strategy_plan\x18\x1c \x01(\v2&.aiAgent.v1.AgentExecutionStrategyPlanR\x15executionStrategyPlan\"h\n" +
+	"\x1aAgentSkillKnowledgeBinding\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x1c\n" +
+	"\treference\x18\x02 \x01(\tR\treference\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\"\xa6\x01\n" +
+	"\x18AgentSkillProfileBinding\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\x01 \x01(\tR\tprofileId\x12'\n" +
+	"\x0fprofile_version\x18\x02 \x01(\tR\x0eprofileVersion\x12\x1b\n" +
+	"\tprompt_id\x18\x03 \x01(\tR\bpromptId\x12%\n" +
+	"\x0eprompt_version\x18\x04 \x01(\tR\rpromptVersion\"\x93\x02\n" +
+	"\x10AgentSkillBudget\x12\x1b\n" +
+	"\tmax_steps\x18\x01 \x01(\x05R\bmaxSteps\x12(\n" +
+	"\x10max_input_tokens\x18\x02 \x01(\x05R\x0emaxInputTokens\x12*\n" +
+	"\x11max_output_tokens\x18\x03 \x01(\x05R\x0fmaxOutputTokens\x12(\n" +
+	"\x10max_total_tokens\x18\x04 \x01(\x05R\x0emaxTotalTokens\x129\n" +
+	"\x19max_estimated_cost_micros\x18\x05 \x01(\x03R\x16maxEstimatedCostMicros\x12'\n" +
+	"\x0ftimeout_seconds\x18\x06 \x01(\x03R\x0etimeoutSeconds\"{\n" +
+	"\x18AgentSkillOutputContract\x12\x1b\n" +
+	"\tschema_id\x18\x01 \x01(\tR\bschemaId\x12!\n" +
+	"\fcontent_type\x18\x02 \x01(\tR\vcontentType\x12\x1f\n" +
+	"\vschema_json\x18\x03 \x01(\tR\n" +
+	"schemaJson\"\xf7\x02\n" +
+	"\x19AgentSkillWorkflowBinding\x12%\n" +
+	"\x0epublication_id\x18\x01 \x01(\tR\rpublicationId\x121\n" +
+	"\x14publication_revision\x18\x02 \x01(\x03R\x13publicationRevision\x12\x1f\n" +
+	"\vworkflow_id\x18\x03 \x01(\tR\n" +
+	"workflowId\x120\n" +
+	"\x14workflow_revision_id\x18\x04 \x01(\tR\x12workflowRevisionId\x128\n" +
+	"\x18workflow_revision_number\x18\x05 \x01(\x03R\x16workflowRevisionNumber\x12*\n" +
+	"\x11workflow_dsl_hash\x18\x06 \x01(\tR\x0fworkflowDslHash\x12\x1b\n" +
+	"\ttool_name\x18\a \x01(\tR\btoolName\x12*\n" +
+	"\x11input_schema_json\x18\b \x01(\tR\x0finputSchemaJson\"\xcf\x04\n" +
+	"\n" +
+	"AgentSkill\x12)\n" +
+	"\x10contract_version\x18\x01 \x01(\tR\x0fcontractVersion\x12\x19\n" +
+	"\bskill_id\x18\x02 \x01(\tR\askillId\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\x12!\n" +
+	"\fdisplay_name\x18\x04 \x01(\tR\vdisplayName\x12 \n" +
+	"\vdescription\x18\x05 \x01(\tR\vdescription\x12\"\n" +
+	"\finstructions\x18\x06 \x01(\tR\finstructions\x12\x16\n" +
+	"\x06source\x18\a \x01(\tR\x06source\x12#\n" +
+	"\rallowed_tools\x18\b \x03(\tR\fallowedTools\x12D\n" +
+	"\tknowledge\x18\t \x03(\v2&.aiAgent.v1.AgentSkillKnowledgeBindingR\tknowledge\x12>\n" +
+	"\aprofile\x18\n" +
+	" \x01(\v2$.aiAgent.v1.AgentSkillProfileBindingR\aprofile\x124\n" +
+	"\x06budget\x18\v \x01(\v2\x1c.aiAgent.v1.AgentSkillBudgetR\x06budget\x12<\n" +
+	"\x06output\x18\f \x01(\v2$.aiAgent.v1.AgentSkillOutputContractR\x06output\x12A\n" +
+	"\bworkflow\x18\r \x01(\v2%.aiAgent.v1.AgentSkillWorkflowBindingR\bworkflow\"G\n" +
+	"\x16ListAgentSkillsRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\"o\n" +
+	"\x17ListAgentSkillsResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12.\n" +
+	"\x06skills\x18\x03 \x03(\v2\x16.aiAgent.v1.AgentSkillR\x06skills\"d\n" +
+	"\x14GetAgentSkillRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x19\n" +
+	"\bskill_id\x18\x02 \x01(\tR\askillId\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\"k\n" +
+	"\x15GetAgentSkillResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12,\n" +
+	"\x05skill\x18\x03 \x01(\v2\x16.aiAgent.v1.AgentSkillR\x05skill\"S\n" +
+	"\x1cAgentExtensionSkillReference\x12\x19\n" +
+	"\bskill_id\x18\x01 \x01(\tR\askillId\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\tR\aversion\"\xaf\x01\n" +
+	"\x1aAgentExtensionMCPReference\x12#\n" +
+	"\rconnection_id\x18\x01 \x01(\tR\fconnectionId\x12\x1b\n" +
+	"\tserver_id\x18\x02 \x01(\tR\bserverId\x12\x1f\n" +
+	"\vsnapshot_id\x18\x03 \x01(\tR\n" +
+	"snapshotId\x12.\n" +
+	"\x13qualified_tool_name\x18\x04 \x01(\tR\x11qualifiedToolName\"\xb0\x04\n" +
+	"\x0eAgentExtension\x12)\n" +
+	"\x10contract_version\x18\x01 \x01(\tR\x0fcontractVersion\x12!\n" +
+	"\fextension_id\x18\x02 \x01(\tR\vextensionId\x12\x12\n" +
+	"\x04kind\x18\x03 \x01(\tR\x04kind\x12\x12\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\x12!\n" +
+	"\fdisplay_name\x18\x05 \x01(\tR\vdisplayName\x12 \n" +
+	"\vdescription\x18\x06 \x01(\tR\vdescription\x12\x18\n" +
+	"\aversion\x18\a \x01(\tR\aversion\x12\x16\n" +
+	"\x06source\x18\b \x01(\tR\x06source\x12#\n" +
+	"\rcapability_id\x18\t \x01(\tR\fcapabilityId\x12\x1a\n" +
+	"\bcategory\x18\n" +
+	" \x01(\tR\bcategory\x12\x14\n" +
+	"\x05scope\x18\v \x01(\tR\x05scope\x12\x16\n" +
+	"\x06status\x18\f \x01(\tR\x06status\x12#\n" +
+	"\rapproval_mode\x18\r \x01(\tR\fapprovalMode\x12#\n" +
+	"\rhealth_status\x18\x0e \x01(\tR\fhealthStatus\x12>\n" +
+	"\x05skill\x18\x0f \x01(\v2(.aiAgent.v1.AgentExtensionSkillReferenceR\x05skill\x128\n" +
+	"\x03mcp\x18\x10 \x01(\v2&.aiAgent.v1.AgentExtensionMCPReferenceR\x03mcp\"k\n" +
+	"\x1aAgentExtensionSourceStatus\x12\x16\n" +
+	"\x06source\x18\x01 \x01(\tR\x06source\x12\x14\n" +
+	"\x05state\x18\x02 \x01(\tR\x05state\x12\x1f\n" +
+	"\ventry_count\x18\x03 \x01(\x05R\n" +
+	"entryCount\"\xeb\x01\n" +
+	"\x1aListAgentExtensionsRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x12\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x1a\n" +
+	"\bcategory\x18\x03 \x01(\tR\bcategory\x12\x14\n" +
+	"\x05scope\x18\x04 \x01(\tR\x05scope\x12\x16\n" +
+	"\x06status\x18\x05 \x01(\tR\x06status\x12\x16\n" +
+	"\x06search\x18\x06 \x01(\tR\x06search\x12!\n" +
+	"\fafter_cursor\x18\a \x01(\tR\vafterCursor\x12\x1b\n" +
+	"\tpage_size\x18\b \x01(\x05R\bpageSize\"\xa8\x02\n" +
+	"\x1bListAgentExtensionsResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12)\n" +
+	"\x10contract_version\x18\x03 \x01(\tR\x0fcontractVersion\x12:\n" +
+	"\n" +
+	"extensions\x18\x04 \x03(\v2\x1a.aiAgent.v1.AgentExtensionR\n" +
+	"extensions\x12@\n" +
+	"\asources\x18\x05 \x03(\v2&.aiAgent.v1.AgentExtensionSourceStatusR\asources\x12\x1f\n" +
+	"\vnext_cursor\x18\x06 \x01(\tR\n" +
+	"nextCursor\x12\x19\n" +
+	"\bhas_more\x18\a \x01(\bR\ahasMore\"\x85\x01\n" +
+	"\x19AgentMarketplacePublisher\x12!\n" +
+	"\fpublisher_id\x18\x01 \x01(\tR\vpublisherId\x12!\n" +
+	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12\"\n" +
+	"\fverification\x18\x03 \x01(\tR\fverification\"\xd8\x04\n" +
+	"\x19AgentMarketplaceExtension\x12)\n" +
+	"\x10contract_version\x18\x01 \x01(\tR\x0fcontractVersion\x12\x1d\n" +
+	"\n" +
+	"release_id\x18\x02 \x01(\tR\treleaseId\x12\x1d\n" +
+	"\n" +
+	"package_id\x18\x03 \x01(\tR\tpackageId\x12\x12\n" +
+	"\x04kind\x18\x04 \x01(\tR\x04kind\x12\x18\n" +
+	"\aversion\x18\x05 \x01(\tR\aversion\x12!\n" +
+	"\fdisplay_name\x18\x06 \x01(\tR\vdisplayName\x12 \n" +
+	"\vdescription\x18\a \x01(\tR\vdescription\x12C\n" +
+	"\tpublisher\x18\b \x01(\v2%.aiAgent.v1.AgentMarketplacePublisherR\tpublisher\x124\n" +
+	"\x16artifact_digest_sha256\x18\t \x01(\tR\x14artifactDigestSha256\x12(\n" +
+	"\x10signature_key_id\x18\n" +
+	" \x01(\tR\x0esignatureKeyId\x12%\n" +
+	"\x0ecapability_ids\x18\v \x03(\tR\rcapabilityIds\x123\n" +
+	"\x15requested_permissions\x18\f \x03(\tR\x14requestedPermissions\x12/\n" +
+	"\x14published_at_unix_ms\x18\r \x01(\x03R\x11publishedAtUnixMs\x12-\n" +
+	"\x12signature_verified\x18\x0e \x01(\bR\x11signatureVerified\"\xcf\x01\n" +
+	"%ListAgentMarketplaceExtensionsRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x12\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\x12!\n" +
+	"\fpublisher_id\x18\x03 \x01(\tR\vpublisherId\x12\x16\n" +
+	"\x06search\x18\x04 \x01(\tR\x06search\x12!\n" +
+	"\fafter_cursor\x18\x05 \x01(\tR\vafterCursor\x12\x1b\n" +
+	"\tpage_size\x18\x06 \x01(\x05R\bpageSize\"\xf8\x01\n" +
+	"&ListAgentMarketplaceExtensionsResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12)\n" +
+	"\x10contract_version\x18\x03 \x01(\tR\x0fcontractVersion\x12A\n" +
+	"\breleases\x18\x04 \x03(\v2%.aiAgent.v1.AgentMarketplaceExtensionR\breleases\x12\x1f\n" +
+	"\vnext_cursor\x18\x05 \x01(\tR\n" +
+	"nextCursor\x12\x19\n" +
+	"\bhas_more\x18\x06 \x01(\bR\ahasMore\"\xbe\x01\n" +
+	" AgentMarketplaceManagementAccess\x12)\n" +
+	"\x10contract_version\x18\x01 \x01(\tR\x0fcontractVersion\x12\x18\n" +
+	"\aenabled\x18\x02 \x01(\bR\aenabled\x12%\n" +
+	"\x0eplatform_admin\x18\x03 \x01(\bR\rplatformAdmin\x12.\n" +
+	"\x13owned_publisher_ids\x18\x04 \x03(\tR\x11ownedPublisherIds\"P\n" +
+	"*GetAgentMarketplaceManagementAccessRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\"\x99\x01\n" +
+	"+GetAgentMarketplaceManagementAccessResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12D\n" +
+	"\x06access\x18\x03 \x01(\v2,.aiAgent.v1.AgentMarketplaceManagementAccessR\x06access\"\x95\x01\n" +
+	"\x1aAgentMarketplaceSigningKey\x12\x15\n" +
+	"\x06key_id\x18\x01 \x01(\tR\x05keyId\x12\x1c\n" +
+	"\talgorithm\x18\x02 \x01(\tR\talgorithm\x12*\n" +
+	"\x11public_key_base64\x18\x03 \x01(\tR\x0fpublicKeyBase64\x12\x16\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\"\x8b\x04\n" +
+	" AgentMarketplaceManagedPublisher\x12)\n" +
+	"\x10contract_version\x18\x01 \x01(\tR\x0fcontractVersion\x12!\n" +
+	"\fpublisher_id\x18\x02 \x01(\tR\vpublisherId\x12!\n" +
+	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\"\n" +
+	"\fverification\x18\x04 \x01(\tR\fverification\x12I\n" +
+	"\fsigning_keys\x18\x05 \x03(\v2&.aiAgent.v1.AgentMarketplaceSigningKeyR\vsigningKeys\x12$\n" +
+	"\x0eowner_user_ids\x18\x06 \x03(\x04R\fownerUserIds\x12\x1a\n" +
+	"\brevision\x18\a \x01(\x03R\brevision\x12\x1d\n" +
+	"\n" +
+	"created_by\x18\b \x01(\x04R\tcreatedBy\x12\x1d\n" +
+	"\n" +
+	"updated_by\x18\t \x01(\x04R\tupdatedBy\x12-\n" +
+	"\x13verified_at_unix_ms\x18\n" +
+	" \x01(\x03R\x10verifiedAtUnixMs\x12+\n" +
+	"\x12created_at_unix_ms\x18\v \x01(\x03R\x0fcreatedAtUnixMs\x12+\n" +
+	"\x12updated_at_unix_ms\x18\f \x01(\x03R\x0fupdatedAtUnixMs\"|\n" +
+	"%ListAgentMarketplacePublishersRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12\x12\n" +
+	"\x04page\x18\x02 \x01(\x05R\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x03 \x01(\x05R\bpageSize\"\xb2\x01\n" +
+	"&ListAgentMarketplacePublishersResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12L\n" +
+	"\n" +
+	"publishers\x18\x03 \x03(\v2,.aiAgent.v1.AgentMarketplaceManagedPublisherR\n" +
+	"publishers\x12\x14\n" +
+	"\x05total\x18\x04 \x01(\x03R\x05total\"\x8c\x02\n" +
+	"(RegisterAgentMarketplacePublisherRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12!\n" +
+	"\fpublisher_id\x18\x02 \x01(\tR\vpublisherId\x12!\n" +
+	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12$\n" +
+	"\x0eowner_user_ids\x18\x04 \x03(\x04R\fownerUserIds\x12$\n" +
+	"\x0einitial_key_id\x18\x05 \x01(\tR\finitialKeyId\x12*\n" +
+	"\x11public_key_base64\x18\x06 \x01(\tR\x0fpublicKeyBase64\"\x9d\x01\n" +
+	")RegisterAgentMarketplacePublisherResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12J\n" +
+	"\tpublisher\x18\x03 \x01(\v2,.aiAgent.v1.AgentMarketplaceManagedPublisherR\tpublisher\"\xe2\x01\n" +
+	")RotateAgentMarketplacePublisherKeyRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12!\n" +
+	"\fpublisher_id\x18\x02 \x01(\tR\vpublisherId\x12\x15\n" +
+	"\x06key_id\x18\x03 \x01(\tR\x05keyId\x12*\n" +
+	"\x11public_key_base64\x18\x04 \x01(\tR\x0fpublicKeyBase64\x12+\n" +
+	"\x11expected_revision\x18\x05 \x01(\x03R\x10expectedRevision\"\x9e\x01\n" +
+	"*RotateAgentMarketplacePublisherKeyResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12J\n" +
+	"\tpublisher\x18\x03 \x01(\v2,.aiAgent.v1.AgentMarketplaceManagedPublisherR\tpublisher\"\xb6\x01\n" +
+	")RevokeAgentMarketplacePublisherKeyRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12!\n" +
+	"\fpublisher_id\x18\x02 \x01(\tR\vpublisherId\x12\x15\n" +
+	"\x06key_id\x18\x03 \x01(\tR\x05keyId\x12+\n" +
+	"\x11expected_revision\x18\x04 \x01(\x03R\x10expectedRevision\"\x9e\x01\n" +
+	"*RevokeAgentMarketplacePublisherKeyResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12J\n" +
+	"\tpublisher\x18\x03 \x01(\v2,.aiAgent.v1.AgentMarketplaceManagedPublisherR\tpublisher\"\xc9\x01\n" +
+	"/SetAgentMarketplacePublisherVerificationRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12!\n" +
+	"\fpublisher_id\x18\x02 \x01(\tR\vpublisherId\x12\"\n" +
+	"\fverification\x18\x03 \x01(\tR\fverification\x12+\n" +
+	"\x11expected_revision\x18\x04 \x01(\x03R\x10expectedRevision\"\xa4\x01\n" +
+	"0SetAgentMarketplacePublisherVerificationResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12J\n" +
+	"\tpublisher\x18\x03 \x01(\v2,.aiAgent.v1.AgentMarketplaceManagedPublisherR\tpublisher\"\x8c\x03\n" +
+	"\x18AgentMarketplaceManifest\x12)\n" +
+	"\x10contract_version\x18\x01 \x01(\tR\x0fcontractVersion\x12\x1d\n" +
+	"\n" +
+	"package_id\x18\x02 \x01(\tR\tpackageId\x12\x12\n" +
+	"\x04kind\x18\x03 \x01(\tR\x04kind\x12\x18\n" +
+	"\aversion\x18\x04 \x01(\tR\aversion\x12!\n" +
+	"\fpublisher_id\x18\x05 \x01(\tR\vpublisherId\x12!\n" +
+	"\fdisplay_name\x18\x06 \x01(\tR\vdisplayName\x12 \n" +
+	"\vdescription\x18\a \x01(\tR\vdescription\x124\n" +
+	"\x16artifact_digest_sha256\x18\b \x01(\tR\x14artifactDigestSha256\x12%\n" +
+	"\x0ecapability_ids\x18\t \x03(\tR\rcapabilityIds\x123\n" +
+	"\x15requested_permissions\x18\n" +
+	" \x03(\tR\x14requestedPermissions\"\xc2\x04\n" +
+	"\x1eAgentMarketplaceManagedRelease\x12)\n" +
+	"\x10contract_version\x18\x01 \x01(\tR\x0fcontractVersion\x12\x1d\n" +
+	"\n" +
+	"release_id\x18\x02 \x01(\tR\treleaseId\x12@\n" +
+	"\bmanifest\x18\x03 \x01(\v2$.aiAgent.v1.AgentMarketplaceManifestR\bmanifest\x12(\n" +
+	"\x10signature_key_id\x18\x04 \x01(\tR\x0esignatureKeyId\x12\x16\n" +
+	"\x06status\x18\x05 \x01(\tR\x06status\x12\x1a\n" +
+	"\brevision\x18\x06 \x01(\x03R\brevision\x12!\n" +
+	"\fpublished_by\x18\a \x01(\x04R\vpublishedBy\x12!\n" +
+	"\fwithdrawn_by\x18\b \x01(\x04R\vwithdrawnBy\x124\n" +
+	"\x16withdrawal_reason_code\x18\t \x01(\tR\x14withdrawalReasonCode\x12/\n" +
+	"\x14published_at_unix_ms\x18\n" +
+	" \x01(\x03R\x11publishedAtUnixMs\x12/\n" +
+	"\x14withdrawn_at_unix_ms\x18\v \x01(\x03R\x11withdrawnAtUnixMs\x12+\n" +
+	"\x12created_at_unix_ms\x18\f \x01(\x03R\x0fcreatedAtUnixMs\x12+\n" +
+	"\x12updated_at_unix_ms\x18\r \x01(\x03R\x0fupdatedAtUnixMs\"\xbc\x01\n" +
+	"*ListAgentMarketplaceManagedReleasesRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12!\n" +
+	"\fpublisher_id\x18\x02 \x01(\tR\vpublisherId\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\x12\n" +
+	"\x04page\x18\x04 \x01(\x05R\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x05 \x01(\x05R\bpageSize\"\xb1\x01\n" +
+	"+ListAgentMarketplaceManagedReleasesResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12F\n" +
+	"\breleases\x18\x03 \x03(\v2*.aiAgent.v1.AgentMarketplaceManagedReleaseR\breleases\x12\x14\n" +
+	"\x05total\x18\x04 \x01(\x03R\x05total\"\xa2\x02\n" +
+	"%PublishAgentMarketplaceReleaseRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12@\n" +
+	"\bmanifest\x18\x02 \x01(\v2$.aiAgent.v1.AgentMarketplaceManifestR\bmanifest\x12(\n" +
+	"\x10signature_key_id\x18\x03 \x01(\tR\x0esignatureKeyId\x12)\n" +
+	"\x10signature_base64\x18\x04 \x01(\tR\x0fsignatureBase64\x12>\n" +
+	"\x1bexpected_publisher_revision\x18\x05 \x01(\x03R\x19expectedPublisherRevision\"\x94\x01\n" +
+	"&PublishAgentMarketplaceReleaseResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12D\n" +
+	"\arelease\x18\x03 \x01(\v2*.aiAgent.v1.AgentMarketplaceManagedReleaseR\arelease\"\xb9\x01\n" +
+	"&WithdrawAgentMarketplaceReleaseRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12\x1d\n" +
+	"\n" +
+	"release_id\x18\x02 \x01(\tR\treleaseId\x12\x1f\n" +
+	"\vreason_code\x18\x03 \x01(\tR\n" +
+	"reasonCode\x12+\n" +
+	"\x11expected_revision\x18\x04 \x01(\x03R\x10expectedRevision\"\x95\x01\n" +
+	"'WithdrawAgentMarketplaceReleaseResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12D\n" +
+	"\arelease\x18\x03 \x01(\v2*.aiAgent.v1.AgentMarketplaceManagedReleaseR\arelease\"\xd7\x03\n" +
+	"\x1aAgentMarketplaceAuditEvent\x12)\n" +
+	"\x10contract_version\x18\x01 \x01(\tR\x0fcontractVersion\x12\x19\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12!\n" +
+	"\foperation_id\x18\x03 \x01(\tR\voperationId\x12\x16\n" +
+	"\x06action\x18\x04 \x01(\tR\x06action\x12\x18\n" +
+	"\aoutcome\x18\x05 \x01(\tR\aoutcome\x12\"\n" +
+	"\ractor_user_id\x18\x06 \x01(\x04R\vactorUserId\x12!\n" +
+	"\fpublisher_id\x18\a \x01(\tR\vpublisherId\x12\x1d\n" +
+	"\n" +
+	"package_id\x18\b \x01(\tR\tpackageId\x12\x18\n" +
+	"\aversion\x18\t \x01(\tR\aversion\x12\x15\n" +
+	"\x06key_id\x18\n" +
+	" \x01(\tR\x05keyId\x12\x1a\n" +
+	"\brevision\x18\v \x01(\x03R\brevision\x12\x1f\n" +
+	"\vreason_code\x18\f \x01(\tR\n" +
+	"reasonCode\x12\x1d\n" +
+	"\n" +
+	"error_code\x18\r \x01(\tR\terrorCode\x12+\n" +
+	"\x12created_at_unix_ms\x18\x0e \x01(\x03R\x0fcreatedAtUnixMs\"\xd2\x01\n" +
+	"&ListAgentMarketplaceAuditEventsRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12!\n" +
+	"\fpublisher_id\x18\x02 \x01(\tR\vpublisherId\x12\x16\n" +
+	"\x06action\x18\x03 \x01(\tR\x06action\x12\x18\n" +
+	"\aoutcome\x18\x04 \x01(\tR\aoutcome\x12\x12\n" +
+	"\x04page\x18\x05 \x01(\x05R\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x06 \x01(\x05R\bpageSize\"\xa5\x01\n" +
+	"'ListAgentMarketplaceAuditEventsResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12>\n" +
+	"\x06events\x18\x03 \x03(\v2&.aiAgent.v1.AgentMarketplaceAuditEventR\x06events\x12\x14\n" +
+	"\x05total\x18\x04 \x01(\x03R\x05total\"\xe9\x06\n" +
+	"\x11AgentTaskTemplate\x12)\n" +
+	"\x10contract_version\x18\x01 \x01(\tR\x0fcontractVersion\x12\x1f\n" +
+	"\vtemplate_id\x18\x02 \x01(\tR\n" +
+	"templateId\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x121\n" +
+	"\x14instruction_template\x18\x05 \x01(\tR\x13instructionTemplate\x12\x16\n" +
+	"\x06status\x18\x06 \x01(\tR\x06status\x12\x1a\n" +
+	"\brevision\x18\a \x01(\x03R\brevision\x12\"\n" +
+	"\rsource_run_id\x18\b \x01(\tR\vsourceRunId\x12.\n" +
+	"\x13source_run_revision\x18\t \x01(\x03R\x11sourceRunRevision\x120\n" +
+	"\x14source_result_digest\x18\n" +
+	" \x01(\tR\x12sourceResultDigest\x128\n" +
+	"\x18source_execution_profile\x18\v \x01(\tR\x16sourceExecutionProfile\x12%\n" +
+	"\x0ecapability_ids\x18\f \x03(\tR\rcapabilityIds\x12\x19\n" +
+	"\bskill_id\x18\r \x01(\tR\askillId\x12#\n" +
+	"\rskill_version\x18\x0e \x01(\tR\fskillVersion\x12!\n" +
+	"\fsource_model\x18\x0f \x01(\tR\vsourceModel\x12(\n" +
+	"\x10agent_profile_id\x18\x10 \x01(\tR\x0eagentProfileId\x122\n" +
+	"\x15agent_profile_version\x18\x11 \x01(\tR\x13agentProfileVersion\x12,\n" +
+	"\x12prompt_template_id\x18\x12 \x01(\tR\x10promptTemplateId\x126\n" +
+	"\x17prompt_template_version\x18\x13 \x01(\tR\x15promptTemplateVersion\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x14 \x01(\x03R\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x15 \x01(\x03R\tupdatedAt\x12\x1f\n" +
+	"\varchived_at\x18\x16 \x01(\x03R\n" +
+	"archivedAt\"\xb0\x02\n" +
+	"\x1eCreateAgentTaskTemplateRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\"\n" +
+	"\rsource_run_id\x18\x02 \x01(\tR\vsourceRunId\x12?\n" +
+	"\x1cexpected_source_run_revision\x18\x03 \x01(\x03R\x19expectedSourceRunRevision\x12\x12\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x05 \x01(\tR\vdescription\x121\n" +
+	"\x14instruction_template\x18\x06 \x01(\tR\x13instructionTemplate\x12'\n" +
+	"\x0fidempotency_key\x18\a \x01(\tR\x0eidempotencyKey\"\x8b\x01\n" +
+	"\x1fCreateAgentTaskTemplateResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12B\n" +
+	"\rtask_template\x18\x03 \x01(\v2\x1d.aiAgent.v1.AgentTaskTemplateR\ftaskTemplate\"N\n" +
+	"\x1dListAgentTaskTemplatesRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\"\xb9\x01\n" +
+	"\x1eListAgentTaskTemplatesResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12+\n" +
+	"\x11execution_enabled\x18\x03 \x01(\bR\x10executionEnabled\x12D\n" +
+	"\x0etask_templates\x18\x04 \x03(\v2\x1d.aiAgent.v1.AgentTaskTemplateR\rtaskTemplates\"\x88\x01\n" +
+	"\x1fArchiveAgentTaskTemplateRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x1f\n" +
+	"\vtemplate_id\x18\x02 \x01(\tR\n" +
+	"templateId\x12+\n" +
+	"\x11expected_revision\x18\x03 \x01(\x03R\x10expectedRevision\"\x8c\x01\n" +
+	" ArchiveAgentTaskTemplateResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12B\n" +
+	"\rtask_template\x18\x03 \x01(\v2\x1d.aiAgent.v1.AgentTaskTemplateR\ftaskTemplate\"\xa6\x02\n" +
+	"\x1bRunAgentTaskTemplateRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x1f\n" +
+	"\vtemplate_id\x18\x02 \x01(\tR\n" +
+	"templateId\x12+\n" +
+	"\x11expected_revision\x18\x03 \x01(\x03R\x10expectedRevision\x12\"\n" +
+	"\rmodel_kind_id\x18\x04 \x01(\x04R\vmodelKindId\x12:\n" +
+	"\fmain_content\x18\x05 \x01(\v2\x17.aiAgent.v1.MainContentR\vmainContent\x12@\n" +
+	"\x1dweb_search_provider_config_id\x18\x06 \x01(\tR\x19webSearchProviderConfigId\"D\n" +
+	"\x12GetAgentRunRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\"l\n" +
+	"\x13GetAgentRunResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12/\n" +
+	"\x03run\x18\x03 \x01(\v2\x1d.aiAgent.v1.AgentExecutionRunR\x03run\"o\n" +
+	"\x1cGetAgentRunAccountingRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x1f\n" +
+	"\vchild_limit\x18\x03 \x01(\x05R\n" +
+	"childLimit\"\xbc\x03\n" +
+	"\x15WorkflowRunAccounting\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1f\n" +
+	"\vworkflow_id\x18\x02 \x01(\tR\n" +
+	"workflowId\x12(\n" +
+	"\x10parent_action_id\x18\x03 \x01(\tR\x0eparentActionId\x12\x16\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\x12\x14\n" +
+	"\x05state\x18\x05 \x01(\tR\x05state\x12-\n" +
+	"\x12accounting_version\x18\x06 \x01(\tR\x11accountingVersion\x125\n" +
+	"\x05usage\x18\a \x01(\v2\x1f.aiAgent.v1.ExecutionTokenUsageR\x05usage\x12;\n" +
+	"\x06budget\x18\b \x01(\v2#.aiAgent.v1.ExecutionBudgetSnapshotR\x06budget\x12\"\n" +
+	"\rstarted_at_ms\x18\t \x01(\x03R\vstartedAtMs\x12&\n" +
+	"\x0fsuspended_at_ms\x18\n" +
+	" \x01(\x03R\rsuspendedAtMs\x12$\n" +
+	"\x0efinished_at_ms\x18\v \x01(\x03R\ffinishedAtMs\"\x91\x05\n" +
+	"\x12AgentRunAccounting\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1d\n" +
+	"\n" +
+	"run_status\x18\x02 \x01(\tR\trunStatus\x12\x14\n" +
+	"\x05scope\x18\x03 \x01(\tR\x05scope\x12\x14\n" +
+	"\x05state\x18\x04 \x01(\tR\x05state\x12\x1a\n" +
+	"\bcomplete\x18\x05 \x01(\bR\bcomplete\x12\x1c\n" +
+	"\ttruncated\x18\x06 \x01(\bR\ttruncated\x12&\n" +
+	"\x0fchild_run_count\x18\a \x01(\x03R\rchildRunCount\x127\n" +
+	"\x18included_child_run_count\x18\b \x01(\x05R\x15includedChildRunCount\x12-\n" +
+	"\x12accounting_version\x18\t \x01(\tR\x11accountingVersion\x12B\n" +
+	"\fparent_usage\x18\n" +
+	" \x01(\v2\x1f.aiAgent.v1.ExecutionTokenUsageR\vparentUsage\x12H\n" +
+	"\rparent_budget\x18\v \x01(\v2#.aiAgent.v1.ExecutionBudgetSnapshotR\fparentBudget\x12@\n" +
+	"\vchild_usage\x18\f \x01(\v2\x1f.aiAgent.v1.ExecutionTokenUsageR\n" +
+	"childUsage\x12@\n" +
+	"\vtotal_usage\x18\r \x01(\v2\x1f.aiAgent.v1.ExecutionTokenUsageR\n" +
+	"totalUsage\x12=\n" +
+	"\bchildren\x18\x0e \x03(\v2!.aiAgent.v1.WorkflowRunAccountingR\bchildren\"\x85\x01\n" +
+	"\x1dGetAgentRunAccountingResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12>\n" +
+	"\n" +
+	"accounting\x18\x03 \x01(\v2\x1e.aiAgent.v1.AgentRunAccountingR\n" +
+	"accounting\"\xdf\x01\n" +
+	"\x15ResumeAgentRunRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12+\n" +
+	"\x11expected_revision\x18\x03 \x01(\x03R\x10expectedRevision\x12%\n" +
+	"\x0ehuman_response\x18\x04 \x01(\tR\rhumanResponse\x12\x1f\n" +
+	"\vapproval_id\x18\x05 \x01(\tR\n" +
+	"approvalId\x12!\n" +
+	"\fresume_token\x18\x06 \x01(\tR\vresumeToken\"\x8c\x01\n" +
+	"\x1cIssueAgentResumeGrantRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x1f\n" +
+	"\vapproval_id\x18\x02 \x01(\tR\n" +
+	"approvalId\x122\n" +
+	"\x15expected_run_revision\x18\x03 \x01(\x03R\x13expectedRunRevision\"\xb8\x01\n" +
+	"\x1dIssueAgentResumeGrantResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12/\n" +
+	"\x03run\x18\x03 \x01(\v2\x1d.aiAgent.v1.AgentExecutionRunR\x03run\x12!\n" +
+	"\fresume_token\x18\x04 \x01(\tR\vresumeToken\x12\x1d\n" +
+	"\n" +
+	"expires_at\x18\x05 \x01(\x03R\texpiresAt\"\x8d\x01\n" +
 	"\x12callApiOfAiRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\"\n" +
 	"\rmodel_kind_id\x18\x02 \x01(\x04R\vmodelKindId\x12:\n" +
@@ -3193,17 +23179,19 @@ const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
 	"\x1bassistPublishTwitterRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\"\n" +
 	"\rmodel_kind_id\x18\x02 \x01(\x04R\vmodelKindId\x12:\n" +
-	"\fmain_content\x18\x03 \x01(\v2\x17.aiAgent.v1.MainContentR\vmainContent\"\xb5\x01\n" +
+	"\fmain_content\x18\x03 \x01(\v2\x17.aiAgent.v1.MainContentR\vmainContent\"\xcc\x01\n" +
 	"\x1cassistPublishTwitterResponse\x12!\n" +
 	"\fdialogue_key\x18\x05 \x01(\tR\vdialogueKey\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
 	"\x03msg\x18\x02 \x01(\tR\x03msg\x12\x1a\n" +
 	"\bresponse\x18\x03 \x01(\tR\bresponse\x120\n" +
 	"\n" +
-	"tweet_list\x18\x04 \x03(\v2\x11.aiAgent.v1.TweetR\ttweetList\"Q\n" +
+	"tweet_list\x18\x04 \x03(\v2\x11.aiAgent.v1.TweetR\ttweetList\x12\x15\n" +
+	"\x06run_id\x18\x06 \x01(\tR\x05runId\"u\n" +
 	"\x1cConfirmPublishTwitterRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x18\n" +
-	"\acontent\x18\x02 \x01(\tR\acontent\"|\n" +
+	"\acontent\x18\x02 \x01(\tR\acontent\x12\"\n" +
+	"\rsource_run_id\x18\x03 \x01(\tR\vsourceRunId\"|\n" +
 	"\x1dConfirmPublishTwitterResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
 	"\x03msg\x18\x02 \x01(\tR\x03msg\x12\x1a\n" +
@@ -3231,7 +23219,7 @@ const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
 	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
 	"\x03msg\x18\x02 \x01(\tR\x03msg\x12'\n" +
 	"\x0fanalysis_report\x18\x03 \x01(\tR\x0eanalysisReport\x12%\n" +
-	"\x0estructured_rca\x18\x04 \x01(\tR\rstructuredRca\"\x9d\x01\n" +
+	"\x0estructured_rca\x18\x04 \x01(\tR\rstructuredRca\"\xaf\x02\n" +
 	"\x0fWorkflowSummary\x12\x1f\n" +
 	"\vworkflow_id\x18\x01 \x01(\tR\n" +
 	"workflowId\x12\x17\n" +
@@ -3240,7 +23228,10 @@ const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x04 \x01(\x03R\tcreatedAt\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\x05 \x01(\x03R\tupdatedAt\"\xb7\x01\n" +
+	"updated_at\x18\x05 \x01(\x03R\tupdatedAt\x12.\n" +
+	"\x13current_revision_id\x18\x06 \x01(\tR\x11currentRevisionId\x126\n" +
+	"\x17current_revision_number\x18\a \x01(\x03R\x15currentRevisionNumber\x12(\n" +
+	"\x10current_dsl_hash\x18\b \x01(\tR\x0ecurrentDslHash\"\xc9\x02\n" +
 	"\x0eWorkflowDetail\x12\x1f\n" +
 	"\vworkflow_id\x18\x01 \x01(\tR\n" +
 	"workflowId\x12\x17\n" +
@@ -3250,7 +23241,50 @@ const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x05 \x01(\x03R\tcreatedAt\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\x06 \x01(\x03R\tupdatedAt\"\x9b\x02\n" +
+	"updated_at\x18\x06 \x01(\x03R\tupdatedAt\x12.\n" +
+	"\x13current_revision_id\x18\a \x01(\tR\x11currentRevisionId\x126\n" +
+	"\x17current_revision_number\x18\b \x01(\x03R\x15currentRevisionNumber\x12(\n" +
+	"\x10current_dsl_hash\x18\t \x01(\tR\x0ecurrentDslHash\"\xd7\x01\n" +
+	"\x17WorkflowRevisionSummary\x12\x1f\n" +
+	"\vrevision_id\x18\x01 \x01(\tR\n" +
+	"revisionId\x12\x1f\n" +
+	"\vworkflow_id\x18\x02 \x01(\tR\n" +
+	"workflowId\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x04R\x06userId\x12'\n" +
+	"\x0frevision_number\x18\x04 \x01(\x03R\x0erevisionNumber\x12\x19\n" +
+	"\bdsl_hash\x18\x05 \x01(\tR\adslHash\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x06 \x01(\x03R\tcreatedAt\"\xf1\x01\n" +
+	"\x16WorkflowRevisionDetail\x12\x1f\n" +
+	"\vrevision_id\x18\x01 \x01(\tR\n" +
+	"revisionId\x12\x1f\n" +
+	"\vworkflow_id\x18\x02 \x01(\tR\n" +
+	"workflowId\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x04R\x06userId\x12'\n" +
+	"\x0frevision_number\x18\x04 \x01(\x03R\x0erevisionNumber\x12\x19\n" +
+	"\bdsl_json\x18\x05 \x01(\tR\adslJson\x12\x19\n" +
+	"\bdsl_hash\x18\x06 \x01(\tR\adslHash\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\a \x01(\x03R\tcreatedAt\"\x92\x04\n" +
+	"\x17WorkflowToolPublication\x12%\n" +
+	"\x0epublication_id\x18\x01 \x01(\tR\rpublicationId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\x04R\x06userId\x12\x1f\n" +
+	"\vworkflow_id\x18\x03 \x01(\tR\n" +
+	"workflowId\x120\n" +
+	"\x14workflow_revision_id\x18\x04 \x01(\tR\x12workflowRevisionId\x128\n" +
+	"\x18workflow_revision_number\x18\x05 \x01(\x03R\x16workflowRevisionNumber\x12*\n" +
+	"\x11workflow_dsl_hash\x18\x06 \x01(\tR\x0fworkflowDslHash\x12\x1b\n" +
+	"\ttool_name\x18\a \x01(\tR\btoolName\x12!\n" +
+	"\fdisplay_name\x18\b \x01(\tR\vdisplayName\x12 \n" +
+	"\vdescription\x18\t \x01(\tR\vdescription\x12*\n" +
+	"\x11input_schema_json\x18\n" +
+	" \x01(\tR\x0finputSchemaJson\x12\x16\n" +
+	"\x06status\x18\v \x01(\tR\x06status\x12\x1a\n" +
+	"\brevision\x18\f \x01(\x03R\brevision\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\r \x01(\x03R\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x0e \x01(\x03R\tupdatedAt\"\xa0\a\n" +
 	"\vWorkflowRun\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1f\n" +
 	"\vworkflow_id\x18\x02 \x01(\tR\n" +
@@ -3265,7 +23299,43 @@ const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
 	"\n" +
 	"started_at\x18\b \x01(\x03R\tstartedAt\x12\x1f\n" +
 	"\vfinished_at\x18\t \x01(\x03R\n" +
-	"finishedAt\"_\n" +
+	"finishedAt\x12&\n" +
+	"\x0fwaiting_node_id\x18\n" +
+	" \x01(\tR\rwaitingNodeId\x12!\n" +
+	"\fsuspended_at\x18\v \x01(\x03R\vsuspendedAt\x12.\n" +
+	"\x13approval_request_id\x18\f \x01(\tR\x11approvalRequestId\x12\x1a\n" +
+	"\brevision\x18\r \x01(\x03R\brevision\x120\n" +
+	"\x14workflow_revision_id\x18\x0e \x01(\tR\x12workflowRevisionId\x128\n" +
+	"\x18workflow_revision_number\x18\x0f \x01(\x03R\x16workflowRevisionNumber\x12#\n" +
+	"\rstate_version\x18\x10 \x01(\x03R\fstateVersion\x12.\n" +
+	"\x13cancel_requested_at\x18\x11 \x01(\x03R\x11cancelRequestedAt\x12#\n" +
+	"\rcancel_reason\x18\x12 \x01(\tR\fcancelReason\x12\x1f\n" +
+	"\vcanceled_at\x18\x13 \x01(\x03R\n" +
+	"canceledAt\x123\n" +
+	"\x16resume_grant_issued_at\x18\x14 \x01(\x03R\x13resumeGrantIssuedAt\x125\n" +
+	"\x17resume_grant_expires_at\x18\x15 \x01(\x03R\x14resumeGrantExpiresAt\x12+\n" +
+	"\x11invocation_source\x18\x16 \x01(\tR\x10invocationSource\x12\"\n" +
+	"\rparent_run_id\x18\x17 \x01(\tR\vparentRunId\x12(\n" +
+	"\x10parent_action_id\x18\x18 \x01(\tR\x0eparentActionId\"\xf6\x03\n" +
+	"\x12WorkflowRunSummary\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1f\n" +
+	"\vworkflow_id\x18\x02 \x01(\tR\n" +
+	"workflowId\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12#\n" +
+	"\rerror_message\x18\x04 \x01(\tR\ferrorMessage\x12\x1d\n" +
+	"\n" +
+	"started_at\x18\x05 \x01(\x03R\tstartedAt\x12\x1f\n" +
+	"\vfinished_at\x18\x06 \x01(\x03R\n" +
+	"finishedAt\x12&\n" +
+	"\x0fwaiting_node_id\x18\a \x01(\tR\rwaitingNodeId\x12.\n" +
+	"\x13approval_request_id\x18\b \x01(\tR\x11approvalRequestId\x128\n" +
+	"\x18workflow_revision_number\x18\t \x01(\x03R\x16workflowRevisionNumber\x12#\n" +
+	"\rstate_version\x18\n" +
+	" \x01(\x03R\fstateVersion\x12.\n" +
+	"\x13cancel_requested_at\x18\v \x01(\x03R\x11cancelRequestedAt\x12#\n" +
+	"\rcancel_reason\x18\f \x01(\tR\fcancelReason\x12\x1f\n" +
+	"\vcanceled_at\x18\r \x01(\x03R\n" +
+	"canceledAt\"_\n" +
 	"\x15CreateWorkflowRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x19\n" +
@@ -3300,31 +23370,1239 @@ const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
 	"\x13GetWorkflowResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
 	"\x03msg\x18\x02 \x01(\tR\x03msg\x126\n" +
-	"\bworkflow\x18\x03 \x01(\v2\x1a.aiAgent.v1.WorkflowDetailR\bworkflow\"m\n" +
+	"\bworkflow\x18\x03 \x01(\v2\x1a.aiAgent.v1.WorkflowDetailR\bworkflow\"\x89\x01\n" +
+	"\x1cListWorkflowRevisionsRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x1f\n" +
+	"\vworkflow_id\x18\x02 \x01(\tR\n" +
+	"workflowId\x12\x12\n" +
+	"\x04page\x18\x03 \x01(\rR\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x04 \x01(\rR\bpageSize\"\x9e\x01\n" +
+	"\x1dListWorkflowRevisionsResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12A\n" +
+	"\trevisions\x18\x03 \x03(\v2#.aiAgent.v1.WorkflowRevisionSummaryR\trevisions\x12\x14\n" +
+	"\x05total\x18\x04 \x01(\x03R\x05total\"w\n" +
+	"\x1aGetWorkflowRevisionRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x1f\n" +
+	"\vworkflow_id\x18\x02 \x01(\tR\n" +
+	"workflowId\x12\x1f\n" +
+	"\vrevision_id\x18\x03 \x01(\tR\n" +
+	"revisionId\"\x83\x01\n" +
+	"\x1bGetWorkflowRevisionResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12>\n" +
+	"\brevision\x18\x03 \x01(\v2\".aiAgent.v1.WorkflowRevisionDetailR\brevision\"\x83\x02\n" +
+	"\x1aPublishWorkflowToolRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x1f\n" +
+	"\vworkflow_id\x18\x02 \x01(\tR\n" +
+	"workflowId\x120\n" +
+	"\x14workflow_revision_id\x18\x03 \x01(\tR\x12workflowRevisionId\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x12*\n" +
+	"\x11input_schema_json\x18\x05 \x01(\tR\x0finputSchemaJson\x12+\n" +
+	"\x11expected_revision\x18\x06 \x01(\x03R\x10expectedRevision\"\x8a\x01\n" +
+	"\x1bPublishWorkflowToolResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12E\n" +
+	"\vpublication\x18\x03 \x01(\v2#.aiAgent.v1.WorkflowToolPublicationR\vpublication\"]\n" +
+	"!GetWorkflowToolPublicationRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x1f\n" +
+	"\vworkflow_id\x18\x02 \x01(\tR\n" +
+	"workflowId\"\x91\x01\n" +
+	"\"GetWorkflowToolPublicationResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12E\n" +
+	"\vpublication\x18\x03 \x01(\v2#.aiAgent.v1.WorkflowToolPublicationR\vpublication\"\x85\x01\n" +
+	"\x1cUnpublishWorkflowToolRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x1f\n" +
+	"\vworkflow_id\x18\x02 \x01(\tR\n" +
+	"workflowId\x12+\n" +
+	"\x11expected_revision\x18\x03 \x01(\x03R\x10expectedRevision\"\x8c\x01\n" +
+	"\x1dUnpublishWorkflowToolResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12E\n" +
+	"\vpublication\x18\x03 \x01(\v2#.aiAgent.v1.WorkflowToolPublicationR\vpublication\"\x9f\x01\n" +
 	"\x12RunWorkflowRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x1f\n" +
 	"\vworkflow_id\x18\x02 \x01(\tR\n" +
 	"workflowId\x12\x1d\n" +
 	"\n" +
-	"input_json\x18\x03 \x01(\tR\tinputJson\"\xa5\x01\n" +
+	"input_json\x18\x03 \x01(\tR\tinputJson\x120\n" +
+	"\x14workflow_revision_id\x18\x04 \x01(\tR\x12workflowRevisionId\"\xc8\x01\n" +
 	"\x13RunWorkflowResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
 	"\x03msg\x18\x02 \x01(\tR\x03msg\x12)\n" +
 	"\x03run\x18\x03 \x01(\v2\x17.aiAgent.v1.WorkflowRunR\x03run\x12!\n" +
 	"\fdialogue_key\x18\x04 \x01(\tR\vdialogueKey\x12\x1a\n" +
-	"\bresponse\x18\x05 \x01(\tR\bresponse\"G\n" +
+	"\bresponse\x18\x05 \x01(\tR\bresponse\x12!\n" +
+	"\fresume_token\x18\x06 \x01(\tR\vresumeToken\"G\n" +
 	"\x15GetWorkflowRunRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\"i\n" +
 	"\x16GetWorkflowRunResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
 	"\x03msg\x18\x02 \x01(\tR\x03msg\x12)\n" +
-	"\x03run\x18\x03 \x01(\v2\x17.aiAgent.v1.WorkflowRunR\x03run2\x83\f\n" +
-	"\x0eAiAgentService\x12~\n" +
+	"\x03run\x18\x03 \x01(\v2\x17.aiAgent.v1.WorkflowRunR\x03run\"\xa2\x02\n" +
+	"\x13ExecutionTokenUsage\x12!\n" +
+	"\finput_tokens\x18\x01 \x01(\x05R\vinputTokens\x12#\n" +
+	"\routput_tokens\x18\x02 \x01(\x05R\foutputTokens\x12!\n" +
+	"\ftotal_tokens\x18\x03 \x01(\x05R\vtotalTokens\x12\x1c\n" +
+	"\testimated\x18\x04 \x01(\bR\testimated\x122\n" +
+	"\x15estimated_cost_micros\x18\x05 \x01(\x03R\x13estimatedCostMicros\x12%\n" +
+	"\x0ecost_estimated\x18\x06 \x01(\bR\rcostEstimated\x12'\n" +
+	"\x0fpricing_version\x18\a \x01(\tR\x0epricingVersion\"\x9d\x02\n" +
+	"\x17ExecutionBudgetSnapshot\x12\x1b\n" +
+	"\tmax_steps\x18\x01 \x01(\x05R\bmaxSteps\x12(\n" +
+	"\x10max_total_tokens\x18\x02 \x01(\x05R\x0emaxTotalTokens\x129\n" +
+	"\x19max_estimated_cost_micros\x18\x03 \x01(\x03R\x16maxEstimatedCostMicros\x12%\n" +
+	"\x0econsumed_steps\x18\x04 \x01(\x05R\rconsumedSteps\x12'\n" +
+	"\x0fconsumed_tokens\x18\x05 \x01(\x05R\x0econsumedTokens\x120\n" +
+	"\x14consumed_cost_micros\x18\x06 \x01(\x03R\x12consumedCostMicros\"\x81\x04\n" +
+	"\rAgentRunTrace\x12\x1b\n" +
+	"\trecord_id\x18\x01 \x01(\tR\brecordId\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x1f\n" +
+	"\vworkflow_id\x18\x03 \x01(\tR\n" +
+	"workflowId\x12\x17\n" +
+	"\auser_id\x18\x04 \x01(\x04R\x06userId\x12\x16\n" +
+	"\x06source\x18\x05 \x01(\tR\x06source\x12\x12\n" +
+	"\x04mode\x18\x06 \x01(\tR\x04mode\x12\x1a\n" +
+	"\bstrategy\x18\a \x01(\tR\bstrategy\x12\x16\n" +
+	"\x06status\x18\b \x01(\tR\x06status\x12\x1f\n" +
+	"\verror_class\x18\t \x01(\tR\n" +
+	"errorClass\x125\n" +
+	"\x05usage\x18\n" +
+	" \x01(\v2\x1f.aiAgent.v1.ExecutionTokenUsageR\x05usage\x12;\n" +
+	"\x06budget\x18\v \x01(\v2#.aiAgent.v1.ExecutionBudgetSnapshotR\x06budget\x12\"\n" +
+	"\rstarted_at_ms\x18\f \x01(\x03R\vstartedAtMs\x12$\n" +
+	"\x0efinished_at_ms\x18\r \x01(\x03R\ffinishedAtMs\x12\x1f\n" +
+	"\vduration_ms\x18\x0e \x01(\x03R\n" +
+	"durationMs\x12\"\n" +
+	"\rupdated_at_ms\x18\x0f \x01(\x03R\vupdatedAtMs\"\xa7\x04\n" +
+	"\x0eAgentStepTrace\x12\x1b\n" +
+	"\trecord_id\x18\x01 \x01(\tR\brecordId\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x1f\n" +
+	"\vworkflow_id\x18\x03 \x01(\tR\n" +
+	"workflowId\x12\x17\n" +
+	"\auser_id\x18\x04 \x01(\x04R\x06userId\x12\x16\n" +
+	"\x06source\x18\x05 \x01(\tR\x06source\x12\x17\n" +
+	"\astep_id\x18\x06 \x01(\tR\x06stepId\x12$\n" +
+	"\x0eparent_step_id\x18\a \x01(\tR\fparentStepId\x12\x1a\n" +
+	"\bsequence\x18\b \x01(\x05R\bsequence\x12\x1b\n" +
+	"\tstep_type\x18\t \x01(\tR\bstepType\x12\x12\n" +
+	"\x04name\x18\n" +
+	" \x01(\tR\x04name\x12\x16\n" +
+	"\x06status\x18\v \x01(\tR\x06status\x12\x18\n" +
+	"\aattempt\x18\f \x01(\x05R\aattempt\x12!\n" +
+	"\fmax_attempts\x18\r \x01(\x05R\vmaxAttempts\x12\x1f\n" +
+	"\verror_class\x18\x0e \x01(\tR\n" +
+	"errorClass\x12\"\n" +
+	"\rstarted_at_ms\x18\x0f \x01(\x03R\vstartedAtMs\x12$\n" +
+	"\x0efinished_at_ms\x18\x10 \x01(\x03R\ffinishedAtMs\x12\x1f\n" +
+	"\vduration_ms\x18\x11 \x01(\x03R\n" +
+	"durationMs\x12\"\n" +
+	"\rupdated_at_ms\x18\x12 \x01(\x03R\vupdatedAtMs\"\xf3\a\n" +
+	"\x11AgentLLMCallTrace\x12\x1b\n" +
+	"\trecord_id\x18\x01 \x01(\tR\brecordId\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x1f\n" +
+	"\vworkflow_id\x18\x03 \x01(\tR\n" +
+	"workflowId\x12\x17\n" +
+	"\auser_id\x18\x04 \x01(\x04R\x06userId\x12\x16\n" +
+	"\x06source\x18\x05 \x01(\tR\x06source\x12\x17\n" +
+	"\astep_id\x18\x06 \x01(\tR\x06stepId\x12\x1a\n" +
+	"\bsequence\x18\a \x01(\x05R\bsequence\x12\x14\n" +
+	"\x05model\x18\b \x01(\tR\x05model\x12\x1a\n" +
+	"\bprovider\x18\t \x01(\tR\bprovider\x12\x16\n" +
+	"\x06status\x18\n" +
+	" \x01(\tR\x06status\x12\x1f\n" +
+	"\verror_class\x18\v \x01(\tR\n" +
+	"errorClass\x12\x1f\n" +
+	"\vprompt_hash\x18\f \x01(\tR\n" +
+	"promptHash\x12#\n" +
+	"\rprompt_length\x18\r \x01(\x05R\fpromptLength\x12'\n" +
+	"\x0fcompletion_hash\x18\x0e \x01(\tR\x0ecompletionHash\x12+\n" +
+	"\x11completion_length\x18\x0f \x01(\x05R\x10completionLength\x125\n" +
+	"\x05usage\x18\x10 \x01(\v2\x1f.aiAgent.v1.ExecutionTokenUsageR\x05usage\x12\"\n" +
+	"\rstarted_at_ms\x18\x11 \x01(\x03R\vstartedAtMs\x12$\n" +
+	"\x0efinished_at_ms\x18\x12 \x01(\x03R\ffinishedAtMs\x12\x1f\n" +
+	"\vduration_ms\x18\x13 \x01(\x03R\n" +
+	"durationMs\x12\"\n" +
+	"\rupdated_at_ms\x18\x14 \x01(\x03R\vupdatedAtMs\x12,\n" +
+	"\x12prompt_template_id\x18\x15 \x01(\tR\x10promptTemplateId\x126\n" +
+	"\x17prompt_template_version\x18\x16 \x01(\tR\x15promptTemplateVersion\x12#\n" +
+	"\rprompt_sample\x18\x17 \x01(\tR\fpromptSample\x12+\n" +
+	"\x11completion_sample\x18\x18 \x01(\tR\x10completionSample\x120\n" +
+	"\x14prompt_sample_status\x18\x19 \x01(\tR\x12promptSampleStatus\x128\n" +
+	"\x18completion_sample_status\x18\x1a \x01(\tR\x16completionSampleStatus\x122\n" +
+	"\x15content_sample_policy\x18\x1b \x01(\tR\x13contentSamplePolicy\"\x86\x06\n" +
+	"\x12AgentToolCallTrace\x12\x1b\n" +
+	"\trecord_id\x18\x01 \x01(\tR\brecordId\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x1f\n" +
+	"\vworkflow_id\x18\x03 \x01(\tR\n" +
+	"workflowId\x12\x17\n" +
+	"\auser_id\x18\x04 \x01(\x04R\x06userId\x12\x16\n" +
+	"\x06source\x18\x05 \x01(\tR\x06source\x12\x17\n" +
+	"\astep_id\x18\x06 \x01(\tR\x06stepId\x12\x1a\n" +
+	"\bsequence\x18\a \x01(\x05R\bsequence\x12\x1b\n" +
+	"\ttool_name\x18\b \x01(\tR\btoolName\x12\x1a\n" +
+	"\bcategory\x18\t \x01(\tR\bcategory\x12\x16\n" +
+	"\x06status\x18\n" +
+	" \x01(\tR\x06status\x12\x1f\n" +
+	"\verror_class\x18\v \x01(\tR\n" +
+	"errorClass\x12\x1a\n" +
+	"\battempts\x18\f \x01(\x05R\battempts\x12%\n" +
+	"\x0earguments_hash\x18\r \x01(\tR\rargumentsHash\x12)\n" +
+	"\x10arguments_length\x18\x0e \x01(\x05R\x0fargumentsLength\x12\x1f\n" +
+	"\voutput_hash\x18\x0f \x01(\tR\n" +
+	"outputHash\x12#\n" +
+	"\routput_length\x18\x10 \x01(\x05R\foutputLength\x12\"\n" +
+	"\rstarted_at_ms\x18\x11 \x01(\x03R\vstartedAtMs\x12$\n" +
+	"\x0efinished_at_ms\x18\x12 \x01(\x03R\ffinishedAtMs\x12\x1f\n" +
+	"\vduration_ms\x18\x13 \x01(\x03R\n" +
+	"durationMs\x12\"\n" +
+	"\rupdated_at_ms\x18\x14 \x01(\x03R\vupdatedAtMs\x12%\n" +
+	"\x0eoutput_storage\x18\x15 \x01(\tR\routputStorage\x12)\n" +
+	"\x10output_reference\x18\x16 \x01(\tR\x0foutputReference\x12.\n" +
+	"\x13output_content_type\x18\x17 \x01(\tR\x11outputContentType\"L\n" +
+	"\x1aGetWorkflowRunTraceRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\"\x9d\x02\n" +
+	"\x1bGetWorkflowRunTraceResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12+\n" +
+	"\x03run\x18\x03 \x01(\v2\x19.aiAgent.v1.AgentRunTraceR\x03run\x120\n" +
+	"\x05steps\x18\x04 \x03(\v2\x1a.aiAgent.v1.AgentStepTraceR\x05steps\x12:\n" +
+	"\tllm_calls\x18\x05 \x03(\v2\x1d.aiAgent.v1.AgentLLMCallTraceR\bllmCalls\x12=\n" +
+	"\n" +
+	"tool_calls\x18\x06 \x03(\v2\x1e.aiAgent.v1.AgentToolCallTraceR\ttoolCalls\"\xed\x01\n" +
+	"\x1fSearchWorkflowBlackboardRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12#\n" +
+	"\rstate_version\x18\x03 \x01(\x03R\fstateVersion\x12\x14\n" +
+	"\x05query\x18\x04 \x01(\tR\x05query\x12\x1f\n" +
+	"\vpath_prefix\x18\x05 \x01(\tR\n" +
+	"pathPrefix\x12!\n" +
+	"\fafter_cursor\x18\x06 \x01(\tR\vafterCursor\x12\x1b\n" +
+	"\tpage_size\x18\a \x01(\rR\bpageSize\"\xcb\x01\n" +
+	"\x17WorkflowBlackboardEntry\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x1d\n" +
+	"\n" +
+	"value_json\x18\x02 \x01(\tR\tvalueJson\x12\x1d\n" +
+	"\n" +
+	"value_type\x18\x03 \x01(\tR\tvalueType\x12\x1d\n" +
+	"\n" +
+	"value_hash\x18\x04 \x01(\tR\tvalueHash\x12!\n" +
+	"\fvalue_length\x18\x05 \x01(\x03R\vvalueLength\x12\x1c\n" +
+	"\ttruncated\x18\x06 \x01(\bR\ttruncated\"\xc1\x03\n" +
+	" SearchWorkflowBlackboardResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12\x15\n" +
+	"\x06run_id\x18\x03 \x01(\tR\x05runId\x12#\n" +
+	"\rstate_version\x18\x04 \x01(\x03R\fstateVersion\x122\n" +
+	"\x15base_snapshot_version\x18\x05 \x01(\x03R\x13baseSnapshotVersion\x12,\n" +
+	"\x12base_snapshot_hash\x18\x06 \x01(\tR\x10baseSnapshotHash\x12\x1d\n" +
+	"\n" +
+	"state_hash\x18\a \x01(\tR\tstateHash\x12\x1a\n" +
+	"\bverified\x18\b \x01(\bR\bverified\x12=\n" +
+	"\aentries\x18\t \x03(\v2#.aiAgent.v1.WorkflowBlackboardEntryR\aentries\x12#\n" +
+	"\rmatched_total\x18\n" +
+	" \x01(\x03R\fmatchedTotal\x12\x1f\n" +
+	"\vnext_cursor\x18\v \x01(\tR\n" +
+	"nextCursor\x12\x19\n" +
+	"\bhas_more\x18\f \x01(\bR\ahasMore\"r\n" +
+	"\x1dWatchWorkflowRunEventsRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12!\n" +
+	"\fafter_cursor\x18\x03 \x01(\tR\vafterCursor\"\x9e\x03\n" +
+	"\x10WorkflowRunEvent\x12\x16\n" +
+	"\x06cursor\x18\x01 \x01(\tR\x06cursor\x12\x12\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x14\n" +
+	"\x05reset\x18\x03 \x01(\bR\x05reset\x12\x1c\n" +
+	"\theartbeat\x18\x04 \x01(\bR\theartbeat\x12\x1a\n" +
+	"\bterminal\x18\x05 \x01(\bR\bterminal\x12\x16\n" +
+	"\x06reason\x18\x06 \x01(\tR\x06reason\x12\"\n" +
+	"\rcreated_at_ms\x18\a \x01(\x03R\vcreatedAtMs\x12+\n" +
+	"\x03run\x18\b \x01(\v2\x19.aiAgent.v1.AgentRunTraceR\x03run\x12.\n" +
+	"\x04step\x18\t \x01(\v2\x1a.aiAgent.v1.AgentStepTraceR\x04step\x128\n" +
+	"\bllm_call\x18\n" +
+	" \x01(\v2\x1d.aiAgent.v1.AgentLLMCallTraceR\allmCall\x12;\n" +
+	"\ttool_call\x18\v \x01(\v2\x1e.aiAgent.v1.AgentToolCallTraceR\btoolCall\"\x9c\x01\n" +
+	"\x17ListWorkflowRunsRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x1f\n" +
+	"\vworkflow_id\x18\x02 \x01(\tR\n" +
+	"workflowId\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\x12\n" +
+	"\x04page\x18\x04 \x01(\rR\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x05 \x01(\rR\bpageSize\"\x8a\x01\n" +
+	"\x18ListWorkflowRunsResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x122\n" +
+	"\x04runs\x18\x03 \x03(\v2\x1e.aiAgent.v1.WorkflowRunSummaryR\x04runs\x12\x14\n" +
+	"\x05total\x18\x04 \x01(\x03R\x05total\"b\n" +
+	"\x18CancelWorkflowRunRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"s\n" +
+	"\x19CancelWorkflowRunResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x120\n" +
+	"\x03run\x18\x03 \x01(\v2\x1e.aiAgent.v1.WorkflowRunSummaryR\x03run\"\xac\x01\n" +
+	"\x18WorkflowReplayStateEvent\x12\x1a\n" +
+	"\bsequence\x18\x01 \x01(\x03R\bsequence\x12\x17\n" +
+	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12\x1d\n" +
+	"\n" +
+	"delta_json\x18\x03 \x01(\tR\tdeltaJson\x12\x1d\n" +
+	"\n" +
+	"event_hash\x18\x04 \x01(\tR\teventHash\x12\x1d\n" +
+	"\n" +
+	"applied_at\x18\x05 \x01(\x03R\tappliedAt\"\x81\x01\n" +
+	"\x16WorkflowReplaySnapshot\x12#\n" +
+	"\rstate_version\x18\x01 \x01(\x03R\fstateVersion\x12#\n" +
+	"\rsnapshot_hash\x18\x02 \x01(\tR\fsnapshotHash\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x03 \x01(\x03R\tcreatedAt\"\xd7\x03\n" +
+	"\x1aWorkflowReplayCompensation\x12\x1a\n" +
+	"\bsequence\x18\x01 \x01(\x05R\bsequence\x12$\n" +
+	"\x0esource_node_id\x18\x02 \x01(\tR\fsourceNodeId\x12\x17\n" +
+	"\astep_id\x18\x03 \x01(\tR\x06stepId\x12\x1b\n" +
+	"\ttool_name\x18\x04 \x01(\tR\btoolName\x12\x1d\n" +
+	"\n" +
+	"input_hash\x18\x05 \x01(\tR\tinputHash\x12\x1b\n" +
+	"\tplan_hash\x18\x06 \x01(\tR\bplanHash\x12\x16\n" +
+	"\x06status\x18\a \x01(\tR\x06status\x12\x18\n" +
+	"\aattempt\x18\b \x01(\x05R\aattempt\x12#\n" +
+	"\rerror_message\x18\t \x01(\tR\ferrorMessage\x12.\n" +
+	"\x13approval_request_id\x18\n" +
+	" \x01(\tR\x11approvalRequestId\x12\x1f\n" +
+	"\vlease_until\x18\v \x01(\x03R\n" +
+	"leaseUntil\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\f \x01(\x03R\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\r \x01(\x03R\tupdatedAt\x12\x1f\n" +
+	"\vfinished_at\x18\x0e \x01(\x03R\n" +
+	"finishedAt\"\xcb\x01\n" +
+	"\x17WorkflowReplayIntegrity\x12\x1a\n" +
+	"\bverified\x18\x01 \x01(\bR\bverified\x12#\n" +
+	"\rstate_version\x18\x02 \x01(\x03R\fstateVersion\x12\x1f\n" +
+	"\vevent_count\x18\x03 \x01(\x03R\n" +
+	"eventCount\x12#\n" +
+	"\rlast_sequence\x18\x04 \x01(\x03R\flastSequence\x12)\n" +
+	"\x10snapshot_version\x18\x05 \x01(\x03R\x0fsnapshotVersion\"M\n" +
+	"\x1bGetWorkflowRunReplayRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\"\xbf\x03\n" +
+	"\x1cGetWorkflowRunReplayResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12)\n" +
+	"\x03run\x18\x03 \x01(\v2\x17.aiAgent.v1.WorkflowRunR\x03run\x12?\n" +
+	"\brevision\x18\x04 \x01(\v2#.aiAgent.v1.WorkflowRevisionSummaryR\brevision\x12<\n" +
+	"\x06events\x18\x05 \x03(\v2$.aiAgent.v1.WorkflowReplayStateEventR\x06events\x12>\n" +
+	"\bsnapshot\x18\x06 \x01(\v2\".aiAgent.v1.WorkflowReplaySnapshotR\bsnapshot\x12L\n" +
+	"\rcompensations\x18\a \x03(\v2&.aiAgent.v1.WorkflowReplayCompensationR\rcompensations\x12A\n" +
+	"\tintegrity\x18\b \x01(\v2#.aiAgent.v1.WorkflowReplayIntegrityR\tintegrity\"\xf6\x03\n" +
+	" WorkflowCompensationJournalEntry\x12\x1a\n" +
+	"\bsequence\x18\x01 \x01(\x05R\bsequence\x12$\n" +
+	"\x0esource_node_id\x18\x02 \x01(\tR\fsourceNodeId\x12\x17\n" +
+	"\astep_id\x18\x03 \x01(\tR\x06stepId\x12\x1b\n" +
+	"\ttool_name\x18\x04 \x01(\tR\btoolName\x12\x1d\n" +
+	"\n" +
+	"input_hash\x18\x05 \x01(\tR\tinputHash\x12\x1b\n" +
+	"\tplan_hash\x18\x06 \x01(\tR\bplanHash\x12\x16\n" +
+	"\x06status\x18\a \x01(\tR\x06status\x12\x18\n" +
+	"\aattempt\x18\b \x01(\x05R\aattempt\x12#\n" +
+	"\rerror_message\x18\t \x01(\tR\ferrorMessage\x12.\n" +
+	"\x13approval_request_id\x18\n" +
+	" \x01(\tR\x11approvalRequestId\x12\x1f\n" +
+	"\vlease_until\x18\v \x01(\x03R\n" +
+	"leaseUntil\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\f \x01(\x03R\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\r \x01(\x03R\tupdatedAt\x12\x1f\n" +
+	"\vfinished_at\x18\x0e \x01(\x03R\n" +
+	"finishedAt\x12\x17\n" +
+	"\ais_next\x18\x0f \x01(\bR\x06isNext\"W\n" +
+	"%GetWorkflowCompensationJournalRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\"\xad\x02\n" +
+	"\x1eWorkflowCompensationRunSummary\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1f\n" +
+	"\vworkflow_id\x18\x02 \x01(\tR\n" +
+	"workflowId\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12#\n" +
+	"\rerror_message\x18\x04 \x01(\tR\ferrorMessage\x12\x1d\n" +
+	"\n" +
+	"started_at\x18\x05 \x01(\x03R\tstartedAt\x12\x1f\n" +
+	"\vfinished_at\x18\x06 \x01(\x03R\n" +
+	"finishedAt\x12&\n" +
+	"\x0fwaiting_node_id\x18\a \x01(\tR\rwaitingNodeId\x12.\n" +
+	"\x13approval_request_id\x18\b \x01(\tR\x11approvalRequestId\"\xa2\x02\n" +
+	"&GetWorkflowCompensationJournalResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12<\n" +
+	"\x03run\x18\x03 \x01(\v2*.aiAgent.v1.WorkflowCompensationRunSummaryR\x03run\x12F\n" +
+	"\aentries\x18\x04 \x03(\v2,.aiAgent.v1.WorkflowCompensationJournalEntryR\aentries\x12#\n" +
+	"\rnext_sequence\x18\x05 \x01(\x05R\fnextSequence\x12'\n" +
+	"\x0fretry_available\x18\x06 \x01(\bR\x0eretryAvailable\"R\n" +
+	" RetryWorkflowCompensationRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\"\xb3\x01\n" +
+	"!RetryWorkflowCompensationResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12)\n" +
+	"\x03run\x18\x03 \x01(\v2\x17.aiAgent.v1.WorkflowRunR\x03run\x12\x1a\n" +
+	"\bresponse\x18\x04 \x01(\tR\bresponse\x12!\n" +
+	"\fresume_token\x18\x05 \x01(\tR\vresumeToken\"\xd4\x03\n" +
+	"\x13ToolApprovalRequest\x12\x1f\n" +
+	"\vapproval_id\x18\x01 \x01(\tR\n" +
+	"approvalId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\x04R\x06userId\x12\x15\n" +
+	"\x06run_id\x18\x03 \x01(\tR\x05runId\x12\x17\n" +
+	"\astep_id\x18\x04 \x01(\tR\x06stepId\x12\x1b\n" +
+	"\ttool_name\x18\x05 \x01(\tR\btoolName\x12\x16\n" +
+	"\x06source\x18\x06 \x01(\tR\x06source\x12\x1a\n" +
+	"\bcategory\x18\a \x01(\tR\bcategory\x12\x16\n" +
+	"\x06status\x18\b \x01(\tR\x06status\x120\n" +
+	"\x14redacted_inputs_json\x18\t \x01(\tR\x12redactedInputsJson\x12'\n" +
+	"\x0fidempotency_key\x18\n" +
+	" \x01(\tR\x0eidempotencyKey\x12\x16\n" +
+	"\x06reason\x18\v \x01(\tR\x06reason\x12\x1a\n" +
+	"\brevision\x18\f \x01(\x03R\brevision\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\r \x01(\x03R\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"expires_at\x18\x0e \x01(\x03R\texpiresAt\x12\x1d\n" +
+	"\n" +
+	"decided_at\x18\x0f \x01(\x03R\tdecidedAt\"|\n" +
+	"\x18ListToolApprovalsRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x12\n" +
+	"\x04page\x18\x03 \x01(\rR\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x04 \x01(\rR\bpageSize\"\x96\x01\n" +
+	"\x19ListToolApprovalsResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12=\n" +
+	"\tapprovals\x18\x03 \x03(\v2\x1f.aiAgent.v1.ToolApprovalRequestR\tapprovals\x12\x14\n" +
+	"\x05total\x18\x04 \x01(\x03R\x05total\"\xb6\x01\n" +
+	"\x19DecideToolApprovalRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x1f\n" +
+	"\vapproval_id\x18\x02 \x01(\tR\n" +
+	"approvalId\x12\x1a\n" +
+	"\bdecision\x18\x03 \x01(\tR\bdecision\x12\x16\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason\x12+\n" +
+	"\x11expected_revision\x18\x05 \x01(\x03R\x10expectedRevision\"\x7f\n" +
+	"\x1aDecideToolApprovalResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12;\n" +
+	"\bapproval\x18\x03 \x01(\v2\x1f.aiAgent.v1.ToolApprovalRequestR\bapproval\"\x8f\x01\n" +
+	"\x1fIssueWorkflowResumeGrantRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x1f\n" +
+	"\vapproval_id\x18\x02 \x01(\tR\n" +
+	"approvalId\x122\n" +
+	"\x15expected_run_revision\x18\x03 \x01(\x03R\x13expectedRunRevision\"\xb5\x01\n" +
+	" IssueWorkflowResumeGrantResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12)\n" +
+	"\x03run\x18\x03 \x01(\v2\x17.aiAgent.v1.WorkflowRunR\x03run\x12!\n" +
+	"\fresume_token\x18\x04 \x01(\tR\vresumeToken\x12\x1d\n" +
+	"\n" +
+	"expires_at\x18\x05 \x01(\x03R\texpiresAt\"\xad\x01\n" +
+	"\x18ResumeWorkflowRunRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x15\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x1f\n" +
+	"\vapproval_id\x18\x03 \x01(\tR\n" +
+	"approvalId\x12!\n" +
+	"\fresume_token\x18\x04 \x01(\tR\vresumeToken\x12\x1d\n" +
+	"\n" +
+	"input_json\x18\x05 \x01(\tR\tinputJson\"\xab\x01\n" +
+	"\x19ResumeWorkflowRunResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12)\n" +
+	"\x03run\x18\x03 \x01(\v2\x17.aiAgent.v1.WorkflowRunR\x03run\x12\x1a\n" +
+	"\bresponse\x18\x04 \x01(\tR\bresponse\x12!\n" +
+	"\fresume_token\x18\x05 \x01(\tR\vresumeToken\"\x8c\x03\n" +
+	"\x0eProviderConfig\x12,\n" +
+	"\x12provider_config_id\x18\x01 \x01(\tR\x10providerConfigId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\x04R\x06userId\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12\x1a\n" +
+	"\bprovider\x18\x04 \x01(\tR\bprovider\x12\x19\n" +
+	"\bbase_url\x18\x05 \x01(\tR\abaseUrl\x12\x14\n" +
+	"\x05model\x18\x06 \x01(\tR\x05model\x12\x16\n" +
+	"\x06status\x18\a \x01(\tR\x06status\x12\x1d\n" +
+	"\n" +
+	"has_secret\x18\b \x01(\bR\thasSecret\x12-\n" +
+	"\x12credential_version\x18\t \x01(\x03R\x11credentialVersion\x12\x1a\n" +
+	"\brevision\x18\n" +
+	" \x01(\x03R\brevision\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\v \x01(\x03R\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\f \x01(\x03R\tupdatedAt\x12\x12\n" +
+	"\x04kind\x18\r \x01(\tR\x04kind\"\xc4\x01\n" +
+	"\x1bCreateProviderConfigRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
+	"\bprovider\x18\x03 \x01(\tR\bprovider\x12\x19\n" +
+	"\bbase_url\x18\x04 \x01(\tR\abaseUrl\x12\x14\n" +
+	"\x05model\x18\x05 \x01(\tR\x05model\x12\x17\n" +
+	"\aapi_key\x18\x06 \x01(\tR\x06apiKey\x12\x12\n" +
+	"\x04kind\x18\a \x01(\tR\x04kind\"\x89\x01\n" +
+	"\x1cCreateProviderConfigResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12C\n" +
+	"\x0fprovider_config\x18\x03 \x01(\v2\x1a.aiAgent.v1.ProviderConfigR\x0eproviderConfig\"\x8e\x02\n" +
+	"\x1bUpdateProviderConfigRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12,\n" +
+	"\x12provider_config_id\x18\x02 \x01(\tR\x10providerConfigId\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12\x1a\n" +
+	"\bprovider\x18\x04 \x01(\tR\bprovider\x12\x19\n" +
+	"\bbase_url\x18\x05 \x01(\tR\abaseUrl\x12\x14\n" +
+	"\x05model\x18\x06 \x01(\tR\x05model\x12\x17\n" +
+	"\aapi_key\x18\a \x01(\tR\x06apiKey\x12\x1a\n" +
+	"\brevision\x18\b \x01(\x03R\brevision\x12\x12\n" +
+	"\x04kind\x18\t \x01(\tR\x04kind\"\x89\x01\n" +
+	"\x1cUpdateProviderConfigResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12C\n" +
+	"\x0fprovider_config\x18\x03 \x01(\v2\x1a.aiAgent.v1.ProviderConfigR\x0eproviderConfig\"z\n" +
+	"\x1aListProviderConfigsRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x12\n" +
+	"\x04page\x18\x02 \x01(\rR\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x03 \x01(\rR\bpageSize\x12\x12\n" +
+	"\x04kind\x18\x04 \x01(\tR\x04kind\"\xa0\x01\n" +
+	"\x1bListProviderConfigsResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12E\n" +
+	"\x10provider_configs\x18\x03 \x03(\v2\x1a.aiAgent.v1.ProviderConfigR\x0fproviderConfigs\x12\x14\n" +
+	"\x05total\x18\x04 \x01(\x03R\x05total\"a\n" +
+	"\x18GetProviderConfigRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12,\n" +
+	"\x12provider_config_id\x18\x02 \x01(\tR\x10providerConfigId\"\x86\x01\n" +
+	"\x19GetProviderConfigResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12C\n" +
+	"\x0fprovider_config\x18\x03 \x01(\v2\x1a.aiAgent.v1.ProviderConfigR\x0eproviderConfig\"\x80\x01\n" +
+	"\x1bRevokeProviderConfigRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12,\n" +
+	"\x12provider_config_id\x18\x02 \x01(\tR\x10providerConfigId\x12\x1a\n" +
+	"\brevision\x18\x03 \x01(\x03R\brevision\"D\n" +
+	"\x1cRevokeProviderConfigResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\"\xd8\x03\n" +
+	"\x10AgentProfileSpec\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\x01 \x01(\tR\tprofileId\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\tR\aversion\x12\x1b\n" +
+	"\tprompt_id\x18\x03 \x01(\tR\bpromptId\x12%\n" +
+	"\x0eprompt_version\x18\x04 \x01(\tR\rpromptVersion\x12#\n" +
+	"\rsystem_prompt\x18\x05 \x01(\tR\fsystemPrompt\x12\x1b\n" +
+	"\tmax_steps\x18\x06 \x01(\x05R\bmaxSteps\x12(\n" +
+	"\x10max_input_tokens\x18\a \x01(\x05R\x0emaxInputTokens\x12*\n" +
+	"\x11max_output_tokens\x18\b \x01(\x05R\x0fmaxOutputTokens\x12(\n" +
+	"\x10max_total_tokens\x18\t \x01(\x05R\x0emaxTotalTokens\x129\n" +
+	"\x19max_estimated_cost_micros\x18\n" +
+	" \x01(\x03R\x16maxEstimatedCostMicros\x12%\n" +
+	"\x0etimeout_millis\x18\v \x01(\x03R\rtimeoutMillis\x12#\n" +
+	"\rallowed_tools\x18\f \x03(\tR\fallowedTools\"\xd3\x02\n" +
+	"\x13AgentProfileVersion\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x120\n" +
+	"\x04spec\x18\x02 \x01(\v2\x1c.aiAgent.v1.AgentProfileSpecR\x04spec\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\x1a\n" +
+	"\brevision\x18\x04 \x01(\x03R\brevision\x12\x1d\n" +
+	"\n" +
+	"created_by\x18\x05 \x01(\x04R\tcreatedBy\x12!\n" +
+	"\fpublished_by\x18\x06 \x01(\x04R\vpublishedBy\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\a \x01(\x03R\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\b \x01(\x03R\tupdatedAt\x12!\n" +
+	"\fpublished_at\x18\t \x01(\x03R\vpublishedAt\x12#\n" +
+	"\rsnapshot_hash\x18\n" +
+	" \x01(\tR\fsnapshotHash\"\xea\x02\n" +
+	"\x13AgentProfileRelease\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\x01 \x01(\tR\tprofileId\x12%\n" +
+	"\x0estable_version\x18\x02 \x01(\tR\rstableVersion\x12+\n" +
+	"\x11candidate_version\x18\x03 \x01(\tR\x10candidateVersion\x124\n" +
+	"\x16candidate_basis_points\x18\x04 \x01(\x05R\x14candidateBasisPoints\x12\x12\n" +
+	"\x04salt\x18\x05 \x01(\tR\x04salt\x12\x1a\n" +
+	"\brevision\x18\x06 \x01(\x03R\brevision\x12\x1d\n" +
+	"\n" +
+	"created_by\x18\a \x01(\x04R\tcreatedBy\x12\x1d\n" +
+	"\n" +
+	"updated_by\x18\b \x01(\x04R\tupdatedBy\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\t \x01(\x03R\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\n" +
+	" \x01(\x03R\tupdatedAt\"\xd9\x03\n" +
+	"\x16AgentProfileAuditEvent\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
+	"\foperation_id\x18\x02 \x01(\tR\voperationId\x12\x16\n" +
+	"\x06action\x18\x03 \x01(\tR\x06action\x12\x18\n" +
+	"\aoutcome\x18\x04 \x01(\tR\aoutcome\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\x05 \x01(\tR\tprofileId\x12\x18\n" +
+	"\aversion\x18\x06 \x01(\tR\aversion\x12\"\n" +
+	"\ractor_user_id\x18\a \x01(\x04R\vactorUserId\x12)\n" +
+	"\x10version_revision\x18\b \x01(\x03R\x0fversionRevision\x12)\n" +
+	"\x10release_revision\x18\t \x01(\x03R\x0freleaseRevision\x12#\n" +
+	"\rsnapshot_hash\x18\n" +
+	" \x01(\tR\fsnapshotHash\x12\x1d\n" +
+	"\n" +
+	"error_code\x18\v \x01(\tR\terrorCode\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\f \x01(\x03R\tcreatedAt\x12\x1f\n" +
+	"\vapproval_id\x18\r \x01(\tR\n" +
+	"approvalId\x12#\n" +
+	"\rexperiment_id\x18\x0e \x01(\tR\fexperimentId\"\xad\x04\n" +
+	"\x1cAgentProfileExperimentPolicy\x12-\n" +
+	"\x13min_samples_per_arm\x18\x01 \x01(\x05R\x10minSamplesPerArm\x123\n" +
+	"\x16target_samples_per_arm\x18\x02 \x01(\x05R\x13targetSamplesPerArm\x12M\n" +
+	"$max_error_rate_increase_basis_points\x18\x03 \x01(\x05R\x1fmaxErrorRateIncreaseBasisPoints\x12O\n" +
+	"%max_p95_latency_increase_basis_points\x18\x04 \x01(\x05R maxP95LatencyIncreaseBasisPoints\x12Q\n" +
+	"&max_average_cost_increase_basis_points\x18\x05 \x01(\x05R!maxAverageCostIncreaseBasisPoints\x12%\n" +
+	"\x0eoutcome_signal\x18\x06 \x01(\tR\routcomeSignal\x12<\n" +
+	"\x1bmin_outcome_samples_per_arm\x18\a \x01(\x05R\x17minOutcomeSamplesPerArm\x12Q\n" +
+	"&max_outcome_rate_decrease_basis_points\x18\b \x01(\x05R!maxOutcomeRateDecreaseBasisPoints\"\x9a\x03\n" +
+	"\x1eAgentProfileExperimentArmStats\x12\x18\n" +
+	"\asamples\x18\x01 \x01(\x05R\asamples\x12\x1c\n" +
+	"\tsuccesses\x18\x02 \x01(\x05R\tsuccesses\x12\x1a\n" +
+	"\bfailures\x18\x03 \x01(\x05R\bfailures\x125\n" +
+	"\x17error_rate_basis_points\x18\x04 \x01(\x05R\x14errorRateBasisPoints\x12,\n" +
+	"\x12p95_latency_millis\x18\x05 \x01(\x03R\x10p95LatencyMillis\x12.\n" +
+	"\x13average_cost_micros\x18\x06 \x01(\x03R\x11averageCostMicros\x12'\n" +
+	"\x0foutcome_samples\x18\a \x01(\x05R\x0eoutcomeSamples\x12+\n" +
+	"\x11outcome_positives\x18\b \x01(\x05R\x10outcomePositives\x129\n" +
+	"\x19outcome_rate_basis_points\x18\t \x01(\x05R\x16outcomeRateBasisPoints\"\xab\x01\n" +
+	"\x1bAgentProfileExperimentStats\x12B\n" +
+	"\x06stable\x18\x01 \x01(\v2*.aiAgent.v1.AgentProfileExperimentArmStatsR\x06stable\x12H\n" +
+	"\tcandidate\x18\x02 \x01(\v2*.aiAgent.v1.AgentProfileExperimentArmStatsR\tcandidate\"\xaa\x05\n" +
+	"\x16AgentProfileExperiment\x12#\n" +
+	"\rexperiment_id\x18\x01 \x01(\tR\fexperimentId\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\x02 \x01(\tR\tprofileId\x12%\n" +
+	"\x0estable_version\x18\x03 \x01(\tR\rstableVersion\x12+\n" +
+	"\x11candidate_version\x18\x04 \x01(\tR\x10candidateVersion\x124\n" +
+	"\x16candidate_basis_points\x18\x05 \x01(\x05R\x14candidateBasisPoints\x12)\n" +
+	"\x10release_revision\x18\x06 \x01(\x03R\x0freleaseRevision\x12@\n" +
+	"\x06policy\x18\a \x01(\v2(.aiAgent.v1.AgentProfileExperimentPolicyR\x06policy\x12\x16\n" +
+	"\x06status\x18\b \x01(\tR\x06status\x12\x1a\n" +
+	"\bdecision\x18\t \x01(\tR\bdecision\x12'\n" +
+	"\x0fdecision_reason\x18\n" +
+	" \x01(\tR\x0edecisionReason\x12=\n" +
+	"\x05stats\x18\v \x01(\v2'.aiAgent.v1.AgentProfileExperimentStatsR\x05stats\x12\x1a\n" +
+	"\brevision\x18\f \x01(\x03R\brevision\x12\x1d\n" +
+	"\n" +
+	"created_by\x18\r \x01(\x04R\tcreatedBy\x12\x1d\n" +
+	"\n" +
+	"updated_by\x18\x0e \x01(\x04R\tupdatedBy\x12\x1d\n" +
+	"\n" +
+	"started_at\x18\x0f \x01(\x03R\tstartedAt\x12!\n" +
+	"\fcompleted_at\x18\x10 \x01(\x03R\vcompletedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x11 \x01(\x03R\tupdatedAt\"\x90\x04\n" +
+	"\x1aAgentEvalEvidenceReference\x12\x18\n" +
+	"\astorage\x18\x01 \x01(\tR\astorage\x12\x16\n" +
+	"\x06bucket\x18\x02 \x01(\tR\x06bucket\x12\x10\n" +
+	"\x03key\x18\x03 \x01(\tR\x03key\x12\x1d\n" +
+	"\n" +
+	"version_id\x18\x04 \x01(\tR\tversionId\x12\x12\n" +
+	"\x04etag\x18\x05 \x01(\tR\x04etag\x12#\n" +
+	"\rreport_sha256\x18\x06 \x01(\tR\freportSha256\x12\x16\n" +
+	"\x06length\x18\a \x01(\x05R\x06length\x12!\n" +
+	"\fcontent_type\x18\b \x01(\tR\vcontentType\x12%\n" +
+	"\x0eretention_mode\x18\t \x01(\tR\rretentionMode\x12!\n" +
+	"\fretain_until\x18\n" +
+	" \x01(\x03R\vretainUntil\x12\x1f\n" +
+	"\varchived_at\x18\v \x01(\x03R\n" +
+	"archivedAt\x12'\n" +
+	"\x0fdataset_version\x18\f \x01(\tR\x0edatasetVersion\x12%\n" +
+	"\x0edataset_sha256\x18\r \x01(\tR\rdatasetSha256\x126\n" +
+	"\x17execution_config_sha256\x18\x0e \x01(\tR\x15executionConfigSha256\x12(\n" +
+	"\x10integrity_key_id\x18\x0f \x01(\tR\x0eintegrityKeyId\"\xb0\x04\n" +
+	"\x1bAgentProfileQualityEvidence\x12D\n" +
+	"\treference\x18\x01 \x01(\v2&.aiAgent.v1.AgentEvalEvidenceReferenceR\treference\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\x02 \x01(\tR\tprofileId\x12'\n" +
+	"\x0fprofile_version\x18\x03 \x01(\tR\x0eprofileVersion\x12\x1f\n" +
+	"\vgate_status\x18\x04 \x01(\tR\n" +
+	"gateStatus\x12\x14\n" +
+	"\x05cases\x18\x05 \x01(\x05R\x05cases\x12\x16\n" +
+	"\x06passed\x18\x06 \x01(\x05R\x06passed\x127\n" +
+	"\x18task_completion_rate_bps\x18\a \x01(\x05R\x15taskCompletionRateBps\x12F\n" +
+	" read_tool_selection_accuracy_bps\x18\b \x01(\x05R\x1creadToolSelectionAccuracyBps\x123\n" +
+	"\x16semantic_pass_rate_bps\x18\t \x01(\x05R\x13semanticPassRateBps\x123\n" +
+	"\x16approval_pass_rate_bps\x18\n" +
+	" \x01(\x05R\x13approvalPassRateBps\x12(\n" +
+	"\x10report_signed_at\x18\v \x01(\x03R\x0ereportSignedAt\x12\x1f\n" +
+	"\vverified_at\x18\f \x01(\x03R\n" +
+	"verifiedAt\"\xc2\x05\n" +
+	"\x1bAgentProfilePublishApproval\x12\x1f\n" +
+	"\vapproval_id\x18\x01 \x01(\tR\n" +
+	"approvalId\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\x02 \x01(\tR\tprofileId\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\x12#\n" +
+	"\rsnapshot_hash\x18\x04 \x01(\tR\fsnapshotHash\x12:\n" +
+	"\x19expected_version_revision\x18\x05 \x01(\x03R\x17expectedVersionRevision\x12\x16\n" +
+	"\x06status\x18\x06 \x01(\tR\x06status\x12\x1a\n" +
+	"\bdecision\x18\a \x01(\tR\bdecision\x12\x16\n" +
+	"\x06reason\x18\b \x01(\tR\x06reason\x12\x1a\n" +
+	"\brevision\x18\t \x01(\x03R\brevision\x12!\n" +
+	"\frequested_by\x18\n" +
+	" \x01(\x04R\vrequestedBy\x12\x1d\n" +
+	"\n" +
+	"decided_by\x18\v \x01(\x04R\tdecidedBy\x12\x1f\n" +
+	"\vapplying_by\x18\f \x01(\x04R\n" +
+	"applyingBy\x12\x1d\n" +
+	"\n" +
+	"error_code\x18\r \x01(\tR\terrorCode\x12!\n" +
+	"\frequested_at\x18\x0e \x01(\x03R\vrequestedAt\x12\x1d\n" +
+	"\n" +
+	"decided_at\x18\x0f \x01(\x03R\tdecidedAt\x12*\n" +
+	"\x11apply_lease_until\x18\x10 \x01(\x03R\x0fapplyLeaseUntil\x12\x1d\n" +
+	"\n" +
+	"applied_at\x18\x11 \x01(\x03R\tappliedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x12 \x01(\x03R\tupdatedAt\x12R\n" +
+	"\x10quality_evidence\x18\x13 \x01(\v2'.aiAgent.v1.AgentProfileQualityEvidenceR\x0fqualityEvidence\"v\n" +
+	"\x1eCreateAgentProfileDraftRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x120\n" +
+	"\x04spec\x18\x02 \x01(\v2\x1c.aiAgent.v1.AgentProfileSpecR\x04spec\"\x91\x01\n" +
+	"\x1fCreateAgentProfileDraftResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12H\n" +
+	"\x0fprofile_version\x18\x03 \x01(\v2\x1f.aiAgent.v1.AgentProfileVersionR\x0eprofileVersion\"\xad\x01\n" +
+	"!PublishAgentProfileVersionRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\x02 \x01(\tR\tprofileId\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\x12+\n" +
+	"\x11expected_revision\x18\x04 \x01(\x03R\x10expectedRevision\"\x94\x01\n" +
+	"\"PublishAgentProfileVersionResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12H\n" +
+	"\x0fprofile_version\x18\x03 \x01(\v2\x1f.aiAgent.v1.AgentProfileVersionR\x0eprofileVersion\"\x97\x02\n" +
+	")RequestAgentProfilePublishApprovalRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\x02 \x01(\tR\tprofileId\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\x12:\n" +
+	"\x19expected_version_revision\x18\x04 \x01(\x03R\x17expectedVersionRevision\x12Q\n" +
+	"\x10quality_evidence\x18\x05 \x01(\v2&.aiAgent.v1.AgentEvalEvidenceReferenceR\x0fqualityEvidence\"\x97\x01\n" +
+	"*RequestAgentProfilePublishApprovalResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12C\n" +
+	"\bapproval\x18\x03 \x01(\v2'.aiAgent.v1.AgentProfilePublishApprovalR\bapproval\"\xb5\x01\n" +
+	"'ListAgentProfilePublishApprovalsRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\x02 \x01(\tR\tprofileId\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\x12\n" +
+	"\x04page\x18\x04 \x01(\rR\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x05 \x01(\rR\bpageSize\"\xad\x01\n" +
+	"(ListAgentProfilePublishApprovalsResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12E\n" +
+	"\tapprovals\x18\x03 \x03(\v2'.aiAgent.v1.AgentProfilePublishApprovalR\tapprovals\x12\x14\n" +
+	"\x05total\x18\x04 \x01(\x03R\x05total\"l\n" +
+	"%GetAgentProfilePublishApprovalRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12\x1f\n" +
+	"\vapproval_id\x18\x02 \x01(\tR\n" +
+	"approvalId\"\x93\x01\n" +
+	"&GetAgentProfilePublishApprovalResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12C\n" +
+	"\bapproval\x18\x03 \x01(\v2'.aiAgent.v1.AgentProfilePublishApprovalR\bapproval\"\xd0\x01\n" +
+	"(DecideAgentProfilePublishApprovalRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12\x1f\n" +
+	"\vapproval_id\x18\x02 \x01(\tR\n" +
+	"approvalId\x12\x1a\n" +
+	"\bdecision\x18\x03 \x01(\tR\bdecision\x12\x16\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason\x12+\n" +
+	"\x11expected_revision\x18\x05 \x01(\x03R\x10expectedRevision\"\x96\x01\n" +
+	")DecideAgentProfilePublishApprovalResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12C\n" +
+	"\bapproval\x18\x03 \x01(\v2'.aiAgent.v1.AgentProfilePublishApprovalR\bapproval\"\x9b\x01\n" +
+	"'RetryAgentProfilePublishApprovalRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12\x1f\n" +
+	"\vapproval_id\x18\x02 \x01(\tR\n" +
+	"approvalId\x12+\n" +
+	"\x11expected_revision\x18\x03 \x01(\x03R\x10expectedRevision\"\x95\x01\n" +
+	"(RetryAgentProfilePublishApprovalResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12C\n" +
+	"\bapproval\x18\x03 \x01(\v2'.aiAgent.v1.AgentProfilePublishApprovalR\bapproval\"\x95\x01\n" +
+	"\x1fListAgentProfileVersionsRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\x02 \x01(\tR\tprofileId\x12\x12\n" +
+	"\x04page\x18\x03 \x01(\rR\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x04 \x01(\rR\bpageSize\"\xaa\x01\n" +
+	" ListAgentProfileVersionsResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12J\n" +
+	"\x10profile_versions\x18\x03 \x03(\v2\x1f.aiAgent.v1.AgentProfileVersionR\x0fprofileVersions\x12\x14\n" +
+	"\x05total\x18\x04 \x01(\x03R\x05total\"|\n" +
+	"\x1dGetAgentProfileVersionRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\x02 \x01(\tR\tprofileId\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\"\x90\x01\n" +
+	"\x1eGetAgentProfileVersionResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12H\n" +
+	"\x0fprofile_version\x18\x03 \x01(\v2\x1f.aiAgent.v1.AgentProfileVersionR\x0eprofileVersion\"b\n" +
+	"\x1dGetAgentProfileReleaseRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\x02 \x01(\tR\tprofileId\"\x90\x01\n" +
+	"\x1eGetAgentProfileReleaseResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12H\n" +
+	"\x0fprofile_release\x18\x03 \x01(\v2\x1f.aiAgent.v1.AgentProfileReleaseR\x0eprofileRelease\"\xb0\x02\n" +
+	" UpsertAgentProfileReleaseRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\x02 \x01(\tR\tprofileId\x12%\n" +
+	"\x0estable_version\x18\x03 \x01(\tR\rstableVersion\x12+\n" +
+	"\x11candidate_version\x18\x04 \x01(\tR\x10candidateVersion\x124\n" +
+	"\x16candidate_basis_points\x18\x05 \x01(\x05R\x14candidateBasisPoints\x12\x12\n" +
+	"\x04salt\x18\x06 \x01(\tR\x04salt\x12+\n" +
+	"\x11expected_revision\x18\a \x01(\x03R\x10expectedRevision\"\x93\x01\n" +
+	"!UpsertAgentProfileReleaseResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12H\n" +
+	"\x0fprofile_release\x18\x03 \x01(\v2\x1f.aiAgent.v1.AgentProfileReleaseR\x0eprofileRelease\"\x98\x01\n" +
+	"\"ListAgentProfileAuditEventsRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\x02 \x01(\tR\tprofileId\x12\x12\n" +
+	"\x04page\x18\x03 \x01(\rR\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x04 \x01(\rR\bpageSize\"\xa8\x01\n" +
+	"#ListAgentProfileAuditEventsResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12E\n" +
+	"\faudit_events\x18\x03 \x03(\v2\".aiAgent.v1.AgentProfileAuditEventR\vauditEvents\x12\x14\n" +
+	"\x05total\x18\x04 \x01(\x03R\x05total\"\xfe\x01\n" +
+	"\x1cAgentProfileManagementAccess\x12\x14\n" +
+	"\x05roles\x18\x01 \x03(\tR\x05roles\x12!\n" +
+	"\fstatic_roles\x18\x02 \x03(\tR\vstaticRoles\x12#\n" +
+	"\rdynamic_roles\x18\x03 \x03(\tR\fdynamicRoles\x12\x1d\n" +
+	"\n" +
+	"root_admin\x18\x04 \x01(\bR\trootAdmin\x120\n" +
+	"\x14dynamic_rbac_enabled\x18\x05 \x01(\bR\x12dynamicRbacEnabled\x12/\n" +
+	"\x13experiments_enabled\x18\x06 \x01(\bR\x12experimentsEnabled\"\xe0\x01\n" +
+	"\x17AgentProfileRoleBinding\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x14\n" +
+	"\x05roles\x18\x02 \x03(\tR\x05roles\x12\x1a\n" +
+	"\brevision\x18\x03 \x01(\x03R\brevision\x12\x1d\n" +
+	"\n" +
+	"created_by\x18\x04 \x01(\x04R\tcreatedBy\x12\x1d\n" +
+	"\n" +
+	"updated_by\x18\x05 \x01(\x04R\tupdatedBy\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x06 \x01(\x03R\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\a \x01(\x03R\tupdatedAt\"\xbd\x02\n" +
+	"\x1aAgentProfileRoleAuditEvent\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
+	"\foperation_id\x18\x02 \x01(\tR\voperationId\x12\x16\n" +
+	"\x06action\x18\x03 \x01(\tR\x06action\x12\x18\n" +
+	"\aoutcome\x18\x04 \x01(\tR\aoutcome\x12\"\n" +
+	"\ractor_user_id\x18\x05 \x01(\x04R\vactorUserId\x12&\n" +
+	"\x0fsubject_user_id\x18\x06 \x01(\x04R\rsubjectUserId\x12\x14\n" +
+	"\x05roles\x18\a \x03(\tR\x05roles\x12\x1a\n" +
+	"\brevision\x18\b \x01(\x03R\brevision\x12\x1d\n" +
+	"\n" +
+	"error_code\x18\t \x01(\tR\terrorCode\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\n" +
+	" \x01(\x03R\tcreatedAt\"L\n" +
+	"&GetAgentProfileManagementAccessRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\"\x91\x01\n" +
+	"'GetAgentProfileManagementAccessResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12@\n" +
+	"\x06access\x18\x03 \x01(\v2(.aiAgent.v1.AgentProfileManagementAccessR\x06access\"z\n" +
+	"#ListAgentProfileRoleBindingsRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12\x12\n" +
+	"\x04page\x18\x02 \x01(\rR\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x03 \x01(\rR\bpageSize\"\xac\x01\n" +
+	"$ListAgentProfileRoleBindingsResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12H\n" +
+	"\rrole_bindings\x18\x03 \x03(\v2#.aiAgent.v1.AgentProfileRoleBindingR\froleBindings\x12\x14\n" +
+	"\x05total\x18\x04 \x01(\x03R\x05total\"\xb5\x01\n" +
+	"$UpsertAgentProfileRoleBindingRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12&\n" +
+	"\x0fsubject_user_id\x18\x02 \x01(\x04R\rsubjectUserId\x12\x14\n" +
+	"\x05roles\x18\x03 \x03(\tR\x05roles\x12+\n" +
+	"\x11expected_revision\x18\x04 \x01(\x03R\x10expectedRevision\"\x95\x01\n" +
+	"%UpsertAgentProfileRoleBindingResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12F\n" +
+	"\frole_binding\x18\x03 \x01(\v2#.aiAgent.v1.AgentProfileRoleBindingR\vroleBinding\"\x9f\x01\n" +
+	"$DeleteAgentProfileRoleBindingRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12&\n" +
+	"\x0fsubject_user_id\x18\x02 \x01(\x04R\rsubjectUserId\x12+\n" +
+	"\x11expected_revision\x18\x03 \x01(\x03R\x10expectedRevision\"M\n" +
+	"%DeleteAgentProfileRoleBindingResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\"}\n" +
+	"&ListAgentProfileRoleAuditEventsRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12\x12\n" +
+	"\x04page\x18\x02 \x01(\rR\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x03 \x01(\rR\bpageSize\"\xb0\x01\n" +
+	"'ListAgentProfileRoleAuditEventsResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12I\n" +
+	"\faudit_events\x18\x03 \x03(\v2&.aiAgent.v1.AgentProfileRoleAuditEventR\vauditEvents\x12\x14\n" +
+	"\x05total\x18\x04 \x01(\x03R\x05total\"\xe5\x01\n" +
+	"\"StartAgentProfileExperimentRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\x02 \x01(\tR\tprofileId\x12:\n" +
+	"\x19expected_release_revision\x18\x03 \x01(\x03R\x17expectedReleaseRevision\x12@\n" +
+	"\x06policy\x18\x04 \x01(\v2(.aiAgent.v1.AgentProfileExperimentPolicyR\x06policy\"\x8f\x01\n" +
+	"#StartAgentProfileExperimentResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12B\n" +
+	"\n" +
+	"experiment\x18\x03 \x01(\v2\".aiAgent.v1.AgentProfileExperimentR\n" +
+	"experiment\"\xb0\x01\n" +
+	"\"ListAgentProfileExperimentsRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\x02 \x01(\tR\tprofileId\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\x12\n" +
+	"\x04page\x18\x04 \x01(\rR\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x05 \x01(\rR\bpageSize\"\xa7\x01\n" +
+	"#ListAgentProfileExperimentsResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12D\n" +
+	"\vexperiments\x18\x03 \x03(\v2\".aiAgent.v1.AgentProfileExperimentR\vexperiments\x12\x14\n" +
+	"\x05total\x18\x04 \x01(\x03R\x05total\"k\n" +
+	" GetAgentProfileExperimentRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12#\n" +
+	"\rexperiment_id\x18\x02 \x01(\tR\fexperimentId\"\x8d\x01\n" +
+	"!GetAgentProfileExperimentResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12B\n" +
+	"\n" +
+	"experiment\x18\x03 \x01(\v2\".aiAgent.v1.AgentProfileExperimentR\n" +
+	"experiment\"\x9d\x01\n" +
+	"%EvaluateAgentProfileExperimentRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12#\n" +
+	"\rexperiment_id\x18\x02 \x01(\tR\fexperimentId\x12+\n" +
+	"\x11expected_revision\x18\x03 \x01(\x03R\x10expectedRevision\"\x92\x01\n" +
+	"&EvaluateAgentProfileExperimentResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12B\n" +
+	"\n" +
+	"experiment\x18\x03 \x01(\v2\".aiAgent.v1.AgentProfileExperimentR\n" +
+	"experiment\"\x99\x01\n" +
+	"!StopAgentProfileExperimentRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12#\n" +
+	"\rexperiment_id\x18\x02 \x01(\tR\fexperimentId\x12+\n" +
+	"\x11expected_revision\x18\x03 \x01(\x03R\x10expectedRevision\"\x8e\x01\n" +
+	"\"StopAgentProfileExperimentResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12B\n" +
+	"\n" +
+	"experiment\x18\x03 \x01(\v2\".aiAgent.v1.AgentProfileExperimentR\n" +
+	"experiment\"\xc4\x01\n" +
+	"*RecordAgentProfileExperimentOutcomeRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12#\n" +
+	"\rexperiment_id\x18\x02 \x01(\tR\fexperimentId\x12\x19\n" +
+	"\bevent_id\x18\x03 \x01(\tR\aeventId\x12\x16\n" +
+	"\x06signal\x18\x04 \x01(\tR\x06signal\x12\x1a\n" +
+	"\bpositive\x18\x05 \x01(\bR\bpositive\"\x80\x01\n" +
+	"+RecordAgentProfileExperimentOutcomeResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12+\n" +
+	"\x11idempotent_replay\x18\x03 \x01(\bR\x10idempotentReplay\"\x8b\t\n" +
+	"\x15ExternalMCPConnection\x12#\n" +
+	"\rconnection_id\x18\x01 \x01(\tR\fconnectionId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\x04R\x06userId\x12\x14\n" +
+	"\x05scope\x18\x03 \x01(\tR\x05scope\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x04 \x01(\tR\tprojectId\x12\x1b\n" +
+	"\tserver_id\x18\x05 \x01(\tR\bserverId\x12\x12\n" +
+	"\x04name\x18\x06 \x01(\tR\x04name\x12\x1c\n" +
+	"\ttransport\x18\a \x01(\tR\ttransport\x12\x1a\n" +
+	"\bendpoint\x18\b \x01(\tR\bendpoint\x12\x1b\n" +
+	"\tauth_type\x18\t \x01(\tR\bauthType\x12+\n" +
+	"\x11credential_source\x18\n" +
+	" \x01(\tR\x10credentialSource\x12\x16\n" +
+	"\x06status\x18\v \x01(\tR\x06status\x12\x1d\n" +
+	"\n" +
+	"has_secret\x18\f \x01(\bR\thasSecret\x12-\n" +
+	"\x12credential_version\x18\r \x01(\x03R\x11credentialVersion\x12,\n" +
+	"\x12latest_snapshot_id\x18\x0e \x01(\tR\x10latestSnapshotId\x12.\n" +
+	"\x13pending_snapshot_id\x18\x0f \x01(\tR\x11pendingSnapshotId\x12,\n" +
+	"\x12active_snapshot_id\x18\x10 \x01(\tR\x10activeSnapshotId\x12)\n" +
+	"\x10discovery_status\x18\x11 \x01(\tR\x0fdiscoveryStatus\x12&\n" +
+	"\x0flast_error_code\x18\x12 \x01(\tR\rlastErrorCode\x12&\n" +
+	"\x0flast_checked_at\x18\x13 \x01(\x03R\rlastCheckedAt\x12\x1a\n" +
+	"\brevision\x18\x14 \x01(\x03R\brevision\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x15 \x01(\x03R\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x16 \x01(\x03R\tupdatedAt\x12#\n" +
+	"\rhealth_status\x18\x17 \x01(\tR\fhealthStatus\x12*\n" +
+	"\x11health_error_code\x18\x18 \x01(\tR\x0fhealthErrorCode\x120\n" +
+	"\x14health_failure_count\x18\x19 \x01(\x03R\x12healthFailureCount\x123\n" +
+	"\x16last_health_checked_at\x18\x1a \x01(\x03R\x13lastHealthCheckedAt\x12&\n" +
+	"\x0flast_healthy_at\x18\x1b \x01(\x03R\rlastHealthyAt\x12/\n" +
+	"\x14next_health_check_at\x18\x1c \x01(\x03R\x11nextHealthCheckAt\x124\n" +
+	"\x16managed_credential_ref\x18\x1d \x01(\tR\x14managedCredentialRef\x12<\n" +
+	"\x1amanaged_credential_version\x18\x1e \x01(\x03R\x18managedCredentialVersion\"\x9a\x01\n" +
+	"\x12AgentProjectMember\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x12\n" +
+	"\x04role\x18\x02 \x01(\tR\x04role\x12\x19\n" +
+	"\badded_by\x18\x03 \x01(\x04R\aaddedBy\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x04 \x01(\x03R\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x05 \x01(\x03R\tupdatedAt\"\x93\x02\n" +
+	"\fAgentProject\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x19\n" +
+	"\bowner_id\x18\x03 \x01(\x04R\aownerId\x128\n" +
+	"\amembers\x18\x04 \x03(\v2\x1e.aiAgent.v1.AgentProjectMemberR\amembers\x12\x1a\n" +
+	"\brevision\x18\x05 \x01(\x03R\brevision\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x06 \x01(\x03R\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\a \x01(\x03R\tupdatedAt\x12!\n" +
+	"\fcurrent_role\x18\b \x01(\tR\vcurrentRole\"S\n" +
+	"\x19CreateAgentProjectRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"v\n" +
+	"\x1aCreateAgentProjectResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x122\n" +
+	"\aproject\x18\x03 \x01(\v2\x18.aiAgent.v1.AgentProjectR\aproject\"d\n" +
+	"\x18ListAgentProjectsRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x12\n" +
+	"\x04page\x18\x02 \x01(\rR\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x03 \x01(\rR\bpageSize\"\x8d\x01\n" +
+	"\x19ListAgentProjectsResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x124\n" +
+	"\bprojects\x18\x03 \x03(\v2\x18.aiAgent.v1.AgentProjectR\bprojects\x12\x14\n" +
+	"\x05total\x18\x04 \x01(\x03R\x05total\"P\n" +
+	"\x16GetAgentProjectRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\"s\n" +
+	"\x17GetAgentProjectResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x122\n" +
+	"\aproject\x18\x03 \x01(\v2\x18.aiAgent.v1.AgentProjectR\aproject\"\xcb\x01\n" +
+	"\x1fUpsertAgentProjectMemberRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\x12$\n" +
+	"\x0etarget_user_id\x18\x03 \x01(\x04R\ftargetUserId\x12\x12\n" +
+	"\x04role\x18\x04 \x01(\tR\x04role\x12+\n" +
+	"\x11expected_revision\x18\x05 \x01(\x03R\x10expectedRevision\"|\n" +
+	" UpsertAgentProjectMemberResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x122\n" +
+	"\aproject\x18\x03 \x01(\v2\x18.aiAgent.v1.AgentProjectR\aproject\"\xb7\x01\n" +
+	"\x1fRemoveAgentProjectMemberRequest\x12\"\n" +
+	"\ractor_user_id\x18\x01 \x01(\x04R\vactorUserId\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\x12$\n" +
+	"\x0etarget_user_id\x18\x03 \x01(\x04R\ftargetUserId\x12+\n" +
+	"\x11expected_revision\x18\x04 \x01(\x03R\x10expectedRevision\"|\n" +
+	" RemoveAgentProjectMemberResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x122\n" +
+	"\aproject\x18\x03 \x01(\v2\x18.aiAgent.v1.AgentProjectR\aproject\"\xa5\x03\n" +
+	"\x15ExternalMCPToolSchema\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12%\n" +
+	"\x0equalified_name\x18\x02 \x01(\tR\rqualifiedName\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12*\n" +
+	"\x11input_schema_json\x18\x04 \x01(\tR\x0finputSchemaJson\x12,\n" +
+	"\x12output_schema_json\x18\x05 \x01(\tR\x10outputSchemaJson\x12,\n" +
+	"\x12declared_read_only\x18\x06 \x01(\bR\x10declaredReadOnly\x12/\n" +
+	"\x13declared_idempotent\x18\a \x01(\bR\x12declaredIdempotent\x128\n" +
+	"\x18idempotency_key_argument\x18\b \x01(\tR\x16idempotencyKeyArgument\x12<\n" +
+	"\x1asupports_write_idempotency\x18\t \x01(\bR\x18supportsWriteIdempotency\"\xd1\x01\n" +
+	"\x15ExternalMCPToolPolicy\x12\x1f\n" +
+	"\vsnapshot_id\x18\x01 \x01(\tR\n" +
+	"snapshotId\x12\x1b\n" +
+	"\ttool_name\x18\x02 \x01(\tR\btoolName\x12%\n" +
+	"\x0equalified_name\x18\x03 \x01(\tR\rqualifiedName\x12\x1a\n" +
+	"\bcategory\x18\x04 \x01(\tR\bcategory\x12\x18\n" +
+	"\aenabled\x18\x05 \x01(\bR\aenabled\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x06 \x01(\x03R\tupdatedAt\"\x8b\x01\n" +
+	"\x13ExternalMCPToolView\x129\n" +
+	"\x06schema\x18\x01 \x01(\v2!.aiAgent.v1.ExternalMCPToolSchemaR\x06schema\x129\n" +
+	"\x06policy\x18\x02 \x01(\v2!.aiAgent.v1.ExternalMCPToolPolicyR\x06policy\"\xa8\x02\n" +
+	"\x17ExternalMCPToolSnapshot\x12\x1f\n" +
+	"\vsnapshot_id\x18\x01 \x01(\tR\n" +
+	"snapshotId\x12#\n" +
+	"\rconnection_id\x18\x02 \x01(\tR\fconnectionId\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x04R\x06userId\x12\x1b\n" +
+	"\tserver_id\x18\x04 \x01(\tR\bserverId\x12\x1f\n" +
+	"\vschema_hash\x18\x05 \x01(\tR\n" +
+	"schemaHash\x12\x18\n" +
+	"\aversion\x18\x06 \x01(\x03R\aversion\x127\n" +
+	"\x05tools\x18\a \x03(\v2!.aiAgent.v1.ExternalMCPToolSchemaR\x05tools\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\b \x01(\x03R\tcreatedAt\"\xe3\x02\n" +
+	"\"CreateExternalMCPConnectionRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x14\n" +
+	"\x05scope\x18\x02 \x01(\tR\x05scope\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x03 \x01(\tR\tprojectId\x12\x12\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\x12\x1c\n" +
+	"\ttransport\x18\x05 \x01(\tR\ttransport\x12\x1a\n" +
+	"\bendpoint\x18\x06 \x01(\tR\bendpoint\x12\x1b\n" +
+	"\tauth_type\x18\a \x01(\tR\bauthType\x12!\n" +
+	"\fbearer_token\x18\b \x01(\tR\vbearerToken\x12+\n" +
+	"\x11credential_source\x18\t \x01(\tR\x10credentialSource\x124\n" +
+	"\x16managed_credential_ref\x18\n" +
+	" \x01(\tR\x14managedCredentialRef\"\x8e\x01\n" +
+	"#CreateExternalMCPConnectionResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12A\n" +
+	"\n" +
+	"connection\x18\x03 \x01(\v2!.aiAgent.v1.ExternalMCPConnectionR\n" +
+	"connection\"\xb5\x03\n" +
+	"\"UpdateExternalMCPConnectionRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12#\n" +
+	"\rconnection_id\x18\x02 \x01(\tR\fconnectionId\x12\x14\n" +
+	"\x05scope\x18\x03 \x01(\tR\x05scope\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x04 \x01(\tR\tprojectId\x12\x12\n" +
+	"\x04name\x18\x05 \x01(\tR\x04name\x12\x1c\n" +
+	"\ttransport\x18\x06 \x01(\tR\ttransport\x12\x1a\n" +
+	"\bendpoint\x18\a \x01(\tR\bendpoint\x12\x1b\n" +
+	"\tauth_type\x18\b \x01(\tR\bauthType\x12!\n" +
+	"\fbearer_token\x18\t \x01(\tR\vbearerToken\x12+\n" +
+	"\x11expected_revision\x18\n" +
+	" \x01(\x03R\x10expectedRevision\x12+\n" +
+	"\x11credential_source\x18\v \x01(\tR\x10credentialSource\x124\n" +
+	"\x16managed_credential_ref\x18\f \x01(\tR\x14managedCredentialRef\"\x8e\x01\n" +
+	"#UpdateExternalMCPConnectionResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12A\n" +
+	"\n" +
+	"connection\x18\x03 \x01(\v2!.aiAgent.v1.ExternalMCPConnectionR\n" +
+	"connection\"m\n" +
+	"!ListExternalMCPConnectionsRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12\x12\n" +
+	"\x04page\x18\x02 \x01(\rR\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x03 \x01(\rR\bpageSize\"\xa5\x01\n" +
+	"\"ListExternalMCPConnectionsResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12C\n" +
+	"\vconnections\x18\x03 \x03(\v2!.aiAgent.v1.ExternalMCPConnectionR\vconnections\x12\x14\n" +
+	"\x05total\x18\x04 \x01(\x03R\x05total\"_\n" +
+	"\x1fGetExternalMCPConnectionRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12#\n" +
+	"\rconnection_id\x18\x02 \x01(\tR\fconnectionId\"\x8b\x01\n" +
+	" GetExternalMCPConnectionResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12A\n" +
+	"\n" +
+	"connection\x18\x03 \x01(\v2!.aiAgent.v1.ExternalMCPConnectionR\n" +
+	"connection\"\x8f\x01\n" +
+	"\"RevokeExternalMCPConnectionRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12#\n" +
+	"\rconnection_id\x18\x02 \x01(\tR\fconnectionId\x12+\n" +
+	"\x11expected_revision\x18\x03 \x01(\x03R\x10expectedRevision\"K\n" +
+	"#RevokeExternalMCPConnectionResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\"\x8c\x01\n" +
+	"\x1fDiscoverExternalMCPToolsRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12#\n" +
+	"\rconnection_id\x18\x02 \x01(\tR\fconnectionId\x12+\n" +
+	"\x11expected_revision\x18\x03 \x01(\x03R\x10expectedRevision\"\xcc\x01\n" +
+	" DiscoverExternalMCPToolsResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12A\n" +
+	"\n" +
+	"connection\x18\x03 \x01(\v2!.aiAgent.v1.ExternalMCPConnectionR\n" +
+	"connection\x12?\n" +
+	"\bsnapshot\x18\x04 \x01(\v2#.aiAgent.v1.ExternalMCPToolSnapshotR\bsnapshot\"\xaf\x01\n" +
+	"!ApproveExternalMCPSnapshotRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12#\n" +
+	"\rconnection_id\x18\x02 \x01(\tR\fconnectionId\x12\x1f\n" +
+	"\vsnapshot_id\x18\x03 \x01(\tR\n" +
+	"snapshotId\x12+\n" +
+	"\x11expected_revision\x18\x04 \x01(\x03R\x10expectedRevision\"\xce\x01\n" +
+	"\"ApproveExternalMCPSnapshotResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12A\n" +
+	"\n" +
+	"connection\x18\x03 \x01(\v2!.aiAgent.v1.ExternalMCPConnectionR\n" +
+	"connection\x12?\n" +
+	"\bsnapshot\x18\x04 \x01(\v2#.aiAgent.v1.ExternalMCPToolSnapshotR\bsnapshot\"[\n" +
+	"\x1bListExternalMCPToolsRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12#\n" +
+	"\rconnection_id\x18\x02 \x01(\tR\fconnectionId\"\xff\x01\n" +
+	"\x1cListExternalMCPToolsResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12A\n" +
+	"\n" +
+	"connection\x18\x03 \x01(\v2!.aiAgent.v1.ExternalMCPConnectionR\n" +
+	"connection\x12?\n" +
+	"\bsnapshot\x18\x04 \x01(\v2#.aiAgent.v1.ExternalMCPToolSnapshotR\bsnapshot\x125\n" +
+	"\x05tools\x18\x05 \x03(\v2\x1f.aiAgent.v1.ExternalMCPToolViewR\x05tools\"\x80\x02\n" +
+	"\x1fConfigureExternalMCPToolRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x04R\x06userId\x12#\n" +
+	"\rconnection_id\x18\x02 \x01(\tR\fconnectionId\x12\x1f\n" +
+	"\vsnapshot_id\x18\x03 \x01(\tR\n" +
+	"snapshotId\x12\x1b\n" +
+	"\ttool_name\x18\x04 \x01(\tR\btoolName\x12\x1a\n" +
+	"\bcategory\x18\x05 \x01(\tR\bcategory\x12\x18\n" +
+	"\aenabled\x18\x06 \x01(\bR\aenabled\x12+\n" +
+	"\x11expected_revision\x18\a \x01(\x03R\x10expectedRevision\"\xc0\x01\n" +
+	" ConfigureExternalMCPToolResponse\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x04R\x04code\x12\x10\n" +
+	"\x03msg\x18\x02 \x01(\tR\x03msg\x12A\n" +
+	"\n" +
+	"connection\x18\x03 \x01(\v2!.aiAgent.v1.ExternalMCPConnectionR\n" +
+	"connection\x123\n" +
+	"\x04tool\x18\x04 \x01(\v2\x1f.aiAgent.v1.ExternalMCPToolViewR\x04tool2\xd4Y\n" +
+	"\x0eAiAgentService\x12Z\n" +
+	"\x0flistAgentSkills\x12\".aiAgent.v1.ListAgentSkillsRequest\x1a#.aiAgent.v1.ListAgentSkillsResponse\x12T\n" +
+	"\rgetAgentSkill\x12 .aiAgent.v1.GetAgentSkillRequest\x1a!.aiAgent.v1.GetAgentSkillResponse\x12f\n" +
+	"\x13listAgentExtensions\x12&.aiAgent.v1.ListAgentExtensionsRequest\x1a'.aiAgent.v1.ListAgentExtensionsResponse\x12\x87\x01\n" +
+	"\x1elistAgentMarketplaceExtensions\x121.aiAgent.v1.ListAgentMarketplaceExtensionsRequest\x1a2.aiAgent.v1.ListAgentMarketplaceExtensionsResponse\x12\x96\x01\n" +
+	"#getAgentMarketplaceManagementAccess\x126.aiAgent.v1.GetAgentMarketplaceManagementAccessRequest\x1a7.aiAgent.v1.GetAgentMarketplaceManagementAccessResponse\x12\x87\x01\n" +
+	"\x1elistAgentMarketplacePublishers\x121.aiAgent.v1.ListAgentMarketplacePublishersRequest\x1a2.aiAgent.v1.ListAgentMarketplacePublishersResponse\x12\x90\x01\n" +
+	"!registerAgentMarketplacePublisher\x124.aiAgent.v1.RegisterAgentMarketplacePublisherRequest\x1a5.aiAgent.v1.RegisterAgentMarketplacePublisherResponse\x12\x93\x01\n" +
+	"\"rotateAgentMarketplacePublisherKey\x125.aiAgent.v1.RotateAgentMarketplacePublisherKeyRequest\x1a6.aiAgent.v1.RotateAgentMarketplacePublisherKeyResponse\x12\x93\x01\n" +
+	"\"revokeAgentMarketplacePublisherKey\x125.aiAgent.v1.RevokeAgentMarketplacePublisherKeyRequest\x1a6.aiAgent.v1.RevokeAgentMarketplacePublisherKeyResponse\x12\xa5\x01\n" +
+	"(setAgentMarketplacePublisherVerification\x12;.aiAgent.v1.SetAgentMarketplacePublisherVerificationRequest\x1a<.aiAgent.v1.SetAgentMarketplacePublisherVerificationResponse\x12\x96\x01\n" +
+	"#listAgentMarketplaceManagedReleases\x126.aiAgent.v1.ListAgentMarketplaceManagedReleasesRequest\x1a7.aiAgent.v1.ListAgentMarketplaceManagedReleasesResponse\x12\x87\x01\n" +
+	"\x1epublishAgentMarketplaceRelease\x121.aiAgent.v1.PublishAgentMarketplaceReleaseRequest\x1a2.aiAgent.v1.PublishAgentMarketplaceReleaseResponse\x12\x8a\x01\n" +
+	"\x1fwithdrawAgentMarketplaceRelease\x122.aiAgent.v1.WithdrawAgentMarketplaceReleaseRequest\x1a3.aiAgent.v1.WithdrawAgentMarketplaceReleaseResponse\x12\x8a\x01\n" +
+	"\x1flistAgentMarketplaceAuditEvents\x122.aiAgent.v1.ListAgentMarketplaceAuditEventsRequest\x1a3.aiAgent.v1.ListAgentMarketplaceAuditEventsResponse\x12r\n" +
+	"\x17createAgentTaskTemplate\x12*.aiAgent.v1.CreateAgentTaskTemplateRequest\x1a+.aiAgent.v1.CreateAgentTaskTemplateResponse\x12o\n" +
+	"\x16listAgentTaskTemplates\x12).aiAgent.v1.ListAgentTaskTemplatesRequest\x1a*.aiAgent.v1.ListAgentTaskTemplatesResponse\x12u\n" +
+	"\x18archiveAgentTaskTemplate\x12+.aiAgent.v1.ArchiveAgentTaskTemplateRequest\x1a,.aiAgent.v1.ArchiveAgentTaskTemplateResponse\x12]\n" +
+	"\x14runAgentTaskTemplate\x12'.aiAgent.v1.RunAgentTaskTemplateRequest\x1a\x1c.aiAgent.v1.RunAgentResponse\x12~\n" +
 	"\x1bgetModelDetailedInformation\x12..aiAgent.v1.getModelDetailedInformationRequest\x1a/.aiAgent.v1.getModelDetailedInformationResponse\x12l\n" +
 	"\x15getRepositoryDialogue\x12(.aiAgent.v1.getRepositoryDialogueRequest\x1a).aiAgent.v1.getRepositoryDialogueResponse\x12`\n" +
-	"\x11getDialogueDetail\x12$.aiAgent.v1.getDialogueDetailRequest\x1a%.aiAgent.v1.getDialogueDetailResponse\x12T\n" +
-	"\ranalysisFiles\x12 .aiAgent.v1.analysisFilesRequest\x1a!.aiAgent.v1.analysisFilesResponse\x12N\n" +
+	"\x11getDialogueDetail\x12$.aiAgent.v1.getDialogueDetailRequest\x1a%.aiAgent.v1.getDialogueDetailResponse\x12c\n" +
+	"\x12endDialogueSession\x12%.aiAgent.v1.EndDialogueSessionRequest\x1a&.aiAgent.v1.EndDialogueSessionResponse\x12T\n" +
+	"\ranalysisFiles\x12 .aiAgent.v1.analysisFilesRequest\x1a!.aiAgent.v1.analysisFilesResponse\x12E\n" +
+	"\brunAgent\x12\x1b.aiAgent.v1.RunAgentRequest\x1a\x1c.aiAgent.v1.RunAgentResponse\x12N\n" +
+	"\vgetAgentRun\x12\x1e.aiAgent.v1.GetAgentRunRequest\x1a\x1f.aiAgent.v1.GetAgentRunResponse\x12l\n" +
+	"\x15getAgentRunAccounting\x12(.aiAgent.v1.GetAgentRunAccountingRequest\x1a).aiAgent.v1.GetAgentRunAccountingResponse\x12Q\n" +
+	"\x0eresumeAgentRun\x12!.aiAgent.v1.ResumeAgentRunRequest\x1a\x1c.aiAgent.v1.RunAgentResponse\x12l\n" +
+	"\x15issueAgentResumeGrant\x12(.aiAgent.v1.IssueAgentResumeGrantRequest\x1a).aiAgent.v1.IssueAgentResumeGrantResponse\x12N\n" +
 	"\vcallApiOfAi\x12\x1e.aiAgent.v1.callApiOfAiRequest\x1a\x1f.aiAgent.v1.callApiOfAiResponse\x12W\n" +
 	"\x0econsultContent\x12!.aiAgent.v1.consultContentRequest\x1a\".aiAgent.v1.consultContentResponse\x12i\n" +
 	"\x14assistPublishTwitter\x12'.aiAgent.v1.assistPublishTwitterRequest\x1a(.aiAgent.v1.assistPublishTwitterResponse\x12l\n" +
@@ -3334,9 +24612,68 @@ const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
 	"\x0ecreateWorkflow\x12!.aiAgent.v1.CreateWorkflowRequest\x1a\".aiAgent.v1.CreateWorkflowResponse\x12W\n" +
 	"\x0eupdateWorkflow\x12!.aiAgent.v1.UpdateWorkflowRequest\x1a\".aiAgent.v1.UpdateWorkflowResponse\x12T\n" +
 	"\rlistWorkflows\x12 .aiAgent.v1.ListWorkflowsRequest\x1a!.aiAgent.v1.ListWorkflowsResponse\x12N\n" +
-	"\vgetWorkflow\x12\x1e.aiAgent.v1.GetWorkflowRequest\x1a\x1f.aiAgent.v1.GetWorkflowResponse\x12N\n" +
+	"\vgetWorkflow\x12\x1e.aiAgent.v1.GetWorkflowRequest\x1a\x1f.aiAgent.v1.GetWorkflowResponse\x12l\n" +
+	"\x15listWorkflowRevisions\x12(.aiAgent.v1.ListWorkflowRevisionsRequest\x1a).aiAgent.v1.ListWorkflowRevisionsResponse\x12f\n" +
+	"\x13getWorkflowRevision\x12&.aiAgent.v1.GetWorkflowRevisionRequest\x1a'.aiAgent.v1.GetWorkflowRevisionResponse\x12f\n" +
+	"\x13publishWorkflowTool\x12&.aiAgent.v1.PublishWorkflowToolRequest\x1a'.aiAgent.v1.PublishWorkflowToolResponse\x12{\n" +
+	"\x1agetWorkflowToolPublication\x12-.aiAgent.v1.GetWorkflowToolPublicationRequest\x1a..aiAgent.v1.GetWorkflowToolPublicationResponse\x12l\n" +
+	"\x15unpublishWorkflowTool\x12(.aiAgent.v1.UnpublishWorkflowToolRequest\x1a).aiAgent.v1.UnpublishWorkflowToolResponse\x12N\n" +
 	"\vrunWorkflow\x12\x1e.aiAgent.v1.RunWorkflowRequest\x1a\x1f.aiAgent.v1.RunWorkflowResponse\x12W\n" +
-	"\x0egetWorkflowRun\x12!.aiAgent.v1.GetWorkflowRunRequest\x1a\".aiAgent.v1.GetWorkflowRunResponseB(Z&twitter-clone/api/aiAgent/v1;aiAgentv1b\x06proto3"
+	"\x0egetWorkflowRun\x12!.aiAgent.v1.GetWorkflowRunRequest\x1a\".aiAgent.v1.GetWorkflowRunResponse\x12f\n" +
+	"\x13getWorkflowRunTrace\x12&.aiAgent.v1.GetWorkflowRunTraceRequest\x1a'.aiAgent.v1.GetWorkflowRunTraceResponse\x12u\n" +
+	"\x18searchWorkflowBlackboard\x12+.aiAgent.v1.SearchWorkflowBlackboardRequest\x1a,.aiAgent.v1.SearchWorkflowBlackboardResponse\x12c\n" +
+	"\x16watchWorkflowRunEvents\x12).aiAgent.v1.WatchWorkflowRunEventsRequest\x1a\x1c.aiAgent.v1.WorkflowRunEvent0\x01\x12]\n" +
+	"\x10listWorkflowRuns\x12#.aiAgent.v1.ListWorkflowRunsRequest\x1a$.aiAgent.v1.ListWorkflowRunsResponse\x12`\n" +
+	"\x11cancelWorkflowRun\x12$.aiAgent.v1.CancelWorkflowRunRequest\x1a%.aiAgent.v1.CancelWorkflowRunResponse\x12i\n" +
+	"\x14getWorkflowRunReplay\x12'.aiAgent.v1.GetWorkflowRunReplayRequest\x1a(.aiAgent.v1.GetWorkflowRunReplayResponse\x12\x87\x01\n" +
+	"\x1egetWorkflowCompensationJournal\x121.aiAgent.v1.GetWorkflowCompensationJournalRequest\x1a2.aiAgent.v1.GetWorkflowCompensationJournalResponse\x12x\n" +
+	"\x19retryWorkflowCompensation\x12,.aiAgent.v1.RetryWorkflowCompensationRequest\x1a-.aiAgent.v1.RetryWorkflowCompensationResponse\x12`\n" +
+	"\x11listToolApprovals\x12$.aiAgent.v1.ListToolApprovalsRequest\x1a%.aiAgent.v1.ListToolApprovalsResponse\x12c\n" +
+	"\x12decideToolApproval\x12%.aiAgent.v1.DecideToolApprovalRequest\x1a&.aiAgent.v1.DecideToolApprovalResponse\x12u\n" +
+	"\x18issueWorkflowResumeGrant\x12+.aiAgent.v1.IssueWorkflowResumeGrantRequest\x1a,.aiAgent.v1.IssueWorkflowResumeGrantResponse\x12`\n" +
+	"\x11resumeWorkflowRun\x12$.aiAgent.v1.ResumeWorkflowRunRequest\x1a%.aiAgent.v1.ResumeWorkflowRunResponse\x12i\n" +
+	"\x14createProviderConfig\x12'.aiAgent.v1.CreateProviderConfigRequest\x1a(.aiAgent.v1.CreateProviderConfigResponse\x12i\n" +
+	"\x14updateProviderConfig\x12'.aiAgent.v1.UpdateProviderConfigRequest\x1a(.aiAgent.v1.UpdateProviderConfigResponse\x12f\n" +
+	"\x13listProviderConfigs\x12&.aiAgent.v1.ListProviderConfigsRequest\x1a'.aiAgent.v1.ListProviderConfigsResponse\x12`\n" +
+	"\x11getProviderConfig\x12$.aiAgent.v1.GetProviderConfigRequest\x1a%.aiAgent.v1.GetProviderConfigResponse\x12i\n" +
+	"\x14revokeProviderConfig\x12'.aiAgent.v1.RevokeProviderConfigRequest\x1a(.aiAgent.v1.RevokeProviderConfigResponse\x12c\n" +
+	"\x12createAgentProject\x12%.aiAgent.v1.CreateAgentProjectRequest\x1a&.aiAgent.v1.CreateAgentProjectResponse\x12`\n" +
+	"\x11listAgentProjects\x12$.aiAgent.v1.ListAgentProjectsRequest\x1a%.aiAgent.v1.ListAgentProjectsResponse\x12Z\n" +
+	"\x0fgetAgentProject\x12\".aiAgent.v1.GetAgentProjectRequest\x1a#.aiAgent.v1.GetAgentProjectResponse\x12u\n" +
+	"\x18upsertAgentProjectMember\x12+.aiAgent.v1.UpsertAgentProjectMemberRequest\x1a,.aiAgent.v1.UpsertAgentProjectMemberResponse\x12u\n" +
+	"\x18removeAgentProjectMember\x12+.aiAgent.v1.RemoveAgentProjectMemberRequest\x1a,.aiAgent.v1.RemoveAgentProjectMemberResponse\x12~\n" +
+	"\x1bcreateExternalMCPConnection\x12..aiAgent.v1.CreateExternalMCPConnectionRequest\x1a/.aiAgent.v1.CreateExternalMCPConnectionResponse\x12~\n" +
+	"\x1bupdateExternalMCPConnection\x12..aiAgent.v1.UpdateExternalMCPConnectionRequest\x1a/.aiAgent.v1.UpdateExternalMCPConnectionResponse\x12{\n" +
+	"\x1alistExternalMCPConnections\x12-.aiAgent.v1.ListExternalMCPConnectionsRequest\x1a..aiAgent.v1.ListExternalMCPConnectionsResponse\x12u\n" +
+	"\x18getExternalMCPConnection\x12+.aiAgent.v1.GetExternalMCPConnectionRequest\x1a,.aiAgent.v1.GetExternalMCPConnectionResponse\x12~\n" +
+	"\x1brevokeExternalMCPConnection\x12..aiAgent.v1.RevokeExternalMCPConnectionRequest\x1a/.aiAgent.v1.RevokeExternalMCPConnectionResponse\x12u\n" +
+	"\x18discoverExternalMCPTools\x12+.aiAgent.v1.DiscoverExternalMCPToolsRequest\x1a,.aiAgent.v1.DiscoverExternalMCPToolsResponse\x12{\n" +
+	"\x1aapproveExternalMCPSnapshot\x12-.aiAgent.v1.ApproveExternalMCPSnapshotRequest\x1a..aiAgent.v1.ApproveExternalMCPSnapshotResponse\x12i\n" +
+	"\x14listExternalMCPTools\x12'.aiAgent.v1.ListExternalMCPToolsRequest\x1a(.aiAgent.v1.ListExternalMCPToolsResponse\x12u\n" +
+	"\x18configureExternalMCPTool\x12+.aiAgent.v1.ConfigureExternalMCPToolRequest\x1a,.aiAgent.v1.ConfigureExternalMCPToolResponse\x12r\n" +
+	"\x17createAgentProfileDraft\x12*.aiAgent.v1.CreateAgentProfileDraftRequest\x1a+.aiAgent.v1.CreateAgentProfileDraftResponse\x12{\n" +
+	"\x1apublishAgentProfileVersion\x12-.aiAgent.v1.PublishAgentProfileVersionRequest\x1a..aiAgent.v1.PublishAgentProfileVersionResponse\x12\x93\x01\n" +
+	"\"requestAgentProfilePublishApproval\x125.aiAgent.v1.RequestAgentProfilePublishApprovalRequest\x1a6.aiAgent.v1.RequestAgentProfilePublishApprovalResponse\x12\x8d\x01\n" +
+	" listAgentProfilePublishApprovals\x123.aiAgent.v1.ListAgentProfilePublishApprovalsRequest\x1a4.aiAgent.v1.ListAgentProfilePublishApprovalsResponse\x12\x87\x01\n" +
+	"\x1egetAgentProfilePublishApproval\x121.aiAgent.v1.GetAgentProfilePublishApprovalRequest\x1a2.aiAgent.v1.GetAgentProfilePublishApprovalResponse\x12\x90\x01\n" +
+	"!decideAgentProfilePublishApproval\x124.aiAgent.v1.DecideAgentProfilePublishApprovalRequest\x1a5.aiAgent.v1.DecideAgentProfilePublishApprovalResponse\x12\x8d\x01\n" +
+	" retryAgentProfilePublishApproval\x123.aiAgent.v1.RetryAgentProfilePublishApprovalRequest\x1a4.aiAgent.v1.RetryAgentProfilePublishApprovalResponse\x12u\n" +
+	"\x18listAgentProfileVersions\x12+.aiAgent.v1.ListAgentProfileVersionsRequest\x1a,.aiAgent.v1.ListAgentProfileVersionsResponse\x12o\n" +
+	"\x16getAgentProfileVersion\x12).aiAgent.v1.GetAgentProfileVersionRequest\x1a*.aiAgent.v1.GetAgentProfileVersionResponse\x12o\n" +
+	"\x16getAgentProfileRelease\x12).aiAgent.v1.GetAgentProfileReleaseRequest\x1a*.aiAgent.v1.GetAgentProfileReleaseResponse\x12x\n" +
+	"\x19upsertAgentProfileRelease\x12,.aiAgent.v1.UpsertAgentProfileReleaseRequest\x1a-.aiAgent.v1.UpsertAgentProfileReleaseResponse\x12~\n" +
+	"\x1blistAgentProfileAuditEvents\x12..aiAgent.v1.ListAgentProfileAuditEventsRequest\x1a/.aiAgent.v1.ListAgentProfileAuditEventsResponse\x12\x8a\x01\n" +
+	"\x1fgetAgentProfileManagementAccess\x122.aiAgent.v1.GetAgentProfileManagementAccessRequest\x1a3.aiAgent.v1.GetAgentProfileManagementAccessResponse\x12\x81\x01\n" +
+	"\x1clistAgentProfileRoleBindings\x12/.aiAgent.v1.ListAgentProfileRoleBindingsRequest\x1a0.aiAgent.v1.ListAgentProfileRoleBindingsResponse\x12\x84\x01\n" +
+	"\x1dupsertAgentProfileRoleBinding\x120.aiAgent.v1.UpsertAgentProfileRoleBindingRequest\x1a1.aiAgent.v1.UpsertAgentProfileRoleBindingResponse\x12\x84\x01\n" +
+	"\x1ddeleteAgentProfileRoleBinding\x120.aiAgent.v1.DeleteAgentProfileRoleBindingRequest\x1a1.aiAgent.v1.DeleteAgentProfileRoleBindingResponse\x12\x8a\x01\n" +
+	"\x1flistAgentProfileRoleAuditEvents\x122.aiAgent.v1.ListAgentProfileRoleAuditEventsRequest\x1a3.aiAgent.v1.ListAgentProfileRoleAuditEventsResponse\x12~\n" +
+	"\x1bstartAgentProfileExperiment\x12..aiAgent.v1.StartAgentProfileExperimentRequest\x1a/.aiAgent.v1.StartAgentProfileExperimentResponse\x12~\n" +
+	"\x1blistAgentProfileExperiments\x12..aiAgent.v1.ListAgentProfileExperimentsRequest\x1a/.aiAgent.v1.ListAgentProfileExperimentsResponse\x12x\n" +
+	"\x19getAgentProfileExperiment\x12,.aiAgent.v1.GetAgentProfileExperimentRequest\x1a-.aiAgent.v1.GetAgentProfileExperimentResponse\x12\x87\x01\n" +
+	"\x1eevaluateAgentProfileExperiment\x121.aiAgent.v1.EvaluateAgentProfileExperimentRequest\x1a2.aiAgent.v1.EvaluateAgentProfileExperimentResponse\x12{\n" +
+	"\x1astopAgentProfileExperiment\x12-.aiAgent.v1.StopAgentProfileExperimentRequest\x1a..aiAgent.v1.StopAgentProfileExperimentResponse\x12\x96\x01\n" +
+	"#recordAgentProfileExperimentOutcome\x126.aiAgent.v1.RecordAgentProfileExperimentOutcomeRequest\x1a7.aiAgent.v1.RecordAgentProfileExperimentOutcomeResponseB(Z&twitter-clone/api/aiAgent/v1;aiAgentv1b\x06proto3"
 
 var (
 	file_api_aiAgent_v1_aiAgent_proto_rawDescOnce sync.Once
@@ -3350,108 +24687,644 @@ func file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP() []byte {
 	return file_api_aiAgent_v1_aiAgent_proto_rawDescData
 }
 
-var file_api_aiAgent_v1_aiAgent_proto_msgTypes = make([]protoimpl.MessageInfo, 44)
+var file_api_aiAgent_v1_aiAgent_proto_msgTypes = make([]protoimpl.MessageInfo, 276)
 var file_api_aiAgent_v1_aiAgent_proto_goTypes = []any{
-	(*MainContent)(nil),                         // 0: aiAgent.v1.MainContent
-	(*RepositoryContentList)(nil),               // 1: aiAgent.v1.RepositoryContentList
-	(*RepositoryDialogue)(nil),                  // 2: aiAgent.v1.RepositoryDialogue
-	(*FileKind)(nil),                            // 3: aiAgent.v1.FileKind
-	(*ModelKind)(nil),                           // 4: aiAgent.v1.ModelKind
-	(*Poll)(nil),                                // 5: aiAgent.v1.Poll
-	(*PollOption)(nil),                          // 6: aiAgent.v1.PollOption
-	(*Tweet)(nil),                               // 7: aiAgent.v1.Tweet
-	(*TweetResult)(nil),                         // 8: aiAgent.v1.TweetResult
-	(*GetModelDetailedInformationRequest)(nil),  // 9: aiAgent.v1.getModelDetailedInformationRequest
-	(*GetModelDetailedInformationResponse)(nil), // 10: aiAgent.v1.getModelDetailedInformationResponse
-	(*GetRepositoryDialogueRequest)(nil),        // 11: aiAgent.v1.getRepositoryDialogueRequest
-	(*GetRepositoryDialogueResponse)(nil),       // 12: aiAgent.v1.getRepositoryDialogueResponse
-	(*GetDialogueDetailRequest)(nil),            // 13: aiAgent.v1.getDialogueDetailRequest
-	(*GetDialogueDetailResponse)(nil),           // 14: aiAgent.v1.getDialogueDetailResponse
-	(*AnalysisFilesRequest)(nil),                // 15: aiAgent.v1.analysisFilesRequest
-	(*AnalysisFilesResponse)(nil),               // 16: aiAgent.v1.analysisFilesResponse
-	(*CallApiOfAiRequest)(nil),                  // 17: aiAgent.v1.callApiOfAiRequest
-	(*CallApiOfAiResponse)(nil),                 // 18: aiAgent.v1.callApiOfAiResponse
-	(*ConsultContentRequest)(nil),               // 19: aiAgent.v1.consultContentRequest
-	(*ConsultContentResponse)(nil),              // 20: aiAgent.v1.consultContentResponse
-	(*AssistPublishTwitterRequest)(nil),         // 21: aiAgent.v1.assistPublishTwitterRequest
-	(*AssistPublishTwitterResponse)(nil),        // 22: aiAgent.v1.assistPublishTwitterResponse
-	(*ConfirmPublishTwitterRequest)(nil),        // 23: aiAgent.v1.ConfirmPublishTwitterRequest
-	(*ConfirmPublishTwitterResponse)(nil),       // 24: aiAgent.v1.ConfirmPublishTwitterResponse
-	(*MultiAgentPublishTwitterRequest)(nil),     // 25: aiAgent.v1.MultiAgentPublishTwitterRequest
-	(*MultiAgentPublishTwitterResponse)(nil),    // 26: aiAgent.v1.MultiAgentPublishTwitterResponse
-	(*AnalyzeAlertRequest)(nil),                 // 27: aiAgent.v1.AnalyzeAlertRequest
-	(*AnalyzeAlertResponse)(nil),                // 28: aiAgent.v1.AnalyzeAlertResponse
-	(*WorkflowSummary)(nil),                     // 29: aiAgent.v1.WorkflowSummary
-	(*WorkflowDetail)(nil),                      // 30: aiAgent.v1.WorkflowDetail
-	(*WorkflowRun)(nil),                         // 31: aiAgent.v1.WorkflowRun
-	(*CreateWorkflowRequest)(nil),               // 32: aiAgent.v1.CreateWorkflowRequest
-	(*CreateWorkflowResponse)(nil),              // 33: aiAgent.v1.CreateWorkflowResponse
-	(*UpdateWorkflowRequest)(nil),               // 34: aiAgent.v1.UpdateWorkflowRequest
-	(*UpdateWorkflowResponse)(nil),              // 35: aiAgent.v1.UpdateWorkflowResponse
-	(*ListWorkflowsRequest)(nil),                // 36: aiAgent.v1.ListWorkflowsRequest
-	(*ListWorkflowsResponse)(nil),               // 37: aiAgent.v1.ListWorkflowsResponse
-	(*GetWorkflowRequest)(nil),                  // 38: aiAgent.v1.GetWorkflowRequest
-	(*GetWorkflowResponse)(nil),                 // 39: aiAgent.v1.GetWorkflowResponse
-	(*RunWorkflowRequest)(nil),                  // 40: aiAgent.v1.RunWorkflowRequest
-	(*RunWorkflowResponse)(nil),                 // 41: aiAgent.v1.RunWorkflowResponse
-	(*GetWorkflowRunRequest)(nil),               // 42: aiAgent.v1.GetWorkflowRunRequest
-	(*GetWorkflowRunResponse)(nil),              // 43: aiAgent.v1.GetWorkflowRunResponse
+	(*MainContent)(nil),                                      // 0: aiAgent.v1.MainContent
+	(*RepositoryContentList)(nil),                            // 1: aiAgent.v1.RepositoryContentList
+	(*RepositoryDialogue)(nil),                               // 2: aiAgent.v1.RepositoryDialogue
+	(*FileKind)(nil),                                         // 3: aiAgent.v1.FileKind
+	(*ModelKind)(nil),                                        // 4: aiAgent.v1.ModelKind
+	(*Poll)(nil),                                             // 5: aiAgent.v1.Poll
+	(*PollOption)(nil),                                       // 6: aiAgent.v1.PollOption
+	(*Tweet)(nil),                                            // 7: aiAgent.v1.Tweet
+	(*TweetResult)(nil),                                      // 8: aiAgent.v1.TweetResult
+	(*GetModelDetailedInformationRequest)(nil),               // 9: aiAgent.v1.getModelDetailedInformationRequest
+	(*GetModelDetailedInformationResponse)(nil),              // 10: aiAgent.v1.getModelDetailedInformationResponse
+	(*GetRepositoryDialogueRequest)(nil),                     // 11: aiAgent.v1.getRepositoryDialogueRequest
+	(*GetRepositoryDialogueResponse)(nil),                    // 12: aiAgent.v1.getRepositoryDialogueResponse
+	(*GetDialogueDetailRequest)(nil),                         // 13: aiAgent.v1.getDialogueDetailRequest
+	(*GetDialogueDetailResponse)(nil),                        // 14: aiAgent.v1.getDialogueDetailResponse
+	(*EndDialogueSessionRequest)(nil),                        // 15: aiAgent.v1.EndDialogueSessionRequest
+	(*EndDialogueSessionResponse)(nil),                       // 16: aiAgent.v1.EndDialogueSessionResponse
+	(*AnalysisFilesRequest)(nil),                             // 17: aiAgent.v1.analysisFilesRequest
+	(*AnalysisFilesResponse)(nil),                            // 18: aiAgent.v1.analysisFilesResponse
+	(*RunAgentRequest)(nil),                                  // 19: aiAgent.v1.RunAgentRequest
+	(*AgentToolActivity)(nil),                                // 20: aiAgent.v1.AgentToolActivity
+	(*AgentCitation)(nil),                                    // 21: aiAgent.v1.AgentCitation
+	(*AgentArtifact)(nil),                                    // 22: aiAgent.v1.AgentArtifact
+	(*AgentApprovalState)(nil),                               // 23: aiAgent.v1.AgentApprovalState
+	(*AgentExecutionStrategyRole)(nil),                       // 24: aiAgent.v1.AgentExecutionStrategyRole
+	(*AgentExecutionStrategyPlan)(nil),                       // 25: aiAgent.v1.AgentExecutionStrategyPlan
+	(*RunAgentResponse)(nil),                                 // 26: aiAgent.v1.RunAgentResponse
+	(*AgentExecutionRun)(nil),                                // 27: aiAgent.v1.AgentExecutionRun
+	(*AgentSkillKnowledgeBinding)(nil),                       // 28: aiAgent.v1.AgentSkillKnowledgeBinding
+	(*AgentSkillProfileBinding)(nil),                         // 29: aiAgent.v1.AgentSkillProfileBinding
+	(*AgentSkillBudget)(nil),                                 // 30: aiAgent.v1.AgentSkillBudget
+	(*AgentSkillOutputContract)(nil),                         // 31: aiAgent.v1.AgentSkillOutputContract
+	(*AgentSkillWorkflowBinding)(nil),                        // 32: aiAgent.v1.AgentSkillWorkflowBinding
+	(*AgentSkill)(nil),                                       // 33: aiAgent.v1.AgentSkill
+	(*ListAgentSkillsRequest)(nil),                           // 34: aiAgent.v1.ListAgentSkillsRequest
+	(*ListAgentSkillsResponse)(nil),                          // 35: aiAgent.v1.ListAgentSkillsResponse
+	(*GetAgentSkillRequest)(nil),                             // 36: aiAgent.v1.GetAgentSkillRequest
+	(*GetAgentSkillResponse)(nil),                            // 37: aiAgent.v1.GetAgentSkillResponse
+	(*AgentExtensionSkillReference)(nil),                     // 38: aiAgent.v1.AgentExtensionSkillReference
+	(*AgentExtensionMCPReference)(nil),                       // 39: aiAgent.v1.AgentExtensionMCPReference
+	(*AgentExtension)(nil),                                   // 40: aiAgent.v1.AgentExtension
+	(*AgentExtensionSourceStatus)(nil),                       // 41: aiAgent.v1.AgentExtensionSourceStatus
+	(*ListAgentExtensionsRequest)(nil),                       // 42: aiAgent.v1.ListAgentExtensionsRequest
+	(*ListAgentExtensionsResponse)(nil),                      // 43: aiAgent.v1.ListAgentExtensionsResponse
+	(*AgentMarketplacePublisher)(nil),                        // 44: aiAgent.v1.AgentMarketplacePublisher
+	(*AgentMarketplaceExtension)(nil),                        // 45: aiAgent.v1.AgentMarketplaceExtension
+	(*ListAgentMarketplaceExtensionsRequest)(nil),            // 46: aiAgent.v1.ListAgentMarketplaceExtensionsRequest
+	(*ListAgentMarketplaceExtensionsResponse)(nil),           // 47: aiAgent.v1.ListAgentMarketplaceExtensionsResponse
+	(*AgentMarketplaceManagementAccess)(nil),                 // 48: aiAgent.v1.AgentMarketplaceManagementAccess
+	(*GetAgentMarketplaceManagementAccessRequest)(nil),       // 49: aiAgent.v1.GetAgentMarketplaceManagementAccessRequest
+	(*GetAgentMarketplaceManagementAccessResponse)(nil),      // 50: aiAgent.v1.GetAgentMarketplaceManagementAccessResponse
+	(*AgentMarketplaceSigningKey)(nil),                       // 51: aiAgent.v1.AgentMarketplaceSigningKey
+	(*AgentMarketplaceManagedPublisher)(nil),                 // 52: aiAgent.v1.AgentMarketplaceManagedPublisher
+	(*ListAgentMarketplacePublishersRequest)(nil),            // 53: aiAgent.v1.ListAgentMarketplacePublishersRequest
+	(*ListAgentMarketplacePublishersResponse)(nil),           // 54: aiAgent.v1.ListAgentMarketplacePublishersResponse
+	(*RegisterAgentMarketplacePublisherRequest)(nil),         // 55: aiAgent.v1.RegisterAgentMarketplacePublisherRequest
+	(*RegisterAgentMarketplacePublisherResponse)(nil),        // 56: aiAgent.v1.RegisterAgentMarketplacePublisherResponse
+	(*RotateAgentMarketplacePublisherKeyRequest)(nil),        // 57: aiAgent.v1.RotateAgentMarketplacePublisherKeyRequest
+	(*RotateAgentMarketplacePublisherKeyResponse)(nil),       // 58: aiAgent.v1.RotateAgentMarketplacePublisherKeyResponse
+	(*RevokeAgentMarketplacePublisherKeyRequest)(nil),        // 59: aiAgent.v1.RevokeAgentMarketplacePublisherKeyRequest
+	(*RevokeAgentMarketplacePublisherKeyResponse)(nil),       // 60: aiAgent.v1.RevokeAgentMarketplacePublisherKeyResponse
+	(*SetAgentMarketplacePublisherVerificationRequest)(nil),  // 61: aiAgent.v1.SetAgentMarketplacePublisherVerificationRequest
+	(*SetAgentMarketplacePublisherVerificationResponse)(nil), // 62: aiAgent.v1.SetAgentMarketplacePublisherVerificationResponse
+	(*AgentMarketplaceManifest)(nil),                         // 63: aiAgent.v1.AgentMarketplaceManifest
+	(*AgentMarketplaceManagedRelease)(nil),                   // 64: aiAgent.v1.AgentMarketplaceManagedRelease
+	(*ListAgentMarketplaceManagedReleasesRequest)(nil),       // 65: aiAgent.v1.ListAgentMarketplaceManagedReleasesRequest
+	(*ListAgentMarketplaceManagedReleasesResponse)(nil),      // 66: aiAgent.v1.ListAgentMarketplaceManagedReleasesResponse
+	(*PublishAgentMarketplaceReleaseRequest)(nil),            // 67: aiAgent.v1.PublishAgentMarketplaceReleaseRequest
+	(*PublishAgentMarketplaceReleaseResponse)(nil),           // 68: aiAgent.v1.PublishAgentMarketplaceReleaseResponse
+	(*WithdrawAgentMarketplaceReleaseRequest)(nil),           // 69: aiAgent.v1.WithdrawAgentMarketplaceReleaseRequest
+	(*WithdrawAgentMarketplaceReleaseResponse)(nil),          // 70: aiAgent.v1.WithdrawAgentMarketplaceReleaseResponse
+	(*AgentMarketplaceAuditEvent)(nil),                       // 71: aiAgent.v1.AgentMarketplaceAuditEvent
+	(*ListAgentMarketplaceAuditEventsRequest)(nil),           // 72: aiAgent.v1.ListAgentMarketplaceAuditEventsRequest
+	(*ListAgentMarketplaceAuditEventsResponse)(nil),          // 73: aiAgent.v1.ListAgentMarketplaceAuditEventsResponse
+	(*AgentTaskTemplate)(nil),                                // 74: aiAgent.v1.AgentTaskTemplate
+	(*CreateAgentTaskTemplateRequest)(nil),                   // 75: aiAgent.v1.CreateAgentTaskTemplateRequest
+	(*CreateAgentTaskTemplateResponse)(nil),                  // 76: aiAgent.v1.CreateAgentTaskTemplateResponse
+	(*ListAgentTaskTemplatesRequest)(nil),                    // 77: aiAgent.v1.ListAgentTaskTemplatesRequest
+	(*ListAgentTaskTemplatesResponse)(nil),                   // 78: aiAgent.v1.ListAgentTaskTemplatesResponse
+	(*ArchiveAgentTaskTemplateRequest)(nil),                  // 79: aiAgent.v1.ArchiveAgentTaskTemplateRequest
+	(*ArchiveAgentTaskTemplateResponse)(nil),                 // 80: aiAgent.v1.ArchiveAgentTaskTemplateResponse
+	(*RunAgentTaskTemplateRequest)(nil),                      // 81: aiAgent.v1.RunAgentTaskTemplateRequest
+	(*GetAgentRunRequest)(nil),                               // 82: aiAgent.v1.GetAgentRunRequest
+	(*GetAgentRunResponse)(nil),                              // 83: aiAgent.v1.GetAgentRunResponse
+	(*GetAgentRunAccountingRequest)(nil),                     // 84: aiAgent.v1.GetAgentRunAccountingRequest
+	(*WorkflowRunAccounting)(nil),                            // 85: aiAgent.v1.WorkflowRunAccounting
+	(*AgentRunAccounting)(nil),                               // 86: aiAgent.v1.AgentRunAccounting
+	(*GetAgentRunAccountingResponse)(nil),                    // 87: aiAgent.v1.GetAgentRunAccountingResponse
+	(*ResumeAgentRunRequest)(nil),                            // 88: aiAgent.v1.ResumeAgentRunRequest
+	(*IssueAgentResumeGrantRequest)(nil),                     // 89: aiAgent.v1.IssueAgentResumeGrantRequest
+	(*IssueAgentResumeGrantResponse)(nil),                    // 90: aiAgent.v1.IssueAgentResumeGrantResponse
+	(*CallApiOfAiRequest)(nil),                               // 91: aiAgent.v1.callApiOfAiRequest
+	(*CallApiOfAiResponse)(nil),                              // 92: aiAgent.v1.callApiOfAiResponse
+	(*ConsultContentRequest)(nil),                            // 93: aiAgent.v1.consultContentRequest
+	(*ConsultContentResponse)(nil),                           // 94: aiAgent.v1.consultContentResponse
+	(*AssistPublishTwitterRequest)(nil),                      // 95: aiAgent.v1.assistPublishTwitterRequest
+	(*AssistPublishTwitterResponse)(nil),                     // 96: aiAgent.v1.assistPublishTwitterResponse
+	(*ConfirmPublishTwitterRequest)(nil),                     // 97: aiAgent.v1.ConfirmPublishTwitterRequest
+	(*ConfirmPublishTwitterResponse)(nil),                    // 98: aiAgent.v1.ConfirmPublishTwitterResponse
+	(*MultiAgentPublishTwitterRequest)(nil),                  // 99: aiAgent.v1.MultiAgentPublishTwitterRequest
+	(*MultiAgentPublishTwitterResponse)(nil),                 // 100: aiAgent.v1.MultiAgentPublishTwitterResponse
+	(*AnalyzeAlertRequest)(nil),                              // 101: aiAgent.v1.AnalyzeAlertRequest
+	(*AnalyzeAlertResponse)(nil),                             // 102: aiAgent.v1.AnalyzeAlertResponse
+	(*WorkflowSummary)(nil),                                  // 103: aiAgent.v1.WorkflowSummary
+	(*WorkflowDetail)(nil),                                   // 104: aiAgent.v1.WorkflowDetail
+	(*WorkflowRevisionSummary)(nil),                          // 105: aiAgent.v1.WorkflowRevisionSummary
+	(*WorkflowRevisionDetail)(nil),                           // 106: aiAgent.v1.WorkflowRevisionDetail
+	(*WorkflowToolPublication)(nil),                          // 107: aiAgent.v1.WorkflowToolPublication
+	(*WorkflowRun)(nil),                                      // 108: aiAgent.v1.WorkflowRun
+	(*WorkflowRunSummary)(nil),                               // 109: aiAgent.v1.WorkflowRunSummary
+	(*CreateWorkflowRequest)(nil),                            // 110: aiAgent.v1.CreateWorkflowRequest
+	(*CreateWorkflowResponse)(nil),                           // 111: aiAgent.v1.CreateWorkflowResponse
+	(*UpdateWorkflowRequest)(nil),                            // 112: aiAgent.v1.UpdateWorkflowRequest
+	(*UpdateWorkflowResponse)(nil),                           // 113: aiAgent.v1.UpdateWorkflowResponse
+	(*ListWorkflowsRequest)(nil),                             // 114: aiAgent.v1.ListWorkflowsRequest
+	(*ListWorkflowsResponse)(nil),                            // 115: aiAgent.v1.ListWorkflowsResponse
+	(*GetWorkflowRequest)(nil),                               // 116: aiAgent.v1.GetWorkflowRequest
+	(*GetWorkflowResponse)(nil),                              // 117: aiAgent.v1.GetWorkflowResponse
+	(*ListWorkflowRevisionsRequest)(nil),                     // 118: aiAgent.v1.ListWorkflowRevisionsRequest
+	(*ListWorkflowRevisionsResponse)(nil),                    // 119: aiAgent.v1.ListWorkflowRevisionsResponse
+	(*GetWorkflowRevisionRequest)(nil),                       // 120: aiAgent.v1.GetWorkflowRevisionRequest
+	(*GetWorkflowRevisionResponse)(nil),                      // 121: aiAgent.v1.GetWorkflowRevisionResponse
+	(*PublishWorkflowToolRequest)(nil),                       // 122: aiAgent.v1.PublishWorkflowToolRequest
+	(*PublishWorkflowToolResponse)(nil),                      // 123: aiAgent.v1.PublishWorkflowToolResponse
+	(*GetWorkflowToolPublicationRequest)(nil),                // 124: aiAgent.v1.GetWorkflowToolPublicationRequest
+	(*GetWorkflowToolPublicationResponse)(nil),               // 125: aiAgent.v1.GetWorkflowToolPublicationResponse
+	(*UnpublishWorkflowToolRequest)(nil),                     // 126: aiAgent.v1.UnpublishWorkflowToolRequest
+	(*UnpublishWorkflowToolResponse)(nil),                    // 127: aiAgent.v1.UnpublishWorkflowToolResponse
+	(*RunWorkflowRequest)(nil),                               // 128: aiAgent.v1.RunWorkflowRequest
+	(*RunWorkflowResponse)(nil),                              // 129: aiAgent.v1.RunWorkflowResponse
+	(*GetWorkflowRunRequest)(nil),                            // 130: aiAgent.v1.GetWorkflowRunRequest
+	(*GetWorkflowRunResponse)(nil),                           // 131: aiAgent.v1.GetWorkflowRunResponse
+	(*ExecutionTokenUsage)(nil),                              // 132: aiAgent.v1.ExecutionTokenUsage
+	(*ExecutionBudgetSnapshot)(nil),                          // 133: aiAgent.v1.ExecutionBudgetSnapshot
+	(*AgentRunTrace)(nil),                                    // 134: aiAgent.v1.AgentRunTrace
+	(*AgentStepTrace)(nil),                                   // 135: aiAgent.v1.AgentStepTrace
+	(*AgentLLMCallTrace)(nil),                                // 136: aiAgent.v1.AgentLLMCallTrace
+	(*AgentToolCallTrace)(nil),                               // 137: aiAgent.v1.AgentToolCallTrace
+	(*GetWorkflowRunTraceRequest)(nil),                       // 138: aiAgent.v1.GetWorkflowRunTraceRequest
+	(*GetWorkflowRunTraceResponse)(nil),                      // 139: aiAgent.v1.GetWorkflowRunTraceResponse
+	(*SearchWorkflowBlackboardRequest)(nil),                  // 140: aiAgent.v1.SearchWorkflowBlackboardRequest
+	(*WorkflowBlackboardEntry)(nil),                          // 141: aiAgent.v1.WorkflowBlackboardEntry
+	(*SearchWorkflowBlackboardResponse)(nil),                 // 142: aiAgent.v1.SearchWorkflowBlackboardResponse
+	(*WatchWorkflowRunEventsRequest)(nil),                    // 143: aiAgent.v1.WatchWorkflowRunEventsRequest
+	(*WorkflowRunEvent)(nil),                                 // 144: aiAgent.v1.WorkflowRunEvent
+	(*ListWorkflowRunsRequest)(nil),                          // 145: aiAgent.v1.ListWorkflowRunsRequest
+	(*ListWorkflowRunsResponse)(nil),                         // 146: aiAgent.v1.ListWorkflowRunsResponse
+	(*CancelWorkflowRunRequest)(nil),                         // 147: aiAgent.v1.CancelWorkflowRunRequest
+	(*CancelWorkflowRunResponse)(nil),                        // 148: aiAgent.v1.CancelWorkflowRunResponse
+	(*WorkflowReplayStateEvent)(nil),                         // 149: aiAgent.v1.WorkflowReplayStateEvent
+	(*WorkflowReplaySnapshot)(nil),                           // 150: aiAgent.v1.WorkflowReplaySnapshot
+	(*WorkflowReplayCompensation)(nil),                       // 151: aiAgent.v1.WorkflowReplayCompensation
+	(*WorkflowReplayIntegrity)(nil),                          // 152: aiAgent.v1.WorkflowReplayIntegrity
+	(*GetWorkflowRunReplayRequest)(nil),                      // 153: aiAgent.v1.GetWorkflowRunReplayRequest
+	(*GetWorkflowRunReplayResponse)(nil),                     // 154: aiAgent.v1.GetWorkflowRunReplayResponse
+	(*WorkflowCompensationJournalEntry)(nil),                 // 155: aiAgent.v1.WorkflowCompensationJournalEntry
+	(*GetWorkflowCompensationJournalRequest)(nil),            // 156: aiAgent.v1.GetWorkflowCompensationJournalRequest
+	(*WorkflowCompensationRunSummary)(nil),                   // 157: aiAgent.v1.WorkflowCompensationRunSummary
+	(*GetWorkflowCompensationJournalResponse)(nil),           // 158: aiAgent.v1.GetWorkflowCompensationJournalResponse
+	(*RetryWorkflowCompensationRequest)(nil),                 // 159: aiAgent.v1.RetryWorkflowCompensationRequest
+	(*RetryWorkflowCompensationResponse)(nil),                // 160: aiAgent.v1.RetryWorkflowCompensationResponse
+	(*ToolApprovalRequest)(nil),                              // 161: aiAgent.v1.ToolApprovalRequest
+	(*ListToolApprovalsRequest)(nil),                         // 162: aiAgent.v1.ListToolApprovalsRequest
+	(*ListToolApprovalsResponse)(nil),                        // 163: aiAgent.v1.ListToolApprovalsResponse
+	(*DecideToolApprovalRequest)(nil),                        // 164: aiAgent.v1.DecideToolApprovalRequest
+	(*DecideToolApprovalResponse)(nil),                       // 165: aiAgent.v1.DecideToolApprovalResponse
+	(*IssueWorkflowResumeGrantRequest)(nil),                  // 166: aiAgent.v1.IssueWorkflowResumeGrantRequest
+	(*IssueWorkflowResumeGrantResponse)(nil),                 // 167: aiAgent.v1.IssueWorkflowResumeGrantResponse
+	(*ResumeWorkflowRunRequest)(nil),                         // 168: aiAgent.v1.ResumeWorkflowRunRequest
+	(*ResumeWorkflowRunResponse)(nil),                        // 169: aiAgent.v1.ResumeWorkflowRunResponse
+	(*ProviderConfig)(nil),                                   // 170: aiAgent.v1.ProviderConfig
+	(*CreateProviderConfigRequest)(nil),                      // 171: aiAgent.v1.CreateProviderConfigRequest
+	(*CreateProviderConfigResponse)(nil),                     // 172: aiAgent.v1.CreateProviderConfigResponse
+	(*UpdateProviderConfigRequest)(nil),                      // 173: aiAgent.v1.UpdateProviderConfigRequest
+	(*UpdateProviderConfigResponse)(nil),                     // 174: aiAgent.v1.UpdateProviderConfigResponse
+	(*ListProviderConfigsRequest)(nil),                       // 175: aiAgent.v1.ListProviderConfigsRequest
+	(*ListProviderConfigsResponse)(nil),                      // 176: aiAgent.v1.ListProviderConfigsResponse
+	(*GetProviderConfigRequest)(nil),                         // 177: aiAgent.v1.GetProviderConfigRequest
+	(*GetProviderConfigResponse)(nil),                        // 178: aiAgent.v1.GetProviderConfigResponse
+	(*RevokeProviderConfigRequest)(nil),                      // 179: aiAgent.v1.RevokeProviderConfigRequest
+	(*RevokeProviderConfigResponse)(nil),                     // 180: aiAgent.v1.RevokeProviderConfigResponse
+	(*AgentProfileSpec)(nil),                                 // 181: aiAgent.v1.AgentProfileSpec
+	(*AgentProfileVersion)(nil),                              // 182: aiAgent.v1.AgentProfileVersion
+	(*AgentProfileRelease)(nil),                              // 183: aiAgent.v1.AgentProfileRelease
+	(*AgentProfileAuditEvent)(nil),                           // 184: aiAgent.v1.AgentProfileAuditEvent
+	(*AgentProfileExperimentPolicy)(nil),                     // 185: aiAgent.v1.AgentProfileExperimentPolicy
+	(*AgentProfileExperimentArmStats)(nil),                   // 186: aiAgent.v1.AgentProfileExperimentArmStats
+	(*AgentProfileExperimentStats)(nil),                      // 187: aiAgent.v1.AgentProfileExperimentStats
+	(*AgentProfileExperiment)(nil),                           // 188: aiAgent.v1.AgentProfileExperiment
+	(*AgentEvalEvidenceReference)(nil),                       // 189: aiAgent.v1.AgentEvalEvidenceReference
+	(*AgentProfileQualityEvidence)(nil),                      // 190: aiAgent.v1.AgentProfileQualityEvidence
+	(*AgentProfilePublishApproval)(nil),                      // 191: aiAgent.v1.AgentProfilePublishApproval
+	(*CreateAgentProfileDraftRequest)(nil),                   // 192: aiAgent.v1.CreateAgentProfileDraftRequest
+	(*CreateAgentProfileDraftResponse)(nil),                  // 193: aiAgent.v1.CreateAgentProfileDraftResponse
+	(*PublishAgentProfileVersionRequest)(nil),                // 194: aiAgent.v1.PublishAgentProfileVersionRequest
+	(*PublishAgentProfileVersionResponse)(nil),               // 195: aiAgent.v1.PublishAgentProfileVersionResponse
+	(*RequestAgentProfilePublishApprovalRequest)(nil),        // 196: aiAgent.v1.RequestAgentProfilePublishApprovalRequest
+	(*RequestAgentProfilePublishApprovalResponse)(nil),       // 197: aiAgent.v1.RequestAgentProfilePublishApprovalResponse
+	(*ListAgentProfilePublishApprovalsRequest)(nil),          // 198: aiAgent.v1.ListAgentProfilePublishApprovalsRequest
+	(*ListAgentProfilePublishApprovalsResponse)(nil),         // 199: aiAgent.v1.ListAgentProfilePublishApprovalsResponse
+	(*GetAgentProfilePublishApprovalRequest)(nil),            // 200: aiAgent.v1.GetAgentProfilePublishApprovalRequest
+	(*GetAgentProfilePublishApprovalResponse)(nil),           // 201: aiAgent.v1.GetAgentProfilePublishApprovalResponse
+	(*DecideAgentProfilePublishApprovalRequest)(nil),         // 202: aiAgent.v1.DecideAgentProfilePublishApprovalRequest
+	(*DecideAgentProfilePublishApprovalResponse)(nil),        // 203: aiAgent.v1.DecideAgentProfilePublishApprovalResponse
+	(*RetryAgentProfilePublishApprovalRequest)(nil),          // 204: aiAgent.v1.RetryAgentProfilePublishApprovalRequest
+	(*RetryAgentProfilePublishApprovalResponse)(nil),         // 205: aiAgent.v1.RetryAgentProfilePublishApprovalResponse
+	(*ListAgentProfileVersionsRequest)(nil),                  // 206: aiAgent.v1.ListAgentProfileVersionsRequest
+	(*ListAgentProfileVersionsResponse)(nil),                 // 207: aiAgent.v1.ListAgentProfileVersionsResponse
+	(*GetAgentProfileVersionRequest)(nil),                    // 208: aiAgent.v1.GetAgentProfileVersionRequest
+	(*GetAgentProfileVersionResponse)(nil),                   // 209: aiAgent.v1.GetAgentProfileVersionResponse
+	(*GetAgentProfileReleaseRequest)(nil),                    // 210: aiAgent.v1.GetAgentProfileReleaseRequest
+	(*GetAgentProfileReleaseResponse)(nil),                   // 211: aiAgent.v1.GetAgentProfileReleaseResponse
+	(*UpsertAgentProfileReleaseRequest)(nil),                 // 212: aiAgent.v1.UpsertAgentProfileReleaseRequest
+	(*UpsertAgentProfileReleaseResponse)(nil),                // 213: aiAgent.v1.UpsertAgentProfileReleaseResponse
+	(*ListAgentProfileAuditEventsRequest)(nil),               // 214: aiAgent.v1.ListAgentProfileAuditEventsRequest
+	(*ListAgentProfileAuditEventsResponse)(nil),              // 215: aiAgent.v1.ListAgentProfileAuditEventsResponse
+	(*AgentProfileManagementAccess)(nil),                     // 216: aiAgent.v1.AgentProfileManagementAccess
+	(*AgentProfileRoleBinding)(nil),                          // 217: aiAgent.v1.AgentProfileRoleBinding
+	(*AgentProfileRoleAuditEvent)(nil),                       // 218: aiAgent.v1.AgentProfileRoleAuditEvent
+	(*GetAgentProfileManagementAccessRequest)(nil),           // 219: aiAgent.v1.GetAgentProfileManagementAccessRequest
+	(*GetAgentProfileManagementAccessResponse)(nil),          // 220: aiAgent.v1.GetAgentProfileManagementAccessResponse
+	(*ListAgentProfileRoleBindingsRequest)(nil),              // 221: aiAgent.v1.ListAgentProfileRoleBindingsRequest
+	(*ListAgentProfileRoleBindingsResponse)(nil),             // 222: aiAgent.v1.ListAgentProfileRoleBindingsResponse
+	(*UpsertAgentProfileRoleBindingRequest)(nil),             // 223: aiAgent.v1.UpsertAgentProfileRoleBindingRequest
+	(*UpsertAgentProfileRoleBindingResponse)(nil),            // 224: aiAgent.v1.UpsertAgentProfileRoleBindingResponse
+	(*DeleteAgentProfileRoleBindingRequest)(nil),             // 225: aiAgent.v1.DeleteAgentProfileRoleBindingRequest
+	(*DeleteAgentProfileRoleBindingResponse)(nil),            // 226: aiAgent.v1.DeleteAgentProfileRoleBindingResponse
+	(*ListAgentProfileRoleAuditEventsRequest)(nil),           // 227: aiAgent.v1.ListAgentProfileRoleAuditEventsRequest
+	(*ListAgentProfileRoleAuditEventsResponse)(nil),          // 228: aiAgent.v1.ListAgentProfileRoleAuditEventsResponse
+	(*StartAgentProfileExperimentRequest)(nil),               // 229: aiAgent.v1.StartAgentProfileExperimentRequest
+	(*StartAgentProfileExperimentResponse)(nil),              // 230: aiAgent.v1.StartAgentProfileExperimentResponse
+	(*ListAgentProfileExperimentsRequest)(nil),               // 231: aiAgent.v1.ListAgentProfileExperimentsRequest
+	(*ListAgentProfileExperimentsResponse)(nil),              // 232: aiAgent.v1.ListAgentProfileExperimentsResponse
+	(*GetAgentProfileExperimentRequest)(nil),                 // 233: aiAgent.v1.GetAgentProfileExperimentRequest
+	(*GetAgentProfileExperimentResponse)(nil),                // 234: aiAgent.v1.GetAgentProfileExperimentResponse
+	(*EvaluateAgentProfileExperimentRequest)(nil),            // 235: aiAgent.v1.EvaluateAgentProfileExperimentRequest
+	(*EvaluateAgentProfileExperimentResponse)(nil),           // 236: aiAgent.v1.EvaluateAgentProfileExperimentResponse
+	(*StopAgentProfileExperimentRequest)(nil),                // 237: aiAgent.v1.StopAgentProfileExperimentRequest
+	(*StopAgentProfileExperimentResponse)(nil),               // 238: aiAgent.v1.StopAgentProfileExperimentResponse
+	(*RecordAgentProfileExperimentOutcomeRequest)(nil),       // 239: aiAgent.v1.RecordAgentProfileExperimentOutcomeRequest
+	(*RecordAgentProfileExperimentOutcomeResponse)(nil),      // 240: aiAgent.v1.RecordAgentProfileExperimentOutcomeResponse
+	(*ExternalMCPConnection)(nil),                            // 241: aiAgent.v1.ExternalMCPConnection
+	(*AgentProjectMember)(nil),                               // 242: aiAgent.v1.AgentProjectMember
+	(*AgentProject)(nil),                                     // 243: aiAgent.v1.AgentProject
+	(*CreateAgentProjectRequest)(nil),                        // 244: aiAgent.v1.CreateAgentProjectRequest
+	(*CreateAgentProjectResponse)(nil),                       // 245: aiAgent.v1.CreateAgentProjectResponse
+	(*ListAgentProjectsRequest)(nil),                         // 246: aiAgent.v1.ListAgentProjectsRequest
+	(*ListAgentProjectsResponse)(nil),                        // 247: aiAgent.v1.ListAgentProjectsResponse
+	(*GetAgentProjectRequest)(nil),                           // 248: aiAgent.v1.GetAgentProjectRequest
+	(*GetAgentProjectResponse)(nil),                          // 249: aiAgent.v1.GetAgentProjectResponse
+	(*UpsertAgentProjectMemberRequest)(nil),                  // 250: aiAgent.v1.UpsertAgentProjectMemberRequest
+	(*UpsertAgentProjectMemberResponse)(nil),                 // 251: aiAgent.v1.UpsertAgentProjectMemberResponse
+	(*RemoveAgentProjectMemberRequest)(nil),                  // 252: aiAgent.v1.RemoveAgentProjectMemberRequest
+	(*RemoveAgentProjectMemberResponse)(nil),                 // 253: aiAgent.v1.RemoveAgentProjectMemberResponse
+	(*ExternalMCPToolSchema)(nil),                            // 254: aiAgent.v1.ExternalMCPToolSchema
+	(*ExternalMCPToolPolicy)(nil),                            // 255: aiAgent.v1.ExternalMCPToolPolicy
+	(*ExternalMCPToolView)(nil),                              // 256: aiAgent.v1.ExternalMCPToolView
+	(*ExternalMCPToolSnapshot)(nil),                          // 257: aiAgent.v1.ExternalMCPToolSnapshot
+	(*CreateExternalMCPConnectionRequest)(nil),               // 258: aiAgent.v1.CreateExternalMCPConnectionRequest
+	(*CreateExternalMCPConnectionResponse)(nil),              // 259: aiAgent.v1.CreateExternalMCPConnectionResponse
+	(*UpdateExternalMCPConnectionRequest)(nil),               // 260: aiAgent.v1.UpdateExternalMCPConnectionRequest
+	(*UpdateExternalMCPConnectionResponse)(nil),              // 261: aiAgent.v1.UpdateExternalMCPConnectionResponse
+	(*ListExternalMCPConnectionsRequest)(nil),                // 262: aiAgent.v1.ListExternalMCPConnectionsRequest
+	(*ListExternalMCPConnectionsResponse)(nil),               // 263: aiAgent.v1.ListExternalMCPConnectionsResponse
+	(*GetExternalMCPConnectionRequest)(nil),                  // 264: aiAgent.v1.GetExternalMCPConnectionRequest
+	(*GetExternalMCPConnectionResponse)(nil),                 // 265: aiAgent.v1.GetExternalMCPConnectionResponse
+	(*RevokeExternalMCPConnectionRequest)(nil),               // 266: aiAgent.v1.RevokeExternalMCPConnectionRequest
+	(*RevokeExternalMCPConnectionResponse)(nil),              // 267: aiAgent.v1.RevokeExternalMCPConnectionResponse
+	(*DiscoverExternalMCPToolsRequest)(nil),                  // 268: aiAgent.v1.DiscoverExternalMCPToolsRequest
+	(*DiscoverExternalMCPToolsResponse)(nil),                 // 269: aiAgent.v1.DiscoverExternalMCPToolsResponse
+	(*ApproveExternalMCPSnapshotRequest)(nil),                // 270: aiAgent.v1.ApproveExternalMCPSnapshotRequest
+	(*ApproveExternalMCPSnapshotResponse)(nil),               // 271: aiAgent.v1.ApproveExternalMCPSnapshotResponse
+	(*ListExternalMCPToolsRequest)(nil),                      // 272: aiAgent.v1.ListExternalMCPToolsRequest
+	(*ListExternalMCPToolsResponse)(nil),                     // 273: aiAgent.v1.ListExternalMCPToolsResponse
+	(*ConfigureExternalMCPToolRequest)(nil),                  // 274: aiAgent.v1.ConfigureExternalMCPToolRequest
+	(*ConfigureExternalMCPToolResponse)(nil),                 // 275: aiAgent.v1.ConfigureExternalMCPToolResponse
 }
 var file_api_aiAgent_v1_aiAgent_proto_depIdxs = []int32{
-	3,  // 0: aiAgent.v1.ModelKind.file_kind_list:type_name -> aiAgent.v1.FileKind
-	6,  // 1: aiAgent.v1.Poll.options:type_name -> aiAgent.v1.PollOption
-	5,  // 2: aiAgent.v1.Tweet.poll:type_name -> aiAgent.v1.Poll
-	4,  // 3: aiAgent.v1.getModelDetailedInformationResponse.model_kind_list:type_name -> aiAgent.v1.ModelKind
-	2,  // 4: aiAgent.v1.getRepositoryDialogueResponse.repository_dialogue_list:type_name -> aiAgent.v1.RepositoryDialogue
-	1,  // 5: aiAgent.v1.getDialogueDetailResponse.messages:type_name -> aiAgent.v1.RepositoryContentList
-	0,  // 6: aiAgent.v1.callApiOfAiRequest.main_content:type_name -> aiAgent.v1.MainContent
-	0,  // 7: aiAgent.v1.consultContentRequest.main_content:type_name -> aiAgent.v1.MainContent
-	8,  // 8: aiAgent.v1.consultContentResponse.tweet_list:type_name -> aiAgent.v1.TweetResult
-	0,  // 9: aiAgent.v1.assistPublishTwitterRequest.main_content:type_name -> aiAgent.v1.MainContent
-	7,  // 10: aiAgent.v1.assistPublishTwitterResponse.tweet_list:type_name -> aiAgent.v1.Tweet
-	30, // 11: aiAgent.v1.CreateWorkflowResponse.workflow:type_name -> aiAgent.v1.WorkflowDetail
-	30, // 12: aiAgent.v1.UpdateWorkflowResponse.workflow:type_name -> aiAgent.v1.WorkflowDetail
-	29, // 13: aiAgent.v1.ListWorkflowsResponse.workflows:type_name -> aiAgent.v1.WorkflowSummary
-	30, // 14: aiAgent.v1.GetWorkflowResponse.workflow:type_name -> aiAgent.v1.WorkflowDetail
-	31, // 15: aiAgent.v1.RunWorkflowResponse.run:type_name -> aiAgent.v1.WorkflowRun
-	31, // 16: aiAgent.v1.GetWorkflowRunResponse.run:type_name -> aiAgent.v1.WorkflowRun
-	9,  // 17: aiAgent.v1.AiAgentService.getModelDetailedInformation:input_type -> aiAgent.v1.getModelDetailedInformationRequest
-	11, // 18: aiAgent.v1.AiAgentService.getRepositoryDialogue:input_type -> aiAgent.v1.getRepositoryDialogueRequest
-	13, // 19: aiAgent.v1.AiAgentService.getDialogueDetail:input_type -> aiAgent.v1.getDialogueDetailRequest
-	15, // 20: aiAgent.v1.AiAgentService.analysisFiles:input_type -> aiAgent.v1.analysisFilesRequest
-	17, // 21: aiAgent.v1.AiAgentService.callApiOfAi:input_type -> aiAgent.v1.callApiOfAiRequest
-	19, // 22: aiAgent.v1.AiAgentService.consultContent:input_type -> aiAgent.v1.consultContentRequest
-	21, // 23: aiAgent.v1.AiAgentService.assistPublishTwitter:input_type -> aiAgent.v1.assistPublishTwitterRequest
-	23, // 24: aiAgent.v1.AiAgentService.confirmPublishTwitter:input_type -> aiAgent.v1.ConfirmPublishTwitterRequest
-	25, // 25: aiAgent.v1.AiAgentService.multiAgentPublishTwitter:input_type -> aiAgent.v1.MultiAgentPublishTwitterRequest
-	27, // 26: aiAgent.v1.AiAgentService.analyzeAlert:input_type -> aiAgent.v1.AnalyzeAlertRequest
-	32, // 27: aiAgent.v1.AiAgentService.createWorkflow:input_type -> aiAgent.v1.CreateWorkflowRequest
-	34, // 28: aiAgent.v1.AiAgentService.updateWorkflow:input_type -> aiAgent.v1.UpdateWorkflowRequest
-	36, // 29: aiAgent.v1.AiAgentService.listWorkflows:input_type -> aiAgent.v1.ListWorkflowsRequest
-	38, // 30: aiAgent.v1.AiAgentService.getWorkflow:input_type -> aiAgent.v1.GetWorkflowRequest
-	40, // 31: aiAgent.v1.AiAgentService.runWorkflow:input_type -> aiAgent.v1.RunWorkflowRequest
-	42, // 32: aiAgent.v1.AiAgentService.getWorkflowRun:input_type -> aiAgent.v1.GetWorkflowRunRequest
-	10, // 33: aiAgent.v1.AiAgentService.getModelDetailedInformation:output_type -> aiAgent.v1.getModelDetailedInformationResponse
-	12, // 34: aiAgent.v1.AiAgentService.getRepositoryDialogue:output_type -> aiAgent.v1.getRepositoryDialogueResponse
-	14, // 35: aiAgent.v1.AiAgentService.getDialogueDetail:output_type -> aiAgent.v1.getDialogueDetailResponse
-	16, // 36: aiAgent.v1.AiAgentService.analysisFiles:output_type -> aiAgent.v1.analysisFilesResponse
-	18, // 37: aiAgent.v1.AiAgentService.callApiOfAi:output_type -> aiAgent.v1.callApiOfAiResponse
-	20, // 38: aiAgent.v1.AiAgentService.consultContent:output_type -> aiAgent.v1.consultContentResponse
-	22, // 39: aiAgent.v1.AiAgentService.assistPublishTwitter:output_type -> aiAgent.v1.assistPublishTwitterResponse
-	24, // 40: aiAgent.v1.AiAgentService.confirmPublishTwitter:output_type -> aiAgent.v1.ConfirmPublishTwitterResponse
-	26, // 41: aiAgent.v1.AiAgentService.multiAgentPublishTwitter:output_type -> aiAgent.v1.MultiAgentPublishTwitterResponse
-	28, // 42: aiAgent.v1.AiAgentService.analyzeAlert:output_type -> aiAgent.v1.AnalyzeAlertResponse
-	33, // 43: aiAgent.v1.AiAgentService.createWorkflow:output_type -> aiAgent.v1.CreateWorkflowResponse
-	35, // 44: aiAgent.v1.AiAgentService.updateWorkflow:output_type -> aiAgent.v1.UpdateWorkflowResponse
-	37, // 45: aiAgent.v1.AiAgentService.listWorkflows:output_type -> aiAgent.v1.ListWorkflowsResponse
-	39, // 46: aiAgent.v1.AiAgentService.getWorkflow:output_type -> aiAgent.v1.GetWorkflowResponse
-	41, // 47: aiAgent.v1.AiAgentService.runWorkflow:output_type -> aiAgent.v1.RunWorkflowResponse
-	43, // 48: aiAgent.v1.AiAgentService.getWorkflowRun:output_type -> aiAgent.v1.GetWorkflowRunResponse
-	33, // [33:49] is the sub-list for method output_type
-	17, // [17:33] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	3,   // 0: aiAgent.v1.ModelKind.file_kind_list:type_name -> aiAgent.v1.FileKind
+	6,   // 1: aiAgent.v1.Poll.options:type_name -> aiAgent.v1.PollOption
+	5,   // 2: aiAgent.v1.Tweet.poll:type_name -> aiAgent.v1.Poll
+	4,   // 3: aiAgent.v1.getModelDetailedInformationResponse.model_kind_list:type_name -> aiAgent.v1.ModelKind
+	2,   // 4: aiAgent.v1.getRepositoryDialogueResponse.repository_dialogue_list:type_name -> aiAgent.v1.RepositoryDialogue
+	1,   // 5: aiAgent.v1.getDialogueDetailResponse.messages:type_name -> aiAgent.v1.RepositoryContentList
+	0,   // 6: aiAgent.v1.RunAgentRequest.main_content:type_name -> aiAgent.v1.MainContent
+	24,  // 7: aiAgent.v1.AgentExecutionStrategyPlan.roles:type_name -> aiAgent.v1.AgentExecutionStrategyRole
+	8,   // 8: aiAgent.v1.RunAgentResponse.tweet_list:type_name -> aiAgent.v1.TweetResult
+	20,  // 9: aiAgent.v1.RunAgentResponse.tool_activities:type_name -> aiAgent.v1.AgentToolActivity
+	21,  // 10: aiAgent.v1.RunAgentResponse.citations:type_name -> aiAgent.v1.AgentCitation
+	22,  // 11: aiAgent.v1.RunAgentResponse.artifacts:type_name -> aiAgent.v1.AgentArtifact
+	23,  // 12: aiAgent.v1.RunAgentResponse.approval_state:type_name -> aiAgent.v1.AgentApprovalState
+	25,  // 13: aiAgent.v1.RunAgentResponse.execution_strategy_plan:type_name -> aiAgent.v1.AgentExecutionStrategyPlan
+	25,  // 14: aiAgent.v1.AgentExecutionRun.execution_strategy_plan:type_name -> aiAgent.v1.AgentExecutionStrategyPlan
+	28,  // 15: aiAgent.v1.AgentSkill.knowledge:type_name -> aiAgent.v1.AgentSkillKnowledgeBinding
+	29,  // 16: aiAgent.v1.AgentSkill.profile:type_name -> aiAgent.v1.AgentSkillProfileBinding
+	30,  // 17: aiAgent.v1.AgentSkill.budget:type_name -> aiAgent.v1.AgentSkillBudget
+	31,  // 18: aiAgent.v1.AgentSkill.output:type_name -> aiAgent.v1.AgentSkillOutputContract
+	32,  // 19: aiAgent.v1.AgentSkill.workflow:type_name -> aiAgent.v1.AgentSkillWorkflowBinding
+	33,  // 20: aiAgent.v1.ListAgentSkillsResponse.skills:type_name -> aiAgent.v1.AgentSkill
+	33,  // 21: aiAgent.v1.GetAgentSkillResponse.skill:type_name -> aiAgent.v1.AgentSkill
+	38,  // 22: aiAgent.v1.AgentExtension.skill:type_name -> aiAgent.v1.AgentExtensionSkillReference
+	39,  // 23: aiAgent.v1.AgentExtension.mcp:type_name -> aiAgent.v1.AgentExtensionMCPReference
+	40,  // 24: aiAgent.v1.ListAgentExtensionsResponse.extensions:type_name -> aiAgent.v1.AgentExtension
+	41,  // 25: aiAgent.v1.ListAgentExtensionsResponse.sources:type_name -> aiAgent.v1.AgentExtensionSourceStatus
+	44,  // 26: aiAgent.v1.AgentMarketplaceExtension.publisher:type_name -> aiAgent.v1.AgentMarketplacePublisher
+	45,  // 27: aiAgent.v1.ListAgentMarketplaceExtensionsResponse.releases:type_name -> aiAgent.v1.AgentMarketplaceExtension
+	48,  // 28: aiAgent.v1.GetAgentMarketplaceManagementAccessResponse.access:type_name -> aiAgent.v1.AgentMarketplaceManagementAccess
+	51,  // 29: aiAgent.v1.AgentMarketplaceManagedPublisher.signing_keys:type_name -> aiAgent.v1.AgentMarketplaceSigningKey
+	52,  // 30: aiAgent.v1.ListAgentMarketplacePublishersResponse.publishers:type_name -> aiAgent.v1.AgentMarketplaceManagedPublisher
+	52,  // 31: aiAgent.v1.RegisterAgentMarketplacePublisherResponse.publisher:type_name -> aiAgent.v1.AgentMarketplaceManagedPublisher
+	52,  // 32: aiAgent.v1.RotateAgentMarketplacePublisherKeyResponse.publisher:type_name -> aiAgent.v1.AgentMarketplaceManagedPublisher
+	52,  // 33: aiAgent.v1.RevokeAgentMarketplacePublisherKeyResponse.publisher:type_name -> aiAgent.v1.AgentMarketplaceManagedPublisher
+	52,  // 34: aiAgent.v1.SetAgentMarketplacePublisherVerificationResponse.publisher:type_name -> aiAgent.v1.AgentMarketplaceManagedPublisher
+	63,  // 35: aiAgent.v1.AgentMarketplaceManagedRelease.manifest:type_name -> aiAgent.v1.AgentMarketplaceManifest
+	64,  // 36: aiAgent.v1.ListAgentMarketplaceManagedReleasesResponse.releases:type_name -> aiAgent.v1.AgentMarketplaceManagedRelease
+	63,  // 37: aiAgent.v1.PublishAgentMarketplaceReleaseRequest.manifest:type_name -> aiAgent.v1.AgentMarketplaceManifest
+	64,  // 38: aiAgent.v1.PublishAgentMarketplaceReleaseResponse.release:type_name -> aiAgent.v1.AgentMarketplaceManagedRelease
+	64,  // 39: aiAgent.v1.WithdrawAgentMarketplaceReleaseResponse.release:type_name -> aiAgent.v1.AgentMarketplaceManagedRelease
+	71,  // 40: aiAgent.v1.ListAgentMarketplaceAuditEventsResponse.events:type_name -> aiAgent.v1.AgentMarketplaceAuditEvent
+	74,  // 41: aiAgent.v1.CreateAgentTaskTemplateResponse.task_template:type_name -> aiAgent.v1.AgentTaskTemplate
+	74,  // 42: aiAgent.v1.ListAgentTaskTemplatesResponse.task_templates:type_name -> aiAgent.v1.AgentTaskTemplate
+	74,  // 43: aiAgent.v1.ArchiveAgentTaskTemplateResponse.task_template:type_name -> aiAgent.v1.AgentTaskTemplate
+	0,   // 44: aiAgent.v1.RunAgentTaskTemplateRequest.main_content:type_name -> aiAgent.v1.MainContent
+	27,  // 45: aiAgent.v1.GetAgentRunResponse.run:type_name -> aiAgent.v1.AgentExecutionRun
+	132, // 46: aiAgent.v1.WorkflowRunAccounting.usage:type_name -> aiAgent.v1.ExecutionTokenUsage
+	133, // 47: aiAgent.v1.WorkflowRunAccounting.budget:type_name -> aiAgent.v1.ExecutionBudgetSnapshot
+	132, // 48: aiAgent.v1.AgentRunAccounting.parent_usage:type_name -> aiAgent.v1.ExecutionTokenUsage
+	133, // 49: aiAgent.v1.AgentRunAccounting.parent_budget:type_name -> aiAgent.v1.ExecutionBudgetSnapshot
+	132, // 50: aiAgent.v1.AgentRunAccounting.child_usage:type_name -> aiAgent.v1.ExecutionTokenUsage
+	132, // 51: aiAgent.v1.AgentRunAccounting.total_usage:type_name -> aiAgent.v1.ExecutionTokenUsage
+	85,  // 52: aiAgent.v1.AgentRunAccounting.children:type_name -> aiAgent.v1.WorkflowRunAccounting
+	86,  // 53: aiAgent.v1.GetAgentRunAccountingResponse.accounting:type_name -> aiAgent.v1.AgentRunAccounting
+	27,  // 54: aiAgent.v1.IssueAgentResumeGrantResponse.run:type_name -> aiAgent.v1.AgentExecutionRun
+	0,   // 55: aiAgent.v1.callApiOfAiRequest.main_content:type_name -> aiAgent.v1.MainContent
+	0,   // 56: aiAgent.v1.consultContentRequest.main_content:type_name -> aiAgent.v1.MainContent
+	8,   // 57: aiAgent.v1.consultContentResponse.tweet_list:type_name -> aiAgent.v1.TweetResult
+	0,   // 58: aiAgent.v1.assistPublishTwitterRequest.main_content:type_name -> aiAgent.v1.MainContent
+	7,   // 59: aiAgent.v1.assistPublishTwitterResponse.tweet_list:type_name -> aiAgent.v1.Tweet
+	104, // 60: aiAgent.v1.CreateWorkflowResponse.workflow:type_name -> aiAgent.v1.WorkflowDetail
+	104, // 61: aiAgent.v1.UpdateWorkflowResponse.workflow:type_name -> aiAgent.v1.WorkflowDetail
+	103, // 62: aiAgent.v1.ListWorkflowsResponse.workflows:type_name -> aiAgent.v1.WorkflowSummary
+	104, // 63: aiAgent.v1.GetWorkflowResponse.workflow:type_name -> aiAgent.v1.WorkflowDetail
+	105, // 64: aiAgent.v1.ListWorkflowRevisionsResponse.revisions:type_name -> aiAgent.v1.WorkflowRevisionSummary
+	106, // 65: aiAgent.v1.GetWorkflowRevisionResponse.revision:type_name -> aiAgent.v1.WorkflowRevisionDetail
+	107, // 66: aiAgent.v1.PublishWorkflowToolResponse.publication:type_name -> aiAgent.v1.WorkflowToolPublication
+	107, // 67: aiAgent.v1.GetWorkflowToolPublicationResponse.publication:type_name -> aiAgent.v1.WorkflowToolPublication
+	107, // 68: aiAgent.v1.UnpublishWorkflowToolResponse.publication:type_name -> aiAgent.v1.WorkflowToolPublication
+	108, // 69: aiAgent.v1.RunWorkflowResponse.run:type_name -> aiAgent.v1.WorkflowRun
+	108, // 70: aiAgent.v1.GetWorkflowRunResponse.run:type_name -> aiAgent.v1.WorkflowRun
+	132, // 71: aiAgent.v1.AgentRunTrace.usage:type_name -> aiAgent.v1.ExecutionTokenUsage
+	133, // 72: aiAgent.v1.AgentRunTrace.budget:type_name -> aiAgent.v1.ExecutionBudgetSnapshot
+	132, // 73: aiAgent.v1.AgentLLMCallTrace.usage:type_name -> aiAgent.v1.ExecutionTokenUsage
+	134, // 74: aiAgent.v1.GetWorkflowRunTraceResponse.run:type_name -> aiAgent.v1.AgentRunTrace
+	135, // 75: aiAgent.v1.GetWorkflowRunTraceResponse.steps:type_name -> aiAgent.v1.AgentStepTrace
+	136, // 76: aiAgent.v1.GetWorkflowRunTraceResponse.llm_calls:type_name -> aiAgent.v1.AgentLLMCallTrace
+	137, // 77: aiAgent.v1.GetWorkflowRunTraceResponse.tool_calls:type_name -> aiAgent.v1.AgentToolCallTrace
+	141, // 78: aiAgent.v1.SearchWorkflowBlackboardResponse.entries:type_name -> aiAgent.v1.WorkflowBlackboardEntry
+	134, // 79: aiAgent.v1.WorkflowRunEvent.run:type_name -> aiAgent.v1.AgentRunTrace
+	135, // 80: aiAgent.v1.WorkflowRunEvent.step:type_name -> aiAgent.v1.AgentStepTrace
+	136, // 81: aiAgent.v1.WorkflowRunEvent.llm_call:type_name -> aiAgent.v1.AgentLLMCallTrace
+	137, // 82: aiAgent.v1.WorkflowRunEvent.tool_call:type_name -> aiAgent.v1.AgentToolCallTrace
+	109, // 83: aiAgent.v1.ListWorkflowRunsResponse.runs:type_name -> aiAgent.v1.WorkflowRunSummary
+	109, // 84: aiAgent.v1.CancelWorkflowRunResponse.run:type_name -> aiAgent.v1.WorkflowRunSummary
+	108, // 85: aiAgent.v1.GetWorkflowRunReplayResponse.run:type_name -> aiAgent.v1.WorkflowRun
+	105, // 86: aiAgent.v1.GetWorkflowRunReplayResponse.revision:type_name -> aiAgent.v1.WorkflowRevisionSummary
+	149, // 87: aiAgent.v1.GetWorkflowRunReplayResponse.events:type_name -> aiAgent.v1.WorkflowReplayStateEvent
+	150, // 88: aiAgent.v1.GetWorkflowRunReplayResponse.snapshot:type_name -> aiAgent.v1.WorkflowReplaySnapshot
+	151, // 89: aiAgent.v1.GetWorkflowRunReplayResponse.compensations:type_name -> aiAgent.v1.WorkflowReplayCompensation
+	152, // 90: aiAgent.v1.GetWorkflowRunReplayResponse.integrity:type_name -> aiAgent.v1.WorkflowReplayIntegrity
+	157, // 91: aiAgent.v1.GetWorkflowCompensationJournalResponse.run:type_name -> aiAgent.v1.WorkflowCompensationRunSummary
+	155, // 92: aiAgent.v1.GetWorkflowCompensationJournalResponse.entries:type_name -> aiAgent.v1.WorkflowCompensationJournalEntry
+	108, // 93: aiAgent.v1.RetryWorkflowCompensationResponse.run:type_name -> aiAgent.v1.WorkflowRun
+	161, // 94: aiAgent.v1.ListToolApprovalsResponse.approvals:type_name -> aiAgent.v1.ToolApprovalRequest
+	161, // 95: aiAgent.v1.DecideToolApprovalResponse.approval:type_name -> aiAgent.v1.ToolApprovalRequest
+	108, // 96: aiAgent.v1.IssueWorkflowResumeGrantResponse.run:type_name -> aiAgent.v1.WorkflowRun
+	108, // 97: aiAgent.v1.ResumeWorkflowRunResponse.run:type_name -> aiAgent.v1.WorkflowRun
+	170, // 98: aiAgent.v1.CreateProviderConfigResponse.provider_config:type_name -> aiAgent.v1.ProviderConfig
+	170, // 99: aiAgent.v1.UpdateProviderConfigResponse.provider_config:type_name -> aiAgent.v1.ProviderConfig
+	170, // 100: aiAgent.v1.ListProviderConfigsResponse.provider_configs:type_name -> aiAgent.v1.ProviderConfig
+	170, // 101: aiAgent.v1.GetProviderConfigResponse.provider_config:type_name -> aiAgent.v1.ProviderConfig
+	181, // 102: aiAgent.v1.AgentProfileVersion.spec:type_name -> aiAgent.v1.AgentProfileSpec
+	186, // 103: aiAgent.v1.AgentProfileExperimentStats.stable:type_name -> aiAgent.v1.AgentProfileExperimentArmStats
+	186, // 104: aiAgent.v1.AgentProfileExperimentStats.candidate:type_name -> aiAgent.v1.AgentProfileExperimentArmStats
+	185, // 105: aiAgent.v1.AgentProfileExperiment.policy:type_name -> aiAgent.v1.AgentProfileExperimentPolicy
+	187, // 106: aiAgent.v1.AgentProfileExperiment.stats:type_name -> aiAgent.v1.AgentProfileExperimentStats
+	189, // 107: aiAgent.v1.AgentProfileQualityEvidence.reference:type_name -> aiAgent.v1.AgentEvalEvidenceReference
+	190, // 108: aiAgent.v1.AgentProfilePublishApproval.quality_evidence:type_name -> aiAgent.v1.AgentProfileQualityEvidence
+	181, // 109: aiAgent.v1.CreateAgentProfileDraftRequest.spec:type_name -> aiAgent.v1.AgentProfileSpec
+	182, // 110: aiAgent.v1.CreateAgentProfileDraftResponse.profile_version:type_name -> aiAgent.v1.AgentProfileVersion
+	182, // 111: aiAgent.v1.PublishAgentProfileVersionResponse.profile_version:type_name -> aiAgent.v1.AgentProfileVersion
+	189, // 112: aiAgent.v1.RequestAgentProfilePublishApprovalRequest.quality_evidence:type_name -> aiAgent.v1.AgentEvalEvidenceReference
+	191, // 113: aiAgent.v1.RequestAgentProfilePublishApprovalResponse.approval:type_name -> aiAgent.v1.AgentProfilePublishApproval
+	191, // 114: aiAgent.v1.ListAgentProfilePublishApprovalsResponse.approvals:type_name -> aiAgent.v1.AgentProfilePublishApproval
+	191, // 115: aiAgent.v1.GetAgentProfilePublishApprovalResponse.approval:type_name -> aiAgent.v1.AgentProfilePublishApproval
+	191, // 116: aiAgent.v1.DecideAgentProfilePublishApprovalResponse.approval:type_name -> aiAgent.v1.AgentProfilePublishApproval
+	191, // 117: aiAgent.v1.RetryAgentProfilePublishApprovalResponse.approval:type_name -> aiAgent.v1.AgentProfilePublishApproval
+	182, // 118: aiAgent.v1.ListAgentProfileVersionsResponse.profile_versions:type_name -> aiAgent.v1.AgentProfileVersion
+	182, // 119: aiAgent.v1.GetAgentProfileVersionResponse.profile_version:type_name -> aiAgent.v1.AgentProfileVersion
+	183, // 120: aiAgent.v1.GetAgentProfileReleaseResponse.profile_release:type_name -> aiAgent.v1.AgentProfileRelease
+	183, // 121: aiAgent.v1.UpsertAgentProfileReleaseResponse.profile_release:type_name -> aiAgent.v1.AgentProfileRelease
+	184, // 122: aiAgent.v1.ListAgentProfileAuditEventsResponse.audit_events:type_name -> aiAgent.v1.AgentProfileAuditEvent
+	216, // 123: aiAgent.v1.GetAgentProfileManagementAccessResponse.access:type_name -> aiAgent.v1.AgentProfileManagementAccess
+	217, // 124: aiAgent.v1.ListAgentProfileRoleBindingsResponse.role_bindings:type_name -> aiAgent.v1.AgentProfileRoleBinding
+	217, // 125: aiAgent.v1.UpsertAgentProfileRoleBindingResponse.role_binding:type_name -> aiAgent.v1.AgentProfileRoleBinding
+	218, // 126: aiAgent.v1.ListAgentProfileRoleAuditEventsResponse.audit_events:type_name -> aiAgent.v1.AgentProfileRoleAuditEvent
+	185, // 127: aiAgent.v1.StartAgentProfileExperimentRequest.policy:type_name -> aiAgent.v1.AgentProfileExperimentPolicy
+	188, // 128: aiAgent.v1.StartAgentProfileExperimentResponse.experiment:type_name -> aiAgent.v1.AgentProfileExperiment
+	188, // 129: aiAgent.v1.ListAgentProfileExperimentsResponse.experiments:type_name -> aiAgent.v1.AgentProfileExperiment
+	188, // 130: aiAgent.v1.GetAgentProfileExperimentResponse.experiment:type_name -> aiAgent.v1.AgentProfileExperiment
+	188, // 131: aiAgent.v1.EvaluateAgentProfileExperimentResponse.experiment:type_name -> aiAgent.v1.AgentProfileExperiment
+	188, // 132: aiAgent.v1.StopAgentProfileExperimentResponse.experiment:type_name -> aiAgent.v1.AgentProfileExperiment
+	242, // 133: aiAgent.v1.AgentProject.members:type_name -> aiAgent.v1.AgentProjectMember
+	243, // 134: aiAgent.v1.CreateAgentProjectResponse.project:type_name -> aiAgent.v1.AgentProject
+	243, // 135: aiAgent.v1.ListAgentProjectsResponse.projects:type_name -> aiAgent.v1.AgentProject
+	243, // 136: aiAgent.v1.GetAgentProjectResponse.project:type_name -> aiAgent.v1.AgentProject
+	243, // 137: aiAgent.v1.UpsertAgentProjectMemberResponse.project:type_name -> aiAgent.v1.AgentProject
+	243, // 138: aiAgent.v1.RemoveAgentProjectMemberResponse.project:type_name -> aiAgent.v1.AgentProject
+	254, // 139: aiAgent.v1.ExternalMCPToolView.schema:type_name -> aiAgent.v1.ExternalMCPToolSchema
+	255, // 140: aiAgent.v1.ExternalMCPToolView.policy:type_name -> aiAgent.v1.ExternalMCPToolPolicy
+	254, // 141: aiAgent.v1.ExternalMCPToolSnapshot.tools:type_name -> aiAgent.v1.ExternalMCPToolSchema
+	241, // 142: aiAgent.v1.CreateExternalMCPConnectionResponse.connection:type_name -> aiAgent.v1.ExternalMCPConnection
+	241, // 143: aiAgent.v1.UpdateExternalMCPConnectionResponse.connection:type_name -> aiAgent.v1.ExternalMCPConnection
+	241, // 144: aiAgent.v1.ListExternalMCPConnectionsResponse.connections:type_name -> aiAgent.v1.ExternalMCPConnection
+	241, // 145: aiAgent.v1.GetExternalMCPConnectionResponse.connection:type_name -> aiAgent.v1.ExternalMCPConnection
+	241, // 146: aiAgent.v1.DiscoverExternalMCPToolsResponse.connection:type_name -> aiAgent.v1.ExternalMCPConnection
+	257, // 147: aiAgent.v1.DiscoverExternalMCPToolsResponse.snapshot:type_name -> aiAgent.v1.ExternalMCPToolSnapshot
+	241, // 148: aiAgent.v1.ApproveExternalMCPSnapshotResponse.connection:type_name -> aiAgent.v1.ExternalMCPConnection
+	257, // 149: aiAgent.v1.ApproveExternalMCPSnapshotResponse.snapshot:type_name -> aiAgent.v1.ExternalMCPToolSnapshot
+	241, // 150: aiAgent.v1.ListExternalMCPToolsResponse.connection:type_name -> aiAgent.v1.ExternalMCPConnection
+	257, // 151: aiAgent.v1.ListExternalMCPToolsResponse.snapshot:type_name -> aiAgent.v1.ExternalMCPToolSnapshot
+	256, // 152: aiAgent.v1.ListExternalMCPToolsResponse.tools:type_name -> aiAgent.v1.ExternalMCPToolView
+	241, // 153: aiAgent.v1.ConfigureExternalMCPToolResponse.connection:type_name -> aiAgent.v1.ExternalMCPConnection
+	256, // 154: aiAgent.v1.ConfigureExternalMCPToolResponse.tool:type_name -> aiAgent.v1.ExternalMCPToolView
+	34,  // 155: aiAgent.v1.AiAgentService.listAgentSkills:input_type -> aiAgent.v1.ListAgentSkillsRequest
+	36,  // 156: aiAgent.v1.AiAgentService.getAgentSkill:input_type -> aiAgent.v1.GetAgentSkillRequest
+	42,  // 157: aiAgent.v1.AiAgentService.listAgentExtensions:input_type -> aiAgent.v1.ListAgentExtensionsRequest
+	46,  // 158: aiAgent.v1.AiAgentService.listAgentMarketplaceExtensions:input_type -> aiAgent.v1.ListAgentMarketplaceExtensionsRequest
+	49,  // 159: aiAgent.v1.AiAgentService.getAgentMarketplaceManagementAccess:input_type -> aiAgent.v1.GetAgentMarketplaceManagementAccessRequest
+	53,  // 160: aiAgent.v1.AiAgentService.listAgentMarketplacePublishers:input_type -> aiAgent.v1.ListAgentMarketplacePublishersRequest
+	55,  // 161: aiAgent.v1.AiAgentService.registerAgentMarketplacePublisher:input_type -> aiAgent.v1.RegisterAgentMarketplacePublisherRequest
+	57,  // 162: aiAgent.v1.AiAgentService.rotateAgentMarketplacePublisherKey:input_type -> aiAgent.v1.RotateAgentMarketplacePublisherKeyRequest
+	59,  // 163: aiAgent.v1.AiAgentService.revokeAgentMarketplacePublisherKey:input_type -> aiAgent.v1.RevokeAgentMarketplacePublisherKeyRequest
+	61,  // 164: aiAgent.v1.AiAgentService.setAgentMarketplacePublisherVerification:input_type -> aiAgent.v1.SetAgentMarketplacePublisherVerificationRequest
+	65,  // 165: aiAgent.v1.AiAgentService.listAgentMarketplaceManagedReleases:input_type -> aiAgent.v1.ListAgentMarketplaceManagedReleasesRequest
+	67,  // 166: aiAgent.v1.AiAgentService.publishAgentMarketplaceRelease:input_type -> aiAgent.v1.PublishAgentMarketplaceReleaseRequest
+	69,  // 167: aiAgent.v1.AiAgentService.withdrawAgentMarketplaceRelease:input_type -> aiAgent.v1.WithdrawAgentMarketplaceReleaseRequest
+	72,  // 168: aiAgent.v1.AiAgentService.listAgentMarketplaceAuditEvents:input_type -> aiAgent.v1.ListAgentMarketplaceAuditEventsRequest
+	75,  // 169: aiAgent.v1.AiAgentService.createAgentTaskTemplate:input_type -> aiAgent.v1.CreateAgentTaskTemplateRequest
+	77,  // 170: aiAgent.v1.AiAgentService.listAgentTaskTemplates:input_type -> aiAgent.v1.ListAgentTaskTemplatesRequest
+	79,  // 171: aiAgent.v1.AiAgentService.archiveAgentTaskTemplate:input_type -> aiAgent.v1.ArchiveAgentTaskTemplateRequest
+	81,  // 172: aiAgent.v1.AiAgentService.runAgentTaskTemplate:input_type -> aiAgent.v1.RunAgentTaskTemplateRequest
+	9,   // 173: aiAgent.v1.AiAgentService.getModelDetailedInformation:input_type -> aiAgent.v1.getModelDetailedInformationRequest
+	11,  // 174: aiAgent.v1.AiAgentService.getRepositoryDialogue:input_type -> aiAgent.v1.getRepositoryDialogueRequest
+	13,  // 175: aiAgent.v1.AiAgentService.getDialogueDetail:input_type -> aiAgent.v1.getDialogueDetailRequest
+	15,  // 176: aiAgent.v1.AiAgentService.endDialogueSession:input_type -> aiAgent.v1.EndDialogueSessionRequest
+	17,  // 177: aiAgent.v1.AiAgentService.analysisFiles:input_type -> aiAgent.v1.analysisFilesRequest
+	19,  // 178: aiAgent.v1.AiAgentService.runAgent:input_type -> aiAgent.v1.RunAgentRequest
+	82,  // 179: aiAgent.v1.AiAgentService.getAgentRun:input_type -> aiAgent.v1.GetAgentRunRequest
+	84,  // 180: aiAgent.v1.AiAgentService.getAgentRunAccounting:input_type -> aiAgent.v1.GetAgentRunAccountingRequest
+	88,  // 181: aiAgent.v1.AiAgentService.resumeAgentRun:input_type -> aiAgent.v1.ResumeAgentRunRequest
+	89,  // 182: aiAgent.v1.AiAgentService.issueAgentResumeGrant:input_type -> aiAgent.v1.IssueAgentResumeGrantRequest
+	91,  // 183: aiAgent.v1.AiAgentService.callApiOfAi:input_type -> aiAgent.v1.callApiOfAiRequest
+	93,  // 184: aiAgent.v1.AiAgentService.consultContent:input_type -> aiAgent.v1.consultContentRequest
+	95,  // 185: aiAgent.v1.AiAgentService.assistPublishTwitter:input_type -> aiAgent.v1.assistPublishTwitterRequest
+	97,  // 186: aiAgent.v1.AiAgentService.confirmPublishTwitter:input_type -> aiAgent.v1.ConfirmPublishTwitterRequest
+	99,  // 187: aiAgent.v1.AiAgentService.multiAgentPublishTwitter:input_type -> aiAgent.v1.MultiAgentPublishTwitterRequest
+	101, // 188: aiAgent.v1.AiAgentService.analyzeAlert:input_type -> aiAgent.v1.AnalyzeAlertRequest
+	110, // 189: aiAgent.v1.AiAgentService.createWorkflow:input_type -> aiAgent.v1.CreateWorkflowRequest
+	112, // 190: aiAgent.v1.AiAgentService.updateWorkflow:input_type -> aiAgent.v1.UpdateWorkflowRequest
+	114, // 191: aiAgent.v1.AiAgentService.listWorkflows:input_type -> aiAgent.v1.ListWorkflowsRequest
+	116, // 192: aiAgent.v1.AiAgentService.getWorkflow:input_type -> aiAgent.v1.GetWorkflowRequest
+	118, // 193: aiAgent.v1.AiAgentService.listWorkflowRevisions:input_type -> aiAgent.v1.ListWorkflowRevisionsRequest
+	120, // 194: aiAgent.v1.AiAgentService.getWorkflowRevision:input_type -> aiAgent.v1.GetWorkflowRevisionRequest
+	122, // 195: aiAgent.v1.AiAgentService.publishWorkflowTool:input_type -> aiAgent.v1.PublishWorkflowToolRequest
+	124, // 196: aiAgent.v1.AiAgentService.getWorkflowToolPublication:input_type -> aiAgent.v1.GetWorkflowToolPublicationRequest
+	126, // 197: aiAgent.v1.AiAgentService.unpublishWorkflowTool:input_type -> aiAgent.v1.UnpublishWorkflowToolRequest
+	128, // 198: aiAgent.v1.AiAgentService.runWorkflow:input_type -> aiAgent.v1.RunWorkflowRequest
+	130, // 199: aiAgent.v1.AiAgentService.getWorkflowRun:input_type -> aiAgent.v1.GetWorkflowRunRequest
+	138, // 200: aiAgent.v1.AiAgentService.getWorkflowRunTrace:input_type -> aiAgent.v1.GetWorkflowRunTraceRequest
+	140, // 201: aiAgent.v1.AiAgentService.searchWorkflowBlackboard:input_type -> aiAgent.v1.SearchWorkflowBlackboardRequest
+	143, // 202: aiAgent.v1.AiAgentService.watchWorkflowRunEvents:input_type -> aiAgent.v1.WatchWorkflowRunEventsRequest
+	145, // 203: aiAgent.v1.AiAgentService.listWorkflowRuns:input_type -> aiAgent.v1.ListWorkflowRunsRequest
+	147, // 204: aiAgent.v1.AiAgentService.cancelWorkflowRun:input_type -> aiAgent.v1.CancelWorkflowRunRequest
+	153, // 205: aiAgent.v1.AiAgentService.getWorkflowRunReplay:input_type -> aiAgent.v1.GetWorkflowRunReplayRequest
+	156, // 206: aiAgent.v1.AiAgentService.getWorkflowCompensationJournal:input_type -> aiAgent.v1.GetWorkflowCompensationJournalRequest
+	159, // 207: aiAgent.v1.AiAgentService.retryWorkflowCompensation:input_type -> aiAgent.v1.RetryWorkflowCompensationRequest
+	162, // 208: aiAgent.v1.AiAgentService.listToolApprovals:input_type -> aiAgent.v1.ListToolApprovalsRequest
+	164, // 209: aiAgent.v1.AiAgentService.decideToolApproval:input_type -> aiAgent.v1.DecideToolApprovalRequest
+	166, // 210: aiAgent.v1.AiAgentService.issueWorkflowResumeGrant:input_type -> aiAgent.v1.IssueWorkflowResumeGrantRequest
+	168, // 211: aiAgent.v1.AiAgentService.resumeWorkflowRun:input_type -> aiAgent.v1.ResumeWorkflowRunRequest
+	171, // 212: aiAgent.v1.AiAgentService.createProviderConfig:input_type -> aiAgent.v1.CreateProviderConfigRequest
+	173, // 213: aiAgent.v1.AiAgentService.updateProviderConfig:input_type -> aiAgent.v1.UpdateProviderConfigRequest
+	175, // 214: aiAgent.v1.AiAgentService.listProviderConfigs:input_type -> aiAgent.v1.ListProviderConfigsRequest
+	177, // 215: aiAgent.v1.AiAgentService.getProviderConfig:input_type -> aiAgent.v1.GetProviderConfigRequest
+	179, // 216: aiAgent.v1.AiAgentService.revokeProviderConfig:input_type -> aiAgent.v1.RevokeProviderConfigRequest
+	244, // 217: aiAgent.v1.AiAgentService.createAgentProject:input_type -> aiAgent.v1.CreateAgentProjectRequest
+	246, // 218: aiAgent.v1.AiAgentService.listAgentProjects:input_type -> aiAgent.v1.ListAgentProjectsRequest
+	248, // 219: aiAgent.v1.AiAgentService.getAgentProject:input_type -> aiAgent.v1.GetAgentProjectRequest
+	250, // 220: aiAgent.v1.AiAgentService.upsertAgentProjectMember:input_type -> aiAgent.v1.UpsertAgentProjectMemberRequest
+	252, // 221: aiAgent.v1.AiAgentService.removeAgentProjectMember:input_type -> aiAgent.v1.RemoveAgentProjectMemberRequest
+	258, // 222: aiAgent.v1.AiAgentService.createExternalMCPConnection:input_type -> aiAgent.v1.CreateExternalMCPConnectionRequest
+	260, // 223: aiAgent.v1.AiAgentService.updateExternalMCPConnection:input_type -> aiAgent.v1.UpdateExternalMCPConnectionRequest
+	262, // 224: aiAgent.v1.AiAgentService.listExternalMCPConnections:input_type -> aiAgent.v1.ListExternalMCPConnectionsRequest
+	264, // 225: aiAgent.v1.AiAgentService.getExternalMCPConnection:input_type -> aiAgent.v1.GetExternalMCPConnectionRequest
+	266, // 226: aiAgent.v1.AiAgentService.revokeExternalMCPConnection:input_type -> aiAgent.v1.RevokeExternalMCPConnectionRequest
+	268, // 227: aiAgent.v1.AiAgentService.discoverExternalMCPTools:input_type -> aiAgent.v1.DiscoverExternalMCPToolsRequest
+	270, // 228: aiAgent.v1.AiAgentService.approveExternalMCPSnapshot:input_type -> aiAgent.v1.ApproveExternalMCPSnapshotRequest
+	272, // 229: aiAgent.v1.AiAgentService.listExternalMCPTools:input_type -> aiAgent.v1.ListExternalMCPToolsRequest
+	274, // 230: aiAgent.v1.AiAgentService.configureExternalMCPTool:input_type -> aiAgent.v1.ConfigureExternalMCPToolRequest
+	192, // 231: aiAgent.v1.AiAgentService.createAgentProfileDraft:input_type -> aiAgent.v1.CreateAgentProfileDraftRequest
+	194, // 232: aiAgent.v1.AiAgentService.publishAgentProfileVersion:input_type -> aiAgent.v1.PublishAgentProfileVersionRequest
+	196, // 233: aiAgent.v1.AiAgentService.requestAgentProfilePublishApproval:input_type -> aiAgent.v1.RequestAgentProfilePublishApprovalRequest
+	198, // 234: aiAgent.v1.AiAgentService.listAgentProfilePublishApprovals:input_type -> aiAgent.v1.ListAgentProfilePublishApprovalsRequest
+	200, // 235: aiAgent.v1.AiAgentService.getAgentProfilePublishApproval:input_type -> aiAgent.v1.GetAgentProfilePublishApprovalRequest
+	202, // 236: aiAgent.v1.AiAgentService.decideAgentProfilePublishApproval:input_type -> aiAgent.v1.DecideAgentProfilePublishApprovalRequest
+	204, // 237: aiAgent.v1.AiAgentService.retryAgentProfilePublishApproval:input_type -> aiAgent.v1.RetryAgentProfilePublishApprovalRequest
+	206, // 238: aiAgent.v1.AiAgentService.listAgentProfileVersions:input_type -> aiAgent.v1.ListAgentProfileVersionsRequest
+	208, // 239: aiAgent.v1.AiAgentService.getAgentProfileVersion:input_type -> aiAgent.v1.GetAgentProfileVersionRequest
+	210, // 240: aiAgent.v1.AiAgentService.getAgentProfileRelease:input_type -> aiAgent.v1.GetAgentProfileReleaseRequest
+	212, // 241: aiAgent.v1.AiAgentService.upsertAgentProfileRelease:input_type -> aiAgent.v1.UpsertAgentProfileReleaseRequest
+	214, // 242: aiAgent.v1.AiAgentService.listAgentProfileAuditEvents:input_type -> aiAgent.v1.ListAgentProfileAuditEventsRequest
+	219, // 243: aiAgent.v1.AiAgentService.getAgentProfileManagementAccess:input_type -> aiAgent.v1.GetAgentProfileManagementAccessRequest
+	221, // 244: aiAgent.v1.AiAgentService.listAgentProfileRoleBindings:input_type -> aiAgent.v1.ListAgentProfileRoleBindingsRequest
+	223, // 245: aiAgent.v1.AiAgentService.upsertAgentProfileRoleBinding:input_type -> aiAgent.v1.UpsertAgentProfileRoleBindingRequest
+	225, // 246: aiAgent.v1.AiAgentService.deleteAgentProfileRoleBinding:input_type -> aiAgent.v1.DeleteAgentProfileRoleBindingRequest
+	227, // 247: aiAgent.v1.AiAgentService.listAgentProfileRoleAuditEvents:input_type -> aiAgent.v1.ListAgentProfileRoleAuditEventsRequest
+	229, // 248: aiAgent.v1.AiAgentService.startAgentProfileExperiment:input_type -> aiAgent.v1.StartAgentProfileExperimentRequest
+	231, // 249: aiAgent.v1.AiAgentService.listAgentProfileExperiments:input_type -> aiAgent.v1.ListAgentProfileExperimentsRequest
+	233, // 250: aiAgent.v1.AiAgentService.getAgentProfileExperiment:input_type -> aiAgent.v1.GetAgentProfileExperimentRequest
+	235, // 251: aiAgent.v1.AiAgentService.evaluateAgentProfileExperiment:input_type -> aiAgent.v1.EvaluateAgentProfileExperimentRequest
+	237, // 252: aiAgent.v1.AiAgentService.stopAgentProfileExperiment:input_type -> aiAgent.v1.StopAgentProfileExperimentRequest
+	239, // 253: aiAgent.v1.AiAgentService.recordAgentProfileExperimentOutcome:input_type -> aiAgent.v1.RecordAgentProfileExperimentOutcomeRequest
+	35,  // 254: aiAgent.v1.AiAgentService.listAgentSkills:output_type -> aiAgent.v1.ListAgentSkillsResponse
+	37,  // 255: aiAgent.v1.AiAgentService.getAgentSkill:output_type -> aiAgent.v1.GetAgentSkillResponse
+	43,  // 256: aiAgent.v1.AiAgentService.listAgentExtensions:output_type -> aiAgent.v1.ListAgentExtensionsResponse
+	47,  // 257: aiAgent.v1.AiAgentService.listAgentMarketplaceExtensions:output_type -> aiAgent.v1.ListAgentMarketplaceExtensionsResponse
+	50,  // 258: aiAgent.v1.AiAgentService.getAgentMarketplaceManagementAccess:output_type -> aiAgent.v1.GetAgentMarketplaceManagementAccessResponse
+	54,  // 259: aiAgent.v1.AiAgentService.listAgentMarketplacePublishers:output_type -> aiAgent.v1.ListAgentMarketplacePublishersResponse
+	56,  // 260: aiAgent.v1.AiAgentService.registerAgentMarketplacePublisher:output_type -> aiAgent.v1.RegisterAgentMarketplacePublisherResponse
+	58,  // 261: aiAgent.v1.AiAgentService.rotateAgentMarketplacePublisherKey:output_type -> aiAgent.v1.RotateAgentMarketplacePublisherKeyResponse
+	60,  // 262: aiAgent.v1.AiAgentService.revokeAgentMarketplacePublisherKey:output_type -> aiAgent.v1.RevokeAgentMarketplacePublisherKeyResponse
+	62,  // 263: aiAgent.v1.AiAgentService.setAgentMarketplacePublisherVerification:output_type -> aiAgent.v1.SetAgentMarketplacePublisherVerificationResponse
+	66,  // 264: aiAgent.v1.AiAgentService.listAgentMarketplaceManagedReleases:output_type -> aiAgent.v1.ListAgentMarketplaceManagedReleasesResponse
+	68,  // 265: aiAgent.v1.AiAgentService.publishAgentMarketplaceRelease:output_type -> aiAgent.v1.PublishAgentMarketplaceReleaseResponse
+	70,  // 266: aiAgent.v1.AiAgentService.withdrawAgentMarketplaceRelease:output_type -> aiAgent.v1.WithdrawAgentMarketplaceReleaseResponse
+	73,  // 267: aiAgent.v1.AiAgentService.listAgentMarketplaceAuditEvents:output_type -> aiAgent.v1.ListAgentMarketplaceAuditEventsResponse
+	76,  // 268: aiAgent.v1.AiAgentService.createAgentTaskTemplate:output_type -> aiAgent.v1.CreateAgentTaskTemplateResponse
+	78,  // 269: aiAgent.v1.AiAgentService.listAgentTaskTemplates:output_type -> aiAgent.v1.ListAgentTaskTemplatesResponse
+	80,  // 270: aiAgent.v1.AiAgentService.archiveAgentTaskTemplate:output_type -> aiAgent.v1.ArchiveAgentTaskTemplateResponse
+	26,  // 271: aiAgent.v1.AiAgentService.runAgentTaskTemplate:output_type -> aiAgent.v1.RunAgentResponse
+	10,  // 272: aiAgent.v1.AiAgentService.getModelDetailedInformation:output_type -> aiAgent.v1.getModelDetailedInformationResponse
+	12,  // 273: aiAgent.v1.AiAgentService.getRepositoryDialogue:output_type -> aiAgent.v1.getRepositoryDialogueResponse
+	14,  // 274: aiAgent.v1.AiAgentService.getDialogueDetail:output_type -> aiAgent.v1.getDialogueDetailResponse
+	16,  // 275: aiAgent.v1.AiAgentService.endDialogueSession:output_type -> aiAgent.v1.EndDialogueSessionResponse
+	18,  // 276: aiAgent.v1.AiAgentService.analysisFiles:output_type -> aiAgent.v1.analysisFilesResponse
+	26,  // 277: aiAgent.v1.AiAgentService.runAgent:output_type -> aiAgent.v1.RunAgentResponse
+	83,  // 278: aiAgent.v1.AiAgentService.getAgentRun:output_type -> aiAgent.v1.GetAgentRunResponse
+	87,  // 279: aiAgent.v1.AiAgentService.getAgentRunAccounting:output_type -> aiAgent.v1.GetAgentRunAccountingResponse
+	26,  // 280: aiAgent.v1.AiAgentService.resumeAgentRun:output_type -> aiAgent.v1.RunAgentResponse
+	90,  // 281: aiAgent.v1.AiAgentService.issueAgentResumeGrant:output_type -> aiAgent.v1.IssueAgentResumeGrantResponse
+	92,  // 282: aiAgent.v1.AiAgentService.callApiOfAi:output_type -> aiAgent.v1.callApiOfAiResponse
+	94,  // 283: aiAgent.v1.AiAgentService.consultContent:output_type -> aiAgent.v1.consultContentResponse
+	96,  // 284: aiAgent.v1.AiAgentService.assistPublishTwitter:output_type -> aiAgent.v1.assistPublishTwitterResponse
+	98,  // 285: aiAgent.v1.AiAgentService.confirmPublishTwitter:output_type -> aiAgent.v1.ConfirmPublishTwitterResponse
+	100, // 286: aiAgent.v1.AiAgentService.multiAgentPublishTwitter:output_type -> aiAgent.v1.MultiAgentPublishTwitterResponse
+	102, // 287: aiAgent.v1.AiAgentService.analyzeAlert:output_type -> aiAgent.v1.AnalyzeAlertResponse
+	111, // 288: aiAgent.v1.AiAgentService.createWorkflow:output_type -> aiAgent.v1.CreateWorkflowResponse
+	113, // 289: aiAgent.v1.AiAgentService.updateWorkflow:output_type -> aiAgent.v1.UpdateWorkflowResponse
+	115, // 290: aiAgent.v1.AiAgentService.listWorkflows:output_type -> aiAgent.v1.ListWorkflowsResponse
+	117, // 291: aiAgent.v1.AiAgentService.getWorkflow:output_type -> aiAgent.v1.GetWorkflowResponse
+	119, // 292: aiAgent.v1.AiAgentService.listWorkflowRevisions:output_type -> aiAgent.v1.ListWorkflowRevisionsResponse
+	121, // 293: aiAgent.v1.AiAgentService.getWorkflowRevision:output_type -> aiAgent.v1.GetWorkflowRevisionResponse
+	123, // 294: aiAgent.v1.AiAgentService.publishWorkflowTool:output_type -> aiAgent.v1.PublishWorkflowToolResponse
+	125, // 295: aiAgent.v1.AiAgentService.getWorkflowToolPublication:output_type -> aiAgent.v1.GetWorkflowToolPublicationResponse
+	127, // 296: aiAgent.v1.AiAgentService.unpublishWorkflowTool:output_type -> aiAgent.v1.UnpublishWorkflowToolResponse
+	129, // 297: aiAgent.v1.AiAgentService.runWorkflow:output_type -> aiAgent.v1.RunWorkflowResponse
+	131, // 298: aiAgent.v1.AiAgentService.getWorkflowRun:output_type -> aiAgent.v1.GetWorkflowRunResponse
+	139, // 299: aiAgent.v1.AiAgentService.getWorkflowRunTrace:output_type -> aiAgent.v1.GetWorkflowRunTraceResponse
+	142, // 300: aiAgent.v1.AiAgentService.searchWorkflowBlackboard:output_type -> aiAgent.v1.SearchWorkflowBlackboardResponse
+	144, // 301: aiAgent.v1.AiAgentService.watchWorkflowRunEvents:output_type -> aiAgent.v1.WorkflowRunEvent
+	146, // 302: aiAgent.v1.AiAgentService.listWorkflowRuns:output_type -> aiAgent.v1.ListWorkflowRunsResponse
+	148, // 303: aiAgent.v1.AiAgentService.cancelWorkflowRun:output_type -> aiAgent.v1.CancelWorkflowRunResponse
+	154, // 304: aiAgent.v1.AiAgentService.getWorkflowRunReplay:output_type -> aiAgent.v1.GetWorkflowRunReplayResponse
+	158, // 305: aiAgent.v1.AiAgentService.getWorkflowCompensationJournal:output_type -> aiAgent.v1.GetWorkflowCompensationJournalResponse
+	160, // 306: aiAgent.v1.AiAgentService.retryWorkflowCompensation:output_type -> aiAgent.v1.RetryWorkflowCompensationResponse
+	163, // 307: aiAgent.v1.AiAgentService.listToolApprovals:output_type -> aiAgent.v1.ListToolApprovalsResponse
+	165, // 308: aiAgent.v1.AiAgentService.decideToolApproval:output_type -> aiAgent.v1.DecideToolApprovalResponse
+	167, // 309: aiAgent.v1.AiAgentService.issueWorkflowResumeGrant:output_type -> aiAgent.v1.IssueWorkflowResumeGrantResponse
+	169, // 310: aiAgent.v1.AiAgentService.resumeWorkflowRun:output_type -> aiAgent.v1.ResumeWorkflowRunResponse
+	172, // 311: aiAgent.v1.AiAgentService.createProviderConfig:output_type -> aiAgent.v1.CreateProviderConfigResponse
+	174, // 312: aiAgent.v1.AiAgentService.updateProviderConfig:output_type -> aiAgent.v1.UpdateProviderConfigResponse
+	176, // 313: aiAgent.v1.AiAgentService.listProviderConfigs:output_type -> aiAgent.v1.ListProviderConfigsResponse
+	178, // 314: aiAgent.v1.AiAgentService.getProviderConfig:output_type -> aiAgent.v1.GetProviderConfigResponse
+	180, // 315: aiAgent.v1.AiAgentService.revokeProviderConfig:output_type -> aiAgent.v1.RevokeProviderConfigResponse
+	245, // 316: aiAgent.v1.AiAgentService.createAgentProject:output_type -> aiAgent.v1.CreateAgentProjectResponse
+	247, // 317: aiAgent.v1.AiAgentService.listAgentProjects:output_type -> aiAgent.v1.ListAgentProjectsResponse
+	249, // 318: aiAgent.v1.AiAgentService.getAgentProject:output_type -> aiAgent.v1.GetAgentProjectResponse
+	251, // 319: aiAgent.v1.AiAgentService.upsertAgentProjectMember:output_type -> aiAgent.v1.UpsertAgentProjectMemberResponse
+	253, // 320: aiAgent.v1.AiAgentService.removeAgentProjectMember:output_type -> aiAgent.v1.RemoveAgentProjectMemberResponse
+	259, // 321: aiAgent.v1.AiAgentService.createExternalMCPConnection:output_type -> aiAgent.v1.CreateExternalMCPConnectionResponse
+	261, // 322: aiAgent.v1.AiAgentService.updateExternalMCPConnection:output_type -> aiAgent.v1.UpdateExternalMCPConnectionResponse
+	263, // 323: aiAgent.v1.AiAgentService.listExternalMCPConnections:output_type -> aiAgent.v1.ListExternalMCPConnectionsResponse
+	265, // 324: aiAgent.v1.AiAgentService.getExternalMCPConnection:output_type -> aiAgent.v1.GetExternalMCPConnectionResponse
+	267, // 325: aiAgent.v1.AiAgentService.revokeExternalMCPConnection:output_type -> aiAgent.v1.RevokeExternalMCPConnectionResponse
+	269, // 326: aiAgent.v1.AiAgentService.discoverExternalMCPTools:output_type -> aiAgent.v1.DiscoverExternalMCPToolsResponse
+	271, // 327: aiAgent.v1.AiAgentService.approveExternalMCPSnapshot:output_type -> aiAgent.v1.ApproveExternalMCPSnapshotResponse
+	273, // 328: aiAgent.v1.AiAgentService.listExternalMCPTools:output_type -> aiAgent.v1.ListExternalMCPToolsResponse
+	275, // 329: aiAgent.v1.AiAgentService.configureExternalMCPTool:output_type -> aiAgent.v1.ConfigureExternalMCPToolResponse
+	193, // 330: aiAgent.v1.AiAgentService.createAgentProfileDraft:output_type -> aiAgent.v1.CreateAgentProfileDraftResponse
+	195, // 331: aiAgent.v1.AiAgentService.publishAgentProfileVersion:output_type -> aiAgent.v1.PublishAgentProfileVersionResponse
+	197, // 332: aiAgent.v1.AiAgentService.requestAgentProfilePublishApproval:output_type -> aiAgent.v1.RequestAgentProfilePublishApprovalResponse
+	199, // 333: aiAgent.v1.AiAgentService.listAgentProfilePublishApprovals:output_type -> aiAgent.v1.ListAgentProfilePublishApprovalsResponse
+	201, // 334: aiAgent.v1.AiAgentService.getAgentProfilePublishApproval:output_type -> aiAgent.v1.GetAgentProfilePublishApprovalResponse
+	203, // 335: aiAgent.v1.AiAgentService.decideAgentProfilePublishApproval:output_type -> aiAgent.v1.DecideAgentProfilePublishApprovalResponse
+	205, // 336: aiAgent.v1.AiAgentService.retryAgentProfilePublishApproval:output_type -> aiAgent.v1.RetryAgentProfilePublishApprovalResponse
+	207, // 337: aiAgent.v1.AiAgentService.listAgentProfileVersions:output_type -> aiAgent.v1.ListAgentProfileVersionsResponse
+	209, // 338: aiAgent.v1.AiAgentService.getAgentProfileVersion:output_type -> aiAgent.v1.GetAgentProfileVersionResponse
+	211, // 339: aiAgent.v1.AiAgentService.getAgentProfileRelease:output_type -> aiAgent.v1.GetAgentProfileReleaseResponse
+	213, // 340: aiAgent.v1.AiAgentService.upsertAgentProfileRelease:output_type -> aiAgent.v1.UpsertAgentProfileReleaseResponse
+	215, // 341: aiAgent.v1.AiAgentService.listAgentProfileAuditEvents:output_type -> aiAgent.v1.ListAgentProfileAuditEventsResponse
+	220, // 342: aiAgent.v1.AiAgentService.getAgentProfileManagementAccess:output_type -> aiAgent.v1.GetAgentProfileManagementAccessResponse
+	222, // 343: aiAgent.v1.AiAgentService.listAgentProfileRoleBindings:output_type -> aiAgent.v1.ListAgentProfileRoleBindingsResponse
+	224, // 344: aiAgent.v1.AiAgentService.upsertAgentProfileRoleBinding:output_type -> aiAgent.v1.UpsertAgentProfileRoleBindingResponse
+	226, // 345: aiAgent.v1.AiAgentService.deleteAgentProfileRoleBinding:output_type -> aiAgent.v1.DeleteAgentProfileRoleBindingResponse
+	228, // 346: aiAgent.v1.AiAgentService.listAgentProfileRoleAuditEvents:output_type -> aiAgent.v1.ListAgentProfileRoleAuditEventsResponse
+	230, // 347: aiAgent.v1.AiAgentService.startAgentProfileExperiment:output_type -> aiAgent.v1.StartAgentProfileExperimentResponse
+	232, // 348: aiAgent.v1.AiAgentService.listAgentProfileExperiments:output_type -> aiAgent.v1.ListAgentProfileExperimentsResponse
+	234, // 349: aiAgent.v1.AiAgentService.getAgentProfileExperiment:output_type -> aiAgent.v1.GetAgentProfileExperimentResponse
+	236, // 350: aiAgent.v1.AiAgentService.evaluateAgentProfileExperiment:output_type -> aiAgent.v1.EvaluateAgentProfileExperimentResponse
+	238, // 351: aiAgent.v1.AiAgentService.stopAgentProfileExperiment:output_type -> aiAgent.v1.StopAgentProfileExperimentResponse
+	240, // 352: aiAgent.v1.AiAgentService.recordAgentProfileExperimentOutcome:output_type -> aiAgent.v1.RecordAgentProfileExperimentOutcomeResponse
+	254, // [254:353] is the sub-list for method output_type
+	155, // [155:254] is the sub-list for method input_type
+	155, // [155:155] is the sub-list for extension type_name
+	155, // [155:155] is the sub-list for extension extendee
+	0,   // [0:155] is the sub-list for field type_name
 }
 
 func init() { file_api_aiAgent_v1_aiAgent_proto_init() }
@@ -3465,7 +25338,7 @@ func file_api_aiAgent_v1_aiAgent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_aiAgent_v1_aiAgent_proto_rawDesc), len(file_api_aiAgent_v1_aiAgent_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   44,
+			NumMessages:   276,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

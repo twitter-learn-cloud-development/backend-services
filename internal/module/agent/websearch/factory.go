@@ -2,15 +2,17 @@ package websearch
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
 	agentModel "twitter-clone/internal/module/agent/model"
 )
 
-// BraveProviderFactory owns deployment-level safety limits and a shared
-// concurrency gate. Tenant configuration can select only endpoint and secret.
-type BraveProviderFactory struct {
+// ProviderFactory owns deployment-level safety limits and a shared concurrency
+// gate. Tenant configuration can select only a supported provider, endpoint,
+// and secret.
+type ProviderFactory struct {
 	timeout          time.Duration
 	maxResults       int
 	maxResponseBytes int64
@@ -18,7 +20,7 @@ type BraveProviderFactory struct {
 	admission        chan struct{}
 }
 
-type BraveProviderFactoryConfig struct {
+type ProviderFactoryConfig struct {
 	Timeout          time.Duration
 	MaxResults       int
 	MaxResponseBytes int64
@@ -26,7 +28,7 @@ type BraveProviderFactoryConfig struct {
 	EndpointPolicy   *agentModel.EndpointPolicy
 }
 
-func NewBraveProviderFactory(config BraveProviderFactoryConfig) (*BraveProviderFactory, error) {
+func NewProviderFactory(config ProviderFactoryConfig) (*ProviderFactory, error) {
 	if config.Timeout <= 0 {
 		config.Timeout = DefaultSearchTimeout
 	}
@@ -54,7 +56,7 @@ func NewBraveProviderFactory(config BraveProviderFactoryConfig) (*BraveProviderF
 	if config.EndpointPolicy == nil {
 		config.EndpointPolicy = agentModel.NewEndpointPolicy()
 	}
-	return &BraveProviderFactory{
+	return &ProviderFactory{
 		timeout:          config.Timeout,
 		maxResults:       config.MaxResults,
 		maxResponseBytes: config.MaxResponseBytes,
@@ -63,11 +65,11 @@ func NewBraveProviderFactory(config BraveProviderFactoryConfig) (*BraveProviderF
 	}, nil
 }
 
-func (factory *BraveProviderFactory) New(baseURL, apiKey string) (Provider, error) {
+func (factory *ProviderFactory) NewFor(providerName, baseURL, apiKey string) (Provider, error) {
 	if factory == nil || factory.endpointPolicy == nil || factory.admission == nil {
 		return nil, ErrUnavailable
 	}
-	return NewBraveProvider(BraveConfig{
+	config := ProviderClientConfig{
 		BaseURL:          baseURL,
 		APIKey:           apiKey,
 		Timeout:          factory.timeout,
@@ -76,19 +78,80 @@ func (factory *BraveProviderFactory) New(baseURL, apiKey string) (Provider, erro
 		MaxConcurrent:    cap(factory.admission),
 		EndpointPolicy:   factory.endpointPolicy,
 		Admission:        factory.admission,
-	})
+	}
+	switch normalizeProviderName(providerName) {
+	case BraveProviderName:
+		return NewBraveProvider(BraveConfig(config))
+	case QianfanProviderName:
+		return NewQianfanProvider(QianfanConfig(config))
+	default:
+		return nil, fmt.Errorf("%w: unsupported web search provider %q", ErrUnavailable, providerName)
+	}
 }
 
-func (factory *BraveProviderFactory) ValidateEndpoint(baseURL string) error {
+func (factory *ProviderFactory) ValidateEndpointFor(providerName, baseURL string) error {
 	if factory == nil || factory.endpointPolicy == nil {
 		return ErrUnavailable
 	}
+	providerName = normalizeProviderName(providerName)
+	defaultBaseURL, ok := DefaultProviderBaseURL(providerName)
+	if !ok {
+		return fmt.Errorf("%w: unsupported web search provider %q", ErrInvalidRequest, providerName)
+	}
 	baseURL = strings.TrimSpace(baseURL)
 	if baseURL == "" {
-		baseURL = DefaultBraveBaseURL
+		baseURL = defaultBaseURL
 	}
-	if err := factory.endpointPolicy.Validate(baseURL, BraveProviderName); err != nil {
+	if err := factory.endpointPolicy.Validate(baseURL, providerName); err != nil {
 		return errors.Join(ErrInvalidRequest, err)
 	}
 	return nil
+}
+
+func (factory *ProviderFactory) New(baseURL, apiKey string) (Provider, error) {
+	return factory.NewFor(BraveProviderName, baseURL, apiKey)
+}
+
+func (factory *ProviderFactory) ValidateEndpoint(baseURL string) error {
+	return factory.ValidateEndpointFor(BraveProviderName, baseURL)
+}
+
+func DefaultProviderBaseURL(providerName string) (string, bool) {
+	switch normalizeProviderName(providerName) {
+	case BraveProviderName:
+		return DefaultBraveBaseURL, true
+	case QianfanProviderName:
+		return DefaultQianfanBaseURL, true
+	default:
+		return "", false
+	}
+}
+
+func IsSupportedProvider(providerName string) bool {
+	_, ok := DefaultProviderBaseURL(providerName)
+	return ok
+}
+
+func normalizeProviderName(providerName string) string {
+	return strings.ToLower(strings.TrimSpace(providerName))
+}
+
+type ProviderClientConfig struct {
+	BaseURL          string
+	APIKey           string
+	Timeout          time.Duration
+	MaxResults       int
+	MaxResponseBytes int64
+	MaxConcurrent    int
+	EndpointPolicy   *agentModel.EndpointPolicy
+	Admission        chan struct{}
+}
+
+// Compatibility aliases keep existing callers source-compatible while new
+// code uses the provider-neutral factory.
+type BraveProviderFactory = ProviderFactory
+type BraveProviderFactoryConfig = ProviderFactoryConfig
+
+func NewBraveProviderFactory(config BraveProviderFactoryConfig) (*BraveProviderFactory, error) {
+	return NewProviderFactory(ProviderFactoryConfig(config))
 }
