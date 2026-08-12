@@ -196,6 +196,10 @@ func TestProjectConnectionUsesCurrentMembershipForControlAndExecution(t *testing
 	if err != nil || len(tools) != 1 {
 		t.Fatalf("viewer ListExecutableTools() = %d, %v", len(tools), err)
 	}
+	governed, err := manager.ListGovernedTools(context.Background(), 8)
+	if err != nil || len(governed) != 1 {
+		t.Fatalf("viewer ListGovernedTools() = %d, %v", len(governed), err)
+	}
 	if _, err := manager.CallTool(context.Background(), 8, tools[0].Schema.QualifiedName, map[string]interface{}{}); err != nil {
 		t.Fatalf("viewer CallTool() error = %v", err)
 	}
@@ -206,6 +210,10 @@ func TestProjectConnectionUsesCurrentMembershipForControlAndExecution(t *testing
 	delete(access.roles[projectID], 8)
 	if _, err := manager.CallTool(context.Background(), 8, tools[0].Schema.QualifiedName, map[string]interface{}{}); !errors.Is(err, agentProject.ErrAccessDenied) {
 		t.Fatalf("revoked member CallTool() error = %v", err)
+	}
+	governed, err = manager.ListGovernedTools(context.Background(), 8)
+	if err != nil || len(governed) != 0 {
+		t.Fatalf("revoked member ListGovernedTools() = %d, %v", len(governed), err)
 	}
 	listed, total, err = manager.ListConnections(context.Background(), 8, 1, 20)
 	if err != nil || total != 0 || len(listed) != 0 {

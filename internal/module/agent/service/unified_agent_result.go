@@ -80,6 +80,17 @@ func collectRuntimeResultEvidence(
 				activity.Status = AgentToolActivitySucceeded
 				var candidates []AgentCitation
 				switch {
+				case action.Name == "get_tweets_by_ids":
+					detailResult, ok := decodePlatformTweetDetailEvidence(observation.StructuredContent)
+					if !ok {
+						continue
+					}
+					activity.ResultCount = len(detailResult.Items)
+					for _, item := range detailResult.Items {
+						if citation, valid := platformTweetCitation(item); valid {
+							candidates = append(candidates, citation)
+						}
+					}
 				case isPlatformTweetSearchTool(action.Name):
 					searchResult, ok := decodePlatformTweetSearchEvidence(observation.StructuredContent)
 					if !ok {
@@ -158,6 +169,20 @@ func decodePlatformTweetSearchEvidence(
 	return result, true
 }
 
+func decodePlatformTweetDetailEvidence(
+	raw json.RawMessage,
+) (agentEvidence.PlatformTweetDetailResult, bool) {
+	if len(raw) == 0 || len(raw) > maxStructuredEvidenceSize {
+		return agentEvidence.PlatformTweetDetailResult{}, false
+	}
+	var result agentEvidence.PlatformTweetDetailResult
+	if err := json.Unmarshal(raw, &result); err != nil ||
+		result.Schema != agentEvidence.PlatformTweetDetailSchema {
+		return agentEvidence.PlatformTweetDetailResult{}, false
+	}
+	return result, true
+}
+
 func decodeWebSearchEvidence(
 	raw json.RawMessage,
 ) (agentEvidence.WebSearchResult, bool) {
@@ -173,6 +198,30 @@ func decodeWebSearchEvidence(
 	return result, true
 }
 
+func runtimeHasCitableWebSearchEvidence(result agentRuntime.RunResult) bool {
+	for _, step := range result.Steps {
+		for _, action := range step.Actions {
+			if action.Type != agentRuntime.ActionToolCall || action.Name != "web_search" {
+				continue
+			}
+			for _, observation := range step.Observations {
+				if observation.ActionID != action.ID || observation.IsError {
+					continue
+				}
+				searchResult, ok := decodeWebSearchEvidence(observation.StructuredContent)
+				if !ok {
+					continue
+				}
+				for _, item := range searchResult.Items {
+					if _, valid := webPageCitation(item); valid {
+						return true
+					}
+				}
+			}
+		}
+	}
+	return false
+}
 func decodeWebPageEvidence(
 	raw json.RawMessage,
 ) (agentEvidence.WebPageResult, bool) {

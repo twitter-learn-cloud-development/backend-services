@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
+	agentEnvironment "twitter-clone/internal/module/agent/environment"
 	externalmcp "twitter-clone/internal/module/agent/mcp/remote"
 	agentRuntime "twitter-clone/internal/module/agent/runtime"
 	workflowTool "twitter-clone/internal/module/agent/workflow/tool"
 
-	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/sashabaranov/go-openai"
 )
@@ -21,11 +21,17 @@ type mcpRuntimeToolExecutor struct {
 	service *AgentService
 }
 
+type mcpToolCaller interface {
+	CallTool(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error)
+}
+
 // RuntimeToolCatalog decouples Runtime entry points from MCP discovery. Tool
 // execution remains behind ToolExecutor and happens only when the model calls.
 type RuntimeToolCatalog interface {
 	ListTools(ctx context.Context) ([]agentRuntime.ToolDefinition, error)
 }
+
+var _ agentEnvironment.ToolCatalog = (RuntimeToolCatalog)(nil)
 
 type mcpRuntimeToolCatalog struct {
 	service *AgentService
@@ -60,6 +66,18 @@ func (e *mcpRuntimeToolExecutor) Execute(ctx context.Context, call agentRuntime.
 	mcpClient, _, err := e.service.getOrInitMCPClient(ctx)
 	if err != nil {
 		return agentRuntime.ToolResult{}, fmt.Errorf("initialize MCP client: %w", err)
+	}
+	return e.executeBuiltInMCP(ctx, call, arguments, mcpClient)
+}
+
+func (e *mcpRuntimeToolExecutor) executeBuiltInMCP(
+	ctx context.Context,
+	call agentRuntime.ToolCall,
+	arguments map[string]any,
+	mcpClient mcpToolCaller,
+) (agentRuntime.ToolResult, error) {
+	if e == nil || e.service == nil || mcpClient == nil {
+		return agentRuntime.ToolResult{}, fmt.Errorf("MCP runtime tool executor is not configured")
 	}
 	governedRunID := runtimeTraceRunID(call.RunContext)
 	governedStepID := runtimeRoleScopedID(call.RunContext.RoleID, call.ActionID)
@@ -133,16 +151,17 @@ func encodeMCPStructuredContent(value any) (json.RawMessage, error) {
 
 func (s *AgentService) executeMCPToolGoverned(
 	ctx context.Context,
-	mcpClient *client.Client,
+	mcpClient mcpToolCaller,
 	execution workflowTool.ExecutionRequest,
 	request mcp.CallToolRequest,
 ) (*mcp.CallToolResult, error) {
 	if s == nil || s.workflowToolExecutor == nil {
 		return nil, errors.New("workflow tool executor is not configured")
 	}
+	execution.Inputs = injectGovernedMCPInputs(execution)
 	spec := s.mcpToolSpec(execution.ToolName)
 	var rawResult *mcp.CallToolResult
-	_, err := s.workflowToolExecutor.ExecuteAdHoc(ctx, execution, spec, workflowTool.HandlerFunc(
+	outputs, err := s.workflowToolExecutor.ExecuteAdHoc(ctx, execution, spec, workflowTool.HandlerFunc(
 		func(handlerCtx context.Context, inputs map[string]interface{}) (map[string]interface{}, error) {
 			request.Params.Arguments = inputs
 			result, callErr := s.callToolWithAuth(handlerCtx, mcpClient, execution.Identity.UserID, request)
@@ -154,16 +173,64 @@ func (s *AgentService) executeMCPToolGoverned(
 			if result.IsError {
 				return nil, fmt.Errorf("MCP tool %s failed: %s", execution.ToolName, content)
 			}
-			return map[string]interface{}{"result": content}, nil
+			return persistedMCPToolResult(result, content), nil
 		},
 	))
 	if err != nil {
 		return nil, err
 	}
-	if rawResult == nil {
-		return nil, fmt.Errorf("MCP tool %s returned no result", execution.ToolName)
+	if rawResult != nil {
+		return rawResult, nil
 	}
-	return rawResult, nil
+	result, err := restorePersistedMCPToolResult(outputs)
+	if err != nil {
+		return nil, fmt.Errorf("restore idempotent MCP tool %s result: %w", execution.ToolName, err)
+	}
+	return result, nil
+}
+
+func injectGovernedMCPInputs(execution workflowTool.ExecutionRequest) map[string]interface{} {
+	inputs := make(map[string]interface{}, len(execution.Inputs)+2)
+	for key, value := range execution.Inputs {
+		inputs[key] = value
+	}
+	if execution.ToolName == agentEnvironment.TweetPublishToolName {
+		inputs["user_id"] = fmt.Sprintf("%d", execution.Identity.UserID)
+		inputs["idempotency_key"] = strings.TrimSpace(execution.IdempotencyKey)
+	}
+	return inputs
+}
+
+const (
+	persistedMCPTextOutput       = "result"
+	persistedMCPStructuredOutput = "structured_content"
+)
+
+func persistedMCPToolResult(result *mcp.CallToolResult, content string) map[string]interface{} {
+	outputs := map[string]interface{}{persistedMCPTextOutput: content}
+	if result != nil && result.StructuredContent != nil {
+		outputs[persistedMCPStructuredOutput] = result.StructuredContent
+	}
+	return outputs
+}
+
+func restorePersistedMCPToolResult(outputs map[string]interface{}) (*mcp.CallToolResult, error) {
+	if outputs == nil {
+		return nil, fmt.Errorf("persisted MCP result is missing")
+	}
+	value, exists := outputs[persistedMCPTextOutput]
+	if !exists {
+		return nil, fmt.Errorf("persisted MCP text result is missing")
+	}
+	content, ok := value.(string)
+	if !ok {
+		return nil, fmt.Errorf("persisted MCP text result has type %T", value)
+	}
+	structured, exists := outputs[persistedMCPStructuredOutput]
+	if exists && structured != nil {
+		return mcp.NewToolResultStructured(structured, content), nil
+	}
+	return mcp.NewToolResultText(content), nil
 }
 
 func (s *AgentService) mcpToolSpec(name string) workflowTool.ToolSpec {
@@ -223,7 +290,7 @@ func toolIdempotencyKey(runID, stepID, toolName string) string {
 func mcpToolsToRuntime(tools []mcp.Tool) []agentRuntime.ToolDefinition {
 	definitions := make([]agentRuntime.ToolDefinition, 0, len(tools))
 	for _, tool := range tools {
-		schema, err := json.Marshal(tool.InputSchema)
+		schema, err := modelVisibleMCPInputSchema(tool)
 		if err != nil {
 			continue
 		}
@@ -243,6 +310,39 @@ func mcpToolsToRuntime(tools []mcp.Tool) []agentRuntime.ToolDefinition {
 		})
 	}
 	return definitions
+}
+
+func modelVisibleMCPInputSchema(tool mcp.Tool) (json.RawMessage, error) {
+	encoded, err := json.Marshal(tool.InputSchema)
+	if err != nil {
+		return nil, err
+	}
+	if tool.Name != agentEnvironment.TweetPublishToolName {
+		return json.RawMessage(encoded), nil
+	}
+	var schema map[string]any
+	if err := json.Unmarshal(encoded, &schema); err != nil {
+		return nil, err
+	}
+	if properties, ok := schema["properties"].(map[string]any); ok {
+		delete(properties, "user_id")
+		delete(properties, "idempotency_key")
+	}
+	if required, ok := schema["required"].([]any); ok {
+		filtered := make([]any, 0, len(required))
+		for _, value := range required {
+			name, _ := value.(string)
+			if name != "user_id" && name != "idempotency_key" {
+				filtered = append(filtered, value)
+			}
+		}
+		schema["required"] = filtered
+	}
+	encoded, err = json.Marshal(schema)
+	if err != nil {
+		return nil, err
+	}
+	return json.RawMessage(encoded), nil
 }
 
 func openAIMessagesToRuntime(messages []openai.ChatCompletionMessage) []agentRuntime.Message {

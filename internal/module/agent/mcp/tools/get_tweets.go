@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	tweetv1 "twitter-clone/api/tweet/v1"
+	agentEvidence "twitter-clone/internal/module/agent/evidence"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -92,6 +93,7 @@ func RegisterGetTweetsByIds(srv *server.MCPServer, tweetClient tweetv1.TweetServ
 		}
 
 		result := ""
+		tweets := make([]*tweetv1.Tweet, 0)
 		for _, idStr := range strings.Split(tweetIDsStr, ",") {
 			idStr = strings.TrimSpace(idStr)
 			tweetID, err := strconv.ParseUint(idStr, 10, 64)
@@ -105,6 +107,10 @@ func RegisterGetTweetsByIds(srv *server.MCPServer, tweetClient tweetv1.TweetServ
 			if err != nil {
 				continue
 			}
+			if resp == nil || resp.Tweet == nil || resp.Tweet.Id == 0 {
+				continue
+			}
+			tweets = append(tweets, resp.Tweet)
 
 			result += fmt.Sprintf("推文ID: %d\n内容: %s\n\n", resp.Tweet.Id, resp.Tweet.Content)
 		}
@@ -113,6 +119,24 @@ func RegisterGetTweetsByIds(srv *server.MCPServer, tweetClient tweetv1.TweetServ
 			return mcp.NewToolResultText("未找到任何推文"), nil
 		}
 
-		return mcp.NewToolResultText(result), nil
+		return mcp.NewToolResultStructured(newPlatformTweetDetailEvidence(tweets), result), nil
 	})
+}
+
+func newPlatformTweetDetailEvidence(tweets []*tweetv1.Tweet) agentEvidence.PlatformTweetDetailResult {
+	items := make([]agentEvidence.PlatformTweetSearchEvidence, 0, len(tweets))
+	for _, tweet := range tweets {
+		if tweet == nil || tweet.Id == 0 {
+			continue
+		}
+		items = append(items, agentEvidence.PlatformTweetSearchEvidence{
+			TweetID:   strconv.FormatUint(tweet.Id, 10),
+			Content:   tweet.Content,
+			CreatedAt: tweet.CreatedAt,
+		})
+	}
+	return agentEvidence.PlatformTweetDetailResult{
+		Schema: agentEvidence.PlatformTweetDetailSchema,
+		Items:  items,
+	}
 }

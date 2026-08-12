@@ -98,10 +98,13 @@ type AgentService struct {
 	profileResolver                      profile.Resolver
 	runtimeRunner                        agentRuntime.AgentRunner
 	runtimeTools                         RuntimeToolCatalog
+	tweetWriteStateSource                tweetWriteStateSource
 	runtimeMessages                      agentMessage.Builder
 	runtimeTokens                        agentRuntime.TokenCounter
 	runtimeAdmission                     agentRuntime.AdmissionController
 	runtimeCostEstimator                 agentRuntime.CostEstimator
+	goalRuntimeShadow                    GoalRuntimeShadowConfig
+	goalRuntimeShadowObserver            GoalRuntimeShadowObserver
 	traceRecorder                        agentObservability.Recorder
 	traceReader                          agentObservability.Reader
 	traceEventReader                     agentObservability.EventReader
@@ -144,6 +147,7 @@ type AgentService struct {
 	externalMCPHealthObserver            externalmcp.HealthObserver
 	capabilityCatalog                    AgentCapabilityCatalog
 	capabilityPlanner                    AgentCapabilityPlanner
+	aiOpsReportSink                      AIOpsReportSink
 	executionStrategyPlanner             agentStrategy.Planner
 	multiAgentExecutionEnabled           bool
 	agentExecutionRunStore               repository.AgentExecutionRunStore
@@ -195,6 +199,18 @@ func WithProfileResolver(resolver profile.Resolver) Option {
 func WithAgentRunner(runner agentRuntime.AgentRunner) Option {
 	return func(service *AgentService) {
 		service.runtimeRunner = runner
+	}
+}
+
+// WithGoalRuntimeShadow configures observation-only Goal verification over an
+// already executed Runtime result. It does not replace the production runner.
+func WithGoalRuntimeShadow(
+	config GoalRuntimeShadowConfig,
+	observer GoalRuntimeShadowObserver,
+) Option {
+	return func(service *AgentService) {
+		service.goalRuntimeShadow = config
+		service.goalRuntimeShadowObserver = observer
 	}
 }
 
@@ -503,7 +519,7 @@ func WithSessionSummaryWriter(writer SessionSummaryWriter) Option {
 	}
 }
 
-// WithAgentCapabilityPlanner replaces the conservative P8 migration planner.
+// WithAgentCapabilityPlanner replaces the explicit capability planner.
 // Planner output remains a preference decision; tool authorization continues
 // to be enforced by the catalog, profile, policy, budget and approval layers.
 func WithAgentCapabilityPlanner(planner AgentCapabilityPlanner) Option {
@@ -705,6 +721,9 @@ func NewAgentService(
 	if service.unifiedAgentProductObserver == nil {
 		service.unifiedAgentProductObserver = noopUnifiedAgentProductObserver{}
 	}
+	if service.goalRuntimeShadowObserver == nil {
+		service.goalRuntimeShadowObserver = noopGoalRuntimeShadowObserver{}
+	}
 	if service.providerConfigCipher == nil {
 		service.providerConfigCipher, _ = agentCredential.NewAESGCMCipherFromEnv()
 	}
@@ -757,7 +776,7 @@ func NewAgentService(
 		service.extensionMCPSource = service.externalMCPManager
 	}
 	if service.capabilityPlanner == nil {
-		service.capabilityPlanner = NewConservativeCapabilityPlanner(service.capabilityCatalog)
+		service.capabilityPlanner = NewExplicitCapabilityPlanner(service.capabilityCatalog)
 	}
 	if service.executionStrategyPlanner == nil {
 		planner, err := NewBuiltInAgentExecutionStrategyPlanner(agentStrategy.Policy{})
@@ -1838,7 +1857,7 @@ func (s *AgentService) resetMCPClient() {
 }
 
 // callToolWithAuth 封装 CallTool 请求，强制在客户端注入与校验 user_id，实现身份鉴权隔离
-func (s *AgentService) callToolWithAuth(ctx context.Context, mcpClient *client.Client, userID uint64, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *AgentService) callToolWithAuth(ctx context.Context, mcpClient mcpToolCaller, userID uint64, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args, ok := req.Params.Arguments.(map[string]any)
 	if !ok {
 		args = make(map[string]any)
@@ -1885,9 +1904,14 @@ func mcpToolsToOpenAI(tools []mcp.Tool) []openai.Tool {
 	openaiTools := make([]openai.Tool, 0, len(tools))
 	for _, t := range tools {
 		// 把 MCP Tool 的 InputSchema 转成 openai 需要的 map
-		schemaBytes, _ := json.Marshal(t.InputSchema)
+		schemaBytes, err := modelVisibleMCPInputSchema(t)
+		if err != nil {
+			continue
+		}
 		var schemaMap map[string]any
-		_ = json.Unmarshal(schemaBytes, &schemaMap)
+		if err := json.Unmarshal(schemaBytes, &schemaMap); err != nil {
+			continue
+		}
 
 		openaiTools = append(openaiTools, openai.Tool{
 			Type: openai.ToolTypeFunction,
@@ -2049,30 +2073,21 @@ func (s *AgentService) AnalyzeAlert(ctx context.Context, alertPayload string, er
 		structuredRCA = "{}"
 	}
 
-	// 4. 持久化输出到 scratch 目录以供审计 (开启 OTel 子 Span 记录持久化耗时)
+	// 4. Persist only through an injected governed sink. The default service
+	// deliberately has no local-file fallback.
 	persistCtx, persistSpan := tracer.Start(ctx, "AIOps: Persist Report")
-	_ = persistCtx
 	defer persistSpan.End()
 
-	scratchDir := "C:/Users/郭丰硕/.gemini/antigravity-ide/brain/63d49437-9d83-40a2-a7d2-33758c3e0a03/scratch"
-	_ = os.MkdirAll(scratchDir, 0755)
-
-	reportPath := fmt.Sprintf("%s/alert_rca_reports.md", scratchDir)
-
-	f, fileErr := os.OpenFile(reportPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if fileErr == nil {
-		defer f.Close()
-		timestamp := time.Now().Format("2006-01-02 15:04:05")
-		header := fmt.Sprintf("\n\n# ========================================\n# 🚨 AIOps RCA REPORT - [%s]\n# ========================================\n", timestamp)
-		_, _ = f.WriteString(header)
-		_, _ = f.WriteString(report)
-		if structuredRCA != "{}" {
-			_, _ = f.WriteString(fmt.Sprintf("\n\n🤖 Structured Self-Healing Directive:\n```json\n%s\n```\n", structuredRCA))
+	if s.aiOpsReportSink != nil {
+		record := normalizeAIOpsReport(AIOpsReport{
+			Report: report, StructuredRCA: structuredRCA, CreatedAt: time.Now().UTC(),
+		})
+		if persistErr := s.aiOpsReportSink.AppendAIOpsReport(persistCtx, record); persistErr != nil {
+			log.Printf("⚠️ [AIOps] Failed to persist RCA report: %v", persistErr)
+			persistSpan.RecordError(persistErr)
+		} else {
+			log.Printf("💾 [AIOps] Persisted RCA report through configured sink")
 		}
-		log.Printf("💾 [AIOps] Successfully persisted RCA report to: %s", reportPath)
-	} else {
-		log.Printf("⚠️ [AIOps] Failed to write report file: %v", fileErr)
-		persistSpan.RecordError(fileErr)
 	}
 
 	// 🆕 5. 自动执行缓存自适应调优闭环 (AI 决策反馈回路)

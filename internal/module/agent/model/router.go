@@ -13,21 +13,24 @@ import (
 var ErrProviderClientNotFound = errors.New("provider client not found")
 
 type ProviderAttempt struct {
-	Model    string
-	Provider string
-	Err      error
+	Model       string
+	Provider    string
+	FailureCode agentRuntime.ModelProviderFailureCode
+	Decision    agentRuntime.ModelRouteDecision
+	Err         error
 }
 
 type RouteError struct {
 	Requested string
 	Attempts  []ProviderAttempt
+	Trace     agentRuntime.ModelRoutingTrace
 }
 
 func (e *RouteError) Error() string {
 	if e == nil {
 		return ""
 	}
-	return fmt.Sprintf("model route %q exhausted after %d attempt(s)", e.Requested, len(e.Attempts))
+	return fmt.Sprintf("model route %q terminated after %d attempt(s)", e.Requested, len(e.Attempts))
 }
 
 func (e *RouteError) Unwrap() error {
@@ -73,17 +76,18 @@ func (router *ProviderRouter) Complete(
 		return agentRuntime.ModelResponse{}, err
 	}
 
+	trace := agentRuntime.ModelRoutingTrace{RequestedModel: strings.TrimSpace(request.Model)}
 	attempts := make([]ProviderAttempt, 0, len(candidates))
-	for _, candidate := range candidates {
+	for index, candidate := range candidates {
 		if err := ctx.Err(); err != nil {
-			return agentRuntime.ModelResponse{}, err
+			return agentRuntime.ModelResponse{ModelRouting: &trace}, err
 		}
 		client, ok := router.providers[candidate.Provider]
 		if !ok {
-			attempts = append(attempts, ProviderAttempt{
-				Model: candidate.ID, Provider: candidate.Provider,
-				Err: fmt.Errorf("%w: %s", ErrProviderClientNotFound, candidate.Provider),
-			})
+			callErr := fmt.Errorf("%w: %s", ErrProviderClientNotFound, candidate.Provider)
+			if terminal := recordProviderFailure(&trace, &attempts, candidate, callErr, index < len(candidates)-1); terminal {
+				return failedRouteResponse(request.Model, trace, attempts)
+			}
 			continue
 		}
 		routed := request
@@ -94,15 +98,19 @@ func (router *ProviderRouter) Complete(
 		}
 		response, callErr := client.Complete(ctx, routed)
 		if callErr != nil {
-			attempts = append(attempts, ProviderAttempt{
-				Model: candidate.ID, Provider: candidate.Provider, Err: callErr,
-			})
+			if terminal := recordProviderFailure(&trace, &attempts, candidate, callErr, index < len(candidates)-1); terminal {
+				return failedRouteResponse(request.Model, trace, attempts)
+			}
 			continue
 		}
 		if strings.TrimSpace(response.Model) == "" {
 			response.Model = candidate.ID
 		}
 		response.Provider = candidate.Provider
+		trace.SelectedModel = candidate.ID
+		trace.SelectedProvider = candidate.Provider
+		trace.TerminalDecision = agentRuntime.ModelRouteSelected
+		response.ModelRouting = &trace
 		if response.Usage.EstimatedCostMicros == 0 {
 			estimate := estimateDefinitionCost(candidate, response.Usage)
 			response.Usage.EstimatedCostMicros = estimate.Micros
@@ -111,7 +119,48 @@ func (router *ProviderRouter) Complete(
 		}
 		return response, nil
 	}
-	return agentRuntime.ModelResponse{}, &RouteError{Requested: request.Model, Attempts: attempts}
+	return failedRouteResponse(request.Model, trace, attempts)
+}
+
+func recordProviderFailure(
+	trace *agentRuntime.ModelRoutingTrace,
+	attempts *[]ProviderAttempt,
+	candidate Definition,
+	callErr error,
+	hasFallback bool,
+) bool {
+	code, fallbackAllowed := classifyProviderFailure(callErr)
+	decision := agentRuntime.ModelRouteFallbackDenied
+	terminal := true
+	if fallbackAllowed && hasFallback {
+		decision = agentRuntime.ModelRouteFallbackAllowed
+		terminal = false
+	} else if fallbackAllowed {
+		decision = agentRuntime.ModelRouteFallbackExhausted
+	}
+	attempt := ProviderAttempt{
+		Model: candidate.ID, Provider: candidate.Provider,
+		FailureCode: code, Decision: decision, Err: callErr,
+	}
+	*attempts = append(*attempts, attempt)
+	trace.Attempts = append(trace.Attempts, agentRuntime.ModelRoutingAttempt{
+		Model: candidate.ID, Provider: candidate.Provider,
+		FailureCode: code, Decision: decision,
+	})
+	if terminal {
+		trace.TerminalDecision = decision
+	}
+	return terminal
+}
+
+func failedRouteResponse(
+	requested string,
+	trace agentRuntime.ModelRoutingTrace,
+	attempts []ProviderAttempt,
+) (agentRuntime.ModelResponse, error) {
+	return agentRuntime.ModelResponse{ModelRouting: &trace}, &RouteError{
+		Requested: requested, Attempts: attempts, Trace: trace,
+	}
 }
 
 // EstimateCost reserves the most expensive reachable Chat route. This keeps a

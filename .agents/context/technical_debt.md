@@ -1,7 +1,7 @@
 # Technical Debt Index（当前技术债与已落地护栏）
 
-> 最近核对：2026-08-03
-> 详细证据：`architecture_audit_report.md`、`docs/AGENT_RUNTIME_STRENGTHENING_PLAN.md`、`docs/ISSUES.md`
+> 最近核对：2026-08-08
+> 详细证据：`architecture_audit_report.md`、`docs/AGENT_CORE_REFOCUS_PLAN.md`、`docs/AGENT_RUNTIME_STRENGTHENING_PLAN.md`、`docs/ISSUES.md`
 
 状态定义：`Active` 尚未治理；`Partial` 已有护栏但未闭环；`Resolved` 当前阶段已验证。
 
@@ -44,9 +44,11 @@
 
 | 能力 | 状态 | 已有护栏 | 剩余工作 |
 |------|------|----------|----------|
+| Goal/完成验证 | Partial | TaskSpec、CompletionCriterion、Environment Snapshot、追加式 EvidenceLedger、领域 Verifier、低敏 TaskOutcome、Tweet Write 前后状态和 20 个端到端任务矩阵已建立；E2E-02/11/12/18 离线证据、E2E-05~09/11 默认关闭迁移对照、E2E-13/14 写入验收、E2E-15/16 MCP 授权撤权、E2E-17 Workflow 精确 Revision/child Run/输出验收、E2E-19 双恢复单写及 E2E-20 Provider Outage 验收已完成 | 生产 RunAgent 迁移、部署态 TweetService/Mongo 审批验收、真实 Profile/Provider 符合率、真实外部 MCP/持久授权和真实 Provider 故障演练 |
+| VerifiedRunner | Complete | opt-in Adapter 已完成工具交集、快照、可信结构化证据、有界修复、checkpoint/resume、恢复重授权、累计预算、挂起边界证据结晶、单调 Checkpoint Revision、摘要化 Resume Evidence 和显式领域挂起验证；`PlannedVerifiedRunner` 已消费澄清、回答、只读计划及一次固定脱敏恢复，TaskOutcome 保留计划、失败 Observation、Artifact/Evidence 与 Usage | 固定迁移矩阵已完成；生产切换仍需部署态 Provider/Profile、审批恢复和外部依赖验收，不因离线矩阵通过自动开启 |
 | Runtime | Partial | 统一 Runner、Action、Token/Cost Budget、并发准入、Usage、Rollout、Trace | Runtime v2 全模式灰度、共享式多实例并发配额 |
-| Workflow-as-Tool | Partial | 用户显式发布、不可变 Revision/DSL Hash、Revision CAS、租户目录、只读 DAG 双重校验、统一 ToolExecutor、父子 Run 谱系和独立默认关闭开关 | Skill 版本目录、自动模板提取、父子聚合预算/成本视图、挂起/审批型 Workflow 契约及 Multi-Agent Planner |
-| Model | Complete | model_kind 生效、Catalog Provider/Fallback 路由、Pricing Version、Endpoint Policy、Provider 低基数指标 | Provider 质量评估与自动路由策略仍需 Eval 数据支撑 |
+| Workflow-as-Tool | Partial | 用户显式发布、不可变 Revision/DSL Hash、Revision CAS、租户目录、统一 ToolExecutor、父子 Run 谱系、两类 Continuation，以及 E2E-17 Actor/Publication Snapshot、权威 child Run 与双输出摘要验证已完成 | 真实 Mongo/进程重启/生产 Goal 路由验收；不再扩张 Skill、模板或 Multi-Agent 控制面 |
+| Model | Complete | model_kind 生效、Catalog Provider/Fallback 路由、Pricing Version、Endpoint Policy、固定 Provider 失败分类、策略允许/拒绝/耗尽轨迹、blocked 低敏证据与 Provider 低基数指标 | Provider 质量评估、真实故障演练与自动路由策略仍需 Eval 数据支撑 |
 | Credential | Complete | DSL 拒绝明文 Key、环境 `credential_ref`、用户 Provider Config AES-GCM 加密、轮换/撤销 | KMS/HSM 托管主密钥属于生产部署增强项 |
 | Tool Safety | Resolved | ToolSpec/实例 Registry/统一 Executor、写工具 fail-closed、Workflow/Unified Agent 共用 Approval 状态机与一次性恢复授权、精确动作 Checkpoint、调用前重新授权、持久结果回放、TweetService 原生幂等、外部 MCP 风险单次尝试/声明式幂等写入、熔断指标、治理对账、MCP 双重认证、敏感审计脱敏、Tool Trace/Replay，以及显式 Live/Write、脱敏签名报告的 MCP 验收框架 | 生产环境继续补授权异常率告警、长期审计保留，并实际执行真实第三方幂等履约、旧 Token 撤销、Projected Secret 与多副本故障演练；不宣称跨系统严格 exactly-once |
 | Session Memory | Partial | Token Budget、阈值/空闲摘要、租约游标、结构化 Payload、共享 `agent_episodic_memory`、Qdrant `user_id` Filter、显式 Session End、51 条检索集与 34 条 Router 集 | 真实租户回填与隔离验收、BM25/Vector/RRF/Rerank 真实报告、Semantic/LLM Router 对照 |
@@ -72,3 +74,17 @@
 - 技术债治理完成后，在本文件改状态并链接验证证据。
 - 新发现的编译、测试、运行或部署故障写入 `docs/ISSUES.md`，不要堆在本文件。
 - 阶段任务状态写入 `docs/PROJECT_PROGRESS.md`，本文件只保留稳定债务索引。
+
+## 2026-08-10 Goal Runtime 债务校准
+
+- G2 的写状态观察与领域 Verifier 已完成，不再把“缺少写操作 Before/After 事实验证”列为剩余债务。
+- Goal/完成验证整体仍为 `Partial`：生产 RunAgent 未迁移到 Goal Runtime；E2E-13/14 与 E2E-19 已有受控进程内报告，但显式部署态 TweetService/Mongo 审批、真实加密 Checkpoint、多副本恢复与真实账号隔离验收仍缺失。
+- G3 已完成：模型产生一至三步短计划，确定性 Admission 对 Catalog、Policy、Budget、所有权和 Approval 做逐步校验；G5 已删除无生产调用者的关键词 Planner 与命名兼容构造器，能力路由只接受显式选择并经 Catalog 准入。
+- Marketplace、复杂 RBAC、更多固定 Profile 和管理 RPC 继续冻结，不因 G2 完成而重启扩张。
+- G3 已完成 Runtime 短计划契约、确定性准入、严格模型 Adapter、Admission 协调层、opt-in VerifiedRunner 计划消费、一次安全重规划、显式能力默认 Planner 和 E2E-02/11/18 TaskOutcome 证据；写与风险计划仍 fail-closed。
+- 当前优先债务转为 G4：首个只读任务在默认关闭开关下迁移到 Goal Runtime，保留 Legacy 单一执行所有者并双记录结果；不得重复模型或工具调用。
+- E2E-15/16 已补齐受控进程内 MCP 证据与撤权语义，但真实外部 MCP Provider、Mongo 授权记录、项目成员撤权跨进程传播和生产 Goal Runtime 仍是明确技术债。
+- E2E-17 已补齐受控进程内 Workflow 精确发布绑定、父子谱系和权威输出证据；真实 Mongo 持久 Run、进程重启与生产 Goal Runtime 仍是明确技术债。
+- E2E-19 已补齐受控进程内双 Checkpoint Revision、Resume Evidence、挂起前 Observation 结晶和单写恢复；真实 AES-GCM Mongo Checkpoint、多副本 CAS Claim/租约、进程重启与生产 Goal Runtime 仍是明确技术债。
+- E2E-20 已补齐受控进程内 Provider 失败分类、Catalog 允许回退、永久错误拒绝、路线耗尽 blocked 和无伪造输出证据；真实 DashScope/LM Studio 受控故障、线上路由指标与生产 Goal Runtime 仍是明确技术债。
+- G5 首个清理增量已删除关键词能力 Planner 和专属测试，减少一条静态推断执行入口；`compat.chat/consult/assist` 仍服务历史 Dialogue 恢复与指标，未完成持久数据迁移前不得误删。下一优先债务是重复固定编排和 Eval TaskOutcome 报告审计，不是重开控制面。

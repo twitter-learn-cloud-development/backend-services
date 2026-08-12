@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	tweetv1 "twitter-clone/api/tweet/v1"
+	agentEvidence "twitter-clone/internal/module/agent/evidence"
 	externalmcp "twitter-clone/internal/module/agent/mcp/remote"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -16,6 +17,7 @@ import (
 // RegisterCreateTweet 注册创建推文工具
 func RegisterCreateTweet(srv *server.MCPServer, tweetClient tweetv1.TweetServiceClient) {
 	tool := mcp.NewTool("create_tweet",
+		mcp.WithOutputSchema[agentEvidence.PlatformTweetPublishResult](),
 		mcp.WithDescription("代替用户发布一条推文"),
 		mcp.WithReadOnlyHintAnnotation(false),
 		mcp.WithDestructiveHintAnnotation(true),
@@ -71,7 +73,13 @@ func RegisterCreateTweet(srv *server.MCPServer, tweetClient tweetv1.TweetService
 		if err != nil {
 			return mcp.NewToolResultError("发推失败"), nil
 		}
+		if resp == nil || resp.Tweet == nil || resp.Tweet.Id == 0 {
+			return mcp.NewToolResultError("发推失败：TweetService 未返回有效推文"), nil
+		}
 
-		return mcp.NewToolResultText(fmt.Sprintf("发推成功！推文ID: %d，内容: %s", resp.Tweet.Id, resp.Tweet.Content)), nil
+		return mcp.NewToolResultStructured(
+			agentEvidence.NewPlatformTweetPublishResult(resp.Tweet.Id),
+			fmt.Sprintf("推文已发布，ID: %d", resp.Tweet.Id),
+		), nil
 	})
 }

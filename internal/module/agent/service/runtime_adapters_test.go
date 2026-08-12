@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	agentEnvironment "twitter-clone/internal/module/agent/environment"
 	agentRuntime "twitter-clone/internal/module/agent/runtime"
 	agentWebSearch "twitter-clone/internal/module/agent/websearch"
 	workflowTool "twitter-clone/internal/module/agent/workflow/tool"
@@ -32,6 +33,47 @@ func TestEncodeMCPStructuredContentPreservesJSONWithoutTextParsing(t *testing.T)
 	}
 }
 
+func TestRestorePersistedMCPToolResultPreservesStructuredEvidence(t *testing.T) {
+	original := mcp.NewToolResultStructured(map[string]any{
+		"schema":   "platform.tweet_publish.v1",
+		"tweet_id": "9007199254740993",
+	}, "published")
+	result, err := restorePersistedMCPToolResult(persistedMCPToolResult(original, "published"))
+	if err != nil {
+		t.Fatalf("restorePersistedMCPToolResult() error = %v", err)
+	}
+	encoded, err := encodeMCPStructuredContent(result.StructuredContent)
+	if err != nil {
+		t.Fatalf("encode restored structured content: %v", err)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(encoded, &decoded); err != nil {
+		t.Fatalf("decode restored structured content: %v", err)
+	}
+	if decoded["schema"] != "platform.tweet_publish.v1" || decoded["tweet_id"] != "9007199254740993" {
+		t.Fatalf("restored structured content = %+v", decoded)
+	}
+}
+
+func TestRestorePersistedMCPToolResultSupportsTextOnlyAndRejectsMalformed(t *testing.T) {
+	result, err := restorePersistedMCPToolResult(map[string]interface{}{persistedMCPTextOutput: "read result"})
+	if err != nil {
+		t.Fatalf("restorePersistedMCPToolResult() error = %v", err)
+	}
+	if result.StructuredContent != nil || extractTextFromToolResult(result) != "read result" {
+		t.Fatalf("restored text result = %+v", result)
+	}
+	for _, outputs := range []map[string]interface{}{
+		nil,
+		{persistedMCPStructuredOutput: map[string]any{"schema": "x"}},
+		{persistedMCPTextOutput: 7},
+	} {
+		if _, err := restorePersistedMCPToolResult(outputs); err == nil {
+			t.Fatalf("malformed persisted outputs were accepted: %+v", outputs)
+		}
+	}
+}
+
 func TestMCPToolsToRuntimeAppliesFailClosedCategories(t *testing.T) {
 	definitions := mcpToolsToRuntime([]mcp.Tool{
 		{Name: "hybrid_search_tweets", Description: "search"},
@@ -51,6 +93,66 @@ func TestMCPToolsToRuntimeAppliesFailClosedCategories(t *testing.T) {
 	assertRuntimeToolPolicy(t, definitions[4], agentRuntime.ToolCategoryRisky, true)
 }
 
+func TestCreateTweetModelSchemaHidesTrustedExecutionFields(t *testing.T) {
+	tool := mcp.NewTool(
+		agentEnvironment.TweetPublishToolName,
+		mcp.WithString("content", mcp.Required()),
+		mcp.WithString("user_id", mcp.Required()),
+		mcp.WithString("idempotency_key", mcp.Required()),
+	)
+	definitions := mcpToolsToRuntime([]mcp.Tool{tool})
+	if len(definitions) != 1 {
+		t.Fatalf("definitions = %d", len(definitions))
+	}
+	assertModelVisibleTweetSchema(t, definitions[0].InputSchema)
+
+	openAITools := mcpToolsToOpenAI([]mcp.Tool{tool})
+	if len(openAITools) != 1 || openAITools[0].Function == nil {
+		t.Fatalf("OpenAI tools = %+v", openAITools)
+	}
+	encoded, err := json.Marshal(openAITools[0].Function.Parameters)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertModelVisibleTweetSchema(t, encoded)
+}
+
+func TestInjectGovernedMCPInputsOverwritesForgedTweetIdentity(t *testing.T) {
+	inputs := injectGovernedMCPInputs(workflowTool.ExecutionRequest{
+		ToolName: agentEnvironment.TweetPublishToolName,
+		Inputs: map[string]interface{}{
+			"content": "draft", "user_id": "999", "idempotency_key": "forged",
+		},
+		Identity:       workflowTool.CallerIdentity{UserID: 42},
+		IdempotencyKey: "run-1:publish-1:create_tweet",
+	})
+	if inputs["user_id"] != "42" || inputs["idempotency_key"] != "run-1:publish-1:create_tweet" {
+		t.Fatalf("trusted inputs = %+v", inputs)
+	}
+}
+
+func assertModelVisibleTweetSchema(t *testing.T, raw json.RawMessage) {
+	t.Helper()
+	var schema struct {
+		Properties map[string]json.RawMessage `json:"properties"`
+		Required   []string                   `json:"required"`
+	}
+	if err := json.Unmarshal(raw, &schema); err != nil {
+		t.Fatal(err)
+	}
+	if _, exists := schema.Properties["content"]; !exists {
+		t.Fatalf("content property is missing: %s", raw)
+	}
+	if _, exists := schema.Properties["user_id"]; exists {
+		t.Fatalf("user_id leaked into model schema: %s", raw)
+	}
+	if _, exists := schema.Properties["idempotency_key"]; exists {
+		t.Fatalf("idempotency_key leaked into model schema: %s", raw)
+	}
+	if len(schema.Required) != 1 || schema.Required[0] != "content" {
+		t.Fatalf("required fields = %+v", schema.Required)
+	}
+}
 func TestPageReadMCPToolSpecRedactsURL(t *testing.T) {
 	t.Parallel()
 

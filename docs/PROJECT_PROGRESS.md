@@ -1016,3 +1016,139 @@ P2 第一、第二增量验证：
 - [x] **部署构建收口**：修复 1.43 GB 以上 Docker 上下文泄漏并加入持久 Go BuildKit Cache；后续 Agent 单文件镜像重建降到 34.1 秒。原生 `alert` 已从 Workflow Chunk 移除。
 - [x] **可观测启动修复**：共享 Trace Resource 不再混用旧 Schema URL；`pkg/trace` 测试与新容器启动日志确认 OTLP Tracer 初始化成功。
 - [ ] **剩余运行边界**：Codex 浏览器控制受 Windows ACL 阻断，最终交互路径需用户手工点击；Temporal 服务端健康且 TCP 可达，但 Agent SDK 启动期 Dial 超时后关闭后台 Worker/趋势报告，主 Agent 演示路径不受影响。
+
+## 2026-08-08 G0/G1 Agent 核心重聚焦与 VerifiedRunner
+
+- [x] **优先级重置**：新增核心重聚焦计划与 20 项端到端任务矩阵；Marketplace、Publisher、Profile A/B、Task Template、管理 RPC 和固定 ExecutionProfile 的功能扩张冻结。
+- [x] **完成契约**：新增 `TaskSpec`、Completion Criteria、Environment Snapshot、追加式 EvidenceLedger、Verifier 和确定性最低证据门禁；FinalAnswer 不再被目标架构视为完成证明。
+- [x] **opt-in VerifiedRunner**：复用现有 AgentRunner，不复制 ReAct；任务工具取请求、环境和 Task Allowlist 的交集，完成后采集前后快照与结构化 Tool Observation 证据。
+- [x] **有界修复**：验证失败仅在 `MaxRepairAttempts`、剩余 Step、Token、成本与总超时都允许时继续；累计 Run Step/Usage，耗尽时返回结构化预算错误，缺证据不可修复时返回 blocked。
+- [x] **挂起、恢复与取消**：审批/人工等待生成版本化 Verified Checkpoint，不提前执行 Verifier；Resume 保留 Task、Evidence、初始快照、累计 Usage 和修复次数，同时重新解析当前工具目录，已撤权工具 fail-closed。
+- [x] **首个领域证据适配器**：站内搜索只接受与同一步 Tool Action 配对的 `platform.tweet_search.v1` Structured Content；Collector 仅保存摘要/引用，Verifier 反向核对累计 Runtime Observation，伪造 Ledger 不得完成任务。`Runtime/Evidence` 目标测试以及 Service、gRPC、Workflow RAG 串行依赖回归通过；未连接模型、数据库、Redis、MCP 或公网。 完整 Agent 并行回归曾因 Windows 拒绝启动部分 Go compile/vet 子进程中止，已由串行直接依赖回归和目标 Race/Vet 覆盖本轮边界。
+- [x] **默认关闭的站内搜索 Shadow**：新增全局 Kill Switch 与站内搜索 Shadow 开关，只有两者同时开启才消费既有 `RunResult` 执行 Collector/Verifier；不重复模型或工具调用，不改变 Legacy 响应。Prometheus 仅记录固定枚举的 Legacy/Goal 结果与证据差异。目标测试、Service/Runtime/Evidence/组合根串行回归及 Vet 通过；Windows 冷缓存 Race 编译五分钟超时，已终止遗留进程并记录验证缺口。
+- [x] **G2 Twitter Read Environment Pack**：新增独立 `environment` 包，统一五个站内只读工具白名单并复用到 Service；能力只取当前 Catalog、Task Allowlist 和静态只读策略的交集，重复目录、分类升级、审批标记与非法 Schema 均 fail-closed。前后快照身份只包含工具名和分类，Metadata 不保存 Goal、描述、Schema、正文或凭据；Environment 不持有执行器，不能绕过 ToolExecutor。
+- [x] **离线验证**：Environment、Runtime、Service 定向测试通过，覆盖白名单过滤、确定排序、可变数据隔离、上下文取消、低敏稳定快照和不安全目录拒绝；未启动服务、数据库、Redis、MCP、模型或公网。
+- [x] **G2 Web Read Environment Pack**：抽取包内私有的通用只读 Catalog 内核，Twitter 行为保持兼容；新增 `WebReadEnvironment`，只暴露已注册且被 Task 允许的 `web_search/page_read`。Service 复用同一 Web 白名单并增加 Catalog Port 编译期契约；Provider/Page Reader 不可用时不会出现在 Environment，执行期仍由 Tenant Routing、Governor、SSRF Policy、凭据解析和 ToolExecutor 权威校验。
+- [x] **Web Pack 离线验证**：Environment、Runtime、Evidence、WebSearch、MCP Tools、Service 和 Agent 组合根串行测试及目标 Vet 通过；覆盖注册缺失、策略过滤、不安全分类、非法 Schema、可变输入隔离和不含描述/Schema/凭据的稳定快照。未启动服务或访问公网/Provider。
+- [x] **G2 Workflow-as-Tool Environment Pack**：新增按用户构造的 `WorkflowToolEnvironment` 与窄 Catalog Port。能力仅来自当前 Active Publication，并在每次目录读取时重新校验租户所有权、稳定工具名、Publication Revision、不可变 Workflow Revision/DSL Hash、DSL 可发布性和当前 Tool Policy；Task 仍做精确 Allowlist 交集。快照只保留工具名、分类、审批语义与不可逆绑定摘要，不保存 Publication/Revision 原始标识、DSL、描述或 Schema；Environment 不持有执行器。
+- [x] **Workflow Pack 离线验证**：Environment 与 Service 定向测试通过，覆盖租户隔离、任务过滤、取消发布即时撤权、Revision/Hash 漂移排除、稳定快照、Schema/身份/分类异常 fail-closed 和可变 Schema 隔离；未启动服务、数据库、MCP、模型或公网。
+- [x] **G2 External MCP Environment Pack**：新增按用户构造的 `ExternalMCPEnvironment` 与窄 Catalog Port，复用现有 `ListGovernedTools` 权威适配器；每次目录读取重新校验个人/项目当前成员关系、Active Snapshot、启用中的 Tool Policy、稳定限定名与精确分类，随后再与 Task Allowlist 取交集。快照只保留工具身份、分类、审批语义与不可逆绑定摘要，不保存 Connection/Snapshot 原始标识、Schema Hash、描述、Schema、Endpoint 或凭据；Environment 不持有执行器。
+- [x] **External MCP Pack 离线验证**：Environment、Remote MCP 与 Service 定向测试通过，覆盖租户过滤、项目成员即时撤权、Policy 停用即时撤权、Snapshot Version/Hash 与 Policy 绑定漂移、分类降级拒绝、重复/超量目录、取消传播、低敏稳定快照和可变 Schema 隔离；Environment、Remote MCP、Runtime、Evidence、WebSearch、MCP Tools、Service 与 `cmd/agent-service` 扩大普通回归和目标 Vet 通过，五个本轮 Go 文件无格式差异，`git diff --check` 通过。未运行 Race；未启动服务或访问第三方 MCP、模型、数据库及公网。首次 Service 冷编译超过外层有界超时，复用项目内预热缓存后通过，详见 Issue 177。
+- [ ] **下一增量**：完成 G2 写操作真实前后状态验证与领域 Verifier；生产 Goal 执行继续关闭，不新增 Environment Pack、Provider 或控制面。
+
+## 2026-08-10 Agent Core Refocus G2：写操作事实验证闭环
+
+- [x] **Tweet Write Environment Pack**：通过 TweetService `GetUserTimeline` 获取作者本人最近推文，只保存排序后的 `/tweets/{id}`、摘要和工具审批语义；转推正文、用户 ID、Credential 与原始内容不进入 Snapshot。
+- [x] **领域完成验证**：`platform.tweet_publish.v1` 将 `tweet_id` 作为字符串稳定传递；Collector/Verifier 同时核验真实 Tool Action、结构化 Observation、Before/After Snapshot 和 Evidence Ledger，不能靠 FinalAnswer 或伪造 Ledger 宣称完成。
+- [x] **幂等回放结果恢复**：ToolExecutor 命中持久化结果时恢复文本与 Structured Content，不重新调用 `create_tweet`；Verifier 可证明目标推文已存在且集合未变化。
+- [x] **离线定向验证**：Environment、Evidence、MCP Tools 与 Agent Service 四包定向测试通过；未访问公网、模型、Mongo、Redis、RabbitMQ 或付费 API，也未启动/重启服务。
+- [ ] **受控集成验收**：E2E-13/14 仍需在显式启动的本地 TweetService/Agent Runtime 上验证真实审批、写入、超时重试和 Timeline 可见性；生产 Goal execution 保持关闭，下一阶段进入 G3 Unified Planning。
+
+## 2026-08-10 Agent Core Refocus G3：短期计划契约与确定性准入
+
+- [x] **一至三步计划契约**：新增 `agent.short_plan.v1`、`ShortHorizonPlanner` 与 `tool/ask_human/respond` 三类短期步骤；计划只描述下一小段动作，不替代既有 ReActRunner，也不把模型输出视为执行授权。
+- [x] **确定性准入边界**：`DeterministicShortPlanPolicy` 逐步校验 Task Completion Criteria、Task Allowlist、当前 Environment/Catalog 已授权工具交集、工具策略分类、剩余 Step Budget 与终止步骤顺序。连接所有权由调用方在构造 `AvailableTools` 时通过当前 Environment 解析，执行时 ToolExecutor 仍再次权威校验。
+- [x] **审批语义不可伪造**：模型提案不包含授权字段；准入结果从当前 ToolDefinition 推导 Category 与 `ApprovalRequired`，write/risky 自动要求审批，并生成不含 Prompt、参数或 Credential 的 SHA-256 计划摘要。
+- [x] **离线验证**：新增测试覆盖合法研究计划、任务越权、当前环境撤权、写操作审批、预算不足、完成条件遗漏和终止步骤乱序。Runtime、Strategy 全包测试及两包 Vet 通过；未启动服务、容器或模型，也未访问公网和付费 API。项目 `test_runner` 曾因 Windows ACL 在 Go 启动前失败，主进程以相同缓存和命令完成复验，详见 Issue 179。
+- [x] **严格模型 Planner Adapter**：`ModelShortHorizonPlanner` 复用 Runtime `ModelClient`，只发送裁剪后的 Goal、Constraint、Completion Criteria 与当前 Tool 元数据；模型不接收工具 Schema、参数、Credential 或执行授权，也不能直接发起 Tool Call。
+- [x] **结构化边界与有界解析修复**：仅接受单个精确 `agent.short_plan.v1` JSON 对象，拒绝 Markdown 围栏、尾随文本、未知字段、重复 Key、非法 UTF-8、过深和超大输出；解析失败最多追加一次通用纠错提示，不把无效模型正文重新注入 Prompt，Provider 故障不盲目重试。
+- [x] **预算与成本可见性**：每次初始/纠错模型调用均记录 Attempts、Token Usage、模型与 Provider；调用前同时校验 Run Budget 和共享 `BudgetTracker`，调用后提交实际 Usage 与 Cost，预留失败不会触发模型请求。
+- [x] **离线验证**：严格解析、一次修复、Provider 失败、Run/共享 Token Budget、成本预算与确定性 Admission 联合用例通过；Runtime、Strategy 全包测试和两包 Vet 通过。未启动服务、容器或模型，未访问公网和付费 API；`test_runner` 仍受 Issue 179 的 Windows ACL 阻断，主进程完成同命令复验。
+- [x] **单一 Planning Coordinator**：新增 Runtime 协调器，把模型提案与确定性 Admission 组合为一个入口；结果只暴露已准入计划、摘要、模型/Provider、调用次数、修复次数和完整 Usage，不保留被拒绝提案。
+- [x] **稳定修复边界**：只根据固定 `RunError.Code` 修复 `invalid_action/unknown_tool`，最多一次；预算、配置、取消和 Provider 错误不重试。第二轮只携带固定安全提示，不回灌被拒绝计划、工具名、目标内容或错误原文，调用方也不能伪造首轮 Repair Feedback。
+- [x] **跨轮累计预算**：第二轮在原始 Run Budget 中扣除首轮实际 Token/成本，零余额时在模型调用前失败；共享 `BudgetTracker` 继续承担跨节点/并发预算。Planner Usage 会先规范化再累计，解析修复与 Admission 修复均可见。
+- [x] **离线验证**：测试覆盖首轮准入、未知工具安全重规划、最多一次修复、预算耗尽、无效 Catalog、Provider 失败、澄清计划、伪造 Feedback 和 Usage 规范化；Runtime、Strategy 全包测试和两包 Vet 通过。未启动服务、容器或模型，未访问公网和付费 API；`test_runner` 仍受 Issue 179 阻断，主进程完成同命令复验。
+- [x] **opt-in 计划执行编排**：新增 `PlannedVerifiedRunner`，先按当前 Task/Environment 解析工具交集并生成准入计划，再绑定 `StrategyPlanDigest`、扣除规划 Token/成本、缩窄工具目录并委托既有 `VerifiedRunner`；没有新增第二套 ReAct 或 Tool 执行路径。
+- [x] **三类最小执行映射**：`ask_human` 保留 Verified checkpoint/resume，`respond` 禁用工具，read Tool 强制首步工具调用并检查成功 Observation；write/risky 在进入 ReAct 前明确拒绝。
+- [x] **模型输出降权**：Developer 消息不包含模型产生的 Objective/原始计划，只投影经准入校验的步骤类型、工具名、Criterion ID 与摘要，防止模型输出被提升为高优先级指令。
+- [x] **离线验证**：计划执行器定向用例、Runtime/Strategy 全包测试及两包 Vet 通过；未访问公网、模型或付费 API，未启动/重启服务。`test_runner` 仍被 Issue 179 的 Windows ACL 在 Go 启动前阻断，主流程完成同命令复验。
+- [x] **失败成本保留**：VerifiedRunner 在底层 ReAct 返回错误时先合并该次 RunResult，再返回原错误；计划层因此能汇总已发生的失败步骤 Token/成本，不把失败调用误报为零消耗。
+- [x] **执行/验证失败受控重规划**：`VerifiedRunner` 新增请求级可选 `VerifiedRepairBuilder`；仅 `tool_error` 与可重试的缺失证据可进入恢复，模型、超时、取消、预算和审批边界不自动重试。旧调用者不提供 Builder 时保持原 verifier-only 修复行为。
+- [x] **固定脱敏恢复输入**：恢复 Planner 只收到 `execution_failed|evidence_missing` 固定原因码与 Criterion ID；原始 Provider 错误、工具正文、失败 Observation 和被拒绝计划均不回灌。失败 Tool Call 只追加固定占位 Tool 消息以闭合协议配对。
+- [x] **权限与预算不扩张**：恢复计划最多一次，只能从首次已准入的只读 Tool 子集中继续收窄；Runtime 在执行前重验 Run 身份、模型、消息历史、Tool Schema/分类/审批属性和剩余 Step/Token/Cost/Timeout/Deadline，计划仍需重新通过确定性 Admission。
+- [x] **证据与用量可审计**：根计划摘要继续绑定累计 Run，恢复计划作为独立 `RecoveryPlans` 证据返回；初始规划、恢复规划与全部执行尝试 Usage 聚合可见，失败步骤保留在累计 Step/Observation 中。
+- [x] **离线验证**：新增工具失败恢复、缺失证据恢复、原始错误不泄漏、模型失败不恢复、Tool 扩权拒绝、伪造 Recovery Feedback 拒绝和无效原因码用例；主进程完整 Runtime 测试通过，专用 `test_runner` 复核 Runtime 全包测试、Runtime Vet 与 Environment/Evidence 定向测试均通过；未连接模型、MCP、数据库或公网，未启动/重启服务。
+- [x] **显式能力默认路由**：生产默认改为 `ExplicitCapabilityPlanner`；精确能力提示仍经不可变 Catalog 解析，无提示只进入 `conversation.reply`，不再从用户关键词静态猜测搜索、草拟或 Workflow 路线。
+- [x] **关键词兼容回退隔离**：`ConservativeCapabilityPlanner` 只由 `NewKeywordCompatibilityCapabilityPlanner` 显式构造；生产代码没有直接装配点，旧 Planner 单元测试继续保留为回滚证据。
+- [x] **TaskOutcome 与 Artifact/Evidence 对照**：新增低敏结果投影和组合 Evidence Collector；Artifact 只保存类型、Digest、Reference、Criterion 与 supporting evidence IDs，不复制模型正文或工具正文。
+- [x] **E2E-02/11/18 离线闭环**：固定夹具分别验证澄清挂起、研究后草拟的已验证 Artifact，以及工具失败后单次恢复；任务矩阵已记录 Outcome、Artifact、Evidence 和 Repair Decision 对照。
+- [x] **AIOps 报告边界修复**：删除 `AnalyzeAlert` 中开发者用户目录硬编码；报告仅通过显式注入的 `AIOpsReportSink` 持久化，默认无本地文件回退，测试改用内存 Sink。
+- [x] **离线验证**：主进程 Runtime 与 Service 完整测试、两包 Vet、显式 Planner 和 E2E 定向测试均通过；专用 `test_runner` 在 Go 启动前被 Issue 199 的 Windows ACL 阻断，未把环境失败记作测试结果。未访问模型、MCP、数据库、公网或付费 API，未启动/重启服务。
+- [x] **G4 首个只读迁移任务**：站内搜索继续由 Legacy Runtime 唯一执行；只有全局 Goal 与平台搜索 Shadow 两个默认关闭开关同时开启时，Goal Collector/Verifier 才消费同一份已完成 `RunResult`，不会重复模型、工具或消息持久化。
+- [x] **TaskOutcome 双记录**：新增 `observed_execution` 来源，明确表示 Goal outcome 是既有执行结果的验证投影，不伪造未驱动原执行的 admitted plan。结构化 Tweet ID 只进入 Evidence Digest/Reference，模型和工具正文不进入投影。
+- [x] **E2E-05 离线契约**：服务级夹具断言 Legacy Runner 恰好调用一次，Legacy Citation 与 Goal Evidence 指向同一 `/tweets/{id}`；文本型工具输出可满足旧成功判断，但 Goal verification 必须 blocked。
+- [x] **离线验证**：Runtime observed outcome 定向测试、Service E2E-05/Shadow 定向测试、Runtime/Evidence/Service 完整回归及三包 Vet 全部通过；未调用模型、MCP、数据库、公网或付费 API，未启动或重启服务。
+- [x] **E2E-06 可信追问闭环**：首次搜索把结构化 Citation 投影为助手消息中的 `/tweets/{id}` 引用；后续仅接受同一用户对话内的显式 ID、序号或唯一引用，歧义、越界、多 ID 和伪造 ID 在 Runtime 前 fail-closed。
+- [x] **详情工具与 Goal 对照**：追问运行时只暴露 `get_tweets_by_ids`，Action 参数必须精确选择上一轮引用，且 `platform.tweet_detail.v1` Observation 必须返回同一 ID 的非空正文。Goal shadow 复用同一次执行，分别记录 prior reference 与 detail observation，生成 `observed_execution` TaskOutcome。
+- [x] **E2E-06 离线验证**：定向测试覆盖成功、歧义、伪造、多 ID、文本伪证据和单次执行双记录；Runtime/Evidence/MCP Tools/Service 完整回归及四包 Vet 通过。未调用模型、MCP、数据库、公网或付费 API，未启动或重启服务。
+- [x] **E2E-07 公共 Web 研究证据链**：新增 digest/reference-only Collector/Verifier；只有 `web_search` 结构化来源、后续 `page_read` Action 和 `web.page.v1` 页面三者指向同一规范化公网 URL 时才通过，正文不复制进 TaskOutcome。
+- [x] **默认关闭的 Web Research Shadow**：新增独立 `AGENT_GOAL_RUNTIME_WEB_RESEARCH_SHADOW_ENABLED`，必须与全局 Goal 开关同时开启；Legacy Runtime 仍是唯一执行所有者，Goal 只观察同一 `RunResult`，不重复模型、Provider 或页面请求。
+- [x] **E2E-07 离线验证**：覆盖成功、仅搜索未读页、伪造页面 URL、伪造 Ledger 引用和单次执行双记录；Runtime/Evidence/Service/组合根串行测试与四包 Vet 通过。未调用模型、MCP、数据库、公网或付费 API，受控真实 Provider 集成门仍待执行。
+- [x] **E2E-08 缺失 Web 证据治理**：Search/Page Collector 与 Verifier 为缺失观察、Provider/Page 错误、空结果、私网或不可解析引用输出稳定原因码；诊断证据只保存固定原因码摘要、步骤与动作等低敏结构，不复制错误正文、页面正文、URL 或最终回答。
+- [x] **Legacy Web 完成护栏**：联网搜索和 Web 草拟在持久化前必须存在至少一个结构化、可引用的公网搜索结果；“正在获取，稍后返回”等无证据回答、空结果和无效引用直接阻断且不写入对话。普通搜索不强制 `page_read`，也不增加模型、Provider 或页面调用。
+- [x] **E2E-08 离线验证**：覆盖空结果、Provider 错误、私网引用、Page 错误保留 Search 证据、低敏诊断、单次 Runner 与消息不落库；Runtime/Evidence/Service/组合根串行测试及四包 Vet 通过。未调用模型、MCP、数据库、公网或付费 API，未启动或重启服务。
+- [x] **E2E-09 Grounded Draft 领域契约**：新增统一 Collector/Verifier，接受站内 Tweet 与公网 Web 两类结构化来源；草稿必须以精确 `[/tweets/{id}]` 或 `[public URL]` 标记把邻近主张绑定到真实来源，并生成只含正文摘要/引用的已验证 `content.draft` Artifact。
+- [x] **默认关闭的 Grounded Draft Shadow**：新增 `AGENT_GOAL_RUNTIME_GROUNDED_DRAFT_SHADOW_ENABLED`，必须与全局 Goal 开关同时开启；站内/Web 草拟继续由 Legacy Runner 唯一执行，Shadow 只消费同一 `RunResult`。当前 Profile 未原地改写，Shadow 用于测量现有输出的引用格式符合率，不改变用户响应或持久化。
+- [x] **E2E-09 离线验证**：覆盖平台/Web 成功、缺失引用、伪造引用、跨来源引用、与正文分离引用、Artifact 支持证据、专用开关和单次执行双记录；Runtime/Evidence/Service/组合根逐包测试与 Vet 通过。未调用模型、MCP、数据库、公网或付费 API，未启动或重启服务；受控真实 Provider/Profile 集成门仍待执行。
+- [x] **E2E-10 显式重写约束契约**：新增规范化 `RewriteConstraintSpec` 与 Task 构造器，精确绑定中文/英文、JSON/Markdown 列表/纯文本和 Unicode 字符上下限；Task 漂移、未知条件或工具权限均 fail-closed，不从自然语言关键词推断约束。
+- [x] **低敏 Artifact 与确定性完成判断**：Collector 仅记录版本化约束摘要、最终正文 SHA-256 和 Run 引用；Verifier 对瞬时正文执行 70% 主导文字脚本、严格输出结构和字符范围检查。任一条件失败都会令 `content.rewrite` Artifact 保持 failed，模型声称完成不能通过。
+- [x] **E2E-10 离线验证**：覆盖中英文、三种格式、过短、超长、语言/格式错配、空正文、伪造 Artifact、Task 漂移和工具越权；Evidence/Runtime 全包测试与两包 Vet 通过。任务矩阵将本项定义为纯离线契约，因此未新增 Service Shadow、API 字段、Profile 或生产开关，也未访问模型、数据库、公网或付费 API。
+- [x] **E2E-11 Research then Draft 顺序契约**：新增独立 Collector/Verifier，复用 E2E-09 的可信来源、精确 Citation 与 `content.draft` Artifact 校验，并额外要求匹配最终正文的 `final_answer` Action 必须位于可信研究 Observation 之后；顶层 FinalAnswer、伪造顺序证据、缺少研究或研究发生过晚均不能完成。
+- [x] **默认关闭的 Research Draft Shadow**：新增 `AGENT_GOAL_RUNTIME_RESEARCH_DRAFT_SHADOW_ENABLED`，必须与全局 Goal 开关同时开启；仅挂接既有站内/Web 研究草拟 Profile 的已完成 `RunResult`，不重复模型、搜索 Provider、Tool 或消息持久化。指标使用固定 `content.research_draft` 低基数标签，不与 E2E-09 结果混计。
+- [x] **E2E-11 受控离线集成**：平台与 Web Service 夹具覆盖单次 Runner、双记录、成功顺序、顺序倒置、缺失研究、开关隔离和伪造 Evidence；G3 离线计划夹具继续证明准入计划包含 research→respond。本项不修改不可变 Profile，也不宣称真实 Provider/Profile 符合率或生产 Goal 已开启。
+- [x] **E2E-12 结构化冲突证据**：新增 `agent.evidence_assertions.v1` 与规范化 Task/Spec；只接受允许工具的成对成功 Observation，同一 Claim 的不同 canonical value 必须绑定不同公网引用，Ledger 仅保留摘要和引用。
+- [x] **可验证澄清挂起**：`VerifiedRunner` 新增可选 `SuspendedRunVerifier`，未实现该接口的旧 Verifier 继续保持 inconclusive checkpoint 语义。冲突任务只有在全部证据之后发出精确配置的 `ask_human` 才返回 verified suspension；静默 FinalAnswer、提前/无关提问、同值、未配对 Observation 与伪造 Ledger 均 blocked。
+- [x] **E2E-12 离线验证**：定向测试覆盖有效挂起、TaskOutcome、旧审批兼容、URL fragment 别名、错误时序、跨 Run 伪造和静默选边；Environment/Evidence/Runtime/Service 四包串行回归与四包 Vet 通过。未新增业务入口、Service Shadow、API、Profile、Provider 或生产开关，未访问模型、数据库、MCP、公网或付费 API，也未启动或重启服务。
+- [x] **G4 下一增量**：E2E-13/14 Tweet 写入的受控进程内集成验收已由下一节完成；不扩张 Marketplace、Profile 或管理控制面，生产 Goal execution 继续关闭。
+## 2026-08-11 Agent Core Refocus G4：E2E-13/14 受控写入闭环
+
+- [x] **可信参数与模型契约**：`create_tweet` 的 Runtime/OpenAI 模型可见 Schema 不再暴露 `user_id` 与 `idempotency_key`；Service 在统一 ToolExecutor 校验前从认证身份和 Run/Action 生成值注入，并在 MCP 调用边界再次覆盖，模型只需提交正文且无法伪造租户或幂等身份。
+- [x] **审批挂起与恢复**：受控夹具组合真实 ReActRunner、VerifiedRunner、ToolExecutor、内置 MCP Handler 与 Timeline Adapter。首次执行生成 `approval-tweet-1` checkpoint，写入次数严格为 0；显式授权后 Resume 同一 Action，写入一次并由权威 After Snapshot 验证目标 `/tweets/9001`。
+- [x] **完整幂等回放**：使用相同 Run/Action/Tool 生成的稳定键再次执行完整 Goal；ToolExecutor 从持久结果接口恢复 `platform.tweet_publish.v1` Structured Content，MCP Handler/TweetService Fake 不再调用，Before/After 集合保持不变且 `TweetPublishGoalVerifier` 通过。
+- [x] **离线验证**：3 个新增定向测试、Environment/Evidence/Runtime/ToolExecutor/Service 五包串行回归、五包 Vet、Gofmt 与 `git diff --check` 通过。未访问外网、模型、付费 API 或真实数据库，未启动/重启服务，也未向真实账号发布推文。
+- [ ] **部署态验收边界**：仍需用户显式准备隔离账号与本地 TweetService/Mongo 后，验证持久审批记录、进程重启恢复、Timeline 最终可见性和真实超时窗口；完成前不宣称生产闭环。
+- [x] **G4 下一增量**：E2E-15/16 用户/项目 MCP 只读调用、写操作审批及撤权即时失败已由下一节完成；复用现有治理能力，未新增 Connector、Profile、Marketplace 或管理 RPC。
+## 2026-08-11 Agent Core Refocus G4：E2E-15/16 MCP 授权与撤权闭环
+
+- [x] **Actor/Revision 授权快照**：External MCP Environment Snapshot 新增认证 Actor Digest 与 Connection Revision，并继续使用不可逆 Binding Digest 绑定连接、Schema Snapshot 和 Tool Policy；Decoder 会复算 Digest/Reference，跨 Actor 或篡改 Revision 均 fail-closed。
+- [x] **只读 Goal 证据**：新增 `ExternalMCPReadGoalCollector/Verifier`，只接受任务允许、成对、成功且 Read-only 的 Runtime Action/Observation；Before/After 授权快照必须一致，Evidence 仅保留结果摘要、环境引用和工具哈希，不复制外部 MCP 正文、端点、凭据或原始连接 ID。
+- [x] **审批后撤权即时失败**：受控夹具首次执行写工具只生成 `approval_required` ToolExecutor 审计，远程调用为 0；显式批准后撤销连接并提升 Revision，Resume 按当前 Environment Catalog 重新授权，在工具不可用阶段 blocked，远程 Caller 仍为 0。
+- [x] **租户与项目访问边界**：Manager 的用户所有权和项目成员当前态检查继续作为唯一授权事实；本轮将 Connection Revision 投影到无凭据 Environment Binding，另一租户目录为空，既有项目成员撤权测试继续证明权限变化即时生效。
+- [x] **离线验证**：E2E-15/16 四个定向用例、MCP Remote/Environment/Evidence/Runtime/ToolExecutor/Service 六包回归及六包 Vet 全部通过。未访问模型、真实 MCP、数据库、公网或付费 API，未启动/重启服务。
+- [ ] **部署态边界**：真实外部 MCP Provider、Mongo 持久连接、项目成员撤权传播、进程重启审批恢复与生产 Goal execution 仍未验收，完成前不宣称生产闭环。
+- [x] **G4 下一增量**：E2E-17 Workflow-as-Tool 精确发布 Revision、子 Run 绑定与结构化输出证据已由下一节完成；继续冻结 Marketplace、Profile/A-B 和新增管理控制面。
+
+## 2026-08-11 Agent Core Refocus G4：E2E-17 Workflow-as-Tool 完成证据
+
+- [x] **调用者与发布绑定**：Workflow Environment Snapshot 增加认证 Actor Digest，并提供严格解码；快照继续只暴露工具名、分类、审批语义和不可逆 Binding Digest，不保存原始 Publication/Revision/DSL 内容。
+- [x] **结构化完成契约**：`workflow.run.v1` 结果显式绑定 Publication ID/Revision、Workflow Revision/DSL Hash、父 Run/Action、child Run、声明响应摘要与权威 `OutputJSON` 摘要；草稿更新不改变已发布 Revision。
+- [x] **权威 child Run 验证**：新增窄只读 Resolver，Collector/Verifier 在用户隔离下重新读取 child Run，核对 Workflow/Revision、`runtime` 调用来源、父子谱系、成功状态、完成时间与持久输出摘要；Evidence Ledger 只保存 digest/reference。
+- [x] **失败传播**：真实 DAG 子节点失败会持久化 failed child Run，父 Tool 仅返回固定失败信息并终止，避免内部节点错误正文泄露给模型，同时不得生成完成证据。
+- [x] **离线验证**：Environment/Evidence/Service 四个目标用例通过；Environment、Evidence、Runtime、Workflow Tool、Service 五包普通回归与五包 Vet 通过。未访问模型、公网、Mongo、Redis、MCP 或付费 API，也未启动或重启服务。
+- [x] **下一增量**：E2E-19 Checkpoint/Resume 已由下一节完成；真实 Mongo、多副本/进程重启和生产 Goal 路由仍待验收。
+
+## 2026-08-11 Agent Core Refocus G4：E2E-19 Checkpoint/Resume 单写恢复
+
+- [x] **挂起证据连续性**：VerifiedRunner 在挂起边界捕获当前 After Snapshot 并收集已成功 Observation，即使领域 Verifier 不实现 SuspendedRunVerifier，也不会丢失后续恢复所需的写入证据。
+- [x] **单调 Checkpoint Revision**：VerifiedCheckpoint 增加从 1 开始的 Revision；再次挂起按前一 Revision +1 构造，零值/缺失 Revision fail-closed。每次合法 Resume 追加一条 `checkpoint_resume` Evidence，只保存摘要、Run/Revision 引用与 Step 索引，不保存人工回答或工具正文。
+- [x] **双恢复单写集成**：受控夹具先在 Revision 1 审批挂起，审批恢复执行一次 `create_tweet` 后在 Revision 2 等待人工输入；两次 JSON 往返模拟持久化边界，最终仍是同一 Run、三个累计 Step、一条 Tweet 状态证据和两条 Resume Evidence。
+- [x] **幂等与副作用门禁**：审批前写入为 0；审批后和人工恢复完成后写入始终为 1，Idempotency Store 完成计数为 1、无 Pending Record，审批完成计数为 1。
+- [x] **离线验证**：Runtime 最小测试、Runtime 全包、E2E-13/14+19 定向回归、Environment/Evidence/Runtime/Workflow Tool/Service 五包普通回归及五包 `go vet` 全部通过。未访问模型、公网、Mongo、Redis、外部 MCP 或付费 API，也未启动/重启服务。
+- [x] **固定矩阵衔接**：E2E-20 已在下一节完成；本轮 JSON 往返与内存 Store 仍不等于真实 AES-GCM Mongo Checkpoint、多副本 CAS Claim/租约和进程重启验收，生产 Goal execution 继续关闭。
+
+## 2026-08-11 Agent Core Refocus G4：E2E-20 Provider Outage
+
+- [x] **固定错误分类**：新增低敏 Provider failure code，区分 unavailable、rate limited、timeout、invalid request、unauthorized、canceled 与 unclassified；HTTP/上下文/网络错误使用确定性策略，兼容旧 Adapter 的未知错误仍受显式 Fallback 图约束。
+- [x] **策略化回退**：ProviderRouter 只沿 Catalog 中显式且能力兼容的 Fallback 遍历；暂时性故障记录 `fallback_allowed`，认证/永久请求错误记录 `fallback_denied` 并保证后备 Provider 调用为 0，允许路线全部失败时记录 `fallback_exhausted`。
+- [x] **blocked 完成语义**：Runtime 把失败模型 Step 与路由轨迹写入 RunResult；VerifiedRunner 只接受结构完整、无 Selected Model 的终止轨迹，将 Goal 投影为 blocked，并追加一条仅含摘要/引用的 Provider Routing Evidence。
+- [x] **无伪造输出**：blocked 路径不生成 Assistant Message、FinalAnswer 或 Artifact，路由证据不携带 Criterion ID，不能冒充任务完成证据；Provider 错误正文、响应体和凭据不进入 Runtime 轨迹。
+- [x] **受控集成验证**：真实 Catalog/ProviderRouter/ReActRunner/VerifiedRunner 与内存 Provider Client 覆盖允许回退成功、永久错误拒绝及全部路线耗尽；Model、Runtime、Service 三包测试和三包 `go vet` 通过。
+- [ ] **剩余边界**：未连接 DashScope、LM Studio 或其他真实 Provider，未进行部署态故障注入和线上指标验收；生产 Goal execution 保持关闭。G4 固定迁移矩阵至此完成，下一阶段是 G5 清理与产品重开审计。
+## 2026-08-11 Agent Core Refocus G5：删除关键词能力 Planner
+
+- [x] **生产可达性审计**：仓库调用图确认 `ConservativeCapabilityPlanner` 与 `NewKeywordCompatibilityCapabilityPlanner` 只有测试调用者；默认组合根一直使用 `ExplicitCapabilityPlanner`，不存在配置或生产装配点。
+- [x] **死分支删除**：删除关键词 Planner、命名兼容构造器及关键词自动路由测试；`ExplicitCapabilityPlanner` 构造器收紧为单一 Catalog 参数，用户正文不再决定产品能力。
+- [x] **显式路由回归**：保留“未选择能力即 conversation.reply”和显式组合能力测试，新增未知能力、Planned/Unavailable 能力与 Context Cancel 负向断言；直接组装的 Skill 测试夹具显式注入 Planner。
+- [x] **兼容边界**：保留 `compat.chat/consult/assist`，因为历史 Dialogue Mode 恢复和产品指标仍引用这些值；本轮没有迁移持久数据或删除旧会话能力。
+- [x] **离线验证**：Planner/Unified Agent 定向测试、Agent Service 全包测试与 Service `go vet` 通过；未联网、调用模型/付费 API、数据库或 MCP，也未启动/重启服务。
+- [ ] **下一增量**：审计 `unified_agent.go` Profile switch 与 Multi-Agent 固定模板的重复编排，只删除可证明无调用者或已有等价 Runtime 路径的分支；Marketplace/Profile 继续冻结。

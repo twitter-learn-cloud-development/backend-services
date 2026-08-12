@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	agentMultiRole "twitter-clone/internal/module/agent/multirole"
 	agentStrategy "twitter-clone/internal/module/agent/strategy"
 )
 
@@ -15,22 +14,7 @@ var ErrMultiAgentExecutionUnavailable = errors.New("multi-agent execution is una
 // snapshot. ExecutorAvailable must reflect the independently controlled
 // aggregate executor rollout; admission alone never changes execution.
 func NewBuiltInAgentExecutionStrategyPlanner(policy agentStrategy.Policy) (agentStrategy.Planner, error) {
-	return agentStrategy.NewDeterministicPlanner(policy, []agentStrategy.Template{
-		agentMultiRole.ResearchDraftTemplate(
-			"platform.research_draft.v1",
-			ExecutionProfileRuntimeResearchDraft,
-			CapabilityPlatformSearch,
-			CapabilityContentDraft,
-			[]string{"hybrid_search_tweets"},
-		),
-		agentMultiRole.ResearchDraftTemplate(
-			"web.research_draft.v1",
-			ExecutionProfileRuntimeWebDraft,
-			CapabilityWebSearch,
-			CapabilityContentDraft,
-			[]string{"web_search", "page_read"},
-		),
-	})
+	return agentStrategy.NewDeterministicPlanner(policy, builtInMultiAgentStrategyTemplates())
 }
 
 func (s *AgentService) planUnifiedAgentExecutionStrategy(
@@ -48,8 +32,9 @@ func (s *AgentService) planUnifiedAgentExecutionStrategy(
 	}
 	var admissionProfileID string
 	var admissionProfileVersion string
-	if profileID := multiAgentAdmissionProfileID(capabilityPlan.ExecutionProfile); profileID != "" {
-		selected, err := s.resolveAgentProfile(ctx, profileID, request.UserID)
+	profileSpec, supportsMultiAgent := multiAgentProfileSpecFor(capabilityPlan.ExecutionProfile)
+	if supportsMultiAgent {
+		selected, err := s.resolveAgentProfile(ctx, profileSpec.parentProfileID, request.UserID)
 		if err != nil {
 			return agentStrategy.Plan{}, fmt.Errorf("resolve multi-agent admission profile: %w", err)
 		}
@@ -64,7 +49,7 @@ func (s *AgentService) planUnifiedAgentExecutionStrategy(
 		return agentStrategy.Plan{}, fmt.Errorf("plan agent execution strategy: %w", err)
 	}
 	if plan.SelectedStrategy == agentStrategy.KindMultiAgent {
-		if !s.multiAgentExecutionEnabled || !supportsMultiAgentExecutionProfile(capabilityPlan.ExecutionProfile) {
+		if !s.multiAgentExecutionEnabled || !supportsMultiAgent {
 			return agentStrategy.Plan{}, fmt.Errorf(
 				"%w: aggregate lifecycle executor is disabled for plan %s",
 				ErrMultiAgentExecutionUnavailable,
@@ -77,24 +62,4 @@ func (s *AgentService) planUnifiedAgentExecutionStrategy(
 		}
 	}
 	return plan, nil
-}
-
-func supportsMultiAgentExecutionProfile(executionProfile string) bool {
-	switch executionProfile {
-	case ExecutionProfileRuntimeResearchDraft, ExecutionProfileRuntimeWebDraft:
-		return true
-	default:
-		return false
-	}
-}
-
-func multiAgentAdmissionProfileID(executionProfile string) string {
-	switch executionProfile {
-	case ExecutionProfileRuntimeResearchDraft:
-		return profileUnifiedResearchDraft
-	case ExecutionProfileRuntimeWebDraft:
-		return profileUnifiedWebDraft
-	default:
-		return ""
-	}
 }

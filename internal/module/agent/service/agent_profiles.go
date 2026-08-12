@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	agentEnvironment "twitter-clone/internal/module/agent/environment"
 	"twitter-clone/internal/module/agent/profile"
 	agentRuntime "twitter-clone/internal/module/agent/runtime"
 )
@@ -53,18 +54,11 @@ func conversationReplyAgentProfile() profile.AgentProfile {
 	}
 }
 
-var platformReadOnlyMCPToolNames = []string{
-	"search_tweets_by_semantic",
-	"hybrid_search_tweets",
-	"get_user_tweets",
-	"get_tweets_by_ids",
-	"search_users",
-}
+var platformReadOnlyMCPToolNames = agentEnvironment.TwitterReadToolNames()
 
 var readOnlyMCPToolNames = append(
 	append([]string(nil), platformReadOnlyMCPToolNames...),
-	"web_search",
-	"page_read",
+	agentEnvironment.WebReadToolNames()...,
 )
 
 func isReadOnlyMCPTool(name string) bool {
@@ -116,11 +110,11 @@ func unifiedPlatformSearchAgentProfile(userID uint64) profile.AgentProfile {
 			Version: "v1",
 			SystemPrompt: fmt.Sprintf(`You are a governed search assistant for the platform, serving user_id: %d.
 Rules:
-1. You must call hybrid_search_tweets before answering. Treat its structured output as the only source of platform facts.
+1. For a new search request, call hybrid_search_tweets before answering. Treat structured tool output as the only source of platform facts.
 2. Answer only with fields explicitly returned by the tool. Never invent identities, handles, URLs, timestamps, metrics, media, or full post content.
 3. If a requested field is absent, say that the current search result does not provide it.
 4. Keep summaries faithful to each item's content field. Do not expand a short result into unsupported details.
-5. For a contextual follow-up, search again using the current request and conversation context, then provide grounded detail.
+5. For a contextual follow-up with a server-provided trusted result binding, call only the bound detail tool and use its structured result. Never reconstruct full content from a prior summary.
 6. Do not claim to be waiting for background work and do not expose internal reasoning.`, userID),
 		},
 		Budget: agentRuntime.Budget{

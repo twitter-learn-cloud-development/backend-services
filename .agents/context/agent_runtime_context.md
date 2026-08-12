@@ -1,13 +1,20 @@
 # Agent Runtime Context（当前实现与演进边界）
 
-> 最近核对：2026-08-03
-> 计划：`docs/AGENT_RUNTIME_STRENGTHENING_PLAN.md`
+> 最近核对：2026-08-09
+> 当前计划：`docs/AGENT_CORE_REFOCUS_PLAN.md`
+> 历史强化计划：`docs/AGENT_RUNTIME_STRENGTHENING_PLAN.md`
 > 进度：`docs/PROJECT_PROGRESS.md`
 
 ## 1. 阶段状态
 
 | 阶段 | 状态 | 当前证据 |
 |------|------|----------|
+| G0 Goal Runtime 基线 | Complete | 已冻结外围扩张并建立 20 个端到端任务矩阵；`runtime/goal.go` 已新增 TaskSpec、Environment、EvidenceLedger 与 Verifier，未接入生产 RunAgent |
+| G1 VerifiedRunner | Complete | opt-in Adapter 已复用 AgentRunner，支持工具交集、前后快照、结构化观察证据、完成验证、共享预算有界修复和 Verified Checkpoint/Resume；恢复时保留 Task/Evidence/Before/修复次数并重新授权当前工具。站内搜索严格 Schema Collector/Verifier 已通过两个默认关闭开关接入只观测 Shadow，复用既有 RunResult，不重复模型/工具调用，也不替换生产响应 |
+| G2 Environment Packs | Complete | Twitter/Web Read、Workflow-as-Tool、External MCP 与 Tweet Write Pack 已闭环当前 Catalog/Task/策略交集和低敏快照；写操作由 Timeline 前后状态与领域 Collector/Verifier 验证，Environment 仍不执行工具。生产 Goal 执行继续关闭，真实审批/写入集成验收归 G4 |
+| G3 Unified Planning | Complete | 一至三步短计划、确定性 Admission、一次受限恢复、显式能力默认 Planner 与低敏 TaskOutcome 已具备 E2E-02/11/18 离线证据 |
+| G4 Task Migration | Complete | E2E-05 至 E2E-20 固定迁移矩阵已具备离线或受控进程内结果证据；E2E-20 固定 Provider 错误分类、显式允许回退和 denied/exhausted blocked 终态，不产生伪造答案。Legacy Runtime 仍是唯一生产执行所有者，生产 Goal execution 与部署态依赖继续待验收 |
+| G5 Cleanup | In Progress | 首个增量删除无生产调用者的关键词能力 Planner、命名兼容构造器及专属测试；显式能力 Planner/Catalog 保持唯一默认路由。历史 Compat Profile 因旧会话恢复与指标仍可达而保留；Marketplace/Profile 继续冻结 |
 | P0 真实性/迁移护栏 | Complete | ADR、兼容测试、`AGENT_RUNTIME_V2_MODES`、回滚路径 |
 | P1 AgentRunner | Complete | Runtime 类型、ReActRunner、Action、Adapter、Profile、灰度入口 |
 | P2 Message/Token/Model | Complete | Message/Token/Cost Budget、Catalog 路由、并发准入、Provider Config 加密管理与 Session Summary 已落地 |
@@ -187,3 +194,24 @@ go test ./internal/module/agent/mcp/acceptance ./cmd/agent-mcp-acceptance ./cmd/
 ```
 
 涉及 Workflow Editor 时额外执行 `web/npm run build`。共享 Runtime/Repository/调度器变更必须有离线 Fake 测试，不连接真实模型、MCP、Mongo 或 Qdrant。
+
+## 10. Goal Core Refocus Update（2026-08-10）
+
+- G3 已完成：短计划、确定性 Admission、严格模型 Adapter、一次 Admission/执行/验证恢复、opt-in VerifiedRunner 计划消费和低敏 `TaskOutcome` 均具备离线证据。默认 Service Planner 只解析显式能力，无选择时回到对话；G5 已删除无生产调用者的关键词 Router 及其兼容构造器。E2E-02/11/18 固定夹具验证澄清挂起、研究草拟 Artifact 和单次失败恢复。生产 Goal execution 仍默认关闭。
+- G4 E2E-05 已完成离线迁移契约：平台搜索 Legacy Runner 仍只调用一次；Goal shadow 复用同一结构化结果，记录 `observed_execution` TaskOutcome 与 Tweet Evidence Reference，文本型伪证据返回 blocked。两个生产开关继续默认关闭，未替换 Legacy 响应或持久化路径。
+- G4 E2E-06 已完成离线迁移契约：上一轮结构化 Tweet Citation 以可信引用持久化；追问只允许选择同一对话内引用，并把工具收窄为 `get_tweets_by_ids`。Action 参数、`platform.tweet_detail.v1` Observation、Legacy Citation 与 Goal prior/detail Evidence 必须指向同一 ID；歧义、伪造、多 ID 和文本伪证据均 fail-closed，执行仍只有一次。
+- G4 E2E-07 已完成离线迁移契约：`web_search` 必须先返回带 Provider/Query 的 `web.search.v1` 公网来源，后续 `page_read` Action 与 `web.page.v1` 必须绑定其中同一规范化 URL 和非空支持类型正文。Goal shadow 复用 Legacy 单次执行并输出低敏 Search/Page Evidence；仅搜索、跨来源页面、伪造 Ledger 与文本伪证据均 blocked。独立 Web shadow 与全局开关继续默认关闭，受控真实 Provider 集成仍待执行。
+
+- G4 E2E-08 已完成离线迁移契约：空搜索、Provider/Page 错误、私网或畸形引用统一生成带稳定原因码的 blocked TaskOutcome；诊断 Evidence 只保存固定原因码摘要和结构元数据。Legacy Web 搜索/草拟完成护栏要求至少一个结构化公网引用后才持久化回答，禁止无证据的“稍后返回”，但普通搜索不强制 `page_read`，也不重复任何执行。
+- G4 E2E-09 已完成离线迁移契约：站内/Web 草拟复用同一 Legacy `RunResult`，来源 Evidence 只接受可信结构化 Tweet 或公网 URL；草稿 Artifact 必须包含与邻近主张绑定的精确 `[/tweets/{id}]` 或 `[public URL]` 标记，Verifier 将 Artifact 与对应来源 Evidence 交叉绑定。缺失、伪造、跨来源和脱离正文的标记均 blocked；独立 Shadow 与全局开关默认关闭，不重复模型/工具、不改变响应。现有不可变 Profile 未原地改写，真实引用格式符合率和后续 Profile 晋级仍需受控集成。
+- G4 E2E-10 已完成纯离线契约：`RewriteConstraintSpec` 通过规范化 Task 同时绑定语言、输出结构和 Unicode 字符上下限；Collector 只保留约束与正文摘要，Verifier 使用 70% 主导文字脚本、严格 JSON/Markdown 列表/纯文本结构和字符范围确定性判断 `content.rewrite` Artifact。错配、越界、空正文、Task 漂移、工具权限和伪造摘要均 fail-closed。该任务没有新增 Service Shadow、API 字段、Profile 或生产开关，显式结构化请求契约形成前不得通过关键词解析接入生产。
+- G4 E2E-11 已完成受控离线迁移契约：G3 计划夹具证明 research→respond 准入顺序，独立 Research Draft Shadow 则在站内/Web 单次 Legacy `RunResult` 上要求可信研究 Observation 早于匹配正文的终止 `final_answer` Action，并复用 E2E-09 Citation/Artifact 真值。顺序倒置、缺少研究、缺少终止动作和伪造顺序 Evidence 均 blocked；全局与专用开关默认关闭，不修改 Profile 或生产响应。
+- G4 E2E-12 已完成纯离线契约：可信只读 Tool 必须返回版本化 `claim_id/value/reference`，Collector 只保存摘要与公网引用；同一 Claim 至少两个不同 canonical value 且引用不同才构成冲突。领域 Verifier 通过可选 `SuspendedRunVerifier` 在 `ask_human` 挂起时运行，只有精确配置的问题位于全部冲突证据之后才生成已验证 checkpoint/TaskOutcome；同值、静默 FinalAnswer、提前或无关问题、未配对 Observation 和伪造 Ledger 均 fail-closed。未新增 Service Shadow、API、Profile、Provider 或生产开关。
+- `TweetWriteEnvironment` 通过只读 Timeline Adapter 捕获作者推文引用的前后状态，不保存正文、用户 ID 或 Credential。
+- `create_tweet` 返回 `platform.tweet_publish.v1` Structured Content；ToolExecutor 幂等回放会恢复该结构，不再次执行写工具。
+- `TweetPublishGoalVerifier` 只接受成对 Runtime Action/Observation，并把结构化 `tweet_id`、After Snapshot 与 Evidence Ledger 交叉验证；新发布必须仅新增目标引用，幂等回放必须保持状态集合不变。
+- E2E-13/14 已完成受控进程内集成：ReAct 审批前零写入，checkpoint 恢复后真实 `create_tweet` MCP Handler 只执行一次，Timeline After 证明目标新增；同键完整重跑恢复 Structured Content 且状态不变。该夹具使用内存 Approval/Idempotency Store 与 TweetService Fake，部署态 Mongo/TweetService 验收仍未完成，不得描述为生产闭环。
+- E2E-15/16 已完成受控进程内集成：External MCP Snapshot 绑定 Actor Digest、Connection Revision 与 Binding Digest；只读任务由 Collector/Verifier 复算成功 Observation，跨租户目录为空；写任务审批前远程调用为零，审批后撤权使 Resume 在当前目录校验阶段 blocked，远程调用仍为零。真实外部 MCP、Mongo 持久授权与进程重启恢复仍未验收。
+- E2E-17 已完成受控进程内集成：Workflow Snapshot 绑定 Actor 与不可变 Publication Binding；真实 Scheduler/ToolExecutor 仅执行发布时固定的 Revision，结构化结果绑定父 Run/Action、child Run、DSL Hash、响应摘要和权威 OutputJSON 摘要；Collector/Verifier 重新读取用户隔离 child Run 后才通过。子节点失败会持久化 failed child 并向父级返回固定 Tool 错误，不产生完成证据。真实 Mongo、进程重启与生产 Goal 路由仍未验收。
+- E2E-19 已完成受控进程内集成：VerifiedCheckpoint Revision 按 1→2 单调推进，两次 JSON 往返模拟持久化边界；审批恢复只执行一次真实 create_tweet，后续 ask_human 挂起前把成功写入 Observation 与中间 After Snapshot 结晶为 Evidence，人工恢复保持同一 Run 并从下一 Step 继续。最终仅一条 Tweet 状态证据、两条摘要化 Resume Evidence，实际写入和幂等完成计数均为 1。真实加密 Mongo Checkpoint、多副本 Claim/租约和进程重启仍未在 Goal Runtime 路径验收。
+- E2E-20 已完成受控进程内集成：ProviderRouter 只沿 Catalog 显式 Fallback 图尝试能力兼容模型；暂时性故障可进入允许的后备模型，认证/永久请求错误立即 `fallback_denied` 且后备调用为零，所有允许路线不可用时为 `fallback_exhausted`。Runtime 保留一个失败模型 Step 和低敏路由轨迹，VerifiedRunner 将有效终止轨迹投影为 blocked Provider Routing Evidence；最终没有 Assistant Message、FinalAnswer 或 Artifact。真实 DashScope/LM Studio 故障演练和生产 Goal 路由仍未验收。

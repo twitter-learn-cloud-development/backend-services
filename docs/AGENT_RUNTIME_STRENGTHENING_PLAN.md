@@ -1,9 +1,13 @@
 # Go Agent Runtime 与社交内容智能工作流平台加强计划
 
-> 文档状态：已评审通过；P0-P5 已完成；P6/P7 真实环境验收待执行；P8 统一智能助手主线已启动
+> 文档状态：历史 P0-P8 强化计划；2026-08-08 起平台扩张冻结，当前执行主线转入 `docs/AGENT_CORE_REFOCUS_PLAN.md`
 > 编写日期：2026-07-14
 > 适用范围：`internal/module/agent`、`cmd/agent-service`、Agent Gateway API、工作流前端及相关观测/评测设施
 > 执行约束：按 P0-P8 渐进实施，保持现有 API 与业务模式兼容
+
+> 当前优先级覆盖：在 `docs/AGENT_E2E_TASK_MATRIX.md` 的 20 个任务稳定前，不再扩张 Marketplace、Publisher、Profile A/B、Task Template、管理 RPC 或固定 ExecutionProfile。既有治理能力保留并作为 Goal Runtime 外层护栏。
+>
+> 当前 G5 进度：固定 20 项迁移矩阵已完成，首个清理增量已删除无生产调用者的关键词能力 Planner 与命名兼容构造器；显式能力选择、Catalog 准入及历史 Compat Profile 继续保留。生产 Goal execution、Marketplace 与 Profile 实验仍关闭，下一项是重复固定编排和 Eval TaskOutcome 报告审计。
 
 ## 0. 执行摘要
 

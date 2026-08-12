@@ -174,6 +174,7 @@ type Step struct {
 	Actions      []Action
 	Observations []Observation
 	Usage        TokenUsage
+	ModelRouting *ModelRoutingTrace
 }
 
 type RunResult struct {
@@ -200,11 +201,12 @@ type ModelRequest struct {
 }
 
 type ModelResponse struct {
-	Message  Message
-	Actions  []Action
-	Usage    TokenUsage
-	Model    string
-	Provider string
+	Message      Message
+	Actions      []Action
+	Usage        TokenUsage
+	Model        string
+	Provider     string
+	ModelRouting *ModelRoutingTrace
 }
 
 type ToolCall struct {

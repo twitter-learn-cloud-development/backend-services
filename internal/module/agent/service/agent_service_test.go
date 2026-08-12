@@ -2,11 +2,22 @@ package service
 
 import (
 	"context"
-	"os"
 	"strings"
 	"testing"
 	"twitter-clone/pkg/ai"
 )
+
+type recordingAIOpsReportSink struct {
+	reports []AIOpsReport
+}
+
+func (sink *recordingAIOpsReportSink) AppendAIOpsReport(
+	_ context.Context,
+	report AIOpsReport,
+) error {
+	sink.reports = append(sink.reports, report)
+	return nil
+}
 
 func TestSanitizeMarkdownTable(t *testing.T) {
 	s := &AgentService{}
@@ -44,15 +55,13 @@ func TestSanitizeMarkdownTable(t *testing.T) {
 }
 
 func TestAgentService_AnalyzeAlert(t *testing.T) {
-	// 1. 设置 Mock 挡板环境变量
-	os.Setenv("MOCK_EMBEDDING", "true")
-	defer os.Unsetenv("MOCK_EMBEDDING")
+	t.Setenv("MOCK_EMBEDDING", "true")
 
-	// 2. 初始化 AI 客户端和 AgentService
+	sink := &recordingAIOpsReportSink{}
 	aiClient := ai.NewClient("")
-	s := NewAgentService("http://localhost:1234/v1", "test-key", "test-model", "localhost:9200", nil, aiClient, nil)
+	s := NewAgentService("http://localhost:1234/v1", "test-key", "test-model", "localhost:9200", nil, aiClient, nil, WithAIOpsReportSink(sink))
+	defer s.Close()
 
-	// 3. 执行 AnalyzeAlert
 	ctx := context.Background()
 	alertPayload := `{"status":"firing","alerts":[{"labels":{"alertname":"RedisDown"}}],"groupKey":"redis-error-group"}`
 	errorLogs := []string{
@@ -75,17 +84,9 @@ func TestAgentService_AnalyzeAlert(t *testing.T) {
 		t.Errorf("expected structuredRCA to contain 'RedisDown', got %q", structuredRCA)
 	}
 
-	// 5. 验证本地文件是否被创建
-	reportPath := "C:/Users/郭丰硕/.gemini/antigravity-ide/brain/63d49437-9d83-40a2-a7d2-33758c3e0a03/scratch/alert_rca_reports.md"
-	info, err := os.Stat(reportPath)
-	if os.IsNotExist(err) {
-		t.Fatalf("expected report file at %s to be created, but it does not exist", reportPath)
+	if len(sink.reports) != 1 || sink.reports[0].Report == "" ||
+		!strings.Contains(sink.reports[0].StructuredRCA, "RedisDown") ||
+		sink.reports[0].CreatedAt.IsZero() {
+		t.Fatalf("persisted reports = %+v", sink.reports)
 	}
-	if info.Size() == 0 {
-		t.Errorf("expected report file to be non-empty, but size is 0")
-	}
-
-	// 6. 清理：为了避免多次运行测试使 rca reports 文件无限增长，我们在测试后截断或删除该文件
-	// 这里由于是追加模式，我们可以将它删掉，或者清空
-	_ = os.Remove(reportPath)
 }

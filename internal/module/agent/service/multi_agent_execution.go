@@ -229,32 +229,3 @@ func (s *AgentService) executeMultiAgentStrategy(
 		Citations:      citations,
 	}, nil
 }
-
-func multiAgentConfig(executionProfile, templateID string) (multiAgentExecutionConfig, error) {
-	switch executionProfile {
-	case ExecutionProfileRuntimeResearchDraft:
-		if templateID == "platform.research_draft.v1" {
-			return multiAgentExecutionConfig{
-				templateID: templateID, parentProfileID: profileUnifiedResearchDraft,
-				researcherProfileID: profileMultiPlatformResearcher,
-				requiredTool:        "hybrid_search_tweets", label: "platform research draft",
-				dialogueMode: repository.ModeAssist, runtimeMode: agentRuntime.ModeAssist,
-			}, nil
-		}
-	case ExecutionProfileRuntimeWebDraft:
-		if templateID == "web.research_draft.v1" {
-			return multiAgentExecutionConfig{
-				templateID: templateID, parentProfileID: profileUnifiedWebDraft,
-				researcherProfileID: profileMultiWebResearcher,
-				requiredTool:        "web_search", label: "web research draft",
-				dialogueMode: repository.ModeAssist, runtimeMode: agentRuntime.ModeAssist,
-			}, nil
-		}
-	}
-	return multiAgentExecutionConfig{}, fmt.Errorf(
-		"%w: profile %q template %q",
-		ErrMultiAgentPlanUnsupported,
-		executionProfile,
-		templateID,
-	)
-}

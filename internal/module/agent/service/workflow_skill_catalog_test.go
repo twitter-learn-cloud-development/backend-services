@@ -211,7 +211,8 @@ func TestRunAgentRejectsPartialSkillSelectionBeforeRuntime(t *testing.T) {
 	t.Parallel()
 
 	service, _, _ := newWorkflowSkillTestService(t)
-	service.capabilityPlanner = NewConservativeCapabilityPlanner()
+	service.capabilityPlanner = NewExplicitCapabilityPlanner(nil)
+
 	runner := &capturingRuntimeRunner{}
 	service.runtimeRunner = runner
 

@@ -132,6 +132,23 @@ func main() {
 		log.Println("✅ Agent trace indexes ensured")
 	}
 	recoverableAgentRuns := getEnvBool("AGENT_RECOVERABLE_RUNS_ENABLED", false)
+	goalRuntimeEnabled := getEnvBool("AGENT_GOAL_RUNTIME_ENABLED", false)
+	platformSearchGoalShadowEnabled := getEnvBool("AGENT_GOAL_RUNTIME_PLATFORM_SEARCH_SHADOW_ENABLED", false)
+	webResearchGoalShadowEnabled := getEnvBool("AGENT_GOAL_RUNTIME_WEB_RESEARCH_SHADOW_ENABLED", false)
+	groundedDraftGoalShadowEnabled := getEnvBool("AGENT_GOAL_RUNTIME_GROUNDED_DRAFT_SHADOW_ENABLED", false)
+	researchDraftGoalShadowEnabled := getEnvBool("AGENT_GOAL_RUNTIME_RESEARCH_DRAFT_SHADOW_ENABLED", false)
+	if platformSearchGoalShadowEnabled && !goalRuntimeEnabled {
+		log.Fatal("AGENT_GOAL_RUNTIME_PLATFORM_SEARCH_SHADOW_ENABLED requires AGENT_GOAL_RUNTIME_ENABLED")
+	}
+	if webResearchGoalShadowEnabled && !goalRuntimeEnabled {
+		log.Fatal("AGENT_GOAL_RUNTIME_WEB_RESEARCH_SHADOW_ENABLED requires AGENT_GOAL_RUNTIME_ENABLED")
+	}
+	if groundedDraftGoalShadowEnabled && !goalRuntimeEnabled {
+		log.Fatal("AGENT_GOAL_RUNTIME_GROUNDED_DRAFT_SHADOW_ENABLED requires AGENT_GOAL_RUNTIME_ENABLED")
+	}
+	if researchDraftGoalShadowEnabled && !goalRuntimeEnabled {
+		log.Fatal("AGENT_GOAL_RUNTIME_RESEARCH_DRAFT_SHADOW_ENABLED requires AGENT_GOAL_RUNTIME_ENABLED")
+	}
 	agentTaskTemplatesEnabled := getEnvBool("AGENT_TASK_TEMPLATES_ENABLED", false)
 	if agentTaskTemplatesEnabled && !recoverableAgentRuns {
 		log.Fatal("AGENT_TASK_TEMPLATES_ENABLED requires AGENT_RECOVERABLE_RUNS_ENABLED")
@@ -646,6 +663,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to register Unified Agent product metrics: %v", err)
 	}
+	goalRuntimeShadowMetrics, err := agentService.NewPrometheusGoalRuntimeShadowObserver(prometheus.DefaultRegisterer)
+	if err != nil {
+		log.Fatalf("failed to register Goal Runtime shadow metrics: %v", err)
+	}
 	traceContentSampler, err := agentObservability.NewSafeContentSampler(agentObservability.ContentSamplingConfig{
 		Enabled:  getEnvBool("AGENT_PROMPT_SAMPLING_ENABLED", false),
 		Ratio:    getEnvFloat64("AGENT_PROMPT_SAMPLE_RATIO", 0.01),
@@ -743,6 +764,7 @@ func main() {
 			extensionMarketplaceEnabled,
 			getEnvPositiveInt("AGENT_EXTENSION_MARKETPLACE_LIMIT", 20),
 		),
+		agentService.WithTweetWriteStateClient(tweetClient),
 		agentService.WithConfirmedDraftPublisher(agentService.NewTweetServiceConfirmedDraftPublisher(tweetClient)),
 		agentService.WithProductOutcomeRecorder(profileProductOutcomeRecorder),
 		agentService.WithContentAttribution(profileContentAttributionRepo, profileContentAttributionWindow),
@@ -754,6 +776,13 @@ func main() {
 		agentService.WithAgentRunAccountingStore(repo),
 		agentService.WithRecoverableAgentRuns(recoverableAgentRuns),
 		agentService.WithUnifiedAgentProductObserver(unifiedProductMetrics),
+		agentService.WithGoalRuntimeShadow(agentService.GoalRuntimeShadowConfig{
+			Enabled:               goalRuntimeEnabled,
+			PlatformSearchEnabled: platformSearchGoalShadowEnabled,
+			WebResearchEnabled:    webResearchGoalShadowEnabled,
+			GroundedDraftEnabled:  groundedDraftGoalShadowEnabled,
+			ResearchDraftEnabled:  researchDraftGoalShadowEnabled,
+		}, goalRuntimeShadowMetrics),
 		agentService.WithAgentProductEvents(agentProductEventRepo, externalMCPMetrics),
 		agentService.WithAgentTaskTemplates(
 			agentTaskTemplateRepo,

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	agentEvidence "twitter-clone/internal/module/agent/evidence"
 	externalmcp "twitter-clone/internal/module/agent/mcp/remote"
 	"twitter-clone/internal/module/agent/repository"
 	agentRuntime "twitter-clone/internal/module/agent/runtime"
@@ -19,11 +20,14 @@ import (
 var ErrRequiredCapabilityEvidence = errors.New("required capability evidence is missing")
 
 type requiredToolRuntimeConfig struct {
-	profileID    string
-	requiredTool string
-	label        string
-	dialogueMode repository.DialogueMode
-	runtimeMode  agentRuntime.Mode
+	profileID          string
+	requiredTool       string
+	label              string
+	allowedTools       []string
+	dialogueMode       repository.DialogueMode
+	runtimeMode        agentRuntime.Mode
+	selectedTweetID    string
+	systemPromptSuffix string
 }
 
 func (s *AgentService) executePlatformSearchRuntime(
@@ -45,6 +49,7 @@ func (s *AgentService) executePlatformSearchRuntime(
 			profileID:    profileUnifiedPlatformSearch,
 			requiredTool: "hybrid_search_tweets",
 			label:        "platform search",
+			allowedTools: []string{"hybrid_search_tweets"},
 			dialogueMode: repository.ModeConsult,
 			runtimeMode:  agentRuntime.ModeConsult,
 		},
@@ -541,6 +546,19 @@ func (s *AgentService) executeRequiredToolRuntime(
 	if s.runtimeTools == nil {
 		return nil, errors.New("agent runtime tool catalog is not configured")
 	}
+	if config.profileID == profileUnifiedPlatformSearch {
+		selection, selected, resolveErr := s.resolvePlatformTweetFollowUp(ctx, dialogue, content)
+		if resolveErr != nil {
+			return nil, fmt.Errorf("%s follow-up: %w", config.label, resolveErr)
+		}
+		if selected {
+			config.requiredTool = "get_tweets_by_ids"
+			config.label = "platform tweet detail"
+			config.allowedTools = []string{"get_tweets_by_ids"}
+			config.selectedTweetID = selection.TweetID
+			config.systemPromptSuffix = platformTweetFollowUpSystemPrompt(selection)
+		}
+	}
 
 	availableTools, err := s.runtimeTools.ListTools(ctx)
 	if err != nil {
@@ -549,6 +567,9 @@ func (s *AgentService) executeRequiredToolRuntime(
 	profile, err := s.resolveAgentProfile(ctx, config.profileID, userID)
 	if err != nil {
 		return nil, fmt.Errorf("resolve %s profile failed: %w", config.label, err)
+	}
+	if len(config.allowedTools) > 0 {
+		profile.AllowedTools = append([]string(nil), config.allowedTools...)
 	}
 	tools := profile.FilterTools(availableTools)
 	if err := validateRequiredReadTool(tools, config.requiredTool); err != nil {
@@ -560,7 +581,8 @@ func (s *AgentService) executeRequiredToolRuntime(
 		logger.Warn(ctx, "load unified tool context failed", zap.String("profile", config.profileID), zap.Error(err))
 		contextMessages = nil
 	}
-	messageBuild, err := s.buildRuntimeMessages(profile.Prompt.SystemPrompt, content, contextMessages, profile.Budget)
+	systemPrompt := profile.Prompt.SystemPrompt + config.systemPromptSuffix
+	messageBuild, err := s.buildRuntimeMessages(systemPrompt, content, contextMessages, profile.Budget)
 	if err != nil {
 		return nil, fmt.Errorf("build %s runtime messages failed: %w", config.label, err)
 	}
@@ -582,6 +604,35 @@ func (s *AgentService) executeRequiredToolRuntime(
 		Tools:    tools,
 	})
 	s.recordRuntimeResult(ctx, result, err, profile.ID)
+	if config.profileID == profileUnifiedPlatformSearch {
+		if config.requiredTool == "hybrid_search_tweets" {
+			s.observePlatformSearchGoalShadow(ctx, content, result, err)
+		} else if config.selectedTweetID != "" {
+			s.observePlatformTweetFollowUpGoalShadow(
+				ctx, content, config.selectedTweetID,
+				platformTweetCitationURL(config.selectedTweetID), result, err,
+			)
+		}
+	}
+	if config.profileID == profileUnifiedResearchDraft {
+		s.observeGroundedDraftGoalShadow(
+			ctx, content, agentEvidence.GroundedDraftSourcePlatform, result, err,
+		)
+		s.observeResearchThenDraftGoalShadow(
+			ctx, content, agentEvidence.GroundedDraftSourcePlatform, result, err,
+		)
+	}
+	if config.profileID == profileUnifiedWebSearch || config.profileID == profileUnifiedWebDraft {
+		s.observeWebResearchGoalShadow(ctx, content, result, err)
+	}
+	if config.profileID == profileUnifiedWebDraft {
+		s.observeGroundedDraftGoalShadow(
+			ctx, content, agentEvidence.GroundedDraftSourceWeb, result, err,
+		)
+		s.observeResearchThenDraftGoalShadow(
+			ctx, content, agentEvidence.GroundedDraftSourceWeb, result, err,
+		)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("%s runtime failed: %w", config.label, err)
 	}
@@ -589,7 +640,14 @@ func (s *AgentService) executeRequiredToolRuntime(
 	if err != nil {
 		return nil, fmt.Errorf("%s runtime response: %w", config.label, err)
 	}
-	if result.Status == agentRuntime.RunStatusCompleted && !runtimeHasSuccessfulToolEvidence(result, config.requiredTool) {
+	hasRequiredEvidence := runtimeHasSuccessfulToolEvidence(result, config.requiredTool)
+	if config.profileID == profileUnifiedWebSearch || config.profileID == profileUnifiedWebDraft {
+		hasRequiredEvidence = runtimeHasCitableWebSearchEvidence(result)
+	}
+	if config.selectedTweetID != "" {
+		hasRequiredEvidence = runtimeHasPlatformTweetDetailEvidence(result, config.selectedTweetID)
+	}
+	if result.Status == agentRuntime.RunStatusCompleted && !hasRequiredEvidence {
 		return nil, fmt.Errorf(
 			"%w: %s run %s did not complete %s",
 			ErrRequiredCapabilityEvidence,
@@ -607,6 +665,9 @@ func (s *AgentService) executeRequiredToolRuntime(
 	metadata["runtime_context_dropped"] = stringifyDroppedSources(messageBuild.Dropped)
 	metadata["tool_activity_count"] = len(toolActivities)
 	metadata["citation_count"] = len(citations)
+	if references := platformTweetReferences(citations); len(references) > 0 {
+		metadata[platformTweetReferencesMetadataKey] = references
+	}
 	if err := s.saveUserAndAssistantMessages(
 		ctx,
 		dialogue.ID,

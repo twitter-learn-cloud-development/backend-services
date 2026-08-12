@@ -89,8 +89,10 @@ Agent AIOps jobs --------------------------------> Temporal (optional)
 cmd/agent-service/main.go                 # 组合根：gRPC/内部 MCP/指标/存储/Temporal/后台任务
   -> startup/                             # 纯配置启动计划：api/worker/all 与唯一 Trending Reporter owner
   -> grpc/                                # Proto 边界；鉴权后的 user/model/workflow 参数
-  -> service/                             # 用例编排；P8 统一 RunAgent、兼容模式与工作流服务
-       -> runtime/                        # Runner、Action、Step、Budget、Usage；不依赖 Service
+  -> service/                             # 用例编排；RunAgent 仅按显式能力/Catalog 路由，无能力选择时进入对话；不再根据用户关键词猜测产品路径
+       -> runtime/                        # Runner、TaskSpec、Verified Checkpoint/Resume、Environment/Evidence/Verifier、Action、Budget、Usage；不依赖 Service
+       -> environment/                    # G2 Environment Packs；目录/任务/策略能力交集与低敏快照，不执行工具
+       -> evidence/                       # Platform/Web 可信结构 Schema；站内搜索 Goal Collector/Verifier 适配器
        -> strategy/                       # 无 I/O Multi-Agent 准入、模板与版本化计划证据
        -> multirole/                      # 存储无关的顺序角色聚合核心；生产 Service 与 Eval 共用
        -> message/                        # Token-aware 上下文装配；依赖 Runtime 消息契约
@@ -112,6 +114,13 @@ cmd/agent-service/main.go                 # 组合根：gRPC/内部 MCP/指标/�
 关键约束：
 
 - `runtime/` 不得反向依赖 `service/`、Mongo、Redis 或 MCP SDK。
+- `environment/` 只依赖 Runtime 契约和只读 Catalog Port。Twitter/Web Pack 通过通用只读内核取静态策略、当前 Catalog 与 Task Allowlist 交集；Workflow-as-Tool Pack 按用户读取当前 Active Publication 并重验不可变发布绑定；External MCP Pack 复用权威 `ListGovernedTools`，按调用者重新校验个人/项目当前成员关系、Active Snapshot 与 Tool Policy，并要求限定名和 Runtime/Policy 分类精确一致。重复工具、非法身份/Schema/分类均 fail-closed；快照不保存 Goal、描述、Schema、正文、凭据、Connection/Snapshot/Hash 原始值或 Workflow/MCP 原始绑定，资源访问与执行前授权仍由权威 Adapter/ToolExecutor 校验。
+- Goal Runtime 的生产执行仍保持关闭；全局 `AGENT_GOAL_RUNTIME_ENABLED`、平台搜索、Web 研究、Grounded Draft 与 Research Draft Shadow 开关默认均为 `false`。只有全局与对应任务开关同时开启时，Service 才消费该任务既有 `RunResult` 执行 Collector/Verifier 并记录 `agent_goal_runtime_shadow_evaluations_total`；不得重复模型、工具、Web Provider/Page 请求或持久化副作用。
+
+- Legacy Web 搜索与 Web 草拟的完成护栏独立于 Goal shadow 开关：只有既有单次 `RunResult` 含至少一个结构化、可引用的公网搜索结果时才允许持久化回答；空结果、Provider/Page 错误和私网/畸形引用 fail-closed，普通搜索不强制 `page_read`，不得因此增加模型、Provider 或页面 I/O。
+- Grounded Draft Shadow 同时覆盖站内研究草拟与 Web 研究草拟：只接受可信结构化来源，并以精确 `[/tweets/{id}]` 或 `[public URL]` 标记把草稿 Artifact 绑定到来源 Evidence；它独立默认关闭，不是生产完成护栏，也不修改不可变 Profile。
+- E2E-10 Rewrite Constraint 当前仅为 `evidence/` 纯离线契约：约束必须由调用方以 `RewriteConstraintSpec` 显式提供并绑定到规范化 Task，Verifier 才检查中英文主导文字脚本、JSON/Markdown 列表/纯文本结构和 Unicode 字符范围。它不解析用户关键词、不接 Service Shadow、不修改 Profile，也不新增生产执行分支。
+- E2E-11 Research Draft Shadow 复用 E2E-09 来源/Citation/Artifact 事实，并要求可信研究 Observation 的 StepIndex 严格早于匹配正文的终止 `final_answer` Action；独立开关默认关闭，只观察站内/Web 研究草拟的同一 Legacy `RunResult`。
 - `AGENT_PROCESS_ROLE=api|worker|all` 控制顶层生命周期：`api/all` 启动 gRPC、Consul 与内部 MCP，`worker/all` 启动 MQ Consumer、治理巡检与 Temporal Worker。热点播报只允许 `temporal|disabled`，生产组合根不得自动启动进程内 Ticker。
 - Temporal 风控 Activity 不得持有 GORM、FollowRepository 或直接修改 Timeline Key；近期发帖信号与治理命令通过 TweetService 内部 gRPC。TweetService 在同一 UoW 提交可见性和幂等 `TWEET_MODERATED` Outbox，Canal 投递 `tweet.moderated`，Timeline Consumer 按关注关系 ID 稳定分页并用 Redis 游标/完成标记重放全量清理。`GetAuthorPostingStats` 与 `ApplyTweetModeration` 必须经过 `pkg/serviceauth` 的精确方法白名单认证；未配置凭据时只关闭这两个特权 RPC，不得退化为匿名调用。ES/Qdrant/Redis 热点读取属于有界只读投影。
 - 风控队列归 Agent Worker 所有，直接以 `queue.tweet.risk` 订阅原始 `twitter.events/tweet.created`；Timeline Consumer 不得二次广播风控事件。失败重试只能经 `agent.risk.retry -> agent.risk.ingress` 返回风控队列，不能重放到主事件交换机；人工 DLQ 重放同样只允许回专用 Ingress。Temporal Workflow ID 固定为 `RiskControl-Tweet-{tweet_id}` 并使用 `REJECT_DUPLICATE`，用于覆盖滚动升级、ACK 不确定和人工重放造成的重复投递。
@@ -268,3 +277,17 @@ flutter test
 - “任务定位表”指向的入口失效。
 
 不要把每日进度、具体 Bug、完整文件清单写进本文件；这些内容分别进入 `docs/PROJECT_PROGRESS.md` 和 `docs/ISSUES.md`。
+
+## 12. Agent Goal Runtime 定位补充（2026-08-10）
+
+- Environment/Goal Contract：`internal/module/agent/environment/`、`internal/module/agent/runtime/goal.go`、`internal/module/agent/evidence/`。
+- Tweet Write 事实源：`internal/module/agent/service/tweet_write_environment.go` 只读调用 TweetService Timeline；写动作仍唯一经过 MCP `create_tweet` 与统一 ToolExecutor。
+- 结构化发布证据：`internal/module/agent/mcp/tools/create_tweet.go` -> Runtime Observation -> `evidence.TweetPublishGoalVerifier`；禁止从 FinalAnswer 或 Tool 文本解析完成状态。
+- 当前依赖方向：Service Adapter -> Environment/Runtime Contract；MCP Tool -> Evidence DTO；Environment 不依赖 Executor，Evidence 不执行 Tool。
+- G3 短期规划：`short_plan.go` 定义无授权字段的短计划与确定性准入，`short_plan_model.go`/`short_plan_coordinator.go` 负责严格模型提案、完整记账和一次 Admission 修复；`planned_verified_runner.go` 将准入计划绑定到 opt-in VerifiedRunner，`planned_verified_recovery.go` 仅把 `tool_error`/缺失证据映射为一次固定脱敏恢复。`task_outcome.go` 与 `evidence_collectors.go` 把计划、恢复、Artifact 和 Evidence 投影为低敏可审计结果。恢复不能扩张首次已授权只读工具、身份或剩余预算，原始失败不进入 Planner，工具仍只经统一 ToolExecutor。G3 已完成，生产 RunAgent 接入归 G4。
+- E2E-12 冲突边界：`evidence/evidence_conflict_goal.go` 只接受与允许的只读 Tool Action 配对的 `agent.evidence_assertions.v1`；同一 Claim 的不同 canonical value 必须来自不同公网引用。`VerifiedRunner` 仅对显式实现 `SuspendedRunVerifier` 的领域 Verifier 验证挂起，其余审批/人工等待保持原有 inconclusive checkpoint 语义。合法冲突必须在证据之后发出精确配置的 `ask_human`，静默选边、提前/无关提问和伪造 Ledger 均 blocked。
+- E2E-13/14 写入边界：内置 `create_tweet` 的模型可见 Schema 只暴露正文，`user_id` 与稳定幂等键由 Service 在 ToolExecutor Schema 校验前可信注入并在 MCP 调用边界再次覆盖。受控进程内夹具已串联 ReAct 审批 checkpoint/resume、真实 MCP Handler、ToolExecutor 幂等结果恢复、Timeline Before/After 与领域 Verifier；部署态 TweetService/Mongo 审批事实仍需单独显式验收。
+- E2E-15/16 MCP 边界：External MCP Environment 的低敏快照绑定认证 Actor Digest、当前 Connection Revision 与不可变 Schema/Policy Digest；只读 Goal 仅接受成对成功 Observation。写工具先经 ToolExecutor 产生审批审计，Resume 必须重新读取当前目录，连接或项目访问撤销后在远程 Caller 前 fail-closed。受控夹具不连接真实外部 MCP，也不启用生产 Goal execution。
+- E2E-17 Workflow-as-Tool 边界：Workflow Environment Snapshot 绑定认证 Actor Digest 与不可变 Publication/Workflow Revision 摘要；Tool Structured Content 显式携带发布 Revision、Workflow Revision/DSL Hash、父 Run/Action、child Run、声明响应摘要与权威 OutputJSON 摘要。Collector/Verifier 通过窄只读 Resolver 重新读取用户隔离的 child Run，失败 child 只向父 Runtime 传播固定 Tool 错误且不得生成完成证据。受控夹具使用内存 Publication/Run Store，不启用生产 Goal execution。
+- E2E-19 Checkpoint/Resume 边界：VerifiedCheckpoint 使用从 1 开始的单调 Revision；每次合法 Resume 追加仅含摘要/引用的 checkpoint_resume Evidence。挂起边界先读取当前 After Snapshot 并收集已完成 Action 证据，使审批恢复后已经执行的写操作在后续 ask_human Checkpoint 中保持可验证；再次恢复只从待处理 Step 继续，不重放已成功写入。受控夹具用 JSON 往返模拟持久化，使用内存 Approval/Idempotency Store，不代表真实 Mongo、多副本或进程重启验收。
+- E2E-20 Provider Outage 边界：Model Router 只沿 Catalog 显式、能力兼容的 Fallback 图遍历；固定低敏错误分类决定 `fallback_allowed`、`fallback_denied` 或 `fallback_exhausted`，认证/永久请求错误不得调用后备 Provider。Runtime 只保存模型/Provider 标识、固定失败码和路由决策，不保存错误正文或凭据；VerifiedRunner 仅把结构完整且没有 Selected Model 的终止轨迹投影为 `blocked` 和摘要化 Provider Routing Evidence，不生成 FinalAnswer 或 Artifact。受控夹具使用内存 Provider Client，不连接真实 Provider，也不启用生产 Goal execution。

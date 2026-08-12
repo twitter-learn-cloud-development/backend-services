@@ -233,6 +233,7 @@ func cloneSteps(steps []Step) []Step {
 		cloned[index] = step
 		cloned[index].Actions = cloneActions(step.Actions)
 		cloned[index].Observations = cloneObservations(step.Observations)
+		cloned[index].ModelRouting = cloneModelRoutingTrace(step.ModelRouting)
 	}
 	return cloned
 }

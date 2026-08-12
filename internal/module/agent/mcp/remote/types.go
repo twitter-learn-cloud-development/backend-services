@@ -189,6 +189,7 @@ type ExecutableTool struct {
 	ConnectionName        string     `json:"connection_name"`
 	ConnectionOwnerID     uint64     `json:"-"`
 	ConnectionScope       string     `json:"-"`
+	ConnectionRevision    int64      `json:"-"`
 	HealthStatus          string     `json:"health_status"`
 	Transport             string     `json:"-"`
 	ConnectionCreatedAt   time.Time  `json:"-"`

@@ -1,5 +1,23 @@
 # 开发过程问题与解决方案清单
 
+## 195. G3 计划执行器首轮验证命令未严格短路
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-08-10，离线测试） |
+| 现象 | 首轮编译发现新增文件少一个闭合括号；随后一个统一补丁因 Hunk 行数错误被 `git apply` 拒绝，但 PowerShell 分号链仍继续执行了格式化和旧代码测试，产生了无效的“后续通过”输出。开发过程中还出现了预算文件路径和 test_runner fork 参数的局部假设错误。 |
+| 原因 | Windows ACL 下采用临时统一补丁更新既有文件时，命令链没有在 `git apply --check/apply` 非零后立即退出；人工 Hunk 行数计算也缺少独立校验。 |
+| 解决 | 将补丁拆小，先单独 `git apply --check`，后续命令统一增加 `$LASTEXITCODE` 短路；重新应用安全投影补丁并从头执行定向测试、Runtime/Strategy 全包测试和 Vet。所有有效验证均通过，错误补丁未进入工作区。 |
+
+## 194. Short Plan 修复提示误插入局部类型定义
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-08-10，离线编译与单元测试） |
+| 现象 | G3 Coordinator 首次定向测试在编译阶段报告 `short_plan_model.go:231:25: expected type, found ':='`，Runtime 测试没有启动。 |
+| 原因 | Windows ACL 迫使现有文件通过最小统一补丁修改；补丁使用的零上下文行号落在 `promptConstraint` 局部类型声明内部，把 Repair Instruction 计算插进了 `struct`。这是本轮补丁定位错误，不是 Runtime 设计或外部依赖故障。 |
+| 解决 | 将 Repair Instruction 计算移动到局部类型声明之前，重新执行 `gofmt`、G3 定向测试、Runtime/Strategy 全包测试和两包 Vet，全部通过；未启动服务或调用模型/公网。 |
+
 ## 193. Object Store 未在存储边界闭环校验私有性与对象完整性
 
 | 字段 | 内容 |
@@ -1848,3 +1866,285 @@
 | 原因 | 当前证据指向 SDK 握手或启动期连接策略；现实现只尝试一次，瞬时失败后没有后台重连。尚无服务端拒绝或网络不可达证据。 |
 | 影响 | 主 Agent gRPC、统一对话、站内搜索、Workflow DAG、Mongo/ES/Qdrant/MCP 和 Consul 注册正常；Temporal 承担的风控 Worker 与趋势报告后台能力在该 Agent 进程中禁用。 |
 | 解决 | 本轮不重启或修改用户的 Temporal 服务。后续应为 Temporal 客户端增加有界重试/后台重连和就绪状态，并补充 SDK 级诊断；面试主路径可继续验收，但不能宣称后台 Temporal 能力已启用。 |
+
+## 174. VerifiedRunner 取消测试在工具准入阶段提前失败
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-08-08，离线单元测试） |
+| 现象 | `TestVerifiedRunnerPropagatesCancellationBeforeExecution` 首次运行返回 `invalid_request: task tool is unavailable: search`，未到达预期的 Context 取消断言。 |
+| 原因 | 测试 Task 明确允许 `search`，基础 Run 也声明该工具，但 Fake Environment 没有暴露同名工具；VerifiedRunner 按请求、环境和 Task Allowlist 取交集并正确 fail-closed。 |
+| 影响 | 仅影响新增测试夹具，不影响生产路径；工具最小权限交集逻辑符合预期。 |
+| 解决 | 为 Fake Environment 补充同名只读工具后，取消传播测试与 VerifiedRunner 目标回归通过。 |
+
+
+## 175. Goal Shadow 测试依赖未进入 Vendor
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-08-09，离线单元测试） |
+| 现象 | Goal Shadow 目标测试在 setup 阶段提示无法从 `vendor` 找到 `github.com/prometheus/client_golang/prometheus/testutil`。 |
+| 原因 | 新测试直接引用了未被当前 Vendor 集合收录的测试辅助包；仓库启用 `-mod=vendor`，不会临时联网补依赖。 |
+| 影响 | 仅阻断新增测试编译，生产代码未执行，未访问外部服务。 |
+| 解决 | 复用 Service 测试包已有的 `prometheusCounterValue`，移除新依赖；目标测试和直接依赖回归随后通过。 |
+
+## 176. Windows 冷缓存 Race 编译超过有界超时
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Blocked（2026-08-09，本地 Windows Go 工具链） |
+| 现象 | 新 Shadow 目标 `go test -race` 在项目内冷缓存编译阶段运行 304 秒后达到命令上限，未输出测试断言；超时后遗留两个 `go` 进程。 |
+| 原因 | 当前 Windows 环境的首次 Race 工具链/依赖编译显著慢于普通构建；没有代码断言、编译诊断或外部服务错误证据。 |
+| 影响 | 本轮不能声明 Race 门禁通过；普通目标测试、Service/Runtime/Evidence/组合根串行回归和目标 Vet 均通过。 |
+| 解决 | 已精确终止本轮遗留 Go 进程并确认无残留。后续在预热的独立 Race 缓存或 Linux CI 中补跑；本轮不重复启动长命令。 |
+
+## 177. External MCP Service 目标测试冷编译超过有界超时
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-08-10，离线 Go 工具链） |
+| 现象 | 首次以全新项目内缓存运行 External MCP Service 定向测试时，命令在冷编译阶段运行 214 秒后达到外层有界超时，尚未输出测试断言或编译诊断。 |
+| 原因 | Windows 上 Agent Service 依赖图的首次冷编译超过命令外层时限；没有网络、外部服务或代码死锁证据，残留的两个 Go 进程随后自然退出。 |
+| 影响 | 首次命令不能作为通过或失败结论，但未产生生产副作用，也未调用模型、数据库、第三方 MCP 或公网。 |
+| 解决 | 复用同一项目内预热缓存后，原 Service 定向测试在 12.5 秒内通过；随后 Environment、Remote MCP 与 Service 组合定向回归通过。Environment、Remote MCP、Runtime、Evidence、WebSearch、MCP Tools、Service 与 `cmd/agent-service` 的扩大普通回归和目标 Vet 也通过；未运行 Race。 |
+
+## 178. Tweet Write Environment 测试误判显式审批字段
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-08-10，离线单元测试） |
+| 现象 | 首次定向测试中 `approval absent` 用例预期 Write Tool 被拒绝，但 Runtime 将所有 `write/risky` 类别统一视为必须审批，因此 Snapshot 正确通过。 |
+| 原因与解决 | 测试把原始 `RequiresApproval` 字段误当成最终策略；删除错误用例，保留对 `ToolDefinition.ApprovalRequired()` 有效语义、危险分类、无效 Schema、错误所有权和重复状态的验证。生产代码无需降低或绕过审批。 |
+
+## 179. test_runner 曾被 Windows Sandbox ACL 阻断
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-08-10，本地 Codex 验证环境） |
+| 现象 | 项目 `test_runner` 执行首条 `go test ./internal/module/agent/runtime -count=1` 前即返回 `windows sandbox failed: helper_unknown_error: apply deny-read ACLs`，Go 工具链没有启动，后续命令未运行。 |
+| 原因与影响 | Windows 沙箱辅助进程无法应用项目读取 ACL；这不是编译或测试断言失败，但使委托验证无法形成结果。与 Issue 171 属同类环境边界。 |
+| 处理 | 主进程先在用户已授权的项目目录边界内完成同命令复验；本轮后续重新启动专用 `test_runner` 成功，其执行的 Runtime 全包测试、Runtime Vet 及 Environment/Evidence 定向测试均通过，因此关闭本 Issue。Windows ACL 偶发失败仍按 Issue 180 的受控提升读取方案处理。 |
+
+## 180. G3 文件读取与手工补丁链受 Windows ACL/差异格式阻断
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-08-10，本地 Codex 编辑工具链） |
+| 现象 | 首次仓库读取被 `apply deny-read ACLs` 拦截；随后若干临时 unified diff 因 hunk 行数或 Markdown 短横线转义错误被 `git apply --check` 拒绝，且一次组合读取引用了已迁移的 `strategy/short_plan.go` 路径。 |
+| 原因与影响 | Windows 沙箱仍无法稳定读取/更新既有文件；手工差异文件需要同时表达 apply_patch 与 unified-diff 两层标记。所有失败均发生在 `--check` 或读取阶段，未形成半应用源码，也未调用外部服务。 |
+| 处理 | 在用户既有仓库授权范围内改用提升读取与小粒度 `git apply --check`，按当前 `runtime/short_plan*.go` 路径继续；每个临时补丁成功后立即删除，最终 `git diff --check` 与 Runtime 回归确认工作区一致。 |
+
+## 181. 恢复请求历史校验误判 nil/空 Actions
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-08-10，离线单元测试） |
+| 现象 | 缺失证据恢复用例返回 `repair request discarded or rewrote execution history`，恢复执行未启动。 |
+| 原因与影响 | `cloneMessages` 会把 `nil Actions` 规范化为空切片；历史校验直接 `reflect.DeepEqual` 原值与克隆值，语义相同但表示不同，导致 fail-closed 误报。只影响新 opt-in 恢复路径。 |
+| 处理 | 比较前对历史前缀和候选前缀同时使用 Runtime 克隆规则规范化；内容、顺序、Role、ToolCallID 和 Action 仍需完全一致。定向恢复测试与完整 Runtime 回归随后通过。 |
+
+## 196. test_runner 启动参数组合无效
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-08-10，Codex 委托验证配置） |
+| 现象 | 首次委托复核同时传入显式 `agent_type=test_runner` 与 `fork_context=true`，工具在创建 Subagent 前拒绝该互斥参数组合。 |
+| 原因与影响 | 显式项目 Subagent 类型不能与上下文分叉模式同时启用；未启动代理、未执行命令，也未修改项目。 |
+| 处理 | 去除 `fork_context` 后按项目 `.codex/agents/test_runner.toml` 启动成功，委托的 Runtime 测试、Runtime Vet 与 Environment/Evidence 测试全部通过。 |
+
+## 197. G3 收尾读取再次触发 Windows Sandbox ACL
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-08-10，本地 Codex 文档收尾） |
+| 现象 | 收尾读取和直接更新 `docs/ISSUES.md` 与 `docs/PROJECT_PROGRESS.md` 时再次返回 `helper_unknown_error: apply deny-read ACLs`，两次未应用临时补丁也分别因 hunk 行数和上下文错误被 `git apply --check` 拒绝。 |
+| 原因与影响 | Windows 沙箱辅助进程偶发无法应用仓库读取 ACL；失败命令未读取或更新既有文件，也不影响已完成的 Go 验证结论。 |
+| 处理 | 仅在用户已授权的 `twitter-clone` 根目录范围内提升执行只读命令与经 `git apply --check` 校验的文档补丁；格式错误补丁在校验阶段停止并删除，重建最小 hunk 后继续收尾。 |
+
+## 198. G3 完成增量受 ACL、搜索参数与测试夹具契约阻断
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-08-10，离线开发与测试） |
+| 现象 | 首次必读文件读取和直接更新新增测试被 Windows `apply deny-read ACLs` 拒绝；三次 `rg` 因无匹配、传入不存在的 `api/agent` 路径或 PowerShell 通配符语法返回非零；新增 E2E 测试两处复合字面量缺少右括号导致两次 `gofmt` 失败；默认 Planner 切换后，三个依赖中文关键词路由的旧 Service 测试失败；首版多文档临时补丁因手工 hunk 行数不一致被 `git apply --check` 拒绝。 |
+| 原因与影响 | 前三类属于本地工具边界和测试夹具语法，不触及生产逻辑；Service 失败揭示旧测试把自然语言关键词误当成路由契约，实际前端预设、Task Template 和 Skill 已支持显式能力 ID。所有失败均发生在读取、搜索、格式化或离线测试阶段，未调用模型、MCP、数据库、公网或付费 API。 |
+| 处理 | 读取与既有文件补丁限定在用户授权仓库范围内提升执行；修正搜索范围和测试括号；四个研究草拟测试显式传入 `platform.search + content.draft`，避免第四个测试静默退化；随后 Runtime 与 Service 完整测试通过。 |
+
+## 199. G3 最终 test_runner 复核再次被 Windows ACL 阻断
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Active（2026-08-10，本地 Codex 委托验证环境） |
+| 现象 | 专用 `test_runner` 在读取必需的 `.agents/context/project_map.md` 前返回 `windows sandbox: helper_unknown_error: apply deny-read ACLs`，因此没有启动 Go Test 或 Vet。 |
+| 原因与影响 | Subagent Windows 沙箱仍无法稳定应用仓库读取 ACL；这是环境失败，不是代码测试失败。委托结果不能作为通过证据。 |
+| 处理 | 关闭未执行命令的 Subagent；主进程在用户授权的仓库边界内运行 Runtime/Service 完整测试与两包 Vet，全部通过。保留本 Issue，直到委托沙箱能稳定读取仓库。 |
+
+## 200. AnalyzeAlert 硬编码开发者用户目录
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-08-10，离线边界修复） |
+| 现象 | Service 完整测试执行 `AnalyzeAlert` 时，生产实现把 RCA 报告追加写入 `C:/Users/郭丰硕/.gemini/.../scratch/alert_rca_reports.md`，对应测试随后删除该文件。 |
+| 原因与影响 | AIOps 原型把 IDE scratch 绝对路径硬编码进生产 Service，导致服务和测试都可能修改项目根目录之外的个人文件；本轮首次完整回归发生了瞬时写入后由旧测试清理，未访问网络或付费 API。 |
+| 处理 | 新增可选 `AIOpsReportSink` 端口并删除所有本地文件回退；默认 Service 不落盘，测试使用内存 Sink 验证报告、结构化 RCA 和时间戳。Runtime/Service 完整测试及两包 Vet 随后通过，日志不再出现用户目录持久化。 |
+
+## 201. G4 首次必读文件读取被 Windows Sandbox ACL 阻断
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-08-10，本地 Codex 读取环境） |
+| 现象 | 按仓库要求读取项目地图、规则和 Agent/Observability Skill 时返回 `windows sandbox: helper_unknown_error: apply deny-read ACLs`。 |
+| 原因与影响 | Windows 沙箱辅助进程未能应用仓库读取 ACL；没有读取不完整内容、修改源码或启动测试。 |
+| 处理 | 仅在用户已授权的 `twitter-clone` 根目录内提升只读命令，随后完成全部必读文件和 G4 上下文读取。 |
+
+## 202. Windows rg 路径通配符语法不兼容
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-08-10，本地代码搜索） |
+| 现象 | `rg ... internal/module/agent/**/*_test.go` 在 Windows 把星号路径作为非法卷标处理并返回非零。 |
+| 原因与影响 | PowerShell/Windows 路径展开与 Unix glob 假设不一致；并行读取组因此未返回其他结果，但未修改文件。 |
+| 处理 | 改用 `rg -g "*_test.go" ... internal/module/agent` 后完成测试定位。 |
+
+## 203. TaskOutcome 独立测试文件尚不存在
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-08-10，离线测试补齐） |
+| 现象 | 读取 `internal/module/agent/runtime/task_outcome_test.go` 返回路径不存在；原覆盖只位于 G3 E2E fixture。 |
+| 原因与影响 | 这是审计阶段对测试文件名的错误假设，不是代码或测试失败。 |
+| 处理 | 新建 `task_outcome_projection_test.go`，固定 observed execution 不伪造 admitted plan、只保存摘要/引用并拒绝空 Run ID。 |
+
+## 204. G4 既有未跟踪源码更新受 ACL 与补丁索引限制
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-08-10，本地受控编辑） |
+| 现象 | 直接 `apply_patch` 更新 `task_outcome.go` 时再次触发 deny-read ACL；随后首版临时补丁缺少标准 hunk 行号，修正版又因目标 G3 文件仍未纳入 Git 索引而被 `git apply --check`、`--no-index` 依次拒绝。 |
+| 原因与影响 | Windows ACL 无法读取既有未跟踪文件，Git 补丁校验也不能把它们当作已跟踪基线；所有失败均止于读取或 `--check`，未发生半应用源码。 |
+| 处理 | 使用 `apply_patch` 在项目 `.codex` 内生成完整替换文件，校验解析路径均位于仓库后复制到目标并立即 gofmt/定向测试；临时文件在收尾删除。 |
+
+## 205. project_map 增量补丁无法匹配已有工作区差异
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-08-10，本地文档收尾） |
+| 现象 | G4 多文档补丁中的 `project_map.md` 第二个 hunk 被 `git apply --check` 拒绝；拆成精确单行 hunk 并仅放宽空白后仍无法匹配。 |
+| 原因与影响 | `project_map.md` 已包含大量未提交增量，Git 工作树上下文与补丁基线不能稳定匹配；其他文档未被半应用，现有地图关于默认关闭和单一执行所有者的描述仍然正确，只缺少 observed outcome 细节。 |
+| 处理 | 不覆盖用户已有地图修改；将 G4 阶段事实同步到 `agent_runtime_context.md`、`PROJECT_PROGRESS.md` 和 E2E 矩阵，后续地图整理时再合并细节。 |
+
+## 206. E2E-06 开发读取与增量补丁受 Windows ACL/路径假设阻断
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-08-10，离线开发与验证） |
+| 现象 | 首次并行只读和多次直接 `apply_patch` 触发 `apply deny-read ACLs`；审计时误读不存在的 `platform_search_schema.go`、`dialogue.go` 与 `runtime/evidence.go`；数个手写 Git hunk 行数错误或上下文不匹配，在 `git apply --check` 阶段被拒绝；本机也没有可用的 `patch` 命令。 |
+| 原因与影响 | Windows 沙箱 ACL 仍不能稳定读取既有或本轮未跟踪文件，人工 hunk 与当前脏工作区存在偏移；所有失败均止于只读、工具定位或补丁校验，没有半应用源码，也未连接模型、MCP、数据库或公网。 |
+| 处理 | 在用户已授权的仓库边界内提升只读与补丁应用；所有临时补丁先经 `git apply --check`，源码完成 gofmt、定向及扩大回归和 Vet，临时文件随后删除。 |
+
+## 207. E2E-07 开发受 Windows ACL、补丁格式与验证语义偏差影响
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-08-10，离线开发与验证） |
+| 现象 | 首次必读文件并行读取被 `apply deny-read ACLs` 拒绝；审计误读不存在的 `goal_runtime_shadow_metrics_test.go`；直接更新既有/未跟踪文件再次被 ACL 拒绝，两个临时 Git 补丁因 hunk 计数或 `.env.example` 上下文不匹配止于 `--check`；首轮最小测试暴露搜索条件被错误绑定到 Page 成功；扩大 `go test` 的所有包测试通过后，自动 `vet.exe` 仍因 Access denied 令总命令非零；两版文档补丁也因当前脏工作区上下文漂移或未跟踪基线止于 `--check`。; the first transaction script was parsed as ANSI by Windows PowerShell 5 and failed before writes; the follow-up single-line Git patch also stopped at --check |
+| 原因与影响 | Windows 沙箱中 Go 子进程 ACL 不稳定，且首版 Verifier 把两个完成条件耦合，降低了 blocked 诊断精度。所有补丁失败均未半应用；测试失败只影响新增 Goal shadow，默认关闭且未调用模型、MCP、数据库、公网或付费 API。 |
+| 处理 | 在授权仓库内对临时补丁逐个 `git apply --check` 后应用；改为搜索来源条件独立验证、Page 条件额外要求同引用链；最小测试复验通过。扩大测试使用 `-vet=off -p=1` 串行通过，随后独立 `go vet -p=1` 通过。 |
+## 208. E2E-08 开发受 Windows ACL、测试筛选与缓存路径影响
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-08-11，离线开发与验证） |
+| 现象 | 必读文件和收尾文档首次沙箱读取被 `apply deny-read ACLs` 拒绝；直接 `apply_patch` 更新既有源码/测试也被 ACL 拒绝；首次合并 E2E-07/08 定向测试在 124 秒超时但无残留 Go 进程；首轮文档事务写入引入 CRLF，导致 `git diff --check` 报尾随空白；首轮换行修复在完成规范化后因 Issue 日志锚点偏差退出；两版 Issue 更新脚本又因 PowerShell `Split` 重载假设错误而在写入前退出；新增诊断改变旧 forged-page 断言后首轮测试失败；新测试最初缺少 JSON helper；首次创建 `test_runner` 时同时传入不支持的 `fork_context` 被拒；其首轮广泛测试又因相对 `GOCACHE` 在 Go 启动前失败。；最终只读行号审计又因 Shadow 状态常量锚点假设错误退出，改用实际 `GoalRunBlocked` 标识复核 |
+| 原因与影响 | Windows ACL 仍要求在已授权仓库边界内提升读写；旧断言未计入新低敏诊断；测试辅助函数遗漏；test_runner 参数和 Go 缓存路径假设不兼容当前环境。所有失败均发生在读取、构建或离线验证阶段，没有半应用源码，没有调用模型、MCP、数据库、公网或付费 API，也未启动或重启服务。 |
+| 处理 | 使用仓库内 `apply_patch` 生成的事务脚本，在写入前验证全部锚点并仅修改项目文件；补齐 helper 与诊断断言；拆分最小测试并使用绝对仓库缓存路径；同一 test_runner 重试后 Runtime/Evidence/Service/组合根串行测试和四包 Vet 全部通过，临时事务脚本在收尾删除。 |
+## 209. E2E-09 开发受 Windows ACL、审计路径假设与宽测试时限影响
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-08-11，离线开发与验证） |
+| 现象 | 必读文件首次沙箱读取被 `apply deny-read ACLs` 拒绝；批量审计包含不存在的 `internal/module/agent/evidence/web_schema.go`；新 Grounded Draft 文件创建后直接补丁再次被 ACL 拒绝；首版源码误写不存在的 `agentRuntime.Time` 类型但在编译前检查时修正；test_runner 首轮合并四包测试在 124 秒超时，未执行 Vet 且没有文件/行号代码错误。 |
+| 原因与影响 | Windows ACL 仍需在用户已授权的仓库边界内提升读写；审计沿用了错误文件名；时间类型应来自标准库；四包冷缓存编译超过单命令环境时限。所有失败都发生在读取、预编译修正或离线验证阶段，没有半应用外部副作用，没有调用模型、MCP、数据库、公网或付费 API，也未启动或重启服务。 |
+| 处理 | 使用仓库内事务脚本验证锚点后修改既有文件，时间字段改为 `time.Time`；先完成 E2E-09 目标测试，再复用同一 test_runner 和绝对仓库缓存路径拆分 Runtime/Evidence/Service/组合根测试及 Vet，八条命令全部通过；临时脚本在收尾删除。 |
+## 210. E2E-10 开发受路径假设、Subagent 参数与 Windows ACL 影响
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-08-11，离线开发与验证） |
+| 现象 | Runtime 契约批量读取误包含不存在的 `runtime/evidence.go` 与 `runtime/verification.go`，实际类型位于 `goal.go`、`evidence_collectors.go` 和 `verified_runner.go`；首次创建 `test_runner` 时错误地同时指定专用 Agent 类型与 full-history fork，被编排器拒绝；修正参数后，test_runner 仍在读取项目地图时被 Windows `apply deny-read ACLs` 阻断，未启动 Go；六文件文档直接 `apply_patch` 也被相同 ACL 拒绝；首次组合收尾检查又因 PowerShell 单引号没有展开制表符转义，把正常的行尾字母 `t` 误报为空白，权威 `git diff --check` 与 `gofmt -d` 均实际通过。 |
+| 原因与影响 | 文件定位沿用了概念名而非当前代码文件名；专用 Subagent 不支持 full-history fork；子 Agent 与补丁 Helper 未继承主进程的仓库 ACL 提升路径。所有失败均止于只读或任务编排，没有源码半应用、外部调用或服务副作用。 |
+| 处理 | 依据实际 Runtime 文件重新核对契约；关闭受阻 test_runner，由主进程在用户授权的仓库边界内完成 E2E-10 定向测试、Evidence/Runtime 全包测试和两包 Vet；文档使用写前验证全部锚点的内存事务更新。任务保持纯离线，不新增生产路由、API、Profile 或开关。 |
+## 211. E2E-11 开发受 Windows ACL 与临时脚本解析影响
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-08-11，离线开发与验证） |
+| 现象 | 首次批量读取 E2E-11 相关源码被 `windows sandbox: helper_unknown_error: apply deny-read ACLs` 拒绝；更新既有 Service、测试和临时脚本时多次触发同一 ACL；一条用于修正临时脚本的内联 PowerShell 命令因引号转义错误在解析阶段退出。 |
+| 原因与影响 | Windows 沙箱 Helper 无法稳定为已有/未跟踪项目文件应用读取 ACL，且复杂内联 PowerShell 的双重转义不可靠。所有失败均发生在读取、补丁校验或脚本解析前，没有产生半写、模型/Tool/Provider 调用、消息持久化或服务副作用。 |
+| 处理 | 仅在用户已授权的 `twitter-clone` 根目录内提升访问；新文件继续使用 `apply_patch`，既有文件通过写前校验全部唯一锚点的一次性事务脚本更新，随后删除脚本。E2E-11 定向 Evidence/Service 测试通过后再执行扩大回归与 Vet。 |
+| 验证中发现 | 首轮“缺少研究”负例因夹具没有 `RunContext.RunID`，被低敏 `TaskOutcome` 投影以 `evaluator_error` 正确拒绝；补齐稳定 Run ID 后得到预期 `missing_both/blocked`。两条内联 PowerShell 修正命令又因错误使用反斜杠转义双引号在解析期退出，最终改用唯一行锚点插入；均未写入半成品。 |
+| Test runner | 专用 `test_runner` 再次在读取 `.agents/context/project_map.md` 时被相同 ACL 阻断，Go、Vet、Diff 和 Gofmt 均未启动；主进程随后完成四包普通回归、四包 Vet、`git diff --check`、本轮 Gofmt 检查和 Compose 解析。 |
+
+## 212. E2E-12 开发受 Windows ACL 与换行锚点假设影响
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-08-11，离线开发与验证） |
+| 现象 | 首次枚举 Runtime/Evidence 文件时沙箱报 `windows sandbox: helper_unknown_error: apply deny-read ACLs`；直接 `apply_patch` 更新既有 Runtime 与冲突源码再次被同一 ACL 拒绝；首轮事务替换分别因 CRLF/LF 假设相反而在唯一锚点校验阶段退出。 |
+| 原因与影响 | Windows 沙箱 Helper 仍无法稳定应用读取 ACL，且 `gofmt` 后文件换行不能由 PowerShell 默认行为推断。失败均发生在读取或写前锚点验证阶段；事务脚本未匹配时拒绝写入，未产生半成品，也未调用模型、Tool、Provider、MCP、数据库、公网或付费 API，未启动或重启服务。 |
+| 处理 | 仅在用户已授权的仓库边界内提升访问；既有文件使用先归一化内存文本、验证全部唯一锚点、任一写入失败则恢复原文的事务替换，新文件继续使用 `apply_patch`。随后执行 Gofmt、E2E-12/Runtime 兼容定向测试、扩大回归、Vet 与 Diff 审查。 |
+| Test runner | 专用 `test_runner` 在读取 `.agents/context/project_map.md` 时被同一 ACL 阻断，Go/Test/Vet/Gofmt/Diff 均未启动；主进程随后完成 Environment/Evidence/Runtime/Service 四包串行回归、四包 Vet、Gofmt 与 `git diff --check`。 |
+## 213. E2E-13/14 编辑 ACL、静态检查与子代理认证故障
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Partial（2026-08-11，代码验证完成；子代理认证需重新登录） |
+| 现象 | `apply_patch` 更新既有 Service/Test/文档文件时再次遇到 `apply deny-read ACLs`；两次事务脚本分别因 PowerShell here-string 语法和旧注释锚点不匹配而在写前退出。首次 Vet 又发现测试夹具直接复制 protobuf 消息内部 mutex。专用 `test_runner` 未执行任何命令即因 refresh token 已撤销退出。 |
+| 原因与影响 | Windows 沙箱 ACL 仍不稳定；事务脚本初始锚点与实际 LF 文本不一致；测试 Fake 使用值复制而非逐字段快照；子代理登录态属于 Codex 环境而非项目。所有失败均未访问模型、公网、数据库或付费 API，未启动/重启服务，也未触发真实 Tweet 写入。 |
+| 处理 | 在仓库授权边界内使用唯一锚点、全量预校验和失败回滚的 UTF-8 无 BOM 替换；protobuf Fake 改为逐字段构造；主进程重跑 3 个定向测试、五包普通回归、五包 Vet 与 Diff 检查并全部通过。子代理认证需在 Codex 重新登录后恢复，不影响本轮代码结论。 |
+## 214. E2E-15/16 既有未跟踪适配器与 Windows ACL
+
+| 字段 | 内容 |
+|---|---|
+| 现象 | `apply_patch` 修改既有 Go 文件时继续被 Windows `apply deny-read ACLs` 阻断；初次 Service 编译同时发现工作区已有未跟踪 `external_mcp_environment_catalog.go`，`git grep` 不会搜索该文件，导致本轮短暂写入了同名适配器。 |
+| 处理 | 既有文件使用带唯一锚点、失败回滚和 UTF-8 no-BOM 的项目内事务替换；发现重复后立即删除本轮副本，复用既有 Catalog Adapter，仅补 Connection Revision 映射。 |
+| 测试修复 | 首次回归暴露旧夹具缺少 Revision，以及新 Fake Connection 未声明 `AuthNone`；均只补真实契约字段。撤权 Resume 的实际错误为 `task tool is unavailable`，确认当前目录重授权早于远程调用。 |
+| 验证 | 四个定向用例、六包 `go test` 与六包 `go vet` 通过；未运行已知认证失效的 `test_runner`，由主进程执行同等离线命令。 |
+| 状态 | Resolved；ACL 环境限制仍存在，后续继续优先 `apply_patch`，仅在明确失败后使用项目内事务替换。 |
+
+## 215. E2E-17 Windows ACL 与失败传播断言校准
+
+| 字段 | 内容 |
+|---|---|
+| 状态 | Resolved（2026-08-11，离线开发与验证） |
+| 现象 | 必读文件和既有源码首次沙箱读取继续被 `apply deny-read ACLs` 阻断；`apply_patch` 也无法更新既有 Workflow 文件。首轮四个目标测试中三项通过，失败传播用例错误地期待父 Tool 回显子节点原始错误。 |
+| 原因与影响 | Windows ACL Helper 仍无法稳定读取已有/未跟踪项目文件；父 Workflow Tool 边界按现有安全设计只返回固定错误，原始节点错误保留在用户隔离的权威 child Run，避免向模型泄露内部详情。失败仅发生于读写辅助层和离线测试断言，没有外部调用、服务重启或业务副作用。 |
+| 处理 | 仅在用户已授权的仓库边界内提升访问；新文件使用 `apply_patch`，既有文件使用唯一锚点校验后的 UTF-8 no-BOM 事务替换。测试改为同时断言父级固定失败、child Run 原始错误持久化和零完成证据。 |
+| 验证 | 四个目标测试、Environment/Evidence/Runtime/Workflow Tool/Service 五包普通回归及五包 `go vet` 全部通过。 |
+## 216. E2E-19 Windows ACL、脚本制表符与冷编译超时
+
+| 字段 | 内容 |
+|---|---|
+| 状态 | Resolved（2026-08-11，离线开发与验证） |
+| 现象 | Windows Sandbox 继续以 `apply deny-read ACLs` 阻断既有 Runtime 文件的 `apply_patch`；首次 PowerShell 行插入脚本把 `\t` 写成字面量，`gofmt` 拒绝解析。新 Service 测试首次冷编译又在 120 秒 Shell 上限处终止；同缓存重跑后测试进入真实流程，并发现恢复后再次挂起分支漏设 `GoalRunSuspended`。 |
+| 原因与影响 | ACL Helper 无法读取既有/未跟踪文件；PowerShell 单引号不解释 `\t`；独立 Go Cache 导致 Service 包冷编译较慢。状态遗漏仅存在于本轮未提交代码，测试日志同时证明审批前零写、审批后单写和证据生成正确。没有外部调用、服务重启或业务副作用。 |
+| 处理 | 仅在用户授权仓库内提升访问；将行首字面量 `\t` 转为真实 Tab 后 `gofmt`；复用同一缓存并给测试自身设置 30 秒上限；恢复 `result.Status = GoalRunSuspended`，新增 Checkpoint Revision 负向测试与双恢复单写集成测试。 |
+| 验证 | Runtime 最小/全包测试、E2E-13/14+19 定向回归、五包普通回归及五包 `go vet` 全部通过。 |
+## 217. E2E-20 Windows ACL 与 test_runner 必读文件阻断
+
+| 字段 | 内容 |
+|---|---|
+| 状态 | Resolved（2026-08-11，离线开发与验证） |
+| 现象 | Windows Sandbox 继续以 `apply deny-read ACLs` 阻断既有源码/文档读取与修改；项目 `test_runner` 在读取强制项目地图前即失败，因此没有启动测试。 |
+| 原因与影响 | 子 Agent 没有继承主任务已获准的仓库内 ACL 提升路径；失败发生在只读准备阶段，没有半应用修改、外部调用、服务重启或业务副作用。 |
+| 处理 | 主任务仅在用户授权的 `twitter-clone` 根目录内使用提升权限，既有文件通过唯一锚点、写前校验和 UTF-8 no-BOM 事务更新；随后直接完成定向与三包普通回归。 |
+| 验证 | Model、Runtime、Service 三包普通测试及三包 `go vet` 全部通过；未访问模型、公网、数据库、MCP 或付费 API，也未启动/重启服务。 |
+## 218. G5 Planner 清理的 ACL、并行编译与测试夹具失败
+
+| 字段 | 内容 |
+|---|---|
+| 状态 | Resolved（2026-08-11，离线开发与验证） |
+| 现象 | Windows Sandbox 阻断既有文件 `apply_patch`，专用 `test_runner` 也在读取强制项目地图前失败；主任务首次并行定向测试只得到 `workflow/rag compile.exe: exit status 1`，没有源码诊断。改为 `-p=1` 后测试进入断言，并发现直接组装的 Workflow Skill 测试服务缺少 Planner，返回 `agent capability planner is not configured`。 |
+| 原因与影响 | 子 Agent 未继承仓库 ACL 提升路径；并行 Go 子进程在 Windows 环境偶发无诊断退出；该测试夹具不经过 `NewAgentService`，删除手工旧 Planner 后需要显式注入新 Planner。生产组合根始终装配 `ExplicitCapabilityPlanner`，故障未影响生产代码语义。 |
+| 处理 | 用户明确批准删除范围后，仅在仓库内用唯一锚点事务修改；测试改为显式注入 `NewExplicitCapabilityPlanner(nil)`，并使用项目缓存与 `-p=1` 串行复验。 |
+| 验证 | Planner/Unified Agent 定向测试、Agent Service 全包测试和 Service `go vet` 全部通过；没有外部调用、服务重启或业务副作用。 |

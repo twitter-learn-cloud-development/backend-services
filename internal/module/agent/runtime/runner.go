@@ -507,12 +507,18 @@ func (r *ReActRunner) runFromState(
 		modelResponse, err := r.model.Complete(runCtx, modelRequest)
 		if err != nil {
 			sharedReservation.Release()
+			if modelResponse.ModelRouting != nil {
+				step.ModelRouting = cloneModelRoutingTrace(modelResponse.ModelRouting)
+				step.FinishedAt = r.now()
+				result.Steps = append(result.Steps, step)
+			}
 			if runCtx.Err() != nil {
 				return failResult(result, contextRunError(runCtx.Err(), stepIndex))
 			}
 			return failResult(result, &RunError{Code: ErrorModel, Step: stepIndex, Cause: err})
 		}
 
+		step.ModelRouting = cloneModelRoutingTrace(modelResponse.ModelRouting)
 		actions, err := normalizeActions(modelResponse, stepIndex)
 		if err != nil {
 			sharedReservation.Release()

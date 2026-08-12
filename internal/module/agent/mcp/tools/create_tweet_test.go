@@ -2,9 +2,11 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	tweetv1 "twitter-clone/api/tweet/v1"
+	agentEvidence "twitter-clone/internal/module/agent/evidence"
 	externalmcp "twitter-clone/internal/module/agent/mcp/remote"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -69,5 +71,16 @@ func TestCreateTweetRequiresAndForwardsIdempotencyKey(t *testing.T) {
 		client.request.Content != "bounded content" ||
 		client.request.IdempotencyKey != "run-1:step-1:create_tweet" {
 		t.Fatalf("CreateTweet request = %+v", client.request)
+	}
+	encoded, err := json.Marshal(result.StructuredContent)
+	if err != nil {
+		t.Fatalf("marshal structured content: %v", err)
+	}
+	var published agentEvidence.PlatformTweetPublishResult
+	if err := json.Unmarshal(encoded, &published); err != nil {
+		t.Fatalf("decode structured content: %v", err)
+	}
+	if published.Schema != agentEvidence.PlatformTweetPublishSchema || published.TweetID != "107" {
+		t.Fatalf("structured publish result = %+v", published)
 	}
 }

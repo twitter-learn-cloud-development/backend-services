@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +13,8 @@ import (
 	"time"
 	"unicode"
 
+	agentEnvironment "twitter-clone/internal/module/agent/environment"
+	agentEvidence "twitter-clone/internal/module/agent/evidence"
 	externalmcp "twitter-clone/internal/module/agent/mcp/remote"
 	"twitter-clone/internal/module/agent/repository"
 	agentRuntime "twitter-clone/internal/module/agent/runtime"
@@ -23,7 +27,7 @@ import (
 
 const (
 	workflowRuntimeToolPrefix       = "workflow_"
-	workflowToolResultSchema        = "workflow.run.v1"
+	workflowToolResultSchema        = agentEvidence.WorkflowToolResultSchema
 	workflowToolContinuationVersion = "workflow.tool.continuation.v1"
 	workflowToolWaitModeHumanInput  = "human_input"
 	defaultWorkflowToolCatalogLimit = 20
@@ -800,15 +804,30 @@ func workflowRuntimeToolOutputs(
 	if content == "" {
 		content = "Published workflow completed successfully."
 	}
+	bindingDigest, err := agentEnvironment.WorkflowToolBindingDigest(
+		agentEnvironment.WorkflowToolBindingIdentity{
+			PublicationID: publication.ID.Hex(), PublicationRevision: publication.Revision,
+			WorkflowID: publication.WorkflowID.Hex(), WorkflowRevisionID: revision.ID.Hex(),
+			WorkflowRevisionNumber: revision.RevisionNumber, WorkflowDSLHash: revision.DSLHash,
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("digest published workflow binding: %w", err)
+	}
+	responseDigest := sha256.Sum256([]byte(content))
+	runOutputDigest := sha256.Sum256([]byte(strings.TrimSpace(result.Run.OutputJSON)))
 	return map[string]interface{}{
 		"content": content,
-		"structured_content": map[string]interface{}{
-			"schema":               workflowToolResultSchema,
-			"workflow_id":          publication.WorkflowID.Hex(),
-			"workflow_revision_id": revision.ID.Hex(),
-			"workflow_run_id":      result.Run.ID.Hex(),
-			"status":               result.Run.Status,
-			"response":             content,
+		"structured_content": agentEvidence.WorkflowToolResult{
+			Schema:        workflowToolResultSchema,
+			PublicationID: publication.ID.Hex(), PublicationRevision: publication.Revision,
+			WorkflowID: publication.WorkflowID.Hex(), WorkflowRevisionID: revision.ID.Hex(),
+			WorkflowRevisionNumber: revision.RevisionNumber, WorkflowDSLHash: revision.DSLHash,
+			BindingDigest: bindingDigest, WorkflowRunID: result.Run.ID.Hex(),
+			ParentRunID: result.Run.ParentRunID, ParentActionID: result.Run.ParentActionID,
+			Status: result.Run.Status, Response: content,
+			ResponseDigest:  "sha256:" + hex.EncodeToString(responseDigest[:]),
+			RunOutputDigest: "sha256:" + hex.EncodeToString(runOutputDigest[:]),
 		},
 	}, nil
 }

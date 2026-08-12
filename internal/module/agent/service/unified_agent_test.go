@@ -14,54 +14,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func TestConservativeCapabilityPlannerAutoRoutesImplementedCapabilities(t *testing.T) {
-	t.Parallel()
-
-	planner := NewConservativeCapabilityPlanner()
-	tests := []struct {
-		name             string
-		query            string
-		wantProfile      string
-		wantCapabilities []string
-	}{
-		{
-			name: "conversation", query: "你好，继续刚才的话题",
-			wantProfile:      ExecutionProfileRuntimeChat,
-			wantCapabilities: []string{CapabilityConversationReply},
-		},
-		{
-			name: "platform search", query: "帮我查询关于云原生的内容",
-			wantProfile:      ExecutionProfileRuntimePlatformSearch,
-			wantCapabilities: []string{CapabilityPlatformSearch},
-		},
-		{
-			name: "content draft", query: "帮我写一条关于云原生的推文",
-			wantProfile:      ExecutionProfileRuntimeDraft,
-			wantCapabilities: []string{CapabilityContentDraft},
-		},
-		{
-			name: "research and draft", query: "搜索云原生的最新资料并帮我写一条推文",
-			wantProfile:      ExecutionProfileRuntimeResearchDraft,
-			wantCapabilities: []string{CapabilityPlatformSearch, CapabilityContentDraft},
-		},
-	}
-
-	for _, test := range tests {
-		test := test
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-			plan, err := planner.Plan(context.Background(), AgentCapabilityPlanRequest{Query: test.query})
-			if err != nil {
-				t.Fatalf("Plan() error = %v", err)
-			}
-			if plan.ExecutionProfile != test.wantProfile {
-				t.Fatalf("ExecutionProfile = %q, want %q", plan.ExecutionProfile, test.wantProfile)
-			}
-			assertCapabilityIDs(t, plan.CapabilityIDs, test.wantCapabilities)
-		})
-	}
-}
-
 func TestRunAgentConversationUsesRuntimeChatWithoutTools(t *testing.T) {
 	repo := &assistRuntimeRepository{}
 	runner := &capturingRuntimeRunner{result: agentRuntime.RunResult{
@@ -174,66 +126,6 @@ func TestRunAgentContentDraftReturnsTraceableArtifact(t *testing.T) {
 	if len(repo.saved) != 2 ||
 		repo.saved[1].Metadata["execution_profile"] != ExecutionProfileRuntimeDraft {
 		t.Fatalf("saved messages = %+v", repo.saved)
-	}
-}
-
-func TestConservativeCapabilityPlannerUsesExplicitHintsAndCatalogOrder(t *testing.T) {
-	t.Parallel()
-
-	plan, err := NewConservativeCapabilityPlanner().Plan(context.Background(), AgentCapabilityPlanRequest{
-		Query: "随便聊聊",
-		PreferredCapabilityIDs: []string{
-			CapabilityContentDraft,
-			CapabilityPlatformSearch,
-			CapabilityContentDraft,
-		},
-	})
-	if err != nil {
-		t.Fatalf("Plan() error = %v", err)
-	}
-	if plan.ExecutionProfile != ExecutionProfileRuntimeResearchDraft {
-		t.Fatalf("ExecutionProfile = %q, want %q", plan.ExecutionProfile, ExecutionProfileRuntimeResearchDraft)
-	}
-	assertCapabilityIDs(
-		t,
-		plan.CapabilityIDs,
-		[]string{CapabilityPlatformSearch, CapabilityContentDraft},
-	)
-}
-
-func TestConservativeCapabilityPlannerRoutesConfiguredWebSearch(t *testing.T) {
-	t.Parallel()
-
-	catalog, err := NewBuiltInAgentCapabilityCatalog(WithAvailableWebSearchCapability())
-	if err != nil {
-		t.Fatalf("NewBuiltInAgentCapabilityCatalog() error = %v", err)
-	}
-	planner := NewConservativeCapabilityPlanner(catalog)
-	tests := []struct {
-		query        string
-		wantProfile  string
-		capabilities []string
-	}{
-		{
-			query:        "请联网搜索 Go 最新版本",
-			wantProfile:  ExecutionProfileRuntimeWebSearch,
-			capabilities: []string{CapabilityWebSearch},
-		},
-		{
-			query:        "search the web for Go releases and write a tweet",
-			wantProfile:  ExecutionProfileRuntimeWebDraft,
-			capabilities: []string{CapabilityWebSearch, CapabilityContentDraft},
-		},
-	}
-	for _, test := range tests {
-		plan, err := planner.Plan(context.Background(), AgentCapabilityPlanRequest{Query: test.query})
-		if err != nil {
-			t.Fatalf("Plan(%q) error = %v", test.query, err)
-		}
-		if plan.ExecutionProfile != test.wantProfile {
-			t.Fatalf("Plan(%q) profile = %q", test.query, plan.ExecutionProfile)
-		}
-		assertCapabilityIDs(t, plan.CapabilityIDs, test.capabilities)
 	}
 }
 
@@ -391,53 +283,6 @@ func TestRunAgentExternalMCPUsesOnlyEnabledSnapshotTools(t *testing.T) {
 	}
 }
 
-func TestConservativeCapabilityPlannerRejectsUnknownCapability(t *testing.T) {
-	t.Parallel()
-
-	_, err := NewConservativeCapabilityPlanner().Plan(context.Background(), AgentCapabilityPlanRequest{
-		Query:                  "查资料",
-		PreferredCapabilityIDs: []string{"calendar.read"},
-	})
-	if !errors.Is(err, ErrUnsupportedCapability) {
-		t.Fatalf("Plan() error = %v, want ErrUnsupportedCapability", err)
-	}
-}
-
-func TestConservativeCapabilityPlannerRejectsPlannedCapability(t *testing.T) {
-	t.Parallel()
-
-	catalog, err := NewAgentCapabilityCatalog(
-		[]AgentCapabilityDefinition{{
-			ID: "web.search", Version: "v1", Status: AgentCapabilityPlanned,
-		}},
-		nil,
-	)
-	if err != nil {
-		t.Fatalf("NewAgentCapabilityCatalog() error = %v", err)
-	}
-	_, err = NewConservativeCapabilityPlanner(catalog).Plan(
-		context.Background(),
-		AgentCapabilityPlanRequest{
-			Query:                  "搜索网页",
-			PreferredCapabilityIDs: []string{"web.search"},
-		},
-	)
-	if !errors.Is(err, ErrCapabilityUnavailable) {
-		t.Fatalf("Plan() error = %v, want ErrCapabilityUnavailable", err)
-	}
-}
-
-func TestConservativeCapabilityPlannerHonorsCancellation(t *testing.T) {
-	t.Parallel()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	_, err := NewConservativeCapabilityPlanner().Plan(ctx, AgentCapabilityPlanRequest{Query: "你好"})
-	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("Plan() error = %v, want context.Canceled", err)
-	}
-}
-
 func TestRunAgentPlatformSearchUsesGovernedRuntimeRun(t *testing.T) {
 	repo := &assistRuntimeRepository{}
 	runner := &capturingRuntimeRunner{result: agentRuntime.RunResult{
@@ -582,8 +427,9 @@ func TestRunAgentResearchDraftUsesOneGovernedRuntimeRun(t *testing.T) {
 	defer service.Close()
 
 	result, err := service.RunAgent(context.Background(), UnifiedAgentRequest{
-		UserID:  42,
-		Content: "搜索 Go Agent 的站内资料并帮我写一条推文",
+		UserID:                 42,
+		Content:                "搜索 Go Agent 的站内资料并帮我写一条推文",
+		PreferredCapabilityIDs: []string{CapabilityPlatformSearch, CapabilityContentDraft},
 	})
 	if err != nil {
 		t.Fatalf("RunAgent() error = %v", err)
@@ -668,8 +514,9 @@ func TestRunAgentResearchDraftFailsClosedWithoutSearchEvidence(t *testing.T) {
 	defer service.Close()
 
 	_, err := service.RunAgent(context.Background(), UnifiedAgentRequest{
-		UserID:  42,
-		Content: "搜索 Go Agent 的资料并帮我写一条推文",
+		UserID:                 42,
+		Content:                "搜索 Go Agent 的资料并帮我写一条推文",
+		PreferredCapabilityIDs: []string{CapabilityPlatformSearch, CapabilityContentDraft},
 	})
 	if !errors.Is(err, ErrRequiredCapabilityEvidence) {
 		t.Fatalf("RunAgent() error = %v, want ErrRequiredCapabilityEvidence", err)
@@ -707,9 +554,10 @@ func TestRunAgentResearchDraftReusesExistingDialogueAcrossCapabilities(t *testin
 	defer service.Close()
 
 	result, err := service.RunAgent(context.Background(), UnifiedAgentRequest{
-		UserID:      42,
-		DialogueKey: existingDialogue.ID.Hex(),
-		Content:     "搜索资料并帮我写一条推文",
+		UserID:                 42,
+		DialogueKey:            existingDialogue.ID.Hex(),
+		Content:                "搜索资料并帮我写一条推文",
+		PreferredCapabilityIDs: []string{CapabilityPlatformSearch, CapabilityContentDraft},
 	})
 	if err != nil {
 		t.Fatalf("RunAgent() error = %v", err)
@@ -752,8 +600,9 @@ func TestRunAgentResearchDraftDoesNotReturnUnpersistedAnswer(t *testing.T) {
 	defer service.Close()
 
 	result, err := service.RunAgent(context.Background(), UnifiedAgentRequest{
-		UserID:  42,
-		Content: "搜索资料并帮我写一条推文",
+		UserID:                 42,
+		Content:                "搜索资料并帮我写一条推文",
+		PreferredCapabilityIDs: []string{CapabilityPlatformSearch, CapabilityContentDraft},
 	})
 	if err == nil || !strings.Contains(err.Error(), "persist research draft conversation failed") {
 		t.Fatalf("RunAgent() result/error = %+v/%v, want persistence failure", result, err)
