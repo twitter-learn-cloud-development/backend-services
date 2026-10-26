@@ -10,13 +10,17 @@ import (
 	"time"
 
 	"github.com/go-mysql-org/go-mysql/canal"
+	"github.com/go-redis/redis/v8"
 	"github.com/joho/godotenv"
 	"gorm.io/gorm"
 
+	"twitter-clone/internal/domain"
 	"twitter-clone/internal/infrastructure/cache"
 	canalRelay "twitter-clone/internal/infrastructure/canal"
 	"twitter-clone/internal/infrastructure/mq"
 	"twitter-clone/internal/infrastructure/persistence"
+	"twitter-clone/internal/infrastructure/schema"
+	tweetRepository "twitter-clone/internal/module/tweet/repository"
 )
 
 func main() {
@@ -30,12 +34,18 @@ func main() {
 	}
 
 	// 1. 初始化数据库连接（用于位点和 GC 清理）
-	dbConfig := persistence.DefaultDBConfig()
+	dbConfig, err := persistence.ServiceDBConfig("canal-relay")
+	if err != nil {
+		log.Fatal(err)
+	}
 	db, err := persistence.NewDB(dbConfig)
 	if err != nil {
 		log.Fatalf("❌ Failed to connect to MySQL database: %v", err)
 	}
 	log.Println("✅ MySQL Database connected successfully")
+	if err := schema.CheckRuntime(context.Background(), db, "canal-relay"); err != nil {
+		log.Fatal(err)
+	}
 
 	// 2. 初始化 Redis（用于位点持久化保存）
 	redisConfig := cache.DefaultRedisConfig()
@@ -69,45 +79,76 @@ func main() {
 
 	// 5. 初始化位点持久化器和中继器
 	posStore := canalRelay.NewRedisPositionStore(redisClient, "canal:position:tweet-service")
-	relay := canalRelay.NewOutboxEventRelay(canalInstance, mqClient, posStore)
+	confirmedPublisher, err := canalRelay.NewConfirmedRelayPublisher(mqClient)
+	if err != nil {
+		log.Fatal("Relay publisher confirm setup failed")
+	}
+	relay := canalRelay.NewOutboxEventRelay(canalInstance, confirmedPublisher, posStore)
+	if os.Getenv("CANAL_PUBLICATION_RECEIPTS_ENABLED") == "true" {
+		if err := schema.CheckRuntime(context.Background(), db, "canal-relay", &domain.OutboxPublication{}); err != nil {
+			log.Fatal(err)
+		}
+		relay.SetPublicationRecorder(tweetRepository.NewOutboxPublicationRepository(db))
+	}
 
 	if err := relay.Start(); err != nil {
 		log.Fatalf("❌ Failed to start canal relay: %v", err)
 	}
 
+	logs, err := availableBinaryLogs(db)
+	if err != nil {
+		log.Fatalf("Failed to inspect MySQL binary logs: %v", err)
+	}
+	savedPosition, err := posStore.GetPosition()
+	if err != nil && err != redis.Nil {
+		log.Fatalf("Failed to read Canal resume position: %v", err)
+	}
+	resumePosition, recovered, err := resolveResumePosition(savedPosition, logs)
+	if err != nil {
+		log.Fatalf("Cannot resume Canal safely: %v", err)
+	}
+	if err := validateResumePolicy(savedPosition, recovered, os.Getenv("CANAL_ALLOW_CURRENT_POSITION_BOOTSTRAP") == "true", os.Getenv("CANAL_ALLOW_PURGED_POSITION_RECOVERY") == "true"); err != nil {
+		log.Fatal(err)
+	}
+	if recovered {
+		log.Printf("WARNING: saved binlog %s was purged; replaying from oldest retained binlog %s. Earlier events require separate Outbox reconciliation.", savedPosition.Name, resumePosition.Name)
+	}
+
 	// 6. 异步启动 Canal 监听器
+	canalErrors := make(chan error, 1)
 	go func() {
-		pos, err := posStore.GetPosition()
-		if err == nil && pos.Name != "" {
-			log.Printf("🔄 Resuming Canal from position: %v", pos)
-			if err := canalInstance.RunFrom(pos); err != nil {
-				log.Printf("❌ Canal run from position error: %v", err)
-			}
+		if resumePosition.Name != "" {
+			log.Printf("Resuming Canal from position: %v", resumePosition)
+			canalErrors <- canalInstance.RunFrom(resumePosition)
 		} else {
-			log.Println("🔄 Starting Canal from current master position")
-			if err := canalInstance.Run(); err != nil {
-				log.Printf("❌ Canal run error: %v", err)
-			}
+			log.Println("Starting Canal from current master position")
+			canalErrors <- canalInstance.Run()
 		}
 	}()
 	log.Println("✅ Canal outbox relay started")
 
 	// 7. 启动后台低优先级自动清理 GC 协程
 	// 每天运行一次（为了测试，设置周期较长，生产上也是 12-24h 周期）
-	gcCtx, gcCancel := context.WithCancel(context.Background())
-	startOutboxGC(gcCtx, db, 12*time.Hour, 24*time.Hour)
+	// Age alone cannot prove publication. Keep events until an independently
+	// verified publication-aware retention job is available.
+	log.Println("Outbox age-only GC disabled; publication-aware retention required")
 
 	// 8. 信号拦截，优雅关闭
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
+	select {
+	case <-quit:
+	case <-relay.Errors():
+		log.Fatal("Canal publication worker stopped; last confirmed checkpoint retained")
+	case err := <-canalErrors:
+		log.Fatalf("Canal synchronization stopped: %v", err)
+	}
 
 	log.Println("🛑 Shutting down Canal Relay Service...")
 
 	// 8.1 停止 GC 协程
-	gcCancel()
 
-	// 8.2 优雅退出中继器（内部会排空内存队列并保存位点）
+	// Stop without advancing past unpublished records; restart replays them.
 	relay.Stop()
 
 	// 8.3 安全关闭基础设施连接

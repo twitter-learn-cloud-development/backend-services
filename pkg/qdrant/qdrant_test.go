@@ -216,3 +216,65 @@ func TestScrollWithFilterSendsPayloadConstraintToQdrant(t *testing.T) {
 		t.Fatalf("scroll with filter: %v", err)
 	}
 }
+
+func TestCountAndDeleteByFilterRemainTenantScoped(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		var body map[string]interface{}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		filter, ok := body["filter"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("missing filter: %#v", body)
+		}
+		must, _ := filter["must"].([]interface{})
+		clause, _ := must[0].(map[string]interface{})
+		match, _ := clause["match"].(map[string]interface{})
+		if clause["key"] != "user_id" || match["value"] != "42" {
+			t.Fatalf("unexpected tenant filter: %#v", filter)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/collections/agent_episodic_memory/points/count":
+			if body["exact"] != true {
+				t.Fatalf("count must be exact: %#v", body)
+			}
+			_, _ = w.Write([]byte(`{"result":{"count":3}}`))
+		case "/collections/agent_episodic_memory/points/delete":
+			if r.URL.Query().Get("wait") != "true" {
+				t.Fatal("delete must wait for storage acknowledgement")
+			}
+			_, _ = w.Write([]byte(`{"result":{"status":"completed"}}`))
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	filter := map[string]interface{}{"must": []interface{}{map[string]interface{}{
+		"key": "user_id", "match": map[string]interface{}{"value": "42"},
+	}}}
+	client := NewClient(server.URL)
+	count, err := client.CountByFilter(t.Context(), "agent_episodic_memory", filter, true)
+	if err != nil || count != 3 {
+		t.Fatalf("CountByFilter() = %d, %v", count, err)
+	}
+	if err := client.DeleteByFilter(t.Context(), "agent_episodic_memory", filter); err != nil {
+		t.Fatalf("DeleteByFilter(): %v", err)
+	}
+	if requests != 2 {
+		t.Fatalf("requests = %d, want 2", requests)
+	}
+}
+
+func TestFilteredMutationRejectsEmptyFilterAndUnsafeCollection(t *testing.T) {
+	client := NewClient("http://unused")
+	if _, err := client.CountByFilter(t.Context(), "agent_episodic_memory", nil, true); err == nil {
+		t.Fatal("CountByFilter() accepted an empty filter")
+	}
+	if err := client.DeleteByFilter(t.Context(), "../all", map[string]interface{}{"must": []interface{}{}}); err == nil {
+		t.Fatal("DeleteByFilter() accepted an unsafe collection")
+	}
+}

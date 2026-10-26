@@ -3,6 +3,7 @@ package startup
 import (
 	"fmt"
 	"strings"
+	agentRuntime "twitter-clone/internal/module/agent/runtime"
 )
 
 const (
@@ -79,6 +80,22 @@ func (p Plan) StartsAPI() bool {
 
 func (p Plan) StartsWorkers() bool {
 	return p.role == ProcessRoleWorker || p.role == ProcessRoleAll
+}
+
+func (p Plan) NeedsPersona() bool { return p.StartsAPI() }
+
+// Shared run admission only covers the Runtime runner and Workflow service.
+// An API process must not silently keep legacy entry points outside that gate.
+func (p Plan) ValidateSharedAdmission(enabled bool, rollout agentRuntime.Rollout) error {
+	if !enabled || !p.StartsAPI() {
+		return nil
+	}
+	for _, mode := range []agentRuntime.Mode{agentRuntime.ModeChat, agentRuntime.ModeConsult, agentRuntime.ModeAssist, agentRuntime.ModeMulti, agentRuntime.ModeWorkflow} {
+		if !rollout.Enabled(mode) {
+			return fmt.Errorf("shared API admission requires Runtime v2 for every mode")
+		}
+	}
+	return nil
 }
 
 // ActiveTrendingReporterOwner returns the sole reporter implementation that

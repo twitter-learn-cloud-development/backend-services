@@ -85,6 +85,9 @@ func (s *AgentService) PublishWorkflowTool(
 	workflowID string,
 	input PublishWorkflowToolInput,
 ) (*repository.WorkflowToolPublication, error) {
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return nil, err
+	}
 	if s == nil || !s.workflowAsToolEnabled {
 		return nil, ErrWorkflowAsToolDisabled
 	}
@@ -175,6 +178,9 @@ func (s *AgentService) UnpublishWorkflowTool(
 	workflowID string,
 	expectedRevision int64,
 ) (*repository.WorkflowToolPublication, error) {
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return nil, err
+	}
 	if expectedRevision < 1 {
 		return nil, errors.New("expected_revision is required when unpublishing a workflow tool")
 	}

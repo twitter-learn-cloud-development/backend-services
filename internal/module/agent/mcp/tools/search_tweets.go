@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -19,7 +20,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// RegisterSearchTweets 注册语义搜索推文工具 (升级加固版，包含 Reranker 精排与回表延迟加载)
+// RegisterSearchTweets validates current public content before reranking.
 func RegisterSearchTweets(srv *server.MCPServer, aiClient *ai.Client, esClient *es.Client, qdrantClient *qdrant.Client, reranker ai.Reranker, tweetClient tweetv1.TweetServiceClient, model string) {
 	tool := mcp.NewTool("search_tweets_by_semantic",
 		mcp.WithOutputSchema[agentEvidence.PlatformTweetSearchResult](),
@@ -118,6 +119,11 @@ func RegisterSearchTweets(srv *server.MCPServer, aiClient *ai.Client, esClient *
 			), nil
 		}
 
+		// Revalidate all candidates before any index body reaches a reranker.
+		tweets, err = hydrateSearchCandidates(ctx, tweetClient, tweets)
+		if err != nil {
+			return mcp.NewToolResultError("当前公开推文读取不可用"), nil
+		}
 		// 🎯 优化：精排重排序阶段
 		var finalTweets []es.TweetDocument
 		if len(tweets) > size && reranker != nil {
@@ -152,31 +158,7 @@ func RegisterSearchTweets(srv *server.MCPServer, aiClient *ai.Client, esClient *
 			finalTweets = tweets[:limit]
 		}
 
-		// 🎯 优化：延迟回表 (Late Materialization)
-		// 拿着胜出的 top-size 元素，通过 gRPC 批量去 tweet-service 捞取全量实时数据
-		var enrichedTweets []*tweetv1.Tweet
-		for _, t := range finalTweets {
-			tweetID, err := strconv.ParseUint(t.ID, 10, 64)
-			if err != nil {
-				continue
-			}
-
-			resp, err := tweetClient.GetTweet(ctx, &tweetv1.GetTweetRequest{
-				TweetId: tweetID,
-			})
-			if err != nil {
-				// 🛡️ 回表失败优雅降级：直接以 ES 字段封装返回，确保主检索可用性
-				enrichedTweets = append(enrichedTweets, &tweetv1.Tweet{
-					Id:        tweetID,
-					UserId:    parseUintOrDefault(t.UserID, 0),
-					Content:   t.Content,
-					CreatedAt: t.CreatedAt,
-					LikeCount: int32(t.LikeCount),
-				})
-			} else {
-				enrichedTweets = append(enrichedTweets, resp.Tweet)
-			}
-		}
+		enrichedTweets := publicSearchResults(finalTweets)
 
 		// 3. 格式化结果给 LLM
 		result := fmt.Sprintf("找到 %d 条最相关的精排推文：\n\n", len(enrichedTweets))
@@ -225,8 +207,8 @@ func RegisterHybridSearchTweets(srv *server.MCPServer, aiClient *ai.Client, esCl
 			}
 		}
 
-		// 🎯 优化：初筛漏斗数量放大 3 倍
-		initialSize := size * 3
+		// Two sources share one authority batch of at most 100 candidates.
+		initialSize := min(size*3, 50)
 
 		// 1. 向量化。失败时仍保留 ES 文本检索路径，避免查询工具整体不可用。
 		vector, err := aiClient.GetEmbedding(ctx, query, model)
@@ -314,6 +296,7 @@ func RegisterHybridSearchTweets(srv *server.MCPServer, aiClient *ai.Client, esCl
 			tweets = append(tweets, doc)
 		}
 		mu.Unlock()
+		sort.Slice(tweets, func(i, j int) bool { return tweets[i].ID < tweets[j].ID })
 
 		if len(tweets) == 0 {
 			return mcp.NewToolResultStructured(
@@ -322,6 +305,10 @@ func RegisterHybridSearchTweets(srv *server.MCPServer, aiClient *ai.Client, esCl
 			), nil
 		}
 
+		tweets, err = hydrateSearchCandidates(ctx, tweetClient, tweets)
+		if err != nil {
+			return mcp.NewToolResultError("当前公开推文读取不可用"), nil
+		}
 		// 🎯 优化：精排重排序阶段
 		var finalTweets []es.TweetDocument
 		if len(tweets) > size && reranker != nil {
@@ -356,30 +343,7 @@ func RegisterHybridSearchTweets(srv *server.MCPServer, aiClient *ai.Client, esCl
 			finalTweets = tweets[:limit]
 		}
 
-		// 🎯 优化：延迟回表 (Late Materialization)
-		var enrichedTweets []*tweetv1.Tweet
-		for _, t := range finalTweets {
-			tweetID, err := strconv.ParseUint(t.ID, 10, 64)
-			if err != nil {
-				continue
-			}
-
-			resp, err := tweetClient.GetTweet(ctx, &tweetv1.GetTweetRequest{
-				TweetId: tweetID,
-			})
-			if err != nil {
-				// 🛡️ 回表降级兜底
-				enrichedTweets = append(enrichedTweets, &tweetv1.Tweet{
-					Id:        tweetID,
-					UserId:    parseUintOrDefault(t.UserID, 0),
-					Content:   t.Content,
-					CreatedAt: t.CreatedAt,
-					LikeCount: int32(t.LikeCount),
-				})
-			} else {
-				enrichedTweets = append(enrichedTweets, resp.Tweet)
-			}
-		}
+		enrichedTweets := publicSearchResults(finalTweets)
 
 		result := fmt.Sprintf("混合搜索精排找到 %d 条推文：\n\n", len(enrichedTweets))
 		for i, t := range enrichedTweets {

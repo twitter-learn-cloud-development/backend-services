@@ -65,7 +65,7 @@ class ProfileScreen extends ConsumerWidget {
                       Container(
                         height: 130,
                         width: double.infinity,
-                        color: AppColors.primary.withOpacity(0.3),
+                        color: AppColors.primary.withValues(alpha: 0.3),
                         child: coverUrl.isNotEmpty
                             ? CachedNetworkImage(imageUrl: coverUrl, fit: BoxFit.cover)
                             : null,

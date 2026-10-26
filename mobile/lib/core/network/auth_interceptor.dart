@@ -3,13 +3,23 @@ import '../utils/storage.dart';
 
 class AuthInterceptor extends Interceptor {
   final void Function()? onUnauthorized;
+  final String? Function() sessionToken;
+  final int Function() sessionRevision;
 
-  AuthInterceptor({this.onUnauthorized});
+  AuthInterceptor({
+    this.onUnauthorized,
+    String? Function()? sessionToken,
+    int Function()? sessionRevision,
+  }) : sessionToken = sessionToken ?? Storage.getToken,
+       sessionRevision = sessionRevision ?? (() => 0);
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    final token = Storage.getToken();
-    if (token != null && token.isNotEmpty) {
+    final token = sessionToken();
+    options.extra['authRevision'] = sessionRevision();
+    if (token != null &&
+        token.isNotEmpty &&
+        !['/auth/login', '/auth/register'].contains(options.path)) {
       options.headers['Authorization'] = 'Bearer $token';
     }
     super.onRequest(options, handler);
@@ -17,11 +27,16 @@ class AuthInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    if (err.response?.statusCode == 401) {
-      // Token is expired or invalid, clear data and notify
-      Storage.clearAuthData();
+    final token = sessionToken();
+    if (err.response?.statusCode == 401 &&
+        token != null &&
+        token.isNotEmpty &&
+        err.requestOptions.extra['authRevision'] == sessionRevision() &&
+        err.requestOptions.headers['Authorization'] == 'Bearer $token') {
       if (onUnauthorized != null) {
         onUnauthorized!();
+      } else {
+        Storage.clearAuthData();
       }
     }
     super.onError(err, handler);

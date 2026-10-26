@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"twitter-clone/internal/domain"
+	"twitter-clone/internal/pkg/database/uow"
 	"twitter-clone/pkg/pkg/snowflake"
 )
 
@@ -34,7 +35,8 @@ func (r *bookmarkRepo) Create(ctx context.Context, bookmark *domain.Bookmark) er
 		bookmark.CreatedAt = time.Now().UnixMilli()
 	}
 
-	result := r.db.WithContext(ctx).
+	db := uow.ExtractTx(ctx, r.db)
+	result := db.WithContext(ctx).
 		Where("user_id = ? AND tweet_id = ?", bookmark.UserID, bookmark.TweetID).
 		FirstOrCreate(bookmark)
 

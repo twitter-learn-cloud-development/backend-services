@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "include": [
+    {"service":"auth-service","package":"./cmd/auth-service","dockerfile":"deploy/docker/auth.dockerfile","context":".","image_env":"AUTH_SERVICE_IMAGE"},
+    {"service":"user-service","package":"./cmd/user-service","dockerfile":"deploy/docker/user.dockerfile","context":".","image_env":"USER_SERVICE_IMAGE"},
+    {"service":"tweet-service","package":"./cmd/tweet-service","dockerfile":"deploy/docker/tweet.dockerfile","context":".","image_env":"TWEET_SERVICE_IMAGE"},
+    {"service":"follow-service","package":"./cmd/follow-service","dockerfile":"deploy/docker/follow.dockerfile","context":".","image_env":"FOLLOW_SERVICE_IMAGE"},
+    {"service":"messenger-service","package":"./cmd/messenger-service","dockerfile":"deploy/docker/messenger.dockerfile","context":".","image_env":"MESSENGER_SERVICE_IMAGE"},
+    {"service":"notification-service","package":"./cmd/notification-service","dockerfile":"deploy/docker/notification.dockerfile","context":".","image_env":"NOTIFICATION_SERVICE_IMAGE"},
+    {"service":"canal-relay","package":"./cmd/canal-relay","dockerfile":"deploy/docker/canal-relay.dockerfile","context":".","image_env":"CANAL_RELAY_IMAGE"},
+    {"service":"consumer","package":"./cmd/consumer","dockerfile":"deploy/docker/consumer.dockerfile","context":".","image_env":"CONSUMER_IMAGE"},
+    {"service":"agent-service","package":"./cmd/agent-service","dockerfile":"deploy/docker/agent.dockerfile","context":".","image_env":"AGENT_SERVICE_IMAGE"},
+    {"service":"gateway","package":"./cmd/gateway","dockerfile":"deploy/docker/gateway.dockerfile","context":".","image_env":"GATEWAY_IMAGE"},
+    {"service":"frontend","dockerfile":"web/Dockerfile","context":"web","image_env":"FRONTEND_IMAGE"},
+    {"service":"schema-migrate","package":"./cmd/schema-migrate","dockerfile":"deploy/docker/schema-migrate.dockerfile","context":".","image_env":"SCHEMA_MIGRATE_IMAGE"}
+  ]
+}

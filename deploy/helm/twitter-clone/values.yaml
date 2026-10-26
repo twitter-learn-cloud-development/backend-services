@@ -163,6 +163,31 @@ services:
     containerPort: 9100
     metricsPort: 9191
     traceSampleRatio: "0.1"
+    # Test-only embedding shortcut. Production and staging must keep this false.
+    mockEmbedding: false
+    # Comma-separated legacy entrypoints migrated to Runtime v2. Empty keeps
+    # the current compatibility route and is the rollback value.
+    runtimeV2Modes: ""
+    sessionSummary:
+      model: "qwen-plus"
+      minMessages: 12
+      idleDelay: "2m"
+      sweepInterval: "15s"
+    healthProbes:
+      enabled: true
+      startup:
+        initialDelaySeconds: 2
+        periodSeconds: 5
+        timeoutSeconds: 2
+        failureThreshold: 30
+      readiness:
+        periodSeconds: 5
+        timeoutSeconds: 2
+        failureThreshold: 3
+      liveness:
+        periodSeconds: 15
+        timeoutSeconds: 2
+        failureThreshold: 3
     # Keep `all` for the current combined deployment. Dedicated deployments may
     # use `api` or `worker`; only worker/all processes start background jobs.
     processRole: all
@@ -170,6 +195,20 @@ services:
       # Temporal is the sole production scheduler. `disabled` is the rollback.
       owner: temporal
       interval: "1m"
+    dataRetention:
+      # Review dry-run metrics before changing dryRun to false.
+      enabled: false
+      dryRun: true
+      interval: "6h"
+      leaseDuration: "15m"
+      operationTimeout: "2m"
+      batchSize: 100
+      dialogueRetention: "4320h"
+      orphanMessageGracePeriod: "24h"
+      traceRetention: "720h"
+      terminalCheckpointRetention: "168h"
+      suspendedCheckpointRetention: "720h"
+      toolResultRetention: "720h"
     recoverableRuns:
       # Encrypted ask_human recovery. Approval recovery is a separate rollout.
       enabled: false
@@ -183,6 +222,19 @@ services:
       keyring:
         enabled: false
         key: "master-keys"
+    planningExecute:
+      # Master and route switches are independent rollback controls. Keep all
+      # routes disabled until their staging acceptance evidence is archived.
+      enabled: false
+      canaryPercent: 0
+      platformSearchEnabled: false
+      webResearchEnabled: false
+      externalMCPReadEnabled: false
+      externalMCPWriteEnabled: false
+      workflowReadEnabled: false
+      maxOutputTokens: 1024
+      parseRepairs: 1
+      admissionRepairs: 1
     taskTemplates:
       # Explicit reusable task presets derived from completed authoritative Runs.
       # Requires recoverableRuns.enabled.
@@ -247,6 +299,11 @@ services:
         integrityExistingSecret: ""
         integrityKeyKey: "integrity-key"
         integrityKeyIDKey: "integrity-key-id"
+        # Optional existing PVC for signed report delivery. When empty, the
+        # signed redacted report is written to stdout for backward compatibility.
+        reportExistingClaim: ""
+        reportMountPath: "/var/run/reports/agent-mcp-acceptance"
+        reportFileName: "report.json"
         allowWrite: false
         expectCredentialRotation: false
         requireComplete: true

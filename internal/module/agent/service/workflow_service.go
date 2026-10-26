@@ -45,6 +45,9 @@ type WorkflowExecutionResult struct {
 }
 
 func (s *AgentService) CreateWorkflow(ctx context.Context, userID uint64, name string, dslJSON string) (*repository.WorkflowDefinition, error) {
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return nil, err
+	}
 	if s.repo == nil {
 		return nil, errors.New("agent repository is not initialized")
 	}
@@ -68,6 +71,9 @@ func (s *AgentService) CreateWorkflow(ctx context.Context, userID uint64, name s
 }
 
 func (s *AgentService) UpdateWorkflow(ctx context.Context, userID uint64, workflowID string, name string, dslJSON string) (*repository.WorkflowDefinition, error) {
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return nil, err
+	}
 	if s.repo == nil {
 		return nil, errors.New("agent repository is not initialized")
 	}
@@ -210,6 +216,9 @@ func (s *AgentService) runWorkflowRevision(
 	workflowID, workflowRevisionID, inputJSON string,
 	invocation workflowInvocation,
 ) (*WorkflowExecutionResult, error) {
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return nil, err
+	}
 	if s.repo == nil {
 		return nil, errors.New("agent repository is not initialized")
 	}
@@ -348,6 +357,9 @@ func (s *AgentService) runWorkflowRevision(
 }
 
 func (s *AgentService) ResumeWorkflowRun(ctx context.Context, userID uint64, runID, approvalID, resumeToken, resumeInputJSON string) (*WorkflowExecutionResult, error) {
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return nil, err
+	}
 	if s.repo == nil {
 		return nil, errors.New("agent repository is not initialized")
 	}

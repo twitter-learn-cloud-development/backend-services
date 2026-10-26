@@ -5,7 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -21,6 +23,10 @@ type toolResultBackendFake struct {
 	putPayload  []byte
 	getPayload  []byte
 	deleteCalls int
+	deletedKeys []string
+	listObjects []toolResultObjectMetadata
+	listCursor  string
+	listPrefix  string
 }
 
 func (b *toolResultBackendFake) BucketExists(context.Context, string) (bool, error) {
@@ -51,9 +57,21 @@ func (b *toolResultBackendFake) Get(context.Context, string, string, int) ([]byt
 	return append([]byte(nil), b.getPayload...), nil
 }
 
-func (b *toolResultBackendFake) Delete(context.Context, string, string) error {
+func (b *toolResultBackendFake) Delete(_ context.Context, _ string, key string) error {
 	b.deleteCalls++
+	b.deletedKeys = append(b.deletedKeys, key)
+	for index, object := range b.listObjects {
+		if object.Key == key {
+			b.listObjects = append(b.listObjects[:index], b.listObjects[index+1:]...)
+			break
+		}
+	}
 	return nil
+}
+
+func (b *toolResultBackendFake) List(_ context.Context, _ string, prefix, _ string, _ int) ([]toolResultObjectMetadata, string, error) {
+	b.listPrefix = prefix
+	return b.listObjects, b.listCursor, nil
 }
 
 func TestMinIOToolResultStoreCreatesPrivateBucketAndUsesHashedKey(t *testing.T) {
@@ -148,4 +166,71 @@ func TestNewMinIOToolResultStoreValidatesPrivateBucketConfig(t *testing.T) {
 		Endpoint: "localhost:9000", AccessKey: "key", SecretKey: "secret", Bucket: "Twitter_Media",
 	})
 	require.ErrorContains(t, err, "bucket name")
+}
+
+func TestMinIOToolResultStoreListsBoundedRedactedInventory(t *testing.T) {
+	payload := []byte(`{"ok":true}`)
+	sum := sha256.Sum256(payload)
+	request := workflowTool.ResultArchiveRequest{
+		UserID: 42, ResultID: "execution-1",
+		Snapshot: workflowTool.ResultSnapshot{Payload: payload, Digest: hex.EncodeToString(sum[:]), Length: len(payload)},
+	}
+	key := toolResultObjectKey(request)
+	modified := time.Date(2026, 9, 24, 10, 0, 0, 0, time.UTC)
+	backend := &toolResultBackendFake{
+		listObjects: []toolResultObjectMetadata{{Key: key, LastModified: modified, Size: int64(len(payload))}},
+		listCursor:  key,
+	}
+	store := newMinIOToolResultStore(backend, "agent-tool-results")
+	items, cursor, err := store.ListToolResultObjects(context.Background(), "", 10)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	require.True(t, items[0].ValidOwnedKey)
+	require.Equal(t, key, items[0].Key)
+	require.Equal(t, DataRetentionTenantHashForTest(42), items[0].TenantHash)
+	require.Equal(t, request.Snapshot.Digest, items[0].ObjectDigest)
+	require.Len(t, items[0].KeyDigest, sha256.Size*2)
+	require.Equal(t, key, cursor)
+}
+
+func DataRetentionTenantHashForTest(userID uint64) string {
+	digest := sha256.Sum256([]byte("tenant:" + strconv.FormatUint(userID, 10)))
+	return hex.EncodeToString(digest[:8])
+}
+
+func TestSubjectToolResultDeletionUsesTenantPrefixAndVerifiesEmpty(t *testing.T) {
+	payload := []byte(`{"ok":true}`)
+	sum := sha256.Sum256(payload)
+	request := workflowTool.ResultArchiveRequest{
+		UserID: 42, ResultID: "execution-1",
+		Snapshot: workflowTool.ResultSnapshot{Payload: payload, Digest: hex.EncodeToString(sum[:]), Length: len(payload)},
+	}
+	key := toolResultObjectKey(request)
+	backend := &toolResultBackendFake{listObjects: []toolResultObjectMetadata{{Key: key, Size: int64(len(payload))}}}
+	store := newMinIOToolResultStore(backend, "agent-tool-results")
+
+	count, err := store.CountSubjectToolResults(t.Context(), 42, 100)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, count)
+	result, err := store.DeleteSubjectToolResults(t.Context(), 42, 100)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, result.DeletedCount)
+	require.Zero(t, result.RemainingCount)
+	require.Equal(t, []string{key}, backend.deletedKeys)
+	require.Equal(t, toolResultSubjectPrefix(42), backend.listPrefix)
+}
+
+func TestSubjectToolResultDeletionRejectsCrossTenantListingBeforeDelete(t *testing.T) {
+	payload := []byte(`{"ok":true}`)
+	sum := sha256.Sum256(payload)
+	foreign := toolResultObjectKey(workflowTool.ResultArchiveRequest{
+		UserID: 7, ResultID: "foreign",
+		Snapshot: workflowTool.ResultSnapshot{Payload: payload, Digest: hex.EncodeToString(sum[:]), Length: len(payload)},
+	})
+	backend := &toolResultBackendFake{listObjects: []toolResultObjectMetadata{{Key: foreign}}}
+	store := newMinIOToolResultStore(backend, "agent-tool-results")
+
+	_, err := store.DeleteSubjectToolResults(t.Context(), 42, 100)
+	require.ErrorContains(t, err, "outside the subject deletion scope")
+	require.Zero(t, backend.deleteCalls)
 }

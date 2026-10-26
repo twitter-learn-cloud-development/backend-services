@@ -22,6 +22,7 @@ import (
 	"twitter-clone/internal/infrastructure/cache"
 	agentMarketplace "twitter-clone/internal/module/agent/marketplace"
 	agentProfile "twitter-clone/internal/module/agent/profile"
+	"twitter-clone/internal/module/supportquery"
 	consulConfig "twitter-clone/pkg/config"
 	"twitter-clone/pkg/logger"
 	"twitter-clone/pkg/metric"
@@ -105,7 +106,15 @@ func main() {
 	//初始化auth认证中间件
 
 	authServiceJWKSUrl := getEnv("AUTH_SERVICE_JWKS_URL", "http://localhost:8081/.well-known/jwks.json")
-	authMW, err := middleware.NewGatewayAuthMiddleware(authServiceJWKSUrl)
+	jwtIssuer := strings.TrimSpace(getEnv("JWT_ISSUER", ""))
+	jwtAudience := strings.TrimSpace(getEnv("JWT_AUDIENCE", ""))
+	if getEnv("APP_ENV", "") == "production" && (jwtIssuer == "" || jwtAudience == "") {
+		log.Fatal("JWT_ISSUER and JWT_AUDIENCE are required in production")
+	}
+	authMW, err := middleware.NewGatewayAuthMiddleware(
+		authServiceJWKSUrl,
+		middleware.WithExpectedTokenClaims(jwtIssuer, jwtAudience),
+	)
 	if err != nil {
 		log.Fatalf("Init gateway jwks middleware failed: %v", err)
 	}
@@ -137,7 +146,7 @@ func main() {
 	minioAccessKey := getEnv("MINIO_ACCESS_KEY", "admin")
 	minioSecretKey := getEnv("MINIO_SECRET_KEY", "31415927")
 	minioBucket := getEnv("MINIO_BUCKET", "twitter-media")
-	minioPublicURL := getEnv("MINIO_PUBLIC_URL", "http://localhost:9000")
+	minioPublicURL := getEnv("MINIO_PUBLIC_URL", "/media")
 	uploadHandler := handler.NewUploadHandler(minioEndpoint, minioAccessKey, minioSecretKey, minioBucket, minioPublicURL)
 
 	// 通知/书签处理器
@@ -202,15 +211,85 @@ func main() {
 		agentHandlerOptions = append(agentHandlerOptions, handler.WithExtensionMarketplaceAdministration(extensionMarketplaceAdminToken))
 	}
 	agentHandler := handler.NewAgentHandler(grpcClients.AgentClient, agentHandlerOptions...)
+	var internalSupportQueryHandler *handler.SupportQueryHandler
+	var internalSupportQueryAuth *middleware.SupportQueryAuth
+	supportQueryEnabled, supportQueryErr := strconv.ParseBool(getEnv("SUPPORT_QUERY_ENABLED", "false"))
+	if supportQueryErr != nil {
+		log.Fatalf("invalid SUPPORT_QUERY_ENABLED: %v", supportQueryErr)
+	}
+	if supportQueryEnabled {
+		if redisClient == nil {
+			log.Fatal("SUPPORT_QUERY_ENABLED requires Redis for replay and idempotency guards")
+		}
+		supportQuerySecret, secretErr := loadSecret(
+			"SUPPORT_QUERY_JWT_SECRET",
+			"SUPPORT_QUERY_JWT_SECRET_FILE",
+		)
+		if secretErr != nil {
+			log.Fatalf("load support query JWT secret: %v", secretErr)
+		}
+		queryTimeout, durationErr := time.ParseDuration(getEnv("SUPPORT_QUERY_TIMEOUT", "3s"))
+		if durationErr != nil || queryTimeout <= 0 {
+			log.Fatalf("invalid SUPPORT_QUERY_TIMEOUT: %v", durationErr)
+		}
+		idempotencyTTL, durationErr := time.ParseDuration(
+			getEnv("SUPPORT_QUERY_IDEMPOTENCY_TTL", "10m"),
+		)
+		if durationErr != nil || idempotencyTTL <= 0 {
+			log.Fatalf("invalid SUPPORT_QUERY_IDEMPOTENCY_TTL: %v", durationErr)
+		}
+		maxTokenTTL, durationErr := time.ParseDuration(
+			getEnv("SUPPORT_QUERY_JWT_MAX_TTL", "2m"),
+		)
+		if durationErr != nil || maxTokenTTL <= 0 {
+			log.Fatalf("invalid SUPPORT_QUERY_JWT_MAX_TTL: %v", durationErr)
+		}
+		queryRegistry, registryErr := supportquery.NewRegistry(
+			supportquery.NewContentListRecent(grpcClients.TweetClient),
+		)
+		if registryErr != nil {
+			log.Fatalf("initialize support query registry: %v", registryErr)
+		}
+		internalSupportQueryHandler, registryErr = handler.NewSupportQueryHandler(
+			queryRegistry,
+			handler.NewRedisSupportQueryIdempotencyGuard(redisClient),
+			queryTimeout,
+			idempotencyTTL,
+		)
+		if registryErr != nil {
+			log.Fatalf("initialize support query handler: %v", registryErr)
+		}
+		internalSupportQueryAuth, registryErr = middleware.NewSupportQueryAuth(
+			supportQuerySecret,
+			getEnv("SUPPORT_QUERY_JWT_ISSUER", "support-agent-service"),
+			getEnv("SUPPORT_QUERY_JWT_AUDIENCE", "twitter-support-query"),
+			getEnv("SUPPORT_QUERY_JWT_SUBJECT", "support-agent-service"),
+			middleware.NewRedisServiceTokenReplayGuard(redisClient),
+			maxTokenTTL,
+		)
+		if registryErr != nil {
+			log.Fatalf("initialize support query authentication: %v", registryErr)
+		}
+	}
 
 	// 创建 WebSocket 处理器
 	wsHandler := handler.NewWebSocketHandler(redisClient, authMW)
+	alertWebhookToken, err := loadSecret("ALERTMANAGER_WEBHOOK_TOKEN", "ALERTMANAGER_WEBHOOK_TOKEN_FILE")
+	if err != nil {
+		log.Fatalf("load Alertmanager webhook token: %v", err)
+	}
+	if getEnv("APP_ENV", "") == "production" && len(alertWebhookToken) < 32 {
+		log.Fatal("Alertmanager webhook token must contain at least 32 characters in production")
+	}
 
 	log.Println("✅ Handlers initialized")
 
 	// 设置路由
 	// 传入 Redis Client 用于限流
-	r := router.SetupRouter(tweetHandler, followHandler, userHandler, uploadHandler, notificationHandler, bookmarkHandler, messengerHandler, wsHandler, agentHandler, authMW, redisClient)
+	r := router.SetupRouter(tweetHandler, followHandler, userHandler, uploadHandler, notificationHandler, bookmarkHandler, messengerHandler, wsHandler, agentHandler, authMW, redisClient, alertWebhookToken)
+	if supportQueryEnabled {
+		router.RegisterSupportQuery(r, internalSupportQueryAuth, internalSupportQueryHandler)
+	}
 
 	log.Println("✅ Router configured")
 
@@ -284,6 +363,17 @@ func getEnv(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func loadSecret(valueEnv, fileEnv string) (string, error) {
+	if filePath := strings.TrimSpace(os.Getenv(fileEnv)); filePath != "" {
+		value, err := os.ReadFile(filePath)
+		if err != nil {
+			return "", err
+		}
+		return strings.TrimSpace(string(value)), nil
+	}
+	return strings.TrimSpace(os.Getenv(valueEnv)), nil
 }
 
 func parseProfileUserIDs(raw, role string) ([]uint64, error) {

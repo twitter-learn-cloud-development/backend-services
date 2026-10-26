@@ -182,6 +182,9 @@ message RepositoryContentList {
     string content     = 8;
     string run_id      = 9;  // 白名单化的 Runtime Run ID
     bool publishable_draft = 10; // 是否来自可显式确认发布的 Assist 草稿
+    bool has_runtime_usage = 11; // 消息元数据中存在 Runtime Token 记录
+    int64 runtime_total_tokens = 12; // 仅为该消息关联执行的 Token 总量
+    bool runtime_tokens_estimated = 13; // true 表示总量含估算
 }
 
 // 历史对话（标题级别）
@@ -445,6 +448,7 @@ message AgentExecutionRun {
     string task_template_id = 26;
     int64 task_template_revision = 27;
     AgentExecutionStrategyPlan execution_strategy_plan = 28;
+    AgentPlanningEvidence planning = 29;
 }
 
 message AgentSkillKnowledgeBinding {
@@ -2572,4 +2576,28 @@ message ConfigureExternalMCPToolResponse {
     string msg = 2;
     ExternalMCPConnection connection = 3;
     ExternalMCPToolView tool = 4;
+}
+
+message AgentPlanningEvidence {
+    bool enabled = 1;
+    string plan_digest = 2;
+    int32 planning_calls = 3;
+    int32 model_attempts = 4;
+    int32 admission_attempts = 5;
+    int32 admission_repairs = 6;
+    int32 recovery_attempts = 7;
+    string model = 8;
+    string provider = 9;
+    int32 input_tokens = 10;
+    int32 output_tokens = 11;
+    int32 total_tokens = 12;
+    bool usage_estimated = 13;
+    int64 estimated_cost_micros = 14;
+    bool cost_estimated = 15;
+    string pricing_version = 16;
+    string goal_status = 17;
+    string verification_status = 18;
+    string checkpoint_version = 19;
+    int64 checkpoint_revision = 20;
+    string checkpoint_digest = 21;
 }

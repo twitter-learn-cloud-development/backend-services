@@ -32,6 +32,30 @@ type ResumeAgentExecutionRequest struct {
 
 // AgentExecutionRunView intentionally excludes encrypted Checkpoint material,
 // resume attempt IDs and lease internals.
+type AgentPlanningEvidenceView struct {
+	Enabled             bool
+	PlanDigest          string
+	PlanningCalls       int
+	ModelAttempts       int
+	AdmissionAttempts   int
+	AdmissionRepairs    int
+	RecoveryAttempts    int
+	Model               string
+	Provider            string
+	InputTokens         int
+	OutputTokens        int
+	TotalTokens         int
+	UsageEstimated      bool
+	EstimatedCostMicros int64
+	CostEstimated       bool
+	PricingVersion      string
+	GoalStatus          string
+	VerificationStatus  string
+	CheckpointVersion   string
+	CheckpointRevision  int64
+	CheckpointDigest    string
+}
+
 type AgentExecutionRunView struct {
 	RunID                 string
 	DialogueID            string
@@ -42,6 +66,7 @@ type AgentExecutionRunView struct {
 	TaskTemplateID        string
 	TaskTemplateRevision  int64
 	ExecutionStrategyPlan *agentStrategy.Plan
+	Planning              *AgentPlanningEvidenceView
 	Status                string
 	Revision              int64
 	ResumeSupported       bool
@@ -86,6 +111,9 @@ func (s *AgentService) ResumeAgentExecutionRun(
 	ctx context.Context,
 	request ResumeAgentExecutionRequest,
 ) (*UnifiedAgentResult, error) {
+	if err := s.authorizeSubjectWrite(ctx, request.UserID); err != nil {
+		return nil, err
+	}
 	if s == nil || !s.recoverableAgentRuns || s.agentExecutionRunStore == nil {
 		return nil, ErrAgentExecutionRunStoreUnavailable
 	}
@@ -169,8 +197,17 @@ func (s *AgentService) ResumeAgentExecutionRun(
 	}
 
 	var checkpoint agentRuntime.RunCheckpoint
+	var verifiedCheckpoint *agentRuntime.VerifiedCheckpoint
 	if delegatedCheckpoint != nil {
 		checkpoint = *delegatedCheckpoint
+	} else if isVerifiedAgentCheckpoint(claimed) {
+		opened, openErr := s.openVerifiedAgentRunCheckpoint(claimed)
+		if openErr != nil {
+			commitErr := s.failClaimedAgentExecutionRun(ctx, claimed, attemptID, "checkpoint_invalid", openErr)
+			return nil, errors.Join(openErr, commitErr)
+		}
+		checkpoint = opened.Run
+		verifiedCheckpoint = &opened
 	} else {
 		checkpoint, err = s.openAgentRunCheckpoint(claimed)
 		if err != nil {
@@ -223,18 +260,28 @@ func (s *AgentService) ResumeAgentExecutionRun(
 			resolved.Version,
 		)
 	}
-	result, runtimeErr := resumableRunner.Resume(resumeExecutionCtx, agentRuntime.ResumeRequest{
-		Checkpoint:    checkpoint,
-		HumanResponse: request.HumanResponse,
-		ApprovalID:    request.ApprovalID,
-		ResumeToken:   request.ResumeToken,
-		Tools:         tools,
-	})
-	s.recordRuntimeResult(ctx, result, runtimeErr, claimed.AgentProfileID)
+	var result agentRuntime.RunResult
+	var runtimeErr error
 	capture := &agentExecutionCapture{
 		runID: claimed.ID, dialogueID: claimed.DialogueID, resumeAttemptID: attemptID,
-		called: true, request: runtimeRequest, result: result, err: runtimeErr,
+		called: true, request: runtimeRequest,
 	}
+	if verifiedCheckpoint != nil {
+		verifiedResult, verifiedErr := s.resumePlannedExecution(
+			resumeExecutionCtx, claimed, *verifiedCheckpoint, request, tools,
+		)
+		result = verifiedResult.Run
+		runtimeErr = verifiedErr
+		capture.planning = planningExecutionCaptureFromRun(claimed, verifiedResult)
+	} else {
+		result, runtimeErr = resumableRunner.Resume(resumeExecutionCtx, agentRuntime.ResumeRequest{
+			Checkpoint: checkpoint, HumanResponse: request.HumanResponse,
+			ApprovalID: request.ApprovalID, ResumeToken: request.ResumeToken, Tools: tools,
+		})
+	}
+	capture.result = result
+	capture.err = runtimeErr
+	s.recordRuntimeResult(ctx, result, runtimeErr, claimed.AgentProfileID)
 	resumeCtx := context.WithValue(
 		resumeExecutionCtx,
 		agentExecutionCaptureContextKey{},
@@ -483,6 +530,9 @@ func (s *AgentService) IssueAgentResumeGrant(
 	approvalID string,
 	expectedRunRevision int64,
 ) (*AgentResumeGrantView, error) {
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return nil, err
+	}
 	if s == nil || !s.recoverableAgentRuns || !s.unifiedAgentApprovalRecovery || s.agentExecutionRunStore == nil {
 		return nil, ErrAgentExecutionRunNotResumable
 	}
@@ -512,9 +562,18 @@ func (s *AgentService) IssueAgentResumeGrant(
 		agentExecutionRunViewAt(run, time.Now()).Status != string(repository.AgentExecutionRunApprovalRequired) {
 		return nil, repository.ErrAgentExecutionRunConflict
 	}
-	checkpoint, err := s.openAgentRunCheckpoint(run)
-	if err != nil {
-		return nil, err
+	var checkpoint agentRuntime.RunCheckpoint
+	if isVerifiedAgentCheckpoint(run) {
+		verified, openErr := s.openVerifiedAgentRunCheckpoint(run)
+		if openErr != nil {
+			return nil, openErr
+		}
+		checkpoint = verified.Run
+	} else {
+		checkpoint, err = s.openAgentRunCheckpoint(run)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if checkpoint.PendingAction.Type != agentRuntime.ActionToolCall || checkpoint.PendingApprovalID != approvalID ||
 		checkpoint.PendingAction.ID != run.PendingActionID || checkpoint.PendingAction.Name != run.PendingActionName {
@@ -559,6 +618,9 @@ func (s *AgentService) failClaimedAgentExecutionRun(
 ) error {
 	commitCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), agentExecutionStateCommitTimeout)
 	defer cancel()
+	if err := s.authorizeSubjectWrite(commitCtx, run.UserID); err != nil {
+		return err
+	}
 	updated, err := s.agentExecutionRunStore.CommitAgentExecutionRun(commitCtx, repository.AgentExecutionRunCommit{
 		RunID: run.ID, UserID: run.UserID, ExpectedRevision: run.Revision,
 		ExpectedResumeAttemptID: attemptID,
@@ -566,7 +628,21 @@ func (s *AgentService) failClaimedAgentExecutionRun(
 		Mode: run.Mode, Model: run.Model, AgentProfileID: run.AgentProfileID,
 		AgentProfileVersion: run.AgentProfileVersion, PromptTemplateID: run.PromptTemplateID,
 		PromptTemplateVersion: run.PromptTemplateVersion,
-		FailureCode:           failureCode, FailureDigest: agentExecutionErrorDigest(run.ID, failure),
+		PlanningPlanDigest:    run.PlanningPlanDigest,
+		PlanningCalls:         run.PlanningCalls, PlanningModelAttempts: run.PlanningModelAttempts,
+		PlanningAdmissionAttempts: run.PlanningAdmissionAttempts,
+		PlanningAdmissionRepairs:  run.PlanningAdmissionRepairs,
+		PlanningRecoveryAttempts:  run.PlanningRecoveryAttempts,
+		PlanningModel:             run.PlanningModel, PlanningProvider: run.PlanningProvider,
+		PlanningInputTokens: run.PlanningInputTokens, PlanningOutputTokens: run.PlanningOutputTokens,
+		PlanningTotalTokens: run.PlanningTotalTokens, PlanningUsageEstimated: run.PlanningUsageEstimated,
+		PlanningEstimatedCostMicros: run.PlanningEstimatedCostMicros,
+		PlanningCostEstimated:       run.PlanningCostEstimated, PlanningPricingVersion: run.PlanningPricingVersion,
+		GoalRunStatus: run.GoalRunStatus, GoalVerificationStatus: run.GoalVerificationStatus,
+		VerifiedCheckpointVersion:  run.VerifiedCheckpointVersion,
+		VerifiedCheckpointRevision: run.VerifiedCheckpointRevision,
+		VerifiedCheckpointDigest:   run.VerifiedCheckpointDigest,
+		FailureCode:                failureCode, FailureDigest: agentExecutionErrorDigest(run.ID, failure),
 		StepCount: run.StepCount, InputTokens: run.InputTokens, OutputTokens: run.OutputTokens,
 		TotalTokens: run.TotalTokens, EstimatedCostMicros: run.EstimatedCostMicros,
 		UsageEstimated: run.UsageEstimated, CostEstimated: run.CostEstimated,
@@ -589,6 +665,9 @@ func (s *AgentService) releaseClaimedAgentExecutionRun(
 ) error {
 	commitCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), agentExecutionStateCommitTimeout)
 	defer cancel()
+	if err := s.authorizeSubjectWrite(commitCtx, run.UserID); err != nil {
+		return err
+	}
 	status := repository.AgentExecutionRunAwaitingHuman
 	if run.PendingResumeKind == repository.AgentExecutionResumeApproval ||
 		run.PendingResumeKind == repository.AgentExecutionResumeDelegatedApproval ||
@@ -602,7 +681,21 @@ func (s *AgentService) releaseClaimedAgentExecutionRun(
 		Mode: run.Mode, Model: run.Model, AgentProfileID: run.AgentProfileID,
 		AgentProfileVersion: run.AgentProfileVersion, PromptTemplateID: run.PromptTemplateID,
 		PromptTemplateVersion: run.PromptTemplateVersion,
-		PendingActionType:     run.PendingActionType, PendingActionName: run.PendingActionName,
+		PlanningPlanDigest:    run.PlanningPlanDigest,
+		PlanningCalls:         run.PlanningCalls, PlanningModelAttempts: run.PlanningModelAttempts,
+		PlanningAdmissionAttempts: run.PlanningAdmissionAttempts,
+		PlanningAdmissionRepairs:  run.PlanningAdmissionRepairs,
+		PlanningRecoveryAttempts:  run.PlanningRecoveryAttempts,
+		PlanningModel:             run.PlanningModel, PlanningProvider: run.PlanningProvider,
+		PlanningInputTokens: run.PlanningInputTokens, PlanningOutputTokens: run.PlanningOutputTokens,
+		PlanningTotalTokens: run.PlanningTotalTokens, PlanningUsageEstimated: run.PlanningUsageEstimated,
+		PlanningEstimatedCostMicros: run.PlanningEstimatedCostMicros,
+		PlanningCostEstimated:       run.PlanningCostEstimated, PlanningPricingVersion: run.PlanningPricingVersion,
+		GoalRunStatus: run.GoalRunStatus, GoalVerificationStatus: run.GoalVerificationStatus,
+		VerifiedCheckpointVersion:  run.VerifiedCheckpointVersion,
+		VerifiedCheckpointRevision: run.VerifiedCheckpointRevision,
+		VerifiedCheckpointDigest:   run.VerifiedCheckpointDigest,
+		PendingActionType:          run.PendingActionType, PendingActionName: run.PendingActionName,
 		PendingActionID: run.PendingActionID, PendingResumeKind: run.PendingResumeKind,
 		ApprovalRequestID:   run.ApprovalRequestID,
 		ApprovalInputDigest: run.ApprovalInputDigest, ApprovalIdempotencyKey: run.ApprovalIdempotencyKey,
@@ -666,6 +759,24 @@ func agentExecutionRunViewAt(run *repository.AgentExecutionRun, now time.Time) *
 	if run.ExecutionStrategyPlan != nil {
 		cloned := agentStrategy.ClonePlan(*run.ExecutionStrategyPlan)
 		view.ExecutionStrategyPlan = &cloned
+	}
+	if run.PlanningPlanDigest != "" || run.PlanningCalls > 0 || run.GoalRunStatus != "" {
+		view.Planning = &AgentPlanningEvidenceView{
+			Enabled: true, PlanDigest: run.PlanningPlanDigest,
+			PlanningCalls: run.PlanningCalls, ModelAttempts: run.PlanningModelAttempts,
+			AdmissionAttempts: run.PlanningAdmissionAttempts,
+			AdmissionRepairs:  run.PlanningAdmissionRepairs,
+			RecoveryAttempts:  run.PlanningRecoveryAttempts,
+			Model:             run.PlanningModel, Provider: run.PlanningProvider,
+			InputTokens: run.PlanningInputTokens, OutputTokens: run.PlanningOutputTokens,
+			TotalTokens: run.PlanningTotalTokens, UsageEstimated: run.PlanningUsageEstimated,
+			EstimatedCostMicros: run.PlanningEstimatedCostMicros,
+			CostEstimated:       run.PlanningCostEstimated, PricingVersion: run.PlanningPricingVersion,
+			GoalStatus: run.GoalRunStatus, VerificationStatus: run.GoalVerificationStatus,
+			CheckpointVersion:  run.VerifiedCheckpointVersion,
+			CheckpointRevision: run.VerifiedCheckpointRevision,
+			CheckpointDigest:   run.VerifiedCheckpointDigest,
+		}
 	}
 	return view
 }

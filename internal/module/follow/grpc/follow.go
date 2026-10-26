@@ -2,10 +2,11 @@ package grpc
 
 import (
 	"context"
+	"errors"
 
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"go.uber.org/zap"
 
 	followv1 "twitter-clone/api/follow/v1"
 	"twitter-clone/internal/module/follow/service"
@@ -70,12 +71,15 @@ func (s *FollowServer) IsFollowing(ctx context.Context, req *followv1.IsFollowin
 
 // GetFollowers 获取粉丝列表
 func (s *FollowServer) GetFollowers(ctx context.Context, req *followv1.GetFollowersRequest) (*followv1.GetFollowersResponse, error) {
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "user_id is required")
+	}
 	logger.Info(ctx, "gRPC: GetFollowers", zap.Uint64("user_id", req.UserId), zap.Uint64("cursor", req.Cursor), zap.Int32("limit", req.Limit))
 
 	followerIDs, nextCursor, hasMore, err := s.svc.GetFollowers(ctx, req.UserId, req.Cursor, int(req.Limit))
 	if err != nil {
 		logger.Error(ctx, "❌ GetFollowers error", zap.Error(err))
-		return nil, status.Errorf(codes.Internal, "failed to get followers: %v", err)
+		return nil, followPageRPCError(err)
 	}
 
 	return &followv1.GetFollowersResponse{
@@ -87,12 +91,15 @@ func (s *FollowServer) GetFollowers(ctx context.Context, req *followv1.GetFollow
 
 // GetFollowees 获取关注列表
 func (s *FollowServer) GetFollowees(ctx context.Context, req *followv1.GetFolloweesRequest) (*followv1.GetFolloweesResponse, error) {
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "user_id is required")
+	}
 	logger.Info(ctx, "gRPC: GetFollowees", zap.Uint64("user_id", req.UserId), zap.Uint64("cursor", req.Cursor), zap.Int32("limit", req.Limit))
 
 	followeeIDs, nextCursor, hasMore, err := s.svc.GetFollowees(ctx, req.UserId, req.Cursor, int(req.Limit))
 	if err != nil {
 		logger.Error(ctx, "❌ GetFollowees error", zap.Error(err))
-		return nil, status.Errorf(codes.Internal, "failed to get followees: %v", err)
+		return nil, followPageRPCError(err)
 	}
 
 	return &followv1.GetFolloweesResponse{
@@ -100,6 +107,19 @@ func (s *FollowServer) GetFollowees(ctx context.Context, req *followv1.GetFollow
 		NextCursor:  nextCursor,
 		HasMore:     hasMore,
 	}, nil
+}
+
+func followPageRPCError(err error) error {
+	switch {
+	case errors.Is(err, service.ErrInvalidFollowPageRequest):
+		return status.Error(codes.InvalidArgument, "user_id must be nonzero")
+	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+		return status.FromContextError(err).Err()
+	case errors.Is(err, service.ErrFollowPaginationUnavailable):
+		return status.Error(codes.FailedPrecondition, "follow relation pagination is unavailable")
+	default:
+		return status.Error(codes.Internal, "failed to read follow relation page")
+	}
 }
 
 // GetFollowStats 获取关注统计

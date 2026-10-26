@@ -8,6 +8,8 @@ import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/zh-cn'
 import { type Tweet, likeTweet, unlikeTweet, deleteTweet, addBookmark, removeBookmark, retweetTweet, unretweetTweet, votePoll } from '../api/tweet'
 import { useUserStore } from '../stores/user'
+import { copyText } from '../utils/clipboard'
+import { resolveMediaUrl } from '../utils/media'
 import { CheckCircleIcon } from '@heroicons/vue/24/solid'
 import { TransitionRoot, TransitionChild, Dialog } from '@headlessui/vue'
 
@@ -95,11 +97,15 @@ const handleRetweet = async () => {
 }
 
 // 分享 (复制链接)
-const handleShare = () => {
+const handleShare = async () => {
   const url = `${window.location.origin}/tweets/${props.tweet.id}`
-  navigator.clipboard.writeText(url).then(() => {
+  try {
+    await copyText(url)
     alert('链接已复制到剪贴板')
-  })
+  } catch (error) {
+    console.error('Failed to copy tweet link', error)
+    alert('复制失败，请检查浏览器剪贴板权限')
+  }
 }
 
 // 切换书签
@@ -156,8 +162,9 @@ const getGridClass = (count: number) => {
 
 const lightboxOpen = ref(false)
 const lightboxIndex = ref(0)
+const mediaUrls = computed(() => (props.tweet.media_urls || []).map(resolveMediaUrl))
 const lightboxList = computed(() => {
-    return (props.tweet.media_urls || []).map(url => ({
+    return mediaUrls.value.map(url => ({
         url,
         type: isVideo(url) ? 'video' as const : 'image' as const
     }))
@@ -230,8 +237,8 @@ const nextLightbox = () => {
 
         <!-- Media -->
         <!-- Media -->
-        <div v-if="tweet.media_urls && tweet.media_urls.length > 0" class="mt-3 grid gap-1 rounded-2xl overflow-hidden" :class="getGridClass(tweet.media_urls.length)">
-            <template v-for="(url, index) in tweet.media_urls" :key="index">
+        <div v-if="mediaUrls.length > 0" class="mt-3 grid gap-1 rounded-2xl overflow-hidden" :class="getGridClass(mediaUrls.length)">
+            <template v-for="(url, index) in mediaUrls" :key="index">
                 <!-- Video detection (simple extension check) -->
                 <video 
                     v-if="isVideo(url)" 

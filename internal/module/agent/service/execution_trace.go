@@ -232,12 +232,20 @@ func (s *AgentService) recordWorkflowExecution(ctx context.Context, run *reposit
 }
 
 func (s *AgentService) recordRunTrace(ctx context.Context, record agentObservability.RunRecord) {
+	if err := s.authorizeSubjectWrite(ctx, record.UserID); err != nil {
+		slog.WarnContext(ctx, "skip fenced agent run trace", "run_id", record.RunID, "error", err)
+		return
+	}
 	if err := s.traceRecorder.RecordRun(ctx, record); err != nil {
 		slog.WarnContext(ctx, "persist agent run trace failed", "run_id", record.RunID, "error", err)
 	}
 }
 
 func (s *AgentService) recordStepTrace(ctx context.Context, record agentObservability.StepRecord) {
+	if err := s.authorizeSubjectWrite(ctx, record.UserID); err != nil {
+		slog.WarnContext(ctx, "skip fenced agent step trace", "run_id", record.RunID, "step_id", record.StepID, "error", err)
+		return
+	}
 	if err := s.traceRecorder.RecordStep(ctx, record); err != nil {
 		slog.WarnContext(ctx, "persist agent step trace failed", "run_id", record.RunID, "step_id", record.StepID, "error", err)
 	}

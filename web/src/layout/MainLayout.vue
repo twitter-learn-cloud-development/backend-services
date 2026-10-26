@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import NavBar from '../components/NavBar.vue'
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import request from '../utils/request'
 
 interface TrendTopic {
@@ -9,74 +9,45 @@ interface TrendTopic {
 }
 
 const trends = ref<TrendTopic[]>([])
-
-const trendStopwords = new Set([
-  '这次',
-  '一个',
-  '我们',
-  '你们',
-  '他们',
-  '这个',
-  '那个',
-  '网友',
-  '话题',
-  '推文',
-  '搜索',
-  'twitter',
-])
-
-const compactTrendTopic = (topic: string) => {
-  const raw = String(topic || '').trim()
-  if (!raw) return ''
-
-  const trimTopic = (value: string) => {
-    let result = value.trim()
-    for (const marker of ['话题', '真是', '真的', '网友', '我们', '你们', '他们', '一个', '这次', '这个', '那个']) {
-      const idx = result.indexOf(marker)
-      if (idx > 0) {
-        result = result.slice(0, idx)
-        break
-      }
-    }
-    return result.slice(0, 16)
-  }
-
-  const hashtag = raw.match(/#([\u4e00-\u9fa5A-Za-z0-9_][\u4e00-\u9fa5A-Za-z0-9_-]{0,63})/)
-  if (hashtag?.[1]) return trimTopic(hashtag[1])
-
-  const cleaned = raw
-    .replace(/https?:\/\/\S+/g, ' ')
-    .replace(/[【】「」『』"'“”‘’。，、！？!?,.:;；：（）()\[\]{}<>]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-
-  const candidates = [
-    ...(cleaned.match(/[A-Za-z][A-Za-z0-9_-]{1,23}/g) || []),
-    ...(cleaned.match(/[\u4e00-\u9fa5]{2,12}/g) || []),
-  ]
-  const candidate = candidates.find(item => !trendStopwords.has(item.toLowerCase()))
-  return trimTopic(candidate || cleaned)
-}
+let trendRequestID = 0
+let trendRefreshInterval: ReturnType<typeof setInterval> | undefined
+let postPublishRefresh: ReturnType<typeof setTimeout> | undefined
 
 const visibleTrends = computed(() => trends.value
-  .map(trend => ({
-    ...trend,
-    label: compactTrendTopic(trend.topic),
-  }))
-  .filter(trend => trend.label && trend.label.length <= 16)
+  .filter(trend => trend.topic && trend.score >= 1)
   .slice(0, 10))
 
 const fetchTrends = async () => {
+  const requestID = ++trendRequestID
   try {
     const res = await request({ url: '/trends', method: 'get' })
-    trends.value = res.data.topics || []
+    if (requestID === trendRequestID) trends.value = res.data.topics || []
   } catch (error) {
-    trends.value = []
+    if (requestID === trendRequestID) trends.value = []
   }
+}
+
+const refreshAfterPublish = () => {
+  fetchTrends()
+  if (postPublishRefresh) clearTimeout(postPublishRefresh)
+  postPublishRefresh = setTimeout(fetchTrends, 3000)
 }
 
 onMounted(() => {
   fetchTrends()
+  trendRefreshInterval = setInterval(() => {
+    if (!document.hidden) fetchTrends()
+  }, 30000)
+  window.addEventListener('tweet-created', refreshAfterPublish)
+  window.addEventListener('focus', fetchTrends)
+})
+
+onUnmounted(() => {
+  if (trendRefreshInterval) clearInterval(trendRefreshInterval)
+  if (postPublishRefresh) clearTimeout(postPublishRefresh)
+  window.removeEventListener('tweet-created', refreshAfterPublish)
+  window.removeEventListener('focus', fetchTrends)
+  trendRequestID++
 })
 </script>
 
@@ -107,13 +78,13 @@ onMounted(() => {
           <template v-if="visibleTrends.length > 0">
             <div
               v-for="(trend, index) in visibleTrends"
-              :key="`${trend.label}-${index}`"
+              :key="`${trend.topic}-${index}`"
               class="py-3 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors -mx-4 px-4"
-              @click="$router.push('/explore?q=' + encodeURIComponent(trend.label) + '&type=latest')"
+              @click="$router.push('/explore?q=' + encodeURIComponent(trend.topic) + '&type=latest')"
             >
               <div class="text-xs text-gray-500">趋势 · 第{{ index + 1 }}名</div>
-              <div class="font-bold text-gray-900 dark:text-white truncate">#{{ trend.label }}</div>
-              <div class="text-xs text-gray-500">热度 {{ trend.score }}</div>
+              <div class="font-bold text-gray-900 dark:text-white truncate">#{{ trend.topic }}</div>
+              <div class="text-xs text-gray-500">近期热度 {{ trend.score }}</div>
             </div>
           </template>
           <template v-else>

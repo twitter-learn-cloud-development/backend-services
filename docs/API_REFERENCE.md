@@ -81,6 +81,42 @@ POST /api/v1/auth/login
 
 ---
 
+### 1.3 当前会话能力（M8-R2）
+
+`GET /api/v1/auth/session`，需要有效 Bearer JWT：
+
+```json
+{"logout_scope":"local","revocation_supported":false,"password_change_revokes_tokens":false}
+```
+
+当前 JWT 为无状态 RS256/JWKS。没有服务端会话撤销、刷新令牌或全设备退出；退出与修改密码后，已签发令牌仍有效至自然到期。
+
+### 1.4 退出当前客户端
+
+`POST /api/v1/auth/logout`，需要有效 Bearer JWT，JSON 请求体 `{"scope":"local"}`；`{}` 默认 local。
+
+```json
+{"scope":"local","token_revoked":false,"revocation_supported":false,"message":"clear local session; issued tokens remain valid until expiry"}
+```
+
+HTTP 200 仅确认本地退出语义，不代表服务端已撤销令牌或替客户端清除了存储。Web/Mobile 退出独立清除本机 token/user、关闭 Socket 并回到登录，不依赖网络回执；过期 JWT 的 401 同样必须允许本地退出。`scope=all` 返回 501/`revocation_supported=false`，未知 scope、缺少 JSON 或超过 4 KiB 返回 400，不伪报全设备退出成功。Auth gRPC `Logout` 的既有 `user_id`/`message` 保留，现实现相同本地回执，不调用 User 写入。
+
+### 1.5 修改当前用户密码
+
+`POST /api/v1/auth/password`，需要有效 Bearer JWT：
+
+```json
+{"old_password":"current-password","new_password":"new-password"}
+```
+
+用户 ID 只取鉴权 Context，忽略 JSON 自报 `user_id`；旧密码必填且不超过 72 UTF-8 字节，新密码为 6–72 UTF-8 字节（bcrypt 上限），请求体不超过 4 KiB。Gateway 以 5 秒超时调用 Auth → User；User 验证旧密码后只持久化新 bcrypt hash。
+
+```json
+{"message":"password changed; sign in again on this client","reauthenticate":true,"tokens_revoked":false}
+```
+
+成功后两端清除当前本地会话并要求重新登录。错误旧密码返回 403，保留当前登录状态；参数错误 400、无认证 401、用户不存在 404、依赖失败 503、超时 504。下游原始错误不回显。503/504 或网络断开不能证明写入未发生，客户端不自动重试，应尝试用新密码登录。并发密码修改仍沿现有 User 写路径，尚无密码版本/CAS 或全设备撤销保证。
+
 ## 2. 用户接口 (Users)
 
 ### 2.1 获取用户资料（公开）
@@ -238,6 +274,24 @@ DELETE /api/v1/tweets/:id
 
 **Headers：** `Authorization: Bearer <token>`
 
+**路径参数：**
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| id | 十进制 uint64 字符串 | 有效推文 ID，仅作者可以删除；客户端不得用浮点 Number 重构大 ID |
+
+**请求体：** 无。
+
+**成功响应 (200)：**
+
+```json
+{
+  "message": "tweet deleted successfully"
+}
+```
+
+单条软删除与兼容 `TWEET_DELETED` Outbox 在同一事务提交；成功表示事实删除与事件已入库，Timeline/ES/Qdrant 等派生清理仍异步，不保证响应时已删除所有投影。事务依赖、查询、删除、Outbox 或提交失败向上传播，当前既有 gRPC/Gateway 错误映射仍为 Internal/HTTP 500；未改变响应字段或 Proto。已删除/不存在在 Service 保持 NotFound，但本轮未改变它的 HTTP 错误映射。提交后缓存失败不会把已提交事实报成回滚；COMMIT 回执丢失可能已经提交，错误不代表记录仍有效，应读回当前权威状态。
+
 ---
 
 ### 3.4 点赞推文 🔒
@@ -357,6 +411,8 @@ GET /api/v1/ws?token=<access_token>
 
 - `token`: JWT Access Token (必填)
 
+M4-R2追加订阅就绪事件`{"type":"ready","history_sync_required":true}`，客户端应从HTTP历史补拉，旧客户端可忽略。心跳、自然到期关闭、消息提示和恢复边界见17.4；Socket写成功不代表设备送达。
+
 **消息通过 WebSocket 推送，格式如下：**
 
 ```json
@@ -472,7 +528,36 @@ GET /api/v1/feeds
 
 **Headers：** `Authorization: Bearer <token>`
 
-**查询参数：** 同上 (`cursor`, `limit`)
+**路径参数：** 无。**请求体：** 无；调用者从 JWT 获取，不接受客户端指定用户身份。
+
+**查询参数：**
+
+| 参数 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `cursor` | uint64 十进制字符串 | `"0"` | 规范无前导零字符串；原样回传上次 `next_cursor`，非法/空值/溢出/重复参数返回 400 |
+| `limit` | int32 | 20 | ≤0 使用 20；大于 100 收紧为 100；非整数/溢出/重复参数返回 400 |
+
+**成功响应 (200)：**
+
+```json
+{
+  "tweets": [],
+  "next_cursor": "9007199254740997",
+  "has_more": true
+}
+```
+
+候选按精确推文 ID 倒序。每批最多消费 100 个，单请求最多扫描 1000 个，过滤后继续有界补齐至 `limit`。当前 MySQL 查询同时按未删除推文和有效关注关系限定候选，包含当前调用者自身记录以及有效关注对象的 Public/Follows 记录，排除其他人的 Private/Shadowban。返回前每批再次校验至多 100 个作者的当前关注关系，已取关作者不会凭旧 Inbox 授权；关系读取失败返回错误。该检查是读取时事实，关系/可见性在检查后仍可变化，并非跨请求事务快照。`next_cursor` 绑定最后已消费候选，可能与最后一条可见推文不同；未消费的前瞻/下一页候选不会跳过。达到扫描上限时可能返回空 `tweets` 且 `has_more=true`，客户端仍应回传推进后的游标，不能以数组为空判定结束。原始候选存在并不保证后续一定有可见推文；结束页 `has_more=false`、`next_cursor="0"`、空数组固定为 `[]`。
+
+HTTP `next_cursor` 统一为字符串，避免大整数 JSON Number 精度丢失；Proto 仍为 uint64，字段编号不变。Web/Mobile 数据层均透传字符串，不转换 Number；旧版本已被舍入的在途游标需从首页重拉。翻页中新产生的大 ID 在刷新首页可见；数据删除/可见性/迟到写入不是跨请求冻结快照。
+
+M2-R3 客户端按推文字符串 ID 去重，刷新/页签/账号换代时丢弃旧响应；单代加载互斥。无新增记录且仍有下一游标时最多自动读取 3 页，随后提供继续加载；错误保留成功列表和失败游标，可重试，不修改服务器事实。首页推荐入口 `GET /api/v1/tweets/public` 的 `next_cursor` 也统一为十进制字符串，其服务分页算法未因本轮改变。
+
+M2-R2 起，每页候选使用当前 MySQL 权威读 Port，覆盖全部有效关注对象与深历史，不枚举旧 100 条 Follow IDs、不依赖大 V 关联集合/作者时间线的截断历史；Redis 当前仅为派生投影，不决定结果完整性或权限。冷缓存按用户有界重建最新至多 1000 条，区分空 Feed 和非空 key 丢失，带租约的原子合并保留并发写扩散；Redis/重建失败只记录投影错误，已成功读取的权威页仍可返回，权威存储/关系失败明确返回错误。跨端交互与真实容量继续归 M2-R3，旧 Fanout/关联后台恢复归 M3-R3。公开用户资料批量补全，失败时降级为 unknown；HTTP 400 参数错误、401 未登录、503 服务/读取失败、504 超时、500 其他内部错误，错误示例：
+
+```json
+{"error": "failed to read feed"}
+```
 
 ### 1.3 获取当前用户信息
 
@@ -595,17 +680,34 @@ GET /api/v1/follows/:id/status
 GET /api/v1/users/:id/followers
 ```
 
-**查询参数：** `cursor`, `limit`
+**路径参数：**
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `id` | uint64 十进制字符串 | 非零的目标用户 ID |
+
+**查询参数：**
+
+| 参数 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `cursor` | uint64 十进制字符串 | `"0"` | 首次请求为 0，后续原样回传 `next_cursor`；它是关注关系 ID，不是用户 ID |
+| `limit` | int32 | `20` | 每页用户数，非正数使用 20，最大 100；仓储额外读取一条前瞻记录 |
+
+**请求体：** 无。示例：`GET /api/v1/users/42/followers?cursor=0&limit=2`。
 
 **成功响应 (200)：**
 
 ```json
 {
-  "follower_ids": [3, 5, 8],
-  "next_cursor": 8,
-  "has_more": false
+  "follower_ids": ["3", "5"],
+  "next_cursor": "9007199254740993",
+  "has_more": true
 }
 ```
+
+按当前有效关注关系 `id DESC` 排序；下一页只查询 `id < cursor`。`next_cursor` 取本页最后一个已交付关系的 ID，不能从 `follower_ids` 推算。结束页返回 `next_cursor="0"`、`has_more=false`；空列表为 `follower_ids=[]`。分页期间新建的更大关系 ID 不进入已开始的后续页，回到首页可见；已取关记录按 `deleted_at=0` 排除。分页不是长期冻结快照，翻页期间关系删除/重新关注会反映当前事实。
+
+非法/零用户 ID、非法或非规范十进制 Cursor、参数重复、空参数值、Limit 解析溢出返回 `400`，不再静默重置为首页。后端缺少关系分页支持或不可用返回 `503`；超时为 `504`，其他读取失败为 `500`，均返回低敏错误正文。
 
 ---
 
@@ -614,6 +716,26 @@ GET /api/v1/users/:id/followers
 ```
 GET /api/v1/users/:id/followees
 ```
+
+**路径参数：**
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `id` | uint64 十进制字符串 | 非零的目标用户 ID |
+
+**查询参数：** 与 4.4 的 `cursor/limit` 相同。**请求体：** 无。示例：`GET /api/v1/users/42/followees?cursor=0&limit=2`。
+
+**成功响应 (200)：**
+
+```json
+{
+  "followee_ids": ["900", "2"],
+  "next_cursor": "8000",
+  "has_more": true
+}
+```
+
+结束页 `next_cursor="0"`、`has_more=false`，空列表为 `followee_ids=[]`；排序、关系游标、校验和错误码与 4.4 相同。Web 已将游标作为字符串原样回传，无字段适配；Mobile 当前没有这两个列表的分页入口。升级不改 Proto 字段编号、数据库结构或既有响应字段；旧版在途分页的错误用户 ID 游标无法自动识别，应从 0 重新加载。
 
 ---
 
@@ -682,6 +804,7 @@ GET /metrics
 | -------------------- | ------------------------------------------------ | ------------------------------------- |
 | `CreateTweet`      | `{user_id, content, media_urls, parent_id, poll_options, poll_duration_minutes, idempotency_key?}` | `{tweet}` |
 | `GetTweet`         | `{tweet_id}`                                   | `{tweet}`                           |
+| `GetPublicTweets`  | `{tweet_ids[]}`（1—100 个非零 ID）             | `{tweets[]}`（当前公开记录，去重后按请求顺序） |
 | `DeleteTweet`      | `{tweet_id, user_id}`                          | `{message}`                         |
 | `GetAuthorPostingStats` | `{author_id, lookback_seconds}` | `{sample_count, latest_created_at, previous_created_at}` |
 | `ApplyTweetModeration` | `{tweet_id, author_id, action, reason_code}` | `{applied, timelines_cleaned, cleanup_queued}` |
@@ -700,6 +823,32 @@ GET /metrics
 
 `GetAuthorPostingStats` 与 `ApplyTweetModeration` 是服务间风控接口，不映射为 Gateway HTTP API。前者只返回最多两条时间戳信号，不泄露推文正文；后者当前仅接受 `SHADOWBAN`。TweetService 在同一 MySQL 事务内幂等更新可见性并写入带去重键的 `TWEET_MODERATED` Outbox Event，随后由 Canal 投递 `tweet.moderated`。Timeline Consumer 使用关注关系 ID 稳定分页全量清理，并在 Redis 保存页游标与完成标记；重复投递只会重放幂等 Lua 清理。`cleanup_queued=true` 表示事务事件已提交；兼容字段 `timelines_cleaned` 在异步模式下固定为零。
 
+#### 6.2.1 公共检索权威批量读取（2026-10-12）
+
+**请求方法：** gRPC Unary `GetPublicTweets`。**路径：** `/tweet.v1.TweetService/GetPublicTweets`（内部 gRPC，不新增 Gateway HTTP 路由）。
+
+| 路径参数 | 说明 |
+|---|---|
+| 无 | 固定服务/方法路径；候选 ID 位于请求体 |
+
+**请求体（Proto JSON 示例，uint64 使用字符串）：**
+
+```json
+{"tweet_ids":["101","102","101"]}
+```
+
+**响应体（示意）：**
+
+```json
+{"tweets":[{"id":"101","user_id":"7","content":"当前公开正文","visible_type":0,"created_at":"1700000000000"}]}
+```
+
+该接口直接批量读取 TweetService 当前 MySQL 事实，不使用 L1/L2 缓存；仅返回 `deleted_at=0 && visible_type=PUBLIC` 的记录。删除、私密、仅粉丝可见、Shadowban 和不存在的 ID 均省略，不返回拒绝原因或旧正文。重复 ID 去重，结果保持请求顺序；读取是查询时快照，不保证后续模型生成期间状态不变。统计交互字段不额外计算，调用方不得将默认零值解释为当前互动数量。
+
+空请求、0 ID 或超过 100 个输入项返回 `InvalidArgument`；数据库失败返回固定低敏 `Unavailable`；取消/超时保留 `Canceled`/`DeadlineExceeded`。不支持旧服务上的 `Unimplemented` 降级为索引正文。部署顺序为先 TweetService、后 Agent；旧客户端无需增加调用。
+
+Agent 公共 MCP 语义/混合搜索及公共认知检索只从索引取得候选 ID，在 Reranker、Evidence、模型上下文之前通过该接口读取当前正文。权威不可用时 MCP 返回工具错误，RAG Port 返回错误；认知上下文装配记录失败并省略该块，普通对话仍遵循既有降级语义。该规则不修改用户私人 Episodic Memory 的隔离或当前 Web/Mobile API 字段。
+
 ### 6.3 FollowService (端口 9093)
 
 | 方法               | 请求                           | 响应                                        |
@@ -710,6 +859,8 @@ GET /metrics
 | `GetFollowers`   | `{user_id, cursor, limit}`   | `{follower_ids[], next_cursor, has_more}` |
 | `GetFollowees`   | `{user_id, cursor, limit}`   | `{followee_ids[], next_cursor, has_more}` |
 | `GetFollowStats` | `{user_id}`                  | `{follower_count, followee_count}`        |
+
+`GetFollowers/GetFollowees` 的 `cursor/next_cursor` 为关注关系 ID，用户 ID 数组仅表示展示对象。公开 Service 使用 FollowerPage/FolloweePage 仓储接口（limit+1 前瞻），默认页大小 20、最大 100，不用用户 ID 构造 Cursor。结束游标为 0；无效用户 ID 返回 `InvalidArgument`，缺少分页 Port 为 `FailedPrecondition`，取消/超时保留对应 gRPC 状态；读取或分页契约异常返回固定低敏 `Internal`。原 Proto 类型/字段编号不变。
 
 ### 6.4 NotificationService (端口 9095)
 
@@ -934,7 +1085,9 @@ POST /alerts
 
 | 请求头                   | 说明                                                 | 必填 |
 | ------------------------ | ---------------------------------------------------- | ---- |
-| `X-Alertmanager-Token` | 鉴权令牌，固定为`twitter-clone-secret-alert-token` | 是   |
+| `Authorization` | `Bearer <token>`；生产 Token 由 `ALERTMANAGER_WEBHOOK_TOKEN_FILE` 指向的 Secret 文件提供，至少 32 字符 | 是 |
+
+未配置有效 Token 时接口返回 `503 Service Unavailable`；Token 错误时返回 `401 Unauthorized`。滚动升级期间仍兼容 `X-Alertmanager-Token: <同一外部 Token>`，该 Header 已弃用；接口不再接受任何硬编码开发令牌。
 
 **请求体 (JSON 示例)：**
 
@@ -1223,6 +1376,29 @@ Attempt ID 或租约。
   },
   "task_template_id": "",
   "task_template_revision": 0,
+  "planning": {
+    "enabled": true,
+    "plan_digest": "sha256...",
+    "planning_calls": 1,
+    "model_attempts": 1,
+    "admission_attempts": 1,
+    "admission_repairs": 0,
+    "recovery_attempts": 0,
+    "model": "qwen-plus",
+    "provider": "dashscope",
+    "input_tokens": 96,
+    "output_tokens": 32,
+    "total_tokens": 128,
+    "usage_estimated": false,
+    "estimated_cost_micros": 0,
+    "cost_estimated": false,
+    "pricing_version": "",
+    "goal_status": "suspended",
+    "verification_status": "inconclusive",
+    "checkpoint_version": "goal.v1",
+    "checkpoint_revision": 1,
+    "checkpoint_digest": "sha256..."
+  },
   "status": "awaiting_human",
   "revision": 2,
   "resume_supported": true,
@@ -1252,7 +1428,9 @@ Attempt ID 或租约。
 正在被某个实例恢复且租约仍有效时返回 `running + resume_supported=false`；如果该实例
 崩溃且租约已过期，查询投影会恢复为原来的 `awaiting_human` 或 `approval_required`；只有
 Checkpoint、审批和授权条件仍有效时才返回 `resume_supported=true`。响应会给出当前 Revision，
-但不会暴露租约、Attempt ID、令牌哈希或 Checkpoint。
+但不会暴露租约、Attempt ID、令牌哈希或 Checkpoint。`planning` 仅在 Planning-Execute
+实际进入时返回，其中摘要、次数、用量、Goal/Verifier 状态和 Checkpoint 身份用于灰度诊断；
+它不包含模型思维链、Task/Goal 原文、Evidence 正文、Tool 参数、人工回答或加密材料。
 
 | 状态码 | 说明 |
 |--------|------|
@@ -1815,6 +1993,9 @@ GET /api/v1/agent/dialogues/:id/messages
       "question": "",
       "response": "你好！我是你的 AI 助手...",
       "run_id": "",
+      "has_runtime_usage": true,
+      "runtime_total_tokens": 42,
+      "runtime_tokens_estimated": false,
       "publishable_draft": false
     }
   ]
@@ -1823,7 +2004,11 @@ GET /api/v1/agent/dialogues/:id/messages
 
 客户端应优先读取 `role/content`。`question/response` 是兼容旧客户端的过渡字段。Assist 生成的
 assistant 消息会额外返回 `run_id` 与 `publishable_draft=true`，用于恢复“选择草稿、编辑并显式发布”
-操作；普通对话和用户消息不会被标记为可发布草稿。
+操作；普通对话和用户消息不会被标记为可发布草稿。仅在消息元数据确实保存 Runtime
+用量时，`has_runtime_usage=true`，`runtime_total_tokens` 表示该条回答关联执行的 Token
+总量，`runtime_tokens_estimated` 表示是否包含估算。旧消息三个字段为 `false/0/false`，
+不得把零值当作已核算用量。该消息级总量不提供输入/输出拆分或子工作流核算；若权威 Run
+仍可读取，以 `/api/v1/agent/runs/:id/accounting` 为准。
 
 ---
 
@@ -3319,3 +3504,223 @@ POST /api/v1/agent/profile-catalog/experiments/:experiment_id/outcomes
 同一 `experiment_id + event_id` 首次写入后不可改值；同值重试返回
 `idempotent_replay=true`，冲突值返回 `409`。运行观测尚未异步落库、实验未配置该信号或已经终止时返回
 `422`，调用方应仅对“观测未就绪”使用相同请求做有界重试。
+
+## 17. 私信历史接口 (Messenger) 🔒
+
+两类列表均要求 Bearer JWT；调用者身份由 Gateway 提供，客户端不能指定 `user_id`。HTTP ID 与 Cursor 均为字符串，不得转为 JavaScript Number。分页字段和 Proto 编号保持兼容；旧在途会话页升级后需重拉首页。
+
+### 17.1 获取会话列表
+
+```http
+GET /api/v1/messenger/conversations?limit=20&cursor=0
+```
+
+**路径参数：** 无。**请求体：** 无。
+
+**查询参数：**
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `limit` | int32 | 省略或 ≤0 使用 20；大于 100 收紧为 100；非整数、溢出和重复参数返回 400 |
+| `cursor` | string | 省略、空字符串或 `"0"` 为首页；后续原样回传 `next_cursor`，最长 65 字符，重复/非法/跨用户游标返回 400 |
+
+**成功响应 (200)：**
+
+```json
+{
+  "conversations": [{
+    "peer_id": "2",
+    "peer": {"id": "2", "username": "peer", "nickname": "peer", "avatar": ""},
+    "latest_message": {
+      "id": "9007199254740997", "sender_id": "2", "receiver_id": "1",
+      "content": "hello", "created_at": 1791763200000, "is_read": false,
+      "sender": {"id": "2", "username": "peer", "nickname": "peer", "avatar": ""}
+    },
+    "unread_count": 1
+  }],
+  "next_cursor": "c1:1:9007199254740999:9007199254740997",
+  "has_more": true
+}
+```
+
+按首次消息 ID 上界范围内各会话最大消息 ID 倒序。版本化游标绑定调用者、首次上界和最后交付 ID；客户端只透传字符串。上界之后的新消息在刷新首页时获取。该上界不是事务快照，低 ID 延迟提交仍可能影响后续页面；未读数只统计上界内消息，已读状态可随并发读取变化。获取会话列表不会标记已读。公开资料采用批量补全，资料服务失败时使用 `username: "unknown"` 和空头像。
+
+### 17.2 获取消息历史
+
+```http
+GET /api/v1/messenger/conversations/:peer_id/messages?limit=20&cursor=0
+```
+
+**路径参数：**
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `peer_id` | uint64 十进制字符串 | 非零对方用户 ID；服务只读取当前调用者与该用户的会话 |
+
+**请求体：** 无。`limit` 语义同 17.1；`cursor` 为规范的正 uint64 十进制字符串，省略、空或 `"0"` 为首页。其他格式（包括负值、空白、非零前导零、溢出和会话游标）返回 400。
+
+**成功响应 (200)：**
+
+```json
+{
+  "messages": [{
+    "id": "9007199254740997", "sender_id": "2", "receiver_id": "1",
+    "content": "history", "created_at": 1791763200000, "is_read": true,
+    "sender": {"id": "2", "username": "peer", "nickname": "peer", "avatar": ""}
+  }],
+  "next_cursor": "9007199254740997",
+  "has_more": true
+}
+```
+
+按 `id DESC` 返回；下一页排他读取 `id < cursor`，同毫秒消息不会因时间相同而跳漏。读取成功前，仅把本页交付且接收者为调用者的消息幂等标记已读；不标记前瞻行、未获取的历史或读取期间的新消息。更新失败返回明确错误，可以重试。服务端返回成功不等于客户端已展示，网络断开后仍可能已提交已读状态；M4-R2保留这一边界，没有新增展示确认/实时已读回执。`created_at` 为毫秒 Unix 时间。
+
+**空页/结束页 (200)：** 对应列表为 `[]`，`next_cursor: ""`、`has_more: false`；只有存在前瞻行才返回下一游标。客户端用 `has_more` 判断结束，不能把失败当空页。
+
+**错误响应：**
+
+| HTTP | 情况 |
+|---|---|
+| 400 | 非法 ID、Limit、Cursor 或重复查询参数 |
+| 401 | 未登录/认证失败 |
+| 503 | 历史存储失败、服务不可用或分页 Port 缺失 |
+| 504 | 服务调用超时 |
+| 500 | 历史页违反契约或其他内部错误 |
+
+```json
+{"error": "failed to read message history"}
+```
+
+分页业务错误采用固定低敏正文，不回显SQL/消息内容。M4-R2双端已接入分页、ID去重、失败游标重试和重连补拉，真实跨设备/断网验收仍待执行；历史页和Redis Pub/Sub不提供持久投递保证。
+
+### 17.3 发送私信
+
+```http
+POST /api/v1/messenger/messages
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{"receiver_id":"2","content":"hello"}
+```
+
+发送者取认证Context。接收者为非零uint64字符串，正文去空白后非空且UTF-8字节不超过16384；Gateway请求体上限32768字节。成功响应沿既有Message字段（`id/sender_id/receiver_id/content/created_at/is_read/sender`），ID为字符串，表示MySQL入库成功。入库后Redis提示在两方共用2秒预算内尝试，失败或无订阅不改变入库成功；同一身份仅提示一次。没有发送幂等键，超时/断网可能已提交；客户端保留草稿、先同步历史，不自动重发，手工重发可能产生另一条消息。
+
+### 17.4 实时就绪与历史恢复
+
+沿4.1的Socket入口，Redis订阅ACK后发送：
+
+```json
+{"type":"ready","history_sync_required":true}
+```
+
+私信提示保持`{"type":"message","data":{...Message}}`。每25秒Ping，60秒无Pong断开，写超时5秒，客户端入站数据上限4 KiB、Redis提示上限64 KiB；JWT自然到期关闭（1008，reauthenticate），没有提前撤销或全设备退出。内部Redis缓冲和重订阅可能丢提示，ready也不表示补齐成功。
+
+双端在页面进入、transport/protocol ready、重新前台和30秒前台周期从HTTP恢复；保存上次完整首页同步的最大ID为独立锚点，从0倒序读取至该锚点或结束，每次最多3页，未完成保留同步游标并显示继续。旧历史游标独立；Socket/发送响应只合并显示，不能前移恢复锚点；会话首页刷新重新开始版本化分页链。ID按规范uint64字符串排序/去重，已读标记单调合并。ID不是提交序列，低ID延迟提交超出已扫区间仍可能遗漏，不能据此宣称永久完整性。强送达、安全重试、持久收件箱/Outbox、提交序号及设备ACK需另轮协议。
+
+观测使用`messenger_realtime_publish_total{outcome}`和`gateway_realtime_events_total{outcome}`，不含用户/消息ID标签。固定结果和告警规则、回退与现场验收见`MESSENGER_RECOVERY_RUNBOOK.md`；本机测试不替代真实送达验收。
+
+## 16. 内部用户支持查询接口 🔒
+
+该接口只供 Python `support-agent-service` 调用。默认不注册；只有
+`SUPPORT_QUERY_ENABLED=true` 且服务 JWT、Redis 防重放/幂等配置完整时，Gateway 才注册路由。
+公网反向代理不得转发 `/internal/`。
+
+### 16.1 执行只读 Support Capability
+
+```http
+POST /internal/v1/support/query
+Authorization: Bearer <short-lived-service-jwt>
+traceparent: 00-<trace-id>-<span-id>-01
+Content-Type: application/json
+```
+
+路径参数：无。
+
+服务 JWT 固定校验 HS256、issuer、audience、subject、`iat/nbf/exp/jti` 和最大有效期；
+`act.user_id` 是唯一可信用户主体。每个 `jti` 通过 Redis 原子消费一次，Token 不写日志。
+
+请求：
+
+```json
+{
+  "operation": "content.list_recent",
+  "arguments": {
+    "limit": 5,
+    "time_from": "2026-09-27T00:00:00Z"
+  },
+  "request_context": {
+    "case_id": "0199a440-dc2e-7000-80a8-4c3c008f7851",
+    "task_id": "task_01J_support",
+    "tool_call_id": "call_01J_support"
+  }
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `operation` | string | 是 | Registry 中的只读原子能力名 |
+| `arguments` | object | 是 | 由 operation 严格 Schema 校验；未知字段拒绝 |
+| `request_context.case_id` | string | 是 | 一次用户问题调查 |
+| `request_context.task_id` | string | 是 | Planner 生成的动态任务 |
+| `request_context.tool_call_id` | string | 是 | 工具幂等键；同键不同请求返回 409 |
+
+当前注册的 `content.list_recent` 只接受 `limit` 和可选 `time_from`。即使调用方在
+`arguments` 中伪造 `user_id` 也会被拒绝；下游 `GetUserTimeline` 的 `user_id` 与
+`requesting_user_id` 均强制使用 JWT `act.user_id`。
+
+成功响应：
+
+```json
+{
+  "request_id": "95f030f4-f2ae-48ad-aa49-c24d8e8df7bc",
+  "operation": "content.list_recent",
+  "status": "success",
+  "data": {
+    "items": [
+      {
+        "resource_ref": "tweet:2103819831835901952",
+        "visibility": "public",
+        "created_at": "2026-09-28T06:30:00Z"
+      }
+    ],
+    "has_more": false
+  },
+  "evidence": [
+    {
+      "evidence_id": "ev_8abce173e36b28c4aa93469d",
+      "source_type": "business_api",
+      "source_ref": "content:authenticated-user:recent",
+      "observed_at": "2026-09-28T06:30:01Z",
+      "safe_summary": "The authenticated user has 1 recent content items: 1 public, 0 followers-only, 0 private, and 0 restricted.",
+      "attributes": {
+        "count": 1,
+        "public_count": 1,
+        "followers_count": 0,
+        "private_count": 0,
+        "restricted_count": 0,
+        "additional_results": false
+      }
+    }
+  ],
+  "meta": {
+    "duration_ms": 12,
+    "data_freshness": "live"
+  }
+}
+```
+
+响应不包含 Tweet 正文、原始用户 ID、数据库字段、内部地址或下游错误文本。
+
+错误使用 `application/problem+json`：
+
+| HTTP | `code` | 说明 |
+|---:|---|---|
+| 400 | `invalid_arguments` | 请求或 operation 参数不符合严格 Schema |
+| 401 | `invalid_service_identity` | JWT 无效、过期或发生 `jti` 重放 |
+| 403 | `operation_forbidden` | Actor 无权访问资源 |
+| 404 | `operation_not_found` / `resource_not_found` | 能力未注册或资源不可见 |
+| 409 | `tool_call_conflict` | 同一 Actor/tool_call_id 对应不同请求 |
+| 429 | `query_rate_limited` | 下游限流 |
+| 502 | `upstream_invalid_response` | 下游返回不满足安全契约 |
+| 503 | `query_temporarily_unavailable` | Redis或业务依赖临时不可用 |
+| 504 | `query_timeout` | 整次内部查询超时 |

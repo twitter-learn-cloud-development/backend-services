@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"time"
 
@@ -74,6 +75,7 @@ type AgentRepository interface {
 
 // MongoAgentRepository MongoDB 实现的对话仓储
 type MongoAgentRepository struct {
+	db                       *mongo.Database
 	dialogueColl             *mongo.Collection
 	messageColl              *mongo.Collection
 	workflowColl             *mongo.Collection
@@ -89,11 +91,15 @@ type MongoAgentRepository struct {
 	approvalColl             *mongo.Collection
 	executionColl            *mongo.Collection
 	agentExecutionRunColl    *mongo.Collection
+	retentionLeaseColl       *mongo.Collection
+	retentionSubjectColl     *mongo.Collection
+	dataDeletionRequestColl  *mongo.Collection
 }
 
 // NewMongoAgentRepository 创建 MongoDB 对话仓储
 func NewMongoAgentRepository(db *mongo.Database) *MongoAgentRepository {
 	return &MongoAgentRepository{
+		db:                       db,
 		dialogueColl:             db.Collection(CollectionDialogues),
 		messageColl:              db.Collection(CollectionMessages),
 		workflowColl:             db.Collection(CollectionWorkflows),
@@ -109,12 +115,27 @@ func NewMongoAgentRepository(db *mongo.Database) *MongoAgentRepository {
 		approvalColl:             db.Collection(CollectionToolApprovals),
 		executionColl:            db.Collection(CollectionToolExecutions),
 		agentExecutionRunColl:    db.Collection(CollectionAgentExecutionRuns),
+		retentionLeaseColl:       db.Collection(CollectionAgentRetentionLeases),
+		retentionSubjectColl:     db.Collection(CollectionAgentRetentionSubjects),
+		dataDeletionRequestColl:  db.Collection(CollectionAgentDataDeletionRequests),
 	}
+}
+
+// AuthorizeSubjectWrite exposes the single Mongo-backed authority used by
+// AgentService before it creates or mutates user-owned data.
+func (r *MongoAgentRepository) AuthorizeSubjectWrite(ctx context.Context, userID uint64) error {
+	if r == nil || r.db == nil {
+		return errors.New("agent subject write authorizer is unavailable")
+	}
+	return NewMongoSubjectWriteFence(r.db).AuthorizeSubjectWrite(ctx, userID)
 }
 
 // ---- 对话会话管理 ----
 
 func (r *MongoAgentRepository) CreateDialogue(ctx context.Context, userID uint64, title string, mode DialogueMode) (*Dialogue, error) {
+	if userID == 0 {
+		return nil, errors.New("dialogue owner is required")
+	}
 	now := time.Now()
 
 	// 为了兼容 gRPC 层的 uint64 传输（有损转换取后8字节），
@@ -137,9 +158,15 @@ func (r *MongoAgentRepository) CreateDialogue(ctx context.Context, userID uint64
 		UpdatedAt: now,
 	}
 
-	_, err := r.dialogueColl.InsertOne(ctx, dialogue)
+	err := withSubjectWriteLease(ctx, r, userID, func() error {
+		_, insertErr := r.dialogueColl.InsertOne(ctx, dialogue)
+		if insertErr != nil {
+			return fmt.Errorf("insert dialogue failed: %w", insertErr)
+		}
+		return nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("insert dialogue failed: %w", err)
+		return nil, err
 	}
 
 	return dialogue, nil
@@ -223,6 +250,7 @@ func (r *MongoAgentRepository) UpdateDialogueTitle(ctx context.Context, dialogue
 			"title":      title,
 			"updated_at": time.Now(),
 		},
+		"$unset": bson.M{"retention_claim_token": "", "retention_claim_until": ""},
 	})
 	if err != nil {
 		return fmt.Errorf("update dialogue title failed: %w", err)
@@ -231,11 +259,15 @@ func (r *MongoAgentRepository) UpdateDialogueTitle(ctx context.Context, dialogue
 }
 
 func (r *MongoAgentRepository) TouchDialogue(ctx context.Context, dialogueID primitive.ObjectID) error {
-	_, err := r.dialogueColl.UpdateByID(ctx, dialogueID, bson.M{
-		"$set": bson.M{"updated_at": time.Now()},
+	result, err := r.dialogueColl.UpdateByID(ctx, dialogueID, bson.M{
+		"$set":   bson.M{"updated_at": time.Now()},
+		"$unset": bson.M{"retention_claim_token": "", "retention_claim_until": ""},
 	})
 	if err != nil {
 		return fmt.Errorf("touch dialogue failed: %w", err)
+	}
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("touch dialogue failed: dialogue not found")
 	}
 	return nil
 }
@@ -268,43 +300,95 @@ func (r *MongoAgentRepository) DeleteDialogue(ctx context.Context, dialogueID pr
 // ---- 对话消息管理 ----
 
 func (r *MongoAgentRepository) SaveMessage(ctx context.Context, msg *DialogueMessage) error {
-	if msg.CreatedAt.IsZero() {
-		msg.CreatedAt = time.Now()
+	if msg == nil || msg.UserID == 0 || msg.DialogueID.IsZero() {
+		return errors.New("save message requires owner and dialogue")
 	}
-
-	result, err := r.messageColl.InsertOne(ctx, msg)
+	dialogue, err := r.GetDialogue(ctx, msg.DialogueID)
 	if err != nil {
-		return fmt.Errorf("insert message failed: %w", err)
+		return err
 	}
-
-	msg.ID = result.InsertedID.(primitive.ObjectID)
-	return nil
+	if dialogue.UserID != msg.UserID {
+		return errors.New("message owner does not match dialogue")
+	}
+	return withSubjectWriteLease(ctx, r, msg.UserID, func() error {
+		if err := r.prepareDialogueWrite(ctx, msg.DialogueID); err != nil {
+			return err
+		}
+		if msg.CreatedAt.IsZero() {
+			msg.CreatedAt = time.Now()
+		}
+		result, err := r.messageColl.InsertOne(ctx, msg)
+		if err != nil {
+			return fmt.Errorf("insert message failed: %w", err)
+		}
+		msg.ID = result.InsertedID.(primitive.ObjectID)
+		return nil
+	})
 }
 
 func (r *MongoAgentRepository) SaveMessages(ctx context.Context, msgs []*DialogueMessage) error {
 	if len(msgs) == 0 {
 		return nil
 	}
-
-	now := time.Now()
-	docs := make([]any, len(msgs))
-	for i, msg := range msgs {
-		if msg.CreatedAt.IsZero() {
-			msg.CreatedAt = now
+	if msgs[0] == nil || msgs[0].UserID == 0 {
+		return errors.New("save messages requires an owner")
+	}
+	userID := msgs[0].UserID
+	dialogues := make(map[primitive.ObjectID]struct{}, len(msgs))
+	for _, msg := range msgs {
+		if msg == nil || msg.DialogueID.IsZero() || msg.UserID != userID {
+			return errors.New("save messages requires one owner and valid dialogues")
 		}
-		docs[i] = msg
+		dialogues[msg.DialogueID] = struct{}{}
 	}
+	for dialogueID := range dialogues {
+		dialogue, err := r.GetDialogue(ctx, dialogueID)
+		if err != nil {
+			return err
+		}
+		if dialogue.UserID != userID {
+			return errors.New("message owner does not match dialogue")
+		}
+	}
+	return withSubjectWriteLease(ctx, r, userID, func() error {
+		for dialogueID := range dialogues {
+			if err := r.prepareDialogueWrite(ctx, dialogueID); err != nil {
+				return err
+			}
+		}
+		now := time.Now()
+		docs := make([]any, len(msgs))
+		for i, msg := range msgs {
+			if msg.CreatedAt.IsZero() {
+				msg.CreatedAt = now
+			}
+			docs[i] = msg
+		}
+		results, err := r.messageColl.InsertMany(ctx, docs)
+		if err != nil {
+			return fmt.Errorf("insert messages failed: %w", err)
+		}
+		for i, id := range results.InsertedIDs {
+			msgs[i].ID = id.(primitive.ObjectID)
+		}
+		return nil
+	})
+}
 
-	results, err := r.messageColl.InsertMany(ctx, docs)
+func (r *MongoAgentRepository) prepareDialogueWrite(ctx context.Context, dialogueID primitive.ObjectID) error {
+	if dialogueID.IsZero() {
+		return errors.New("save dialogue message requires a dialogue identity")
+	}
+	result, err := r.dialogueColl.UpdateByID(ctx, dialogueID, bson.M{
+		"$set":   bson.M{"updated_at": time.Now()},
+		"$unset": bson.M{"retention_claim_token": "", "retention_claim_until": ""},
+	})
 	if err != nil {
-		return fmt.Errorf("insert messages failed: %w", err)
+		return fmt.Errorf("prepare dialogue message write failed: %w", err)
 	}
-
-	// 回填生成的 ObjectID
-	for i, id := range results.InsertedIDs {
-		msgs[i].ID = id.(primitive.ObjectID)
+	if result.MatchedCount == 0 {
+		return errors.New("prepare dialogue message write failed: dialogue not found")
 	}
-
 	return nil
 }
 
@@ -361,12 +445,16 @@ func (r *MongoAgentRepository) EnsureIndexes(ctx context.Context) error {
 			Options: options.Index().SetName("idx_user_updated"),
 		},
 		{
+			Keys:    bson.D{{Key: "updated_at", Value: 1}, {Key: "_id", Value: 1}},
+			Options: options.Index().SetName("idx_dialogue_retention_updated"),
+		},
+		{
 			Keys: bson.D{
-				{Key: "user_id", Value: 1},
+				{Key: "summary_due_at", Value: 1},
 				{Key: "summary_status", Value: 1},
 				{Key: "summary_lease_until", Value: 1},
 			},
-			Options: options.Index().SetName("idx_user_summary_lease"),
+			Options: options.Index().SetName("idx_summary_due_lease"),
 		},
 	}
 	if _, err := r.dialogueColl.Indexes().CreateMany(ctx, dialogueIndexes); err != nil {
@@ -378,6 +466,10 @@ func (r *MongoAgentRepository) EnsureIndexes(ctx context.Context) error {
 		{
 			Keys:    bson.D{{Key: "dialogue_id", Value: 1}, {Key: "created_at", Value: 1}},
 			Options: options.Index().SetName("idx_dialogue_time"),
+		},
+		{
+			Keys:    bson.D{{Key: "created_at", Value: 1}, {Key: "_id", Value: 1}},
+			Options: options.Index().SetName("idx_message_retention_created"),
 		},
 	}
 	if _, err := r.messageColl.Indexes().CreateMany(ctx, messageIndexes); err != nil {
@@ -424,6 +516,14 @@ func (r *MongoAgentRepository) EnsureIndexes(ctx context.Context) error {
 		{
 			Keys:    bson.D{{Key: "user_id", Value: 1}, {Key: "workflow_id", Value: 1}, {Key: "started_at", Value: -1}},
 			Options: options.Index().SetName("idx_workflow_run_user_workflow_started"),
+		},
+		{
+			Keys:    bson.D{{Key: "status", Value: 1}, {Key: "finished_at", Value: 1}},
+			Options: options.Index().SetName("idx_workflow_run_retention_finished"),
+		},
+		{
+			Keys:    bson.D{{Key: "status", Value: 1}, {Key: "suspended_at", Value: 1}},
+			Options: options.Index().SetName("idx_workflow_run_retention_suspended"),
 		},
 		{
 			Keys: bson.D{
@@ -604,20 +704,63 @@ func (r *MongoAgentRepository) EnsureIndexes(ctx context.Context) error {
 			Keys:    bson.D{{Key: "status", Value: 1}, {Key: "lease_until", Value: 1}},
 			Options: options.Index().SetName("idx_tool_execution_status_lease"),
 		},
+		{
+			Keys:    bson.D{{Key: "status", Value: 1}, {Key: "updated_at", Value: 1}},
+			Options: options.Index().SetName("idx_tool_execution_retention_updated"),
+		},
+		{
+			Keys:    bson.D{{Key: "output_reference.key", Value: 1}},
+			Options: options.Index().SetName("idx_tool_execution_output_reference_key").SetSparse(true),
+		},
 	}
 	if _, err := r.executionColl.Indexes().CreateMany(ctx, executionIndexes); err != nil {
 		return fmt.Errorf("create tool execution indexes failed: %w", err)
+	}
+
+	retentionSubjectIndexes := []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "held", Value: 1}, {Key: "hold_until", Value: 1}, {Key: "updated_at", Value: -1}},
+			Options: options.Index().SetName("idx_retention_subject_active_hold"),
+		},
+	}
+	if _, err := r.retentionSubjectColl.Indexes().CreateMany(ctx, retentionSubjectIndexes); err != nil {
+		return fmt.Errorf("create retention subject indexes failed: %w", err)
+	}
+
+	dataDeletionRequestIndexes := []mongo.IndexModel{
+		{
+			Keys: bson.D{{Key: "user_id", Value: 1}, {Key: "active", Value: 1}},
+			Options: options.Index().SetName("idx_data_deletion_user_active").SetUnique(true).
+				SetPartialFilterExpression(bson.M{"active": true}),
+		},
+		{
+			Keys:    bson.D{{Key: "status", Value: 1}, {Key: "updated_at", Value: 1}},
+			Options: options.Index().SetName("idx_data_deletion_status_updated"),
+		},
+	}
+	if _, err := r.dataDeletionRequestColl.Indexes().CreateMany(ctx, dataDeletionRequestIndexes); err != nil {
+		return fmt.Errorf("create data deletion request indexes failed: %w", err)
 	}
 
 	return nil
 }
 
 func (r *MongoAgentRepository) CreateWorkflow(ctx context.Context, workflow *WorkflowDefinition) error {
-	return r.createWorkflowWithRevision(ctx, workflow)
+	if workflow == nil || workflow.UserID == 0 {
+		return errors.New("workflow owner is required")
+	}
+	return withSubjectWriteLease(ctx, r, workflow.UserID, func() error {
+		return r.createWorkflowWithRevision(ctx, workflow)
+	})
 }
 
 func (r *MongoAgentRepository) UpdateWorkflow(ctx context.Context, workflow *WorkflowDefinition) error {
-	return r.updateWorkflowWithRevision(ctx, workflow)
+	if workflow == nil || workflow.UserID == 0 || workflow.ID.IsZero() {
+		return errors.New("workflow identity is incomplete")
+	}
+	return withSubjectWriteLease(ctx, r, workflow.UserID, func() error {
+		return r.updateWorkflowWithRevision(ctx, workflow)
+	})
 }
 
 func (r *MongoAgentRepository) ListWorkflows(ctx context.Context, userID uint64, page, pageSize int) ([]*WorkflowDefinition, int64, error) {
@@ -664,6 +807,15 @@ func (r *MongoAgentRepository) GetWorkflow(ctx context.Context, workflowID primi
 }
 
 func (r *MongoAgentRepository) CreateWorkflowRun(ctx context.Context, run *WorkflowRunRecord) error {
+	if run == nil || run.UserID == 0 {
+		return errors.New("workflow run owner is required")
+	}
+	return withSubjectWriteLease(ctx, r, run.UserID, func() error {
+		return r.createWorkflowRun(ctx, run)
+	})
+}
+
+func (r *MongoAgentRepository) createWorkflowRun(ctx context.Context, run *WorkflowRunRecord) error {
 	now := time.Now()
 	if run.ID.IsZero() {
 		run.ID = primitive.NewObjectID()
@@ -682,6 +834,15 @@ func (r *MongoAgentRepository) CreateWorkflowRun(ctx context.Context, run *Workf
 }
 
 func (r *MongoAgentRepository) UpdateWorkflowRun(ctx context.Context, run *WorkflowRunRecord) error {
+	if run == nil || run.UserID == 0 || run.ID.IsZero() {
+		return errors.New("workflow run identity is incomplete")
+	}
+	return withSubjectWriteLease(ctx, r, run.UserID, func() error {
+		return r.updateWorkflowRun(ctx, run)
+	})
+}
+
+func (r *MongoAgentRepository) updateWorkflowRun(ctx context.Context, run *WorkflowRunRecord) error {
 	res, err := r.runColl.UpdateOne(ctx,
 		bson.M{"_id": run.ID, "user_id": run.UserID},
 		bson.M{"$set": bson.M{

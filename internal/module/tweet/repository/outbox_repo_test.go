@@ -30,6 +30,10 @@ func TestClaimableOutboxTasksQueryUsesSkipLockedAndBackoff(t *testing.T) {
 	require.Contains(t, sql, "retries < max_retries")
 	require.Contains(t, sql, "CASE retries")
 	require.Contains(t, sql, "ORDER BY id ASC LIMIT ?")
+	request.TaskTypes = []string{domain.ProjectionSyncText, "delete_es"}
+	statement = claimableOutboxTasksQuery(db, request).Find(&tasks).Statement
+	require.Contains(t, statement.SQL.String(), "task_type IN (?,?)")
+	require.Contains(t, statement.SQL.String(), "FOR UPDATE SKIP LOCKED")
 }
 
 func TestActiveOutboxClaimQueryFencesOwnerTokenAndExpiry(t *testing.T) {

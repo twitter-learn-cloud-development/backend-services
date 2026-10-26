@@ -10,6 +10,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type AuthService struct {
@@ -105,6 +107,9 @@ func (a *AuthService) Register(ctx context.Context, req *authV1.RegisterRequest)
 }
 
 func (a *AuthService) ChangePassword(ctx context.Context, req *authV1.ChangePasswordRequest) (*authV1.ChangePasswordResponse, error) {
+	if req == nil || req.UserId == 0 || req.OldPassword == "" || len(req.OldPassword) > 72 || len(req.NewPassword) < 6 || len(req.NewPassword) > 72 {
+		return nil, status.Error(codes.InvalidArgument, "invalid password change request")
+	}
 	//远程调用user服务
 	userResponse, err := a.userClient.ChangePassword(ctx, &userv1.ChangePasswordRequest{
 		UserId:      req.UserId,
@@ -119,5 +124,10 @@ func (a *AuthService) ChangePassword(ctx context.Context, req *authV1.ChangePass
 	}, nil
 }
 
-//TODO: logout,待user远程服务拥有此服务后进行开发
-//func (a *AuthService) Logout(ctx context.Context, req *authV1.LogoutRequest) (*authV1.LogoutResponse, error) {}
+// Logout acknowledges local sign-out only. Stateless JWTs remain valid until expiry.
+func (a *AuthService) Logout(ctx context.Context, req *authV1.LogoutRequest) (*authV1.LogoutResponse, error) {
+	if req == nil || req.UserId == 0 {
+		return nil, status.Error(codes.InvalidArgument, "user id required")
+	}
+	return &authV1.LogoutResponse{Message: "clear local session; issued tokens are not revoked"}, nil
+}

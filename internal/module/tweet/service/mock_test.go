@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"sync"
 
 	"github.com/stretchr/testify/mock"
 
@@ -9,9 +10,65 @@ import (
 	"twitter-clone/internal/events"
 )
 
+type FakeTweetSubjectWriteFenceRepository struct {
+	mu              sync.Mutex
+	authorizeErr    error
+	requireErr      error
+	authorizedIDs   []uint64
+	enforceErr      error
+	enforceReplay   bool
+	enforceRevision int64
+}
+
+func AllowTweetSubjectWrites() *FakeTweetSubjectWriteFenceRepository {
+	return &FakeTweetSubjectWriteFenceRepository{enforceRevision: 1}
+}
+
+func (f *FakeTweetSubjectWriteFenceRepository) AuthorizeSubjectWrite(_ context.Context, userID uint64) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.authorizedIDs = append(f.authorizedIDs, userID)
+	return f.authorizeErr
+}
+
+func (f *FakeTweetSubjectWriteFenceRepository) RequireSubjectWriteFence(_ context.Context, userID uint64) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.authorizedIDs = append(f.authorizedIDs, userID)
+	return f.requireErr
+}
+
+func (f *FakeTweetSubjectWriteFenceRepository) EnforceSubjectWriteFence(
+	_ context.Context,
+	fence *domain.TweetSubjectWriteFence,
+) (*domain.TweetSubjectWriteFence, bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.enforceErr != nil {
+		return nil, false, f.enforceErr
+	}
+	copyFence := *fence
+	copyFence.FenceRevision = f.enforceRevision
+	return &copyFence, f.enforceReplay, nil
+}
+
+func (f *FakeTweetSubjectWriteFenceRepository) AuthorizedIDs() []uint64 {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]uint64(nil), f.authorizedIDs...)
+}
+
 // MockTweetRepository 模拟 TweetRepository
 type MockTweetRepository struct {
 	mock.Mock
+}
+
+func (m *MockTweetRepository) ListFollowingFeed(ctx context.Context, viewerID, before uint64, limit int) ([]*domain.Tweet, error) {
+	args := m.Called(ctx, viewerID, before, limit)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.Tweet), args.Error(1)
 }
 
 func (m *MockTweetRepository) Create(ctx context.Context, tweet *domain.Tweet) error {

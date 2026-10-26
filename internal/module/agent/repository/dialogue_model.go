@@ -41,18 +41,20 @@ const (
 // 对应 MongoDB 集合：dialogues
 // 一个用户可以有多个对话会话，每个会话包含多条消息
 type Dialogue struct {
-	ID                     primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	UserID                 uint64             `bson:"user_id"       json:"user_id"`
-	Title                  string             `bson:"title"         json:"title"` // 对话标题，取自首条用户消息的前30字
-	Mode                   DialogueMode       `bson:"mode"          json:"mode"`  // 对话模式
-	SummaryVersion         int                `bson:"summary_version,omitempty" json:"summary_version,omitempty"`
-	SummarizedMessageCount int64              `bson:"summarized_message_count,omitempty" json:"summarized_message_count,omitempty"`
-	SummaryStatus          string             `bson:"summary_status,omitempty" json:"-"`
-	SummaryLeaseToken      string             `bson:"summary_lease_token,omitempty" json:"-"`
-	SummaryLeaseUntil      time.Time          `bson:"summary_lease_until,omitempty" json:"-"`
-	SummaryUpdatedAt       time.Time          `bson:"summary_updated_at,omitempty" json:"summary_updated_at,omitempty"`
-	CreatedAt              time.Time          `bson:"created_at"    json:"created_at"`
-	UpdatedAt              time.Time          `bson:"updated_at"    json:"updated_at"`
+	ID                      primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	UserID                  uint64             `bson:"user_id"       json:"user_id"`
+	Title                   string             `bson:"title"         json:"title"` // 对话标题，取自首条用户消息的前30字
+	Mode                    DialogueMode       `bson:"mode"          json:"mode"`  // 对话模式
+	SummaryVersion          int                `bson:"summary_version,omitempty" json:"summary_version,omitempty"`
+	SummarizedMessageCount  int64              `bson:"summarized_message_count,omitempty" json:"summarized_message_count,omitempty"`
+	SummaryStatus           string             `bson:"summary_status,omitempty" json:"-"`
+	SummaryLeaseToken       string             `bson:"summary_lease_token,omitempty" json:"-"`
+	SummaryLeaseUntil       time.Time          `bson:"summary_lease_until,omitempty" json:"-"`
+	SummaryDueAt            time.Time          `bson:"summary_due_at,omitempty" json:"-"`
+	SummaryScheduleRevision int64              `bson:"summary_schedule_revision,omitempty" json:"-"`
+	SummaryUpdatedAt        time.Time          `bson:"summary_updated_at,omitempty" json:"summary_updated_at,omitempty"`
+	CreatedAt               time.Time          `bson:"created_at"    json:"created_at"`
+	UpdatedAt               time.Time          `bson:"updated_at"    json:"updated_at"`
 }
 
 // MessageRole 消息角色

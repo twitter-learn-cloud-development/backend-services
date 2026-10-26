@@ -4,6 +4,11 @@
 
 本仓库最初从社交平台后端出发，当前已经演进为一个同时包含 **业务微服务** 与 **Agent 基础设施** 的工程实践项目。
 
+Python 使用向导“小栖”源码位于 [`support-agent-service/`](support-agent-service/README.md)，
+使用 FastAPI、LangChain、LangGraph、MongoDB 和 Qdrant，保留独立依赖与测试。
+小栖只解释功能、规则和操作方法，实际内容任务提示前往站内 AI 助手；当前为本机联合运行版，
+不属于既有 12 镜像生产发布目录，也不代表服务器准入已完成。
+
 项目的重点不只是“调用大模型”，而是尝试回答一组更偏工程化的问题：
 
 - Agent 如何在有限步数、Token、成本与并发预算下执行？

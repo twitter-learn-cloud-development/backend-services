@@ -71,6 +71,9 @@ func (s *AgentService) ConfirmPublishTwitter(
 	userID uint64,
 	sourceRunID, content string,
 ) (*ConfirmedDraftResult, error) {
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return nil, err
+	}
 	if s == nil || s.confirmedDraftPublisher == nil {
 		return nil, ErrConfirmedDraftPublisherUnavailable
 	}

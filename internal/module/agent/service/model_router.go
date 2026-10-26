@@ -21,7 +21,12 @@ const (
 func buildDefaultProviderRouter(
 	premiumClient *openai.Client,
 	premiumModel string,
+	policies ...agentModel.CallAdmission,
 ) (*agentModel.ProviderRouter, error) {
+	var callPolicy agentModel.CallAdmission
+	if len(policies) > 0 {
+		callPolicy = policies[0]
+	}
 	localModel := strings.TrimSpace(os.Getenv("LM_STUDIO_MODEL_CHAT"))
 	if localModel == "" {
 		localModel = "qwen2.5-3b-instruct"
@@ -63,7 +68,7 @@ func buildDefaultProviderRouter(
 	}
 
 	providers := map[string]agentRuntime.ModelClient{
-		providerDashScope: agentModel.NewOpenAICompatibleClient(premiumClient, premiumModel, providerDashScope),
+		providerDashScope: agentModel.NewOpenAICompatibleClient(premiumClient, premiumModel, providerDashScope, agentModel.WithCallAdmission(callPolicy)),
 	}
 	if localModel != premiumModel {
 		baseURL := envString("LM_STUDIO_API_URL", "http://localhost:1234/v1")
@@ -80,7 +85,7 @@ func buildDefaultProviderRouter(
 			nil,
 		)
 		localClient := openai.NewClientWithConfig(config)
-		providers[providerLMStudio] = agentModel.NewOpenAICompatibleClient(localClient, localModel, providerLMStudio)
+		providers[providerLMStudio] = agentModel.NewOpenAICompatibleClient(localClient, localModel, providerLMStudio, agentModel.WithCallAdmission(callPolicy))
 	}
 	return agentModel.NewProviderRouter(catalog, providers)
 }

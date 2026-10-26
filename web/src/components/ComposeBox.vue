@@ -151,6 +151,7 @@ const handleTweet = async () => {
         
         // 4. 通知父组件刷新列表
         emit('tweet-created')
+        window.dispatchEvent(new Event('tweet-created'))
 
     } catch (error) {
         console.error('Failed to tweet', error)

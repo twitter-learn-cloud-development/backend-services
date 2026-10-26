@@ -129,6 +129,9 @@ func (s *AgentService) RunAgent(ctx context.Context, request UnifiedAgentRequest
 	if request.UserID == 0 || strings.TrimSpace(request.Content) == "" {
 		return nil, fmt.Errorf("%w: user_id and content are required", ErrInvalidUnifiedAgentRequest)
 	}
+	if err := s.authorizeSubjectWrite(ctx, request.UserID); err != nil {
+		return nil, err
+	}
 	request.SkillID = strings.TrimSpace(request.SkillID)
 	request.SkillVersion = strings.TrimSpace(request.SkillVersion)
 	request.TaskTemplateID = strings.TrimSpace(request.TaskTemplateID)

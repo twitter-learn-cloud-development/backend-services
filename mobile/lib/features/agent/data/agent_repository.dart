@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import '../../tweet/domain/tweet_model.dart';
 
 class AgentModel {
   final int id;

@@ -2,12 +2,17 @@ package canal
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/go-mysql-org/go-mysql/canal"
 	"github.com/go-mysql-org/go-mysql/mysql"
+	"github.com/go-mysql-org/go-mysql/replication"
+	"twitter-clone/internal/domain"
 )
 
 // MQProducer MQ 消息生产者接口
@@ -23,6 +28,8 @@ type RouteConfig struct {
 
 // 静态路由字典，彻底解耦事件类型和 MQ 路由的强关联
 var routeRegistry = map[string]RouteConfig{
+	"USER_FOLLOWED":   {Exchange: "twitter.events", RoutingKey: "user.followed"},
+	"USER_UNFOLLOWED": {Exchange: "twitter.events", RoutingKey: "user.unfollowed"},
 	"TWEET_CREATED": {
 		Exchange:   "twitter.events",
 		RoutingKey: "tweet.created",
@@ -45,6 +52,11 @@ var routeRegistry = map[string]RouteConfig{
 	},
 }
 
+func OutboxRoute(eventType string) (RouteConfig, bool) {
+	route, ok := routeRegistry[eventType]
+	return route, ok
+}
+
 // PositionStore Binlog 消费位点存储接口
 type PositionStore interface {
 	SavePosition(pos mysql.Position) error
@@ -53,8 +65,10 @@ type PositionStore interface {
 
 // OutboxRelayEvent 中继通道传递的事件对象
 type OutboxRelayEvent struct {
+	EventID   uint64
 	EventType string
 	Payload   string
+	Position  *mysql.Position
 }
 
 // OutboxEventHandler 专门监听发件箱表的事件处理器
@@ -71,11 +85,13 @@ type OutboxEventRelay struct {
 	eventChan chan *OutboxRelayEvent
 
 	// 用于控制优雅启停
-	ctx        context.Context
-	cancel     context.CancelFunc
-	wg         sync.WaitGroup
-	mqProducer MQProducer // 注入的 MQ 发送器
-	posStore   PositionStore
+	ctx                 context.Context
+	cancel              context.CancelFunc
+	wg                  sync.WaitGroup
+	mqProducer          MQProducer // 注入的 MQ 发送器
+	posStore            PositionStore
+	workerErrors        chan error
+	publicationRecorder domain.OutboxPublicationRepository
 }
 
 func NewOutboxEventRelay(c *canal.Canal, mqProducer MQProducer, posStore PositionStore) *OutboxEventRelay {
@@ -87,11 +103,15 @@ func NewOutboxEventRelay(c *canal.Canal, mqProducer MQProducer, posStore Positio
 		cancel:        cancel,
 		mqProducer:    mqProducer,
 		posStore:      posStore,
+		workerErrors:  make(chan error, 1),
 	}
 }
 
 // OnRow 核心回调：每当 MySQL 发生一行数据变更，底层就会调用这个方法
 func (h *OutboxEventHandler) OnRow(e *canal.RowsEvent) error {
+	if e == nil || e.Table == nil {
+		return errors.New("outbox row metadata unavailable")
+	}
 	// ==========================================
 	// 阶段一：三重过滤 (The Funnel) - 极速放行无关数据
 	// ==========================================
@@ -115,70 +135,90 @@ func (h *OutboxEventHandler) OnRow(e *canal.RowsEvent) error {
 	// 阶段二：动态寻址与数据提取 (Data Extraction)
 	// ==========================================
 
-	// 对于 INSERT 事件，新增的数据行永远在 e.Rows[0]
-	rowData := e.Rows[0]
-
 	// ⚠️ 顶级避坑：绝对不用硬编码索引 (比如 rowData[2])
 	// 万一 DBA 加了个字段，硬编码就全崩了。必须通过列名动态获取索引！
 	payloadIdx := e.Table.FindColumn("payload")
 	if payloadIdx == -1 {
-		log.Println("🔥 致命错误: outbox_events 表中未找到 payload 字段")
-		return nil
+		return errors.New("outbox payload column unavailable")
 	}
 
 	typeIdx := e.Table.FindColumn("event_type")
 	if typeIdx == -1 {
-		log.Println("🔥 致命错误: outbox_events 表中未找到 event_type 字段")
-		return nil
+		return errors.New("outbox event type column unavailable")
 	}
 
-	rawPayload := rowData[payloadIdx] // 此时它的类型是可怕的 interface{}
-	rawType := rowData[typeIdx]
+	for _, rowData := range e.Rows {
+		var eventID uint64
+		if h.relay.publicationRecorder != nil {
+			idColumn := e.Table.FindColumn("id")
+			if idColumn < 0 || idColumn >= len(rowData) {
+				return errors.New("publication event identity missing")
+			}
+			var err error
+			eventID, err = strconv.ParseUint(fmt.Sprint(rowData[idColumn]), 10, 64)
+			if err != nil || eventID == 0 {
+				return errors.New("invalid publication event identity")
+			}
+		}
+		if payloadIdx >= len(rowData) || typeIdx >= len(rowData) {
+			return errors.New("invalid outbox row shape")
+		}
+		rawPayload := rowData[payloadIdx]
+		rawType := rowData[typeIdx]
 
-	// ==========================================
-	// 阶段三：类型断言生死劫 (Safe Type Assertion)
-	// ==========================================
+		// ==========================================
+		// 阶段三：类型断言生死劫 (Safe Type Assertion)
+		// ==========================================
 
-	var payloadJSON string
+		var payloadJSON string
 
-	// MySQL 的 JSON/TEXT 字段，在 go-mysql 底层解析出来时，
-	// 往往是 []byte，有时由于配置不同也可能是 string。
-	// 必须严格用 switch type 保护，防止直接断言导致程序 Panic 宕机！
-	switch v := rawPayload.(type) {
-	case string:
-		payloadJSON = v
-	case []byte:
-		payloadJSON = string(v)
-	default:
-		log.Printf("⚠️ 丢弃异常事件: 预料之外的 payload 数据类型: %T\n", v)
-		return nil // 遇到脏数据，记个日志放行，千万不要让整个程序挂掉
+		// MySQL 的 JSON/TEXT 字段，在 go-mysql 底层解析出来时，
+		// 往往是 []byte，有时由于配置不同也可能是 string。
+		// 必须严格用 switch type 保护，防止直接断言导致程序 Panic 宕机！
+		switch v := rawPayload.(type) {
+		case string:
+			payloadJSON = v
+		case []byte:
+			payloadJSON = string(v)
+		default:
+			return errors.New("invalid outbox payload type")
+		}
+
+		var eventType string
+		switch v := rawType.(type) {
+		case string:
+			eventType = v
+		case []byte:
+			eventType = string(v)
+		default:
+			return errors.New("invalid outbox event type")
+		}
+
+		// Payload may contain tweet content or direct identifiers. Keep it out of logs.
+		log.Printf("[Canal Worker] captured outbox event type=%s", eventType)
+
+		// ==========================================
+		// 阶段四：投递与记录位点 (我们下一步要做的事)
+		// ==========================================
+
+		select {
+		case h.relay.eventChan <- &OutboxRelayEvent{EventID: eventID, EventType: eventType, Payload: payloadJSON}:
+		case <-h.relay.ctx.Done():
+			return h.relay.ctx.Err()
+		}
 	}
+	return nil
+}
 
-	var eventType string
-	switch v := rawType.(type) {
-	case string:
-		eventType = v
-	case []byte:
-		eventType = string(v)
-	default:
-		log.Printf("⚠️ 丢弃异常事件: 预料之外的 event_type 数据类型: %T\n", v)
-		return nil
-	}
-
-	// 🎉 大功告成！你拿到了纯净的推文全景 JSON 数据！
-	log.Printf("🚀 [Canal Worker] 成功拦截到发件箱事件! 类型: %s, 载荷: %s\n", eventType, payloadJSON)
-
-	// ==========================================
-	// 阶段四：投递与记录位点 (我们下一步要做的事)
-	// ==========================================
-
+// Queue a commit boundary behind its rows. Saving the parser's current
+// position could skip events still waiting for their publish confirmation.
+func (h *OutboxEventHandler) OnPosSynced(_ *replication.EventHeader, pos mysql.Position, _ mysql.GTIDSet, _ bool) error {
+	copyPosition := pos
 	select {
-	case h.relay.eventChan <- &OutboxRelayEvent{EventType: eventType, Payload: payloadJSON}:
-		// 极速返回，让 Canal 继续去拉取下一条 Binlog
+	case h.relay.eventChan <- &OutboxRelayEvent{Position: &copyPosition}:
 		return nil
 	case <-h.relay.ctx.Done():
-		log.Println("⚠️ 收到关闭信号，停止接收 Binlog 事件")
-		return nil
+		return h.relay.ctx.Err()
 	}
 }
 
@@ -199,109 +239,88 @@ func (r *OutboxEventRelay) Start() error {
 // runWorker 核心消费逻辑
 func (r *OutboxEventRelay) runWorker() {
 	defer r.wg.Done()
-
-	// 设定防抖计时器：每秒钟触发一次
-	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
-
-	var uncommittedCount int
-
 	for {
 		select {
 		case event := <-r.eventChan:
-			// 引入反压与无限退避重试机制
-			r.publishWithRetryAndBackpressure(event)
-
-			// 增加未提交位点的计数
-			uncommittedCount++
-
-			// 3. 性能优化：如果堆积了 500 条还没到 1 秒，也强制提交一次，防止意外宕机丢失太多进度
-			if uncommittedCount >= 500 {
-				r.flushPosition()
-				uncommittedCount = 0
+			if event == nil {
+				continue
 			}
-
-		case <-ticker.C:
-			// 1 秒钟到了，如果发现有没提交的位点，统一落盘一次
-			if uncommittedCount > 0 {
-				r.flushPosition()
-				uncommittedCount = 0
-			}
-
-		case <-r.ctx.Done():
-			log.Println("🛑 Worker 正在安全退出，排空残留事件...")
-			// 循环读取通道，直到完全读空，确保零丢失
-			for {
-				select {
-				case event := <-r.eventChan:
-					r.publishWithRetryAndBackpressure(event)
-				default:
-					r.flushPosition()
-					return
+			if err := r.processRelayRecord(event); err != nil {
+				log.Println("outbox relay stopped before unconfirmed boundary")
+				if r.ctx.Err() == nil {
+					select {
+					case r.workerErrors <- err:
+					default:
+					}
 				}
+				r.cancel()
+				return
 			}
+		case <-r.ctx.Done():
+			return
 		}
 	}
 }
 
-// flushPosition 获取底层解析器的当前位点并持久化
-func (r *OutboxEventRelay) flushPosition() {
-	// 获取 Canal 当前在内存中已经成功解析到了哪一个 Binlog 位点
-	// 如果你配置了 GTID 模式，这里拿到的是 GTIDSet
-	pos := r.canalInstance.SyncedPosition()
+func (r *OutboxEventRelay) Errors() <-chan error { return r.workerErrors }
 
-	// 持久化到 Redis 或 DB，这样就算程序崩溃，下次 canal.Run() 也能传入这个位点继续跑
-	if err := r.posStore.SavePosition(pos); err != nil {
-		// 位点保存失败通常不致命，因为我们是“至少一次(At-Least-Once)”投递
-		// 顶多重启后会有几条数据重复发送，下游业务做幂等即可
-		log.Printf("⚠️ 位点持久化失败: %v", err)
-	} else {
-		log.Printf("💾 位点批量持久化成功: %v", pos)
+func (r *OutboxEventRelay) processRelayRecord(event *OutboxRelayEvent) error {
+	if event.Position == nil {
+		if err := r.publishWithRetryAndBackpressure(event); err != nil {
+			return err
+		}
+		if r.publicationRecorder != nil {
+			digest, err := domain.OutboxPayloadDigest(event.Payload)
+			if err != nil {
+				return err
+			}
+			return r.retryRelayOperation(func() error {
+				ctx, cancel := context.WithTimeout(r.ctx, 5*time.Second)
+				defer cancel()
+				return r.publicationRecorder.RecordPublication(ctx, domain.OutboxPublication{EventID: event.EventID, EventType: event.EventType, PayloadDigest: digest, ConfirmedAt: time.Now().UnixMilli()})
+			})
+		}
+		return nil
 	}
+	return r.retryRelayOperation(func() error { return r.posStore.SavePosition(*event.Position) })
 }
 
-// publishWithRetryAndBackpressure 保证消息绝对送达，否则阻塞全世界
-func (r *OutboxEventRelay) publishWithRetryAndBackpressure(event *OutboxRelayEvent) {
-	baseDelay := 100 * time.Millisecond
-	maxDelay := 10 * time.Second
-	currentDelay := baseDelay
+func (r *OutboxEventRelay) SetPublicationRecorder(recorder domain.OutboxPublicationRepository) {
+	r.publicationRecorder = recorder
+}
 
-	// 🎯 从静态路由字典动态检索路由配置
+func (r *OutboxEventRelay) publishWithRetryAndBackpressure(event *OutboxRelayEvent) error {
 	route, ok := routeRegistry[event.EventType]
 	if !ok {
-		log.Printf("⚠️ 忽略未知事件类型: %s", event.EventType)
-		return
+		return errors.New("unsupported outbox route; checkpoint withheld")
 	}
-	exchange := route.Exchange
-	routingKey := route.RoutingKey
-
-	for {
-		// 1. 尝试发送到 RabbitMQ (使用动态映射的 Exchange 和 RoutingKey，带 5 秒超时保护)
+	return r.retryRelayOperation(func() error {
 		pubCtx, cancel := context.WithTimeout(r.ctx, 5*time.Second)
-		err := r.mqProducer.PublishRawJSON(pubCtx, exchange, routingKey, []byte(event.Payload))
-		cancel()
+		defer cancel()
+		return r.mqProducer.PublishRawJSON(pubCtx, route.Exchange, route.RoutingKey, []byte(event.Payload))
+	})
+}
 
-		if err == nil {
-			// 发送成功，跳出重试循环，恢复正常流动
-			return
+func (r *OutboxEventRelay) retryRelayOperation(operation func() error) error {
+	delay := 100 * time.Millisecond
+	for {
+		if err := r.ctx.Err(); err != nil {
+			return err
 		}
-
-		// 2. 发送失败，触发降级保护
-		log.Printf("⚠️ MQ 投递失败，进入退避重试 (延迟: %v). 错误: %v", currentDelay, err)
-
-		// 监听是否在重试期间收到了系统的退出信号
+		if err := operation(); err == nil {
+			return nil
+		}
+		log.Println("outbox relay operation failed; checkpoint withheld")
+		timer := time.NewTimer(delay)
 		select {
-		case <-time.After(currentDelay):
-			// 延迟结束，准备下一次循环重试
+		case <-timer.C:
 		case <-r.ctx.Done():
-			// 系统正在关闭，直接退出，这条消息会因为没有 flushPosition 而在下次重启时重新被拉取
-			return
+			timer.Stop()
+			return r.ctx.Err()
 		}
-
-		// 3. 指数退避：每次失败延迟翻倍，但最大不超过 maxDelay
-		currentDelay *= 2
-		if currentDelay > maxDelay {
-			currentDelay = maxDelay
+		delay *= 2
+		if delay > 10*time.Second {
+			delay = 10 * time.Second
 		}
 	}
 }
@@ -309,10 +328,12 @@ func (r *OutboxEventRelay) publishWithRetryAndBackpressure(event *OutboxRelayEve
 // Stop 优雅关闭中继器并退出 Canal
 func (r *OutboxEventRelay) Stop() {
 	log.Println("🛑 正在停止 Canal 提取...")
-	r.canalInstance.Close() // 1. 先通知 canal 停止从 MySQL 提取 Binlog
+	r.cancel() // Unblock queue callbacks before closing the parser.
+	if r.canalInstance != nil {
+		r.canalInstance.Close()
+	}
 
 	log.Println("🛑 正在触发中继工作协程优雅退出...")
-	r.cancel() // 2. 触发工作协程 cancel
 
 	r.wg.Wait() // 3. 阻塞等待下游工作协程将残存事件发送完毕并退出
 	log.Println("🔩 Canal relay stopped gracefully")

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -22,6 +23,7 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/propagation"
 	"go.uber.org/zap"
 	"golang.org/x/sync/singleflight"
 )
@@ -49,21 +51,23 @@ type EventProducer interface {
 
 // TweetService 推文服务（带消息队列）
 type TweetService struct {
-	repo            domain.TweetRepository
-	followRepo      domain.FollowRepository
-	likeRepo        domain.LikeRepository
-	commentRepo     domain.CommentRepository
-	pollRepo        domain.PollRepository
-	bookmarkRepo    domain.BookmarkRepository
-	retweetRepo     domain.RetweetRepository
-	timelineCache   *cache.TimelineCache
-	eventProducer   EventProducer
-	l1Cache         *cache.L1Cache
-	requestGroup    singleflight.Group
-	uow             uow.Manager
-	outboxEventRepo domain.OutboxEventRepository
-	createIdemRepo  domain.TweetCreateIdempotencyRepository
-	maxContentLen   int
+	repo                  domain.TweetRepository
+	followRepo            domain.FollowReadRepository
+	likeRepo              domain.LikeRepository
+	commentRepo           domain.CommentRepository
+	pollRepo              domain.PollRepository
+	bookmarkRepo          domain.BookmarkRepository
+	retweetRepo           domain.RetweetRepository
+	timelineCache         *cache.TimelineCache
+	eventProducer         EventProducer
+	l1Cache               *cache.L1Cache
+	requestGroup          singleflight.Group
+	uow                   uow.Manager
+	outboxEventRepo       domain.OutboxEventRepository
+	createIdemRepo        domain.TweetCreateIdempotencyRepository
+	deleteSubjectRepo     domain.TweetSubjectDeletionRepository
+	subjectWriteFenceRepo domain.TweetSubjectWriteFenceRepository
+	maxContentLen         int
 }
 
 type TweetServiceOption func(*TweetService)
@@ -74,10 +78,22 @@ func WithTweetCreateIdempotencyRepository(repo domain.TweetCreateIdempotencyRepo
 	}
 }
 
+func WithTweetSubjectDeletionRepository(repo domain.TweetSubjectDeletionRepository) TweetServiceOption {
+	return func(service *TweetService) {
+		service.deleteSubjectRepo = repo
+	}
+}
+
+func WithTweetSubjectWriteFenceRepository(repo domain.TweetSubjectWriteFenceRepository) TweetServiceOption {
+	return func(service *TweetService) {
+		service.subjectWriteFenceRepo = repo
+	}
+}
+
 // NewTweetService 创建推文服务
 func NewTweetService(
 	repo domain.TweetRepository,
-	followRepo domain.FollowRepository,
+	followRepo domain.FollowReadRepository,
 	likeRepo domain.LikeRepository,
 	commentRepo domain.CommentRepository,
 	pollRepo domain.PollRepository,
@@ -182,7 +198,14 @@ func (s *TweetService) CreateTweetIdempotent(ctx context.Context, userID uint64,
 	// 4. 保存到数据库
 	// 🔍 DB Span
 	dbCtx, dbSpan := tr.Start(ctx, "TweetService.Transaction")
+	if s.uow == nil || s.subjectWriteFenceRepo == nil {
+		dbSpan.End()
+		return nil, ErrSubjectWriteFenceUnavailable
+	}
 	err := s.uow.Do(dbCtx, func(txCtx context.Context) error {
+		if err := s.authorizeSubjectWrite(txCtx, userID); err != nil {
+			return err
+		}
 		if err := s.repo.Create(txCtx, tweet); err != nil {
 			return fmt.Errorf("failed to create tweet: %w", err)
 		}
@@ -307,38 +330,9 @@ func normalizedStringSlice(values []string) []string {
 	return values
 }
 
-// DeleteTweet 删除推文（使用消息队列）并失效多级缓存
+// DeleteTweet commits the soft delete and its durable event together.
 func (s *TweetService) DeleteTweet(ctx context.Context, tweetID uint64, userID uint64) error {
-	// 1. 查询推文
-	tweet, err := s.repo.GetByID(ctx, tweetID)
-	if err != nil {
-		return ErrTweetNotFound
-	}
-
-	// 2. 权限检查
-	if tweet.UserID != userID {
-		return ErrUnauthorized
-	}
-
-	// 3. 执行数据库删除
-	if err := s.repo.Delete(ctx, tweetID); err != nil {
-		return fmt.Errorf("failed to delete tweet: %w", err)
-	}
-
-	// 4. 失效本地与全局 L1/L2 缓存
-	s.InvalidateTweetCache(ctx, tweetID)
-
-	// 5. 发送删除事件到 MQ
-	event := &events.TweetDeletedEvent{
-		TweetID:  tweetID,
-		AuthorID: userID,
-	}
-
-	if err := s.eventProducer.PublishTweetDeleted(ctx, event); err != nil {
-		logger.Error(ctx, "⚠️  Failed to publish tweet deleted event", zap.Error(err))
-	}
-
-	return nil
+	return s.deleteTweetWithOutbox(ctx, tweetID, userID)
 }
 
 // GetTweet 获取推文详情 (带多级缓存与 singleflight 并发穿透防御)
@@ -646,122 +640,9 @@ func (s *TweetService) GetUserTimeline(ctx context.Context, userID uint64, curso
 	return allItems, nextCursor, hasMore, nil
 }
 
-// GetFeeds 获取关注流 (带推拉结合纯缓存优化与并发合并)
+// GetFeeds reads a bounded candidate page; the cursor follows consumed IDs.
 func (s *TweetService) GetFeeds(ctx context.Context, userID uint64, cursor uint64, limit int) ([]*domain.Tweet, uint64, bool, error) {
-	// 参数验证
-	if limit <= 0 {
-		limit = 20
-	}
-	if limit > 100 {
-		limit = 100
-	}
-
-	// 1. 获取当前用户关注的大V ID 集合
-	celebrityIDs, err := s.timelineCache.GetCelebrityFollowees(ctx, userID)
-	if err != nil {
-		logger.Warn(ctx, "⚠️  Failed to get celebrity followees from redis", zap.Error(err))
-		celebrityIDs = nil
-	}
-
-	var wg sync.WaitGroup
-	var normalIDs []uint64
-	var celebIDs []uint64
-	var errNormal error
-	var errCeleb error
-
-	// 2. 并发拉取大V和普通用户的时间线
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		// 普通时间线：直接走写扩散的 Redis ZSet
-		normalIDs, errNormal = s.timelineCache.GetTimeline(ctx, userID, cursor, limit)
-	}()
-
-	go func() {
-		defer wg.Done()
-		// 大V时间线：走 Pipeline 并发拉取各大V的专属 ZSet (含自动重建机制)
-		celebIDs, errCeleb = s.getCelebrityTimelineWithRebuild(ctx, celebrityIDs, cursor, limit)
-	}()
-	wg.Wait()
-
-	// 降级判断：如果普通时间线读取失败，降级走拉模式
-	if errNormal != nil {
-		logger.Warn(ctx, "⚠️  Failed to get normal timeline from redis, falling back to pull mode", zap.Error(errNormal))
-		return s.getFeedsByPull(ctx, userID, cursor, limit, userID)
-	}
-	if errCeleb != nil {
-		logger.Warn(ctx, "⚠️  Failed to fetch celebrity timelines, proceeding without them", zap.Error(errCeleb))
-	}
-
-	// 3. 内存聚合与全局排序
-	// 合并推文 ID
-	mergedIDs := make([]uint64, 0, len(normalIDs)+len(celebIDs))
-	uniqueMap := make(map[uint64]bool)
-
-	for _, id := range normalIDs {
-		if !uniqueMap[id] {
-			uniqueMap[id] = true
-			mergedIDs = append(mergedIDs, id)
-		}
-	}
-	for _, id := range celebIDs {
-		if !uniqueMap[id] {
-			uniqueMap[id] = true
-			mergedIDs = append(mergedIDs, id)
-		}
-	}
-
-	// 按 ID 降序排列 (时间降序)
-	sort.Slice(mergedIDs, func(i, j int) bool {
-		return mergedIDs[i] > mergedIDs[j]
-	})
-
-	// 4. 判断是否还有更多，并裁切
-	hasMore := len(mergedIDs) > limit
-	if hasMore {
-		mergedIDs = mergedIDs[:limit]
-	}
-
-	// 5. 批量拉取推文详情 (完全利用多级缓存，避免穿透 DB)
-	tweets, err := s.GetBaseTweetsWithCache(ctx, mergedIDs)
-	if err != nil {
-		return nil, 0, false, fmt.Errorf("failed to get feeds tweets: %w", err)
-	}
-
-	// 6. 按照已排序的 mergedIDs 重新对 tweets 排序并影子过滤
-	normalMap := make(map[uint64]*domain.Tweet, len(tweets))
-	for _, tweet := range tweets {
-		// 影子封禁过滤
-		if tweet.VisibleType == domain.VisibleShadowban && tweet.UserID != userID {
-			continue
-		}
-		normalMap[tweet.ID] = tweet
-	}
-
-	finalTweets := make([]*domain.Tweet, 0, len(mergedIDs))
-	for _, tweetID := range mergedIDs {
-		if tweet, ok := normalMap[tweetID]; ok {
-			finalTweets = append(finalTweets, tweet)
-		}
-	}
-
-	// 7. 计算下一页游标
-	var nextCursor uint64
-	if len(finalTweets) > 0 {
-		nextCursor = finalTweets[len(finalTweets)-1].ID
-	}
-
-	// 8. 填充统计数据 (点赞、收藏等)
-	s.populateTweetStats(ctx, finalTweets, userID)
-
-	// 9. 【分页预热】异步启动预拉取下一页
-	if hasMore && nextCursor > 0 {
-		prewarmCtx := context.Background() // 使用独立的脱离主线程生命周期的 Context
-		go s.prewarmNextPage(prewarmCtx, userID, nextCursor, limit, celebrityIDs)
-	}
-
-	logger.Info(ctx, "✅ Feeds loaded by cache hybrid mode", zap.Uint64("user_id", userID), zap.Int("count", len(finalTweets)))
-	return finalTweets, nextCursor, hasMore, nil
+	return s.getFeedPage(ctx, userID, cursor, limit)
 }
 
 // getCelebrityTimelineWithRebuild 获取大V的时间线推文 ID，包含防击穿的 ZSet 自动重建
@@ -782,6 +663,7 @@ func (s *TweetService) getCelebrityTimelineWithRebuild(ctx context.Context, cele
 	if len(missingIDs) > 0 {
 		var wg sync.WaitGroup
 		var mu sync.Mutex
+		rebuildErrors := make(chan error, len(missingIDs))
 		for _, id := range missingIDs {
 			wg.Add(1)
 			go func(celebID uint64) {
@@ -814,6 +696,10 @@ func (s *TweetService) getCelebrityTimelineWithRebuild(ctx context.Context, cele
 
 				select {
 				case res := <-ch:
+					if res.Err != nil || res.Val == nil {
+						rebuildErrors <- fmt.Errorf("celebrity rebuild unavailable")
+						return
+					}
 					if res.Err == nil && res.Val != nil {
 						if ids, ok := res.Val.([]uint64); ok {
 							// 根据当前游标过滤出符合分页条件的部分
@@ -835,11 +721,16 @@ func (s *TweetService) getCelebrityTimelineWithRebuild(ctx context.Context, cele
 					}
 				case <-ctx.Done():
 					// 上游取消或超时
+					rebuildErrors <- ctx.Err()
 					return
 				}
 			}(id)
 		}
 		wg.Wait()
+		close(rebuildErrors)
+		for err := range rebuildErrors {
+			return nil, err
+		}
 	}
 
 	// 将所有大V的推文 ID 聚合并扁平化
@@ -908,42 +799,9 @@ func (s *TweetService) prewarmNextPage(ctx context.Context, userID uint64, nextC
 	_, _ = s.GetBaseTweetsWithCache(prewarmCtx, mergedIDs)
 }
 
-// getFeedsByPull 拉模式获取 Feeds（降级方案）
+// getFeedsByPull shares the candidate scan contract with the cache path.
 func (s *TweetService) getFeedsByPull(ctx context.Context, userID uint64, cursor uint64, limit int, requestingUserID uint64) ([]*domain.Tweet, uint64, bool, error) {
-	// 1. 获取关注列表
-	followeeIDs, err := s.followRepo.GetFollowees(ctx, userID, 0, 1000)
-	if err != nil {
-		return nil, 0, false, fmt.Errorf("failed to get followees: %w", err)
-	}
-
-	if len(followeeIDs) == 0 {
-		return []*domain.Tweet{}, 0, false, nil
-	}
-
-	// 2. 查询这些人的推文
-	tweets, err := s.repo.GetFeeds(ctx, followeeIDs, cursor, limit+1)
-	if err != nil {
-		return nil, 0, false, fmt.Errorf("failed to get feeds: %w", err)
-	}
-
-	// 3. 判断是否还有更多
-	hasMore := len(tweets) > limit
-	if hasMore {
-		tweets = tweets[:limit]
-	}
-
-	// 4. 计算下一页游标
-	var nextCursor uint64
-	if hasMore && len(tweets) > 0 {
-		nextCursor = tweets[len(tweets)-1].ID
-	}
-
-	// 5. 填充统计数据
-	s.populateTweetStats(ctx, tweets, requestingUserID)
-
-	logger.Warn(ctx, "⚠️  Feeds loaded by pull mode", zap.Uint64("user_id", userID), zap.Int("count", len(tweets)))
-
-	return tweets, nextCursor, hasMore, nil
+	return s.getPullFeedPage(ctx, userID, cursor, feedPageLimit(limit), requestingUserID)
 }
 
 // ========== 私有辅助方法 ==========
@@ -1008,11 +866,19 @@ func (s *TweetService) validateMediaURLs(mediaURLs []string) error {
 		}
 
 		parsedURL, err := url.Parse(mediaURL)
-		if err != nil || parsedURL.Scheme == "" || parsedURL.Host == "" {
+		if err != nil {
 			return ErrInvalidMediaURL
 		}
+		if parsedURL.Scheme == "" {
+			if parsedURL.Host != "" || parsedURL.Opaque != "" || parsedURL.RawQuery != "" || parsedURL.Fragment != "" ||
+				strings.ContainsAny(mediaURL, "\\%") || !strings.HasPrefix(parsedURL.Path, "/media/twitter-media/") ||
+				parsedURL.Path == "/media/twitter-media/" || path.Clean(parsedURL.Path) != parsedURL.Path {
+				return ErrInvalidMediaURL
+			}
+			continue
+		}
 
-		if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+		if (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") || parsedURL.Host == "" {
 			return ErrInvalidMediaURL
 		}
 	}
@@ -1181,8 +1047,20 @@ func (s *TweetService) VotePoll(ctx context.Context, userID, pollID, optionID ui
 
 	var finalVotedOptionID uint64
 
-	err := s.pollRepo.Vote(ctx, vote)
+	if s.uow == nil || s.subjectWriteFenceRepo == nil {
+		return nil, ErrSubjectWriteFenceUnavailable
+	}
+	err := s.uow.Do(ctx, func(txCtx context.Context) error {
+		if err := s.authorizeSubjectWrite(txCtx, userID); err != nil {
+			return err
+		}
+		return s.pollRepo.Vote(txCtx, vote)
+	})
 	if err != nil {
+		if errors.Is(err, ErrSubjectWriteFenced) || errors.Is(err, ErrSubjectWriteFenceUnavailable) ||
+			errors.Is(err, ErrSubjectWriteFenceConflict) || errors.Is(err, ErrSubjectWriteFenceCorrupt) {
+			return nil, err
+		}
 		// 2. 如果失败，检查是否是因为已经投过票
 		existingVote, checkErr := s.pollRepo.GetVote(ctx, pollID, userID)
 		if checkErr == nil && existingVote != nil {
@@ -1259,19 +1137,47 @@ func (s *TweetService) persistTweetLiked(ctx context.Context, event *events.Twee
 	if event == nil || event.TweetID == 0 || event.UserID == 0 || event.TweetUser == 0 {
 		return errors.New("valid tweet liked event is required")
 	}
-	payload, err := json.Marshal(event)
-	if err != nil {
-		return fmt.Errorf("marshal tweet liked event: %w", err)
-	}
 	if s.uow == nil || s.outboxEventRepo == nil {
 		return errors.New("tweet engagement outbox is unavailable")
 	}
+	if s.subjectWriteFenceRepo == nil {
+		return ErrSubjectWriteFenceUnavailable
+	}
+	writer, ok := s.likeRepo.(domain.LikeMutationRepository)
+	if !ok {
+		return errors.New("like mutation identity is unavailable")
+	}
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
 	return s.uow.Do(ctx, func(txCtx context.Context) error {
-		if err := s.likeRepo.Like(txCtx, event.UserID, event.TweetID); err != nil {
+		if err := s.authorizeSubjectWrite(txCtx, event.UserID); err != nil {
+			return err
+		}
+		like, created, err := writer.ApplyLike(txCtx, event.UserID, event.TweetID)
+		if err != nil {
 			return fmt.Errorf("failed to like tweet: %w", err)
 		}
+		if like == nil || like.ID == 0 || like.UserID != event.UserID || like.TweetID != event.TweetID || like.CreatedAt <= 0 {
+			return errors.New("invalid persisted like identity")
+		}
+		if !created {
+			return nil
+		}
+		committed := *event
+		committed.LikeID = like.ID
+		committed.EventKey = events.LikeEventKey(like.ID)
+		committed.SchemaVersion = events.EngagementSchemaVersion
+		committed.OccurredAtUnixMS = like.CreatedAt
+		carrier := propagation.MapCarrier{}
+		propagation.TraceContext{}.Inject(txCtx, carrier)
+		committed.Traceparent = carrier.Get("traceparent")
+		committed.Tracestate = carrier.Get("tracestate")
+		payload, err := json.Marshal(committed)
+		if err != nil {
+			return err
+		}
 		if err := s.outboxEventRepo.Create(txCtx, &domain.OutboxEvent{
-			EventType: "TWEET_LIKED", Payload: string(payload),
+			EventType: "TWEET_LIKED", Payload: string(payload), DedupKey: &committed.EventKey, CreatedAt: like.CreatedAt,
 		}); err != nil {
 			return fmt.Errorf("failed to create tweet liked outbox event: %w", err)
 		}
@@ -1326,20 +1232,37 @@ func (s *TweetService) persistCommentCreated(ctx context.Context, comment *domai
 	if s.uow == nil || s.outboxEventRepo == nil {
 		return errors.New("comment outbox is unavailable")
 	}
+	if s.subjectWriteFenceRepo == nil {
+		return ErrSubjectWriteFenceUnavailable
+	}
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	userID, tweetID := comment.UserID, comment.TweetID
 	return s.uow.Do(ctx, func(txCtx context.Context) error {
+		if err := s.authorizeSubjectWrite(txCtx, comment.UserID); err != nil {
+			return err
+		}
 		if err := s.commentRepo.Create(txCtx, comment); err != nil {
 			return err
+		}
+		if comment.ID == 0 || comment.CreatedAt <= 0 || comment.UserID != userID || comment.TweetID != tweetID {
+			return errors.New("invalid persisted comment identity")
 		}
 		event := &events.CommentCreatedEvent{
 			CommentID: comment.ID, TweetID: comment.TweetID, UserID: comment.UserID, Content: comment.Content,
 			TweetUser: tweetAuthorID, ParentID: comment.ParentID, OccurredAtUnixMS: comment.CreatedAt,
+			EventKey: events.CommentEventKey(comment.ID), SchemaVersion: events.EngagementSchemaVersion,
 		}
+		carrier := propagation.MapCarrier{}
+		propagation.TraceContext{}.Inject(txCtx, carrier)
+		event.Traceparent = carrier.Get("traceparent")
+		event.Tracestate = carrier.Get("tracestate")
 		payload, err := json.Marshal(event)
 		if err != nil {
 			return fmt.Errorf("marshal comment created event: %w", err)
 		}
 		if err := s.outboxEventRepo.Create(txCtx, &domain.OutboxEvent{
-			EventType: "COMMENT_CREATED", Payload: string(payload),
+			EventType: "COMMENT_CREATED", Payload: string(payload), DedupKey: &event.EventKey, CreatedAt: comment.CreatedAt,
 		}); err != nil {
 			return fmt.Errorf("failed to create comment outbox event: %w", err)
 		}
@@ -1508,7 +1431,15 @@ func (s *TweetService) BookmarkTweet(ctx context.Context, userID, tweetID uint64
 		UserID:  userID,
 		TweetID: tweetID,
 	}
-	return s.bookmarkRepo.Create(ctx, bookmark)
+	if s.uow == nil || s.subjectWriteFenceRepo == nil {
+		return ErrSubjectWriteFenceUnavailable
+	}
+	return s.uow.Do(ctx, func(txCtx context.Context) error {
+		if err := s.authorizeSubjectWrite(txCtx, userID); err != nil {
+			return err
+		}
+		return s.bookmarkRepo.Create(txCtx, bookmark)
+	})
 }
 
 // UnbookmarkTweet 取消书签
@@ -1591,7 +1522,15 @@ func (s *TweetService) RetweetTweet(ctx context.Context, userID, tweetID uint64)
 		return 0, fmt.Errorf("tweet not found: %w", err)
 	}
 
-	if err := s.retweetRepo.Create(ctx, userID, tweetID); err != nil {
+	if s.uow == nil || s.subjectWriteFenceRepo == nil {
+		return 0, ErrSubjectWriteFenceUnavailable
+	}
+	if err := s.uow.Do(ctx, func(txCtx context.Context) error {
+		if err := s.authorizeSubjectWrite(txCtx, userID); err != nil {
+			return err
+		}
+		return s.retweetRepo.Create(txCtx, userID, tweetID)
+	}); err != nil {
 		return 0, err
 	}
 

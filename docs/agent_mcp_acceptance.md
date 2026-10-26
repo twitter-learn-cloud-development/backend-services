@@ -143,7 +143,21 @@ services:
         requireSigned: true
 ```
 
-Job 使用固定非 root UID/GID、只读根文件系统、关闭 ServiceAccount Token、移除 Linux Capabilities，并设置运行时限和完成后 TTL。报告默认输出到 Pod stdout，生产归档应由受控日志/对象存储流程完成；模板本身不把证据自动写入业务数据库。
+Job 使用固定非 root UID/GID、只读根文件系统、关闭 ServiceAccount Token、移除 Linux Capabilities，并设置运行时限和完成后 TTL。报告默认输出到 Pod stdout；也可配置既有 PVC、绝对挂载路径和单一文件名，将签名报告写入受控交付目录。PVC 不是不可篡改归档，生产证据仍应复制到具备保留策略的对象存储或审计系统；模板本身不把证据自动写入业务数据库。
+
+可选报告交付配置：
+
+~~~yaml
+services:
+  agentService:
+    externalMCP:
+      acceptance:
+        reportExistingClaim: agent-acceptance-reports
+        reportMountPath: /var/run/agent-mcp-reports
+        reportFileName: mcp-read-20260924.json
+~~~
+
+启用 reportExistingClaim 时，reportMountPath 必须是绝对路径，reportFileName 必须是无路径分隔符的单一文件名。每次验收应使用新文件名，避免覆盖历史证据。
 
 ## 7. 受控演练矩阵
 

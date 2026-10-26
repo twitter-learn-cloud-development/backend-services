@@ -10,6 +10,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	tweetv1 "twitter-clone/api/tweet/v1"
 	userv1 "twitter-clone/api/user/v1"
@@ -52,7 +54,6 @@ func TestTweetHandler_CreateTweet(t *testing.T) {
 			Avatar:   "avatar.jpg",
 		},
 	}, nil)
-
 
 	// 3. Request
 	reqBody := CreateTweetRequest{
@@ -99,4 +100,25 @@ func TestTweetHandler_CreateTweet_Unauthorized(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestTweetHandler_CreateTweet_InvalidMediaURL(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockClient := new(MockTweetServiceClient)
+	handler := NewTweetHandler(mockClient, new(MockUserServiceClient))
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("user_id", uint64(123))
+		c.Next()
+	})
+	r.POST("/api/v1/tweets", handler.CreateTweet)
+	mockClient.On("CreateTweet", mock.Anything, mock.Anything).Return(
+		(*tweetv1.CreateTweetResponse)(nil), status.Error(codes.InvalidArgument, "invalid media url"),
+	)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/tweets", bytes.NewBufferString(`{"content":"hello","media_urls":["/media/other-bucket/a.png"]}`))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	r.ServeHTTP(response, request)
+	assert.Equal(t, http.StatusBadRequest, response.Code)
+	mockClient.AssertExpectations(t)
 }

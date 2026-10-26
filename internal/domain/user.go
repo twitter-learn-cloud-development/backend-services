@@ -2,7 +2,11 @@ package domain
 
 import (
 	"context"
+	"errors"
 )
+
+// ErrUserNotFound is independent of the SQL adapter and its error vocabulary.
+var ErrUserNotFound = errors.New("user not found")
 
 // User 用户实体（完全匹配你的数据库表结构）
 type User struct {

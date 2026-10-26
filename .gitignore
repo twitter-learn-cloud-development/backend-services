@@ -24,6 +24,8 @@ go.work.sum
 
 # Environment files
 .env
+deploy/compose/production.env
+*.production.env
 
 # Editor/IDE files
 .idea/
@@ -43,3 +45,20 @@ go.work.sum
 /.codex-tmp/
 /.tmp/
 /tmp/
+
+# Local exports, personal documents, and generated Android reports
+/dist/
+/output/
+/uploads/
+/mobile/android/build/
+/docker-compose.deploy.yaml
+/.claude/settings.local.json
+
+# Local environment overrides and private key material (templates remain tracked)
+.env.*
+!.env.example
+!*.env.example
+*.pem
+*.key
+*.p12
+*.pfx

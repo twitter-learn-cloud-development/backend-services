@@ -98,6 +98,13 @@ func (Tweet) TableName() string {
 	return "tweets"
 }
 
+// FollowingFeedRepository scopes candidates to the viewer's current follows
+// (and own tweets) in the same storage statement. limit is bounded to 1000.
+// It avoids enumerating/truncating followee IDs and includes Follows visibility.
+type FollowingFeedRepository interface {
+	ListFollowingFeed(ctx context.Context, viewerID, before uint64, limit int) ([]*Tweet, error)
+}
+
 // TweetRepository 推文仓储接口
 // 所有的入参都尽量用 ID，不要传整个对象，保持接口纯粹
 type TweetRepository interface {

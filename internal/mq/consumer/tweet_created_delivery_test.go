@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/go-redis/redis/v8"
@@ -121,7 +122,7 @@ func TestHandleFanoutMessageReplaysWithoutDuplicatingDerivedState(t *testing.T) 
 			return nextID, nil
 		},
 	}
-	event := events.TweetCreatedEvent{TweetID: 400, AuthorID: 10, Content: "hello #Golang"}
+	event := events.TweetCreatedEvent{TweetID: 400, AuthorID: 10, Content: "hello #Golang", CreatedAt: time.Now().UnixMilli()}
 	body, err := json.Marshal(event)
 	require.NoError(t, err)
 
@@ -136,9 +137,12 @@ func TestHandleFanoutMessageReplaysWithoutDuplicatingDerivedState(t *testing.T) 
 		require.Zero(t, acknowledger.nacked)
 	}
 
-	require.Equal(t, []string{"outbox", "ack", "outbox", "ack"}, operations)
-	require.Len(t, outboxRepo.byDedupKey, 1)
-	require.Contains(t, outboxRepo.byDedupKey, "timeline:sync_es:tweet:400:v1")
+	require.Equal(t, []string{"outbox", "outbox", "ack", "outbox", "outbox", "ack"}, operations)
+	require.Len(t, outboxRepo.byDedupKey, 2)
+	require.Contains(t, outboxRepo.byDedupKey, "timeline:sync_text:tweet:400:v1")
+	for _, task := range outboxRepo.byDedupKey {
+		require.NotContains(t, task.Payload, "hello #Golang")
+	}
 	score, err := redisClient.ZScore(context.Background(), "trends:global", "golang").Result()
 	require.NoError(t, err)
 	require.Equal(t, float64(30), score)

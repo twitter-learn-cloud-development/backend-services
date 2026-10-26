@@ -168,8 +168,8 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
         color: notification.isRead
             ? Colors.transparent
             : (isDark
-                ? AppColors.primary.withOpacity(0.05)
-                : AppColors.primary.withOpacity(0.03)),
+                ? AppColors.primary.withValues(alpha: 0.05)
+                : AppColors.primary.withValues(alpha: 0.03)),
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

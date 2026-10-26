@@ -182,7 +182,7 @@ func (s *AgentService) executeWorkflowStrategyLegacy(ctx context.Context, strate
 		if err != nil {
 			return nil, fmt.Errorf("reserve strategy LLM budget: %w", err)
 		}
-		resp, err := s.llmClient.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+		resp, err := s.completeCompatibilityModel(ctx, openai.ChatCompletionRequest{
 			Model:     modelName,
 			Messages:  messages,
 			Tools:     openAITools,

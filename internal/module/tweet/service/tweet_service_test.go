@@ -61,7 +61,10 @@ func TestCreateTweet_Success(t *testing.T) {
 	mockUOW := new(MockUOWManager)
 
 	// 其他依赖暂时传 nil，因为 CreateTweet 只用了 repo, outbox, uow
-	svc := NewTweetService(mockRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil, mockOutbox, mockUOW)
+	svc := NewTweetService(
+		mockRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil, mockOutbox, mockUOW,
+		WithTweetSubjectWriteFenceRepository(AllowTweetSubjectWrites()),
+	)
 
 	ctx := context.Background()
 	userID := uint64(123)
@@ -115,7 +118,10 @@ func TestCreateTweetReturnsTransactionFailure(t *testing.T) {
 	mockRepo := new(MockTweetRepository)
 	mockUOW := new(MockUOWManager)
 	mockRepo.On("Create", mock.Anything, mock.Anything).Return(errors.New("database unavailable")).Once()
-	svc := NewTweetService(mockRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, mockUOW)
+	svc := NewTweetService(
+		mockRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, mockUOW,
+		WithTweetSubjectWriteFenceRepository(AllowTweetSubjectWrites()),
+	)
 
 	tweet, err := svc.CreateTweet(context.Background(), 7, "must rollback", nil, 0, nil, 0)
 
@@ -142,6 +148,7 @@ func TestCreateTweetIdempotentReplaysCommittedTweet(t *testing.T) {
 	svc := NewTweetService(
 		mockRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil, mockOutbox, mockUOW,
 		WithTweetCreateIdempotencyRepository(idempotencyRepo),
+		WithTweetSubjectWriteFenceRepository(AllowTweetSubjectWrites()),
 	)
 
 	created, err := svc.CreateTweetIdempotent(context.Background(), 42, "stable content", nil, 0, nil, 0, "run:step:publish")

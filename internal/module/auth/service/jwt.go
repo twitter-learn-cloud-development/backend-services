@@ -13,6 +13,8 @@ type JWTConfig struct {
 	Expiration time.Duration
 	Kid        string
 	PrivateKey *rsa.PrivateKey
+	Issuer     string
+	Audience   string
 }
 
 // DefaultJWTConfig 默认JWT配置
@@ -23,6 +25,8 @@ func DefaultJWTConfig() *JWTConfig {
 	}
 	return &JWTConfig{
 		Expiration: 7 * 24 * time.Hour,
+		Issuer:     os.Getenv("JWT_ISSUER"),
+		Audience:   os.Getenv("JWT_AUDIENCE"),
 	}
 }
 
@@ -44,7 +48,11 @@ func GenerateToken(config *JWTConfig, privateKey *rsa.PrivateKey, kid string, us
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(config.Expiration)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
+			Issuer:    config.Issuer,
 		},
+	}
+	if config.Audience != "" {
+		claims.Audience = jwt.ClaimStrings{config.Audience}
 	}
 
 	//创建Token

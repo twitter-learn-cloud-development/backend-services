@@ -1,0 +1,21 @@
+groups:
+  - name: twitter-clone-agent-admission
+    rules:
+      - alert: AgentSharedAdmissionUnavailable
+        expr: sum(increase(agent_shared_admission_total{result=~"unavailable|lease_lost|release_uncertain"}[10m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: agent-service
+        annotations:
+          summary: "Shared Agent admission or lease renewal is unavailable"
+          description: "Check Redis readiness, policy digest and retained lease state. Do not clear admission keys or mix shared and local replicas."
+      - alert: AgentSharedAdmissionPressure
+        expr: sum(increase(agent_shared_admission_total{result=~"limited|budget_limited"}[10m])) > 20
+        for: 10m
+        labels:
+          severity: warning
+          service: agent-service
+        annotations:
+          summary: "Agent concurrency or estimated Provider reservations are saturated"
+          description: "Review fixed run/provider outcomes and configured capacity. Reservations are estimates, not Provider billing evidence."

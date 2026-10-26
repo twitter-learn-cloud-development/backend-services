@@ -42,6 +42,7 @@ func (r *MongoExecutionTraceRepository) EnsureIndexes(ctx context.Context) error
 	models := []mongo.IndexModel{
 		{Keys: bson.D{{Key: "user_id", Value: 1}, {Key: "record_id", Value: 1}}, Options: options.Index().SetUnique(true)},
 		{Keys: bson.D{{Key: "user_id", Value: 1}, {Key: "run_id", Value: 1}, {Key: "sequence", Value: 1}, {Key: "record_id", Value: 1}}},
+		{Keys: bson.D{{Key: "updated_at", Value: 1}, {Key: "_id", Value: 1}}, Options: options.Index().SetName("idx_trace_retention_updated")},
 	}
 	for name, collection := range map[string]*mongo.Collection{
 		"run": r.runColl, "step": r.stepColl, "llm call": r.llmCallColl, "tool call": r.toolCallColl,

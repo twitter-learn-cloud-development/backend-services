@@ -3,52 +3,32 @@ import MainLayout from '../layout/MainLayout.vue'
 import ComposeBox from '../components/ComposeBox.vue'
 import TweetCard from '../components/TweetCard.vue'
 import ReplyModal from '../components/ReplyModal.vue'
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, shallowRef, computed, watch, onMounted, onUnmounted } from 'vue'
 import { getFeeds, listTweets, type Tweet } from '../api/tweet'
+import { FeedPager, type FeedState } from '../utils/feedPager'
+import { useUserStore } from '../stores/user'
 
-const tweets = ref<Tweet[]>([])
-const loading = ref(false)
-const cursor = ref('0')
-const hasMore = ref(true)
 const activeTab = ref<'following' | 'forYou'>('forYou')
+const feedState = shallowRef<FeedState<Tweet>>({ items: [], cursor: '0', hasMore: true, loading: false, error: null, continuation: false })
+const source = (tab: 'following' | 'forYou') => async (cursor: string) => {
+    const response = tab === 'following' ? await getFeeds(cursor) : await listTweets(cursor)
+    return response.data
+}
+const pager = new FeedPager<Tweet>(source(activeTab.value), state => { feedState.value = state })
+const tweets = computed(() => feedState.value.items)
+const loading = computed(() => feedState.value.loading)
+const hasMore = computed(() => feedState.value.hasMore)
+const userStore = useUserStore()
+watch(() => userStore.token, () => { void pager.reset(source(activeTab.value)) })
 
 const fetchTweets = async (refresh = false) => {
-    if (loading.value) return
-    if (!refresh && !hasMore.value) return
-    loading.value = true
-    try {
-        const currentCursor = refresh ? '0' : cursor.value
-
-        let res
-        if (activeTab.value === 'following') {
-            res = await getFeeds(currentCursor)
-        } else {
-            res = await listTweets(currentCursor)
-        }
-
-        const newTweets = res.data.tweets || []
-        if (refresh) {
-            tweets.value = newTweets
-        } else {
-            tweets.value.push(...newTweets)
-        }
-
-        cursor.value = res.data.next_cursor
-        hasMore.value = res.data.has_more
-
-    } catch (error) {
-        console.error('Failed to load tweets', error)
-    } finally {
-        loading.value = false
-    }
+    if (refresh) await pager.refresh()
+    else await pager.load()
 }
 
 const switchTab = (tab: 'following' | 'forYou') => {
     activeTab.value = tab
-    tweets.value = []
-    cursor.value = '0'
-    hasMore.value = true
-    fetchTweets(true)
+    void pager.reset(source(tab))
 }
 
 const handleTweetCreated = () => {
@@ -56,7 +36,7 @@ const handleTweetCreated = () => {
 }
 
 const handleTweetDeleted = (tweetId: string) => {
-    tweets.value = tweets.value.filter(t => t.id !== tweetId)
+    pager.updateItems(items => items.filter(t => t.id !== tweetId))
 }
 
 const showReplyModal = ref(false)
@@ -79,12 +59,13 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+    pager.dispose()
     window.removeEventListener('scroll', handleScroll)
 })
 
 const handleScroll = () => {
     const nearBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 360
-    if (nearBottom) {
+    if (nearBottom && !feedState.value.error && !feedState.value.continuation) {
         fetchTweets(false)
     }
 }
@@ -133,8 +114,15 @@ const handleScroll = () => {
           />
       </div>
 
-      <div v-if="loading && tweets.length > 0" class="p-4 text-center text-gray-500">加载更多...</div>
-      <div v-else-if="!hasMore && tweets.length > 0" class="p-4 text-center text-gray-400">已经到底了</div>
+      <div v-if="loading" class="p-4 text-center text-gray-500" role="status">加载中...</div>
+      <div v-else-if="feedState.error" class="p-4 text-center" role="alert">
+          <p>{{ feedState.error }}</p>
+          <button @click="fetchTweets(false)" class="mt-2 text-primary">重试</button>
+      </div>
+      <div v-else-if="feedState.continuation || hasMore" class="p-4 text-center">
+          <button @click="fetchTweets(false)" class="text-primary">继续加载</button>
+      </div>
+      <div v-else class="p-4 text-center text-gray-400">{{ tweets.length ? '已经到底了' : '暂无推文' }}</div>
 
       <!-- ... -->
 

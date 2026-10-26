@@ -531,6 +531,30 @@ export const runAgent = (data: {
     })
 }
 
+export interface AgentPlanningEvidenceResponse {
+    enabled: boolean
+    plan_digest: string
+    planning_calls: number
+    model_attempts: number
+    admission_attempts: number
+    admission_repairs: number
+    recovery_attempts: number
+    model: string
+    provider: string
+    input_tokens: number
+    output_tokens: number
+    total_tokens: number
+    usage_estimated: boolean
+    estimated_cost_micros: number
+    cost_estimated: boolean
+    pricing_version: string
+    goal_status: string
+    verification_status: string
+    checkpoint_version: string
+    checkpoint_revision: number
+    checkpoint_digest: string
+}
+
 export interface AgentExecutionRunResponse {
     run_id: string
     dialogue_key: string
@@ -541,6 +565,7 @@ export interface AgentExecutionRunResponse {
     task_template_id: string
     task_template_revision: number
     execution_strategy_plan?: AgentExecutionStrategyPlan
+    planning?: AgentPlanningEvidenceResponse
     status: string
     revision: number
     resume_supported: boolean
@@ -874,19 +899,21 @@ export const watchWorkflowRunEvents = async (
 ) => {
     const userStore = useUserStore()
     const query = new URLSearchParams()
+    const epoch = userStore.revision
+    const authorization = userStore.token ? `Bearer ${userStore.token}` : ''
     if (options.afterCursor) query.set('after_cursor', options.afterCursor)
     const response = await fetch(`/api/v1/agent/workflow-runs/${encodeURIComponent(runId)}/events?${query.toString()}`, {
         method: 'GET',
         headers: {
             Accept: 'text/event-stream',
-            ...(userStore.token ? { Authorization: `Bearer ${userStore.token}` } : {}),
+            ...(authorization ? { Authorization: authorization } : {}),
         },
         cache: 'no-store',
         credentials: 'same-origin',
         signal: options.signal,
     })
     if (response.status === 401) {
-        userStore.logout()
+        userStore.unauthorized(epoch, authorization)
         throw new Error('unauthorized')
     }
     if (!response.ok || !response.body) {
@@ -907,7 +934,7 @@ export const watchWorkflowRunEvents = async (
         if (dataLines.length === 0) return
         const event = JSON.parse(dataLines.join('\n')) as WorkflowRunEvent
         if (!event.cursor && eventID) event.cursor = eventID
-        await options.onEvent(event)
+        if (userStore.isCurrent(epoch)) await options.onEvent(event)
     }
 
     try {

@@ -57,6 +57,12 @@ func TestValidateAgentExecutionRunCommitValidatesAccounting(t *testing.T) {
 		t.Fatal("validateAgentExecutionRunCommit() negative accounting error = nil")
 	}
 
+	negativePlanning := valid
+	negativePlanning.PlanningTotalTokens = -1
+	if err := validateAgentExecutionRunCommit(negativePlanning); err == nil {
+		t.Fatal("validateAgentExecutionRunCommit() negative planning accounting error = nil")
+	}
+
 	unsupported := valid
 	unsupported.AccountingVersion = "execution.accounting.v999"
 	if err := validateAgentExecutionRunCommit(unsupported); err == nil {

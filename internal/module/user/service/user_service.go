@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -264,6 +265,12 @@ func (s *UserService) ChangePassword(ctx context.Context, userID uint64, oldPass
 	//获取用户
 	user, err := s.repo.GetByID(ctx, userID)
 	if err != nil {
+		if errors.Is(err, domain.ErrUserNotFound) {
+			return ErrUserNotFound
+		}
+		return fmt.Errorf("failed to load password owner: %w", err)
+	}
+	if user == nil {
 		return ErrUserNotFound
 	}
 
@@ -350,7 +357,7 @@ func (s *UserService) validateEmail(email string) error {
 // validatePassword 验证密码格式
 func (s *UserService) validatePassword(password string) error {
 	//密码： 至少6字符
-	if len(password) < 6 {
+	if len(password) < 6 || len(password) > 72 {
 		return ErrInvalidPassword
 	}
 

@@ -1,5 +1,278 @@
 # 开发过程问题与解决方案清单
 
+## 248. M2-R3验收工具忽略关注布尔值、空样本与单事务范围
+
+| 字段 | 内容 |
+|---|---|
+| 状态 | Resolved（2026-10-15，代码与离线验证）；真实完整容量仍Partial |
+| 发现/原因 | 代码审查发现旧feed-read-v1只检查BatchIsFollowing是否报错，未检查每个作者的true/缺失；空样本仍生成延迟报告。所有samples在同一RR事务里重复同一页，没有并发/连续页/数据门槛，不能代表并发容量。此为旧工具验证缺口，没有据此声称线上事故或本轮测试失败。 |
+| 修复 | v2每样本独立只读RR/回滚、有限worker/页预算/总60秒，连续ID和可见性/每作者关注校验；有界fixture探针、最少非空页/行/关注数，固定失败码/失败统计，p95预算与JSON判定，capacity_accepted恒false。保留旧参数，旧报告不改写，不增加依赖。 |
+| 复验 | cmd/feed-read-acceptance与Tweet/Follow Repository Test/Vet/Race通过；最后JSON字段补充后入口再次全部通过。11个入口顶层测试含真实GORM调用的内存driver事务装配、非法页/空样本/缺失关注、精确ID/lookahead/页门槛、并发取消/回滚/关闭、脱敏/分位数/预算。CLI门禁/格式检查通过，命令见PROJECT_PROGRESS。 |
+| 边界 | 内存driver无真实MySQL优化器、权限或隔离保证；本轮无真实依赖/种子/DDL/索引/压测。v2仅候选SQL+关注，p95只纳入完整成功样本且需结合失败数；probe饱和是下界、TABLE_ROWS是估计，不是完整数据规模或容量Accepted。 |
+
+## 247. M4-R2 实时提示生命周期、恢复缺口与离线门禁修复
+
+| 字段 | 内容 |
+|---|---|
+| 状态 | Resolved（2026-10-15，代码与本机离线验证）；真实恢复与容量未Accepted |
+| 发现 | 双端仅首屏、Socket重连缺补拉；Gateway旧reader路径重复关闭done通道，消息发布使用无超时后台goroutine。没有据此声称观察到真实线上事故。 |
+| 验证失败/根因 | 首轮/复轮Go测试分别因vendor不含prometheus/promauto和prometheus/testutil编译失败，属本轮依赖选用问题。Web build的Messages模板直接引用异步赋值控制器被推断never；Flutter analyze先报测试构造函数use_super_parameters，后报12处分支缺花括号。 |
+| 修复 | 使用已vendored的prometheus核心注册与dto.Metric读取，不安装依赖；模板事件绑定脚本函数，测试使用super参数并补分支花括号。发布统一预算、reader取消/等待、双端独立历史/恢复游标与有界补拉、发送草稿保留及低敏指标告警。 |
+| 最终复验 | Go Messenger/Gateway Test/Vet/Race全部通过，两生产入口编译通过；Web完整18项和build通过；Flutter零分析问题/完整32项通过；格式化和本轮空白检查通过。命令和覆盖见MESSENGER_RECOVERY_RUNBOOK。 |
+| 剩余边界 | 未运行真实MySQL/Redis/跨端断网/多副本/容量/告警送达或PromQL验证；无幂等发送/设备ACK/持久投递，低ID迟到提交仍可能超出已扫窗口。现有Browserslist数据过旧提示未影响构建，未升级依赖。 |
+
+## 246. M8-R3 验收记录身份缺口、签名字段覆盖与默认Go缓存权限
+
+| 字段 | 内容 |
+|---|---|
+| 状态 | Resolved（2026-10-15，工具与本机离线验证）；真实现场验收未Accepted |
+| 现象/命令 | 旧HMAC记录只绑定ReleaseID/计划，可用同一原始文件填满检查且不绑定部署身份；旧规范化递归忽略名为signature的属性。两个夹具目录清理包含Windows固定分隔符。工具Test/Vet/Race后，单独`go run ./cmd/release-manifest --matrix`没有设置工作区GOCACHE，默认AppData/Local/go-build访问拒绝。 |
+| 分类/根因 | 前三项来自当前代码审查：证据模型/签名规范化/跨平台路径问题；没有据此声称已观察到真实部署事故或Linux执行失败。CLI失败是新shell未继承任务缓存变量的环境问题，不是矩阵业务失败。 |
+| 修复 | v2绑定独立审核发布/环境摘要与逐项live观察，旧v1不可release-ready；仅排除根signature，嵌套字段仍签名、严格signature结构；写锁/独占初始化与有界路径/JSON，GUID夹具用平台分隔符清理。每个Go命令显式指定repo/tmp/go-build-cache。 |
+| 已验证 | 最终v2 31项/24拒绝用例、v1 31项可读且release_ready=false、四脚本AST、目标Go Test/Vet/Race通过；显式工作区GOCACHE后CLI 12服务矩阵通过，workflow新夹具接线核对通过。嵌套signature注入拒绝、写锁、错版本/环境/候选/时间/证据及篡改均有夹具。 |
+| 空白检查 | 最后一次检查临时指定core.autocrlf=false，把既有CRLF误判为尾随空白，是检查参数问题；按仓库CRLF规则复验diff --check及新增文件逐行空白检查通过，没有批量转换换行或改动历史文件。 |
+| 边界 | 合成fixture不证明真实CI/镜像/staging或现场结果，HMAC持有者与期望摘要来源需独立信任；生产接受仍false，无真实外部操作。 |
+
+## 245. M8-R2 回环夹具权限与 Dart 流程大括号提示
+
+| 字段 | 内容 |
+|---|---|
+| 状态 | Resolved（2026-10-14，代码与本机离线验证）；真实认证/部署未Accepted |
+| 现象/命令 | `go test ./internal/module/auth/... ./internal/module/user/... ./internal/gateway/... -count=1` 首轮在Gateway support_query Redis夹具报 `dial tcp 127.0.0.1:...: socket access forbidden`。Flutter analyze首轮报告4项`curly_braces_in_flow_control_structures` info。 |
+| 分类/根因 | Go为沙箱回环权限，Auth/User与新增认证夹具已通过，不能推断Gateway业务失败；Flutter为本轮auth_notifier、account_security、websocket分支缺大括号的代码规范问题。 |
+| 修复 | 正常require_escalated回环复验，不绕过审批；补4处分支大括号，不禁用Lint。其他检查继续，未安装依赖/启动真实服务/执行DDL。 |
+| 复验 | 最终Go全仓Test、Auth/User/Gateway与domain相关Vet、Auth/User/Gateway Race通过；Web build/13测试通过；Flutter analyze --no-pub零问题，flutter test --no-pub完整25项通过，含Auth并发/同JWT旧401/密码成功真实路由、Socket取消重连/处置、旧网关非JSON响应。User数据库故障不伪报not-found的补充夹具通过；本轮文件diff检查通过。 |
+| 影响/边界 | 仅本机验证权限与分析门禁。认证改动没有实现服务端撤销，JWT至到期仍有效；跨设备/Socket真实服务/密码并发与不确定回执需要独立验收。 |
+
+## 244. M8-R1 全仓验证扫描旧临时Go源码与发布门禁补齐
+
+| 字段 | 内容 |
+|---|---|
+| 状态 | Resolved（2026-10-14复验收口，代码与本机离线门禁）；真实CI/镜像/部署未Accepted |
+| 现象/命令 | 基线go test ./... -count=1扫描tmp/go-tmp/go-build...，触发runtime/cgo.go internal/runtime/sys不允许导入。Docker镜像只读查询在普通沙箱无法访问DockerDesktop pipe；Compose CLI版本可读取。 |
+| 分类/原因 | 本地旧生成目录没有嵌套Go模块边界，属于测试范围/环境；Docker管道权限属于环境，不据此判定Dockerfile构建失败。 |
+| 修复 | 仅在已忽略的tmp目录追加本地go.mod隔离旧产物，CI干净Checkout无需该文件；验证工作产物优先.codex-tmp。不删除旧产物/修改系统权限，不把配置/假回执当真实镜像验收。 |
+| 后续发现 | 发布工具测试发现Windows斜杠根路径没有被filepath.IsAbs拒绝，已追加前导斜杠/冒号拒绝；缺回执测试Rename受沙箱限制，改为直接构造缺回执夹具。生产Compose夹具因环境空值遮蔽env-file输入失败，改为移除并在末尾恢复测试相关进程环境，九项真实config-only夹具通过；Web vue-tsc通过后Vite realpath遇EPERM。Flutter提权请求被自动审批额度耗尽阻止，尚未执行；无unsafe判定、不绕过审批。 |
+| 用户选择 | 2026-10-13 用户选择“审批恢复后继续复验”；完整Go回环执行/Web构建/Flutter与需审批项保留待复验，继续普通沙箱的源码编译/Vet/发布工具与配置夹具验证，不提前进入M8-R2。 |
+| Node检查 | node --test直接导入.ts在本机Node22.13报ERR_UNKNOWN_FILE_EXTENSION；这是测试入口对Node22小版本的兼容遗漏。新增web npm test显式--experimental-strip-types，CI统一调用该入口，七项定向测试通过；实验性Type Stripping警告保留，不冒充Vite构建成功。 |
+| 通过范围 | 目标releaseplan/CLI测试与Race/Vet、全仓compile-only/Vet、全部cmd Windows/Linux包级构建、Web类型与七项状态测试、Compose9项config-only和26验收记录自测、PS Parser/接线；source新增后目标Test/Race复验通过，CLI明确拒绝当前脏HEAD。 |
+| 恢复验证 | 2026-10-13本次回环审批通过，完整go test ./...、CI同范围工程Race、Web build/npm test全部通过。Flutter真实执行发现39项warning/info（unused import/element、弃用Color API、异步Context/缺大括号），旧widget_test仍期望计数器且未初始化Storage/ProviderScope，属于代码门禁。移除死导入/弃用字段、使用当前Color API、相关await后mounted检查与正确页面Context；真实登录/表单/注册零API烟测及迟到成功/失败保护测试替换旧模板，没有禁用Lint。 |
+| 最终复验 | flutter analyze --no-pub零问题，flutter test --no-pub全部16项通过；Go全仓Test/CI工程Race、Web完整build/7项测试、此前全仓Vet/包级Windows-Linux编译/配置夹具已通过。本机使用已有依赖/Mock，不安装/启动真实服务/执行DDL/发布。准确命令见M8-R1交付记录。 |
+| 外部边界 | 真实Actions/12镜像/Registry/生产Secret权限/部署仍独立未验收；不由本机测试或Fake回执推断Accepted。 |
+
+## 243. M7-R2 共享 Provider 注入变量与端点策略重名
+
+| 项目 | 说明 |
+|---|---|
+| 状态 | Resolved（2026-10-13，代码/离线验证）；真实依赖未Accepted |
+| 发现 | 2026-10-13；M7-R2 首次 Agent/入口编译时，model_router.go 的 EndpointPolicy 局部变量遮蔽新 CallAdmission，导致 WithCallAdmission 类型错误；新增Persona SQL夹具只提供RowsAffected，缺MySQL/GORM需要的LastInsertId，定向写测试失败。 |
+| 修复 | 调用准入变量改为 callPolicy，端点策略保留原职责；补齐SQL夹具LastInsertId和GORM主键末列参数顺序。Model/Workflow 先校验合法输入和端点再预留共享预算。管理命令默认离线，连接/读取或初始化共用5秒Context并关闭失败连接。 |
+| 环境 | 扩大回归普通沙箱中8个Shared测试均因Redis回环初始化返回ErrUnavailable；主线程获批本机回环环境的同包全测试通过。测试Runner首次仅凭包装错误误分类代码，补查环境后确认需使用获批回环执行环境，不修改生产失败关闭行为。 |
+| 验证 | Shared/Persona Port、Model/Workflow/兼容SDK拦截、管理CLI、Persona SQL、角色全Runtime门禁/AST/YAML及PS语法通过；完整Agent/Schema/Persistence/两入口测试、同范围Vet、admission/model/repository/runtime/startup/service/rag/tool/admin Race通过。仅Fake/SQL驱动与获批本机回环，无真实依赖。命令/范围见M7-R2交付记录。 |
+
+## 242. M7-R1 运行进程DDL与新门禁接线/计划解析失败
+
+| 字段 | 内容 |
+|---|---|
+| 状态 | Resolved（2026-10-13，代码与离线验证）；真实Schema/账号/Job未Accepted |
+| 现象 | 八个MySQL进程使用共享配置，多服务启动AutoMigrate，Tweet迁移Follow、Consumer迁移多模块，MemoryManager构造Persona迁移吞错。首次 `go test ./internal/infrastructure/schema ./internal/infrastructure/persistence ./cmd/schema-migrate ./cmd/user-service ./cmd/tweet-service ./cmd/follow-service ./cmd/messenger-service ./cmd/notification-service ./cmd/consumer ./cmd/canal-relay ./cmd/agent-service -run '^$'` 漏context导入/多余domain导入失败；Bootstrap测试因引擎子句无空格被拒绝；扩大回归在feed_recovery_test.go:225的旧匿名FollowRepository夹具编译失败。 |
+| 分类/原因 | 接线导入、CREATE后缀解析和收窄FollowReadRepository后夹具未适配，属于代码/测试兼容错误；没有真实依赖失败或真实DDL操作。 |
+| 修复 | runtime仅有界只读Schema门禁，独立默认离线/Owner建缺表Job与账号访问计划，生产独立凭据接线，Tweet只读Follow Port；补导入/清无用导入，按真实GORM引擎后缀解析；缺端口测试改为nil且保留错误与零读取断言。 |
+| 复验 | Schema/Persistence/FollowRepository/迁移CLI定向测试、八入口编译通过；扩大五社交模块/Tweet/MQ/Canal/Agent RAG与Startup/八入口和迁移CLI测试、同范围Vet，Schema/Persistence/Follow Repository/Tweet Service/Agent RAG/迁移CLI Race全部通过；本轮gofmt/diff、生产YAML/PowerShell语法通过。准确范围/命令见M7-R1交付记录，不把Fake或静态配置当真实权限证据。 |
+
+
+## 241. M6-R2 多副本衰减窗口、TTL丢失与互动断连恢复缺口
+
+| 字段 | 内容 |
+|---|---|
+| 状态 | Resolved（2026-10-13，代码/离线边界）；真实故障和容量未Accepted |
+| 现象 | 每副本分钟Ticker配50秒SETNX租约，启动错位可能同分钟重复衰减；ZINTERSTORE覆盖热度集合丢失TTL，改变分值/裁剪与完成回执不原子。互动关闭后只在原共享Channel重订阅，没有独立连接/Confirm重建；没有专用人工互动重放入口。 |
+| 根因与影响 | 时间窗口不是完成时间桶、全集合写与回执分离；共享连接不能安全原地重连；旧生命周期维护工具不接受互动。 |
+| 处理 | Redis TIME分钟桶/原子衰减+裁剪+TTL+7天完成状态，10000基数门禁/原Top100；独立互动消费/Confirm会话和5秒协议初始化/取消；默认离线、显式Live且限量/操作声明的专用DLQ重放，Confirm后ACK/失败保留。 |
+| 复验 | 本轮未出现新增编译或测试失败。定向Consumer/MQ/新CLI/入口测试，扩大Tweet/MQ/事件/Canal/MQ基础设施与五入口测试/Vet，Consumer/MQ基础设施/新CLI Race以及gofmt/diff/YAML通过；命令见M6-R2交付记录。实际Broker绑定/Redis持久化/多实例崩溃/容量未执行，不能标记Accepted。 |
+
+
+## 240. M6-R1 互动先 ACK 丢失投影与新测试夹具偏差
+
+| 字段 | 内容 |
+|---|---|
+| 状态 | Resolved（2026-10-13，M6-R1代码/离线验证）；真实依赖和故障恢复待验收 |
+| 现象 | 旧点赞/评论先ACK再goroutine计分，频控与热度分开且经内存batcher。目标命令 `go test ./internal/module/tweet/service ./internal/module/tweet/repository ./internal/mq/consumer -run 'Test(Persist\|ApplyLike\|Engagement\|DeclareTimelineRecovery)' -count=1` 首次失败：SQL夹具不支持LastInsertId/未匹配LIMIT参数与GORM主键末尾列序；旧事件样例误用tweet_user；miniredis回环被沙箱connectex拒绝。 |
+| 分类与影响 | SQL/JSON夹具是测试代码错误；本机回环是权限环境失败，不是业务Redis不可用。早期失败不能作为验证通过。 |
+| 处理 | 原子Lua回执后ACK、同事务稳定实体事件和重复点赞不再产事件、专用Confirm Retry/DLQ与观测。夹具实现LastInsertId、核验真实INSERT列序和FOR UPDATE LIMIT参数；样例改为既有tweet_user_id。使用正常require_escalated审核仅运行离线回环测试。 |
+| 复验 | 修正后同一目标测试在获准环境全部通过；扩大Tweet/MQ/事件/Canal/MQ基础设施/Notification与三个入口测试和Vet，Tweet Service/Repository/MQ Consumer/事件Race、本轮gofmt/diff检查全部通过。命令见M6-R1交付记录；不把Fake或回环当真实Schema/Redis持久化/Broker验收。 |
+
+
+## 239. M3-R3 进程内派生任务无恢复进度及新持久化测试遗漏导入
+
+| 字段 | 内容 |
+|---|---|
+| 状态 | Resolved（2026-10-13，M3-R3代码/离线验证）；真实启用/迁移/恢复待验收 |
+| 现象 | Follow提交后goroutine和旧AlignCelebrityCache没有持久游标，晋升/降级用IDs-only仓储被100条截断，取关仅清100条；R2关注队列尚无Consumer。新增 `go test ./internal/module/follow/projection -run '^TestSQL' -count=1` 首次在 `store_test.go:250` 失败 undefined: events。 |
+| 根因 | 副作用由进程内任务拥有且无页级回执；新SQL夹具使用events.FollowRelationEvent遗漏导入，是测试编译错误。 |
+| 处理 | 持久入口回执/原子双任务登记、作者共享游标/代次、关系当前事实分页、租约检查/续页、Redis服务器时钟+执行epoch围栏；移除旧执行owner，新增独立Retry/DLQ/检查修复CLI。补events导入，不修改断言。 |
+| 复验 | TestSQL修复后通过；Engine/入口/CLI目标回归、扩大Follow/Tweet/MQ/Canal/MQ基础设施/Event/Gateway Handler与四入口测试/Vet、Follow/Tweet Cache/Repository/MQ Consumer/维护CLI Race通过；防抖迁移、审计元数据、拓扑/YAML和关闭释放补齐后同范围最终复验全部通过。具体命令见开发计划M3-R3。真实迁移/依赖/恢复未执行，开关默认false。 |
+| 格式检查脚本 | 首次白空格脚本把绝对路径再次Join-Path到cwd，Windows ReadAllLines报非法路径却未终止；该次不能算完整检查通过。修正为Resolve-Path -LiteralPath并设置ErrorActionPreference=Stop，全部本轮新旧文件gofmt/尾空格/diff复验成功，输出 complete gofmt and scoped whitespace/diff checks passed、退出0。属于验证脚本错误，不是业务测试失败。 |
+
+## 238. M3-R2 关注写入与事件分离、失败日志未初始化触发 panic
+
+| 字段 | 内容 |
+|---|---|
+| 状态 | Resolved（2026-10-13，M3-R2代码/离线边界）；真实数据库/持久消费恢复待验收 |
+| 现象 | 旧 Follow/Unfollow 先变更事实再尽力 MQ，创建前 Count 与 Insert 竞争且无有效关系唯一护栏。新增 `go test ./internal/module/follow/repository ./internal/module/follow ./internal/infrastructure/canal -run 'TestFollowOutbox\|TestRelationTopology' -count=1` 首次在重复关注错误日志处触发 nil pointer panic，`pkg/logger/zap.go:65` 的 Warn 调用 nil Zap Logger。 |
+| 根因 | 关系/Outbox 无同事务和缺失关系行的锁；Warn 与已有 Info/Error 不同，没有未初始化 fallback，生产入口初始化但库/测试入口可未初始化。 |
+| 修复 | 新增 pair 协调行、短事务状态变更与 Outbox/稳定代次事件键；重复/历史重复关系 fail-closed。Warn 补与 Info/Error 一致的低敏标准日志 fallback，不修改业务断言；持久消费恢复归 M3-R3。 |
+| 复验 | 同一目标测试修复后通过；Follow/Event/Projection目标回归、扩大Follow/Tweet/MQ/Canal/Gateway Handler与五入口测试/Vet、Follow/Projection/Canal/Event/Logger Race通过。实际命令见开发计划M3-R2；真实迁移/数据库竞争/Relay队列恢复未执行。 |
+
+## 237. 文本索引与 Embedding 耦合、缺少显式对账及发布回执
+
+| 字段 | 内容 |
+|---|---|
+| 状态 | Resolved（2026-10-13，M5-R3 代码/离线边界）；真实迁移和恢复未 Accepted |
+| 现象 | 旧 sync_es 先生成向量才写文本，模型失败阻断 BM25；缺少历史显式对账/修复与 Confirm 账本。M5-R3 首次 `go test ./internal/module/tweet/projection ./cmd/tweet-index-reconcile ./cmd/outbox-publication-maintenance -run '^$'` 因 `canal.go` 使用 fmt 未导入而编译失败。 |
+| 原因 | 两索引生命周期共用单任务；旧同步路径无 Profile/摘要对账。新 Relay ID 校验增加 fmt.Sprint，初次编辑遗漏导入，是代码编译错误。 |
+| 修复 | 创建独立 text/vector 持久任务/lane，模型锁外执行、当前事实重验、版本/Profile 固定；显式只读对账与审批后原子修复登记；可选 Confirm 首次回执、受控重放/保留计划，互动重放仍关闭；补 fmt 导入及有界 Broker 初始化。 |
+| 已复验 | 上述三个包编译和新增 Core/CLI 测试通过；生产 GORM 内存驱动验证修复原子回滚/去重/冲突及首次回执保留。综合测试/Vet/Race 的最终结果登记在 M5-R3 交付记录，不把 Fake/回环检查视为真实数据库/MQ/索引证据。 |
+| 边界 | 回执开关默认关闭、DDL未执行，计划审批是操作人声明/摘要而非服务端RBAC；没有自动历史扫描/清库/年龄GC。元数据一致不证明正文/向量质量；远端迟到写、真实路由/消费、恢复与容量独立验收。 |
+
+## 236. 删除索引无持久任务、旧创建正文与 Canal 位点跨越待发布事件
+
+| 字段 | 内容 |
+|---|---|
+| 状态 | Resolved（2026-10-13，本轮代码/离线边界）；真实故障与历史对账待验收 |
+| 现象 | 删除消费在ACK后起无持久状态goroutine删ES且未删Qdrant；sync_es直接使用旧事件正文。Canal只取INSERT第一行，Worker定时存解析器最新位点，取消/排空也可存越过未发布事件；年龄GC不能证明发布完成。 |
+| 根因 | 投影副作用与消费回执之间没有持久任务，事件正文没有当前事实重验；位点依赖解析水位而非确认发布的事务边界，多行被假定为单行。 |
+| 修复 | delete_es/delete_vector独立幂等任务在成功ACK之前登记；旧sync_es当前事实/协作会话锁/写后检查；有界明确ES/Qdrant回执；Canal多行全部处理、坏行失败、FIFO提交位点在Broker Confirm后存储，未知路由退出、取消不强制越界存位点，缺失或清理位点门禁、年龄GC停用。 |
+| 复验 | Tweet/MQ/Canal/MQ基础设施/ES/Qdrant与TweetService/Consumer/CanalRelay扩大测试和Vet通过，Consumer/Canal/Repository/ES/Qdrant Race通过；ACK顺序补测Race通过。内存SQL/Fake/httptest/miniredis验证，没有写真实数据或执行真实删除。详见计划M5-R2与 INDEX_LIFECYCLE_RUNBOOK.md。 |
+| 限制 | 命名锁仅对同primary协作Writer有效；迟到远端写无服务端版本围栏，Broker Confirm不证明路由/消费。耗尽任务、旧删除无事件、已清理历史、隐藏存量索引/发布感知保留须后续对账与受控恢复，M5-R2不记Accepted。 |
+
+## 235. 单条推文删除事件提交缺口与缓存 DEL 失败被掩盖
+
+| 字段 | 内容 |
+|---|---|
+| 状态 | Resolved（2026-10-13，M5-R1 代码/离线验证；投递与索引故障另待验收） |
+| 现象 | 评审定位 `DeleteTweet` 先删除 DB 再直接发布 MQ，发布失败只记日志而返回成功；仓储 Delete 使用根 DB 未参与 UoW。`InvalidateBaseTweet` 忽略 DEL 错误，仅以 PUBLISH 结果决定成功，广播成功可掩盖正文缓存删除失败。 |
+| 根因 | 事实写入与事件写入没有同事务边界，且缓存多操作失败未聚合；现有 F4 明确记录删除传播风险。 |
+| 修复 | 有效行锁与作者校验、ExtractTx 软删除、兼容删除 Outbox 同一 UoW；唯一事件键、3 秒上限及错误传播；提交后缓存有界失效，DEL/PUBLISH 使用 errors.Join 返回任一失败且仍尝试广播。 |
+| 复验 | `go test ./internal/module/tweet/... ./internal/infrastructure/canal/... ./internal/mq/... ./cmd/tweet-service ./cmd/consumer ./cmd/canal-relay -count=1`、同范围 Vet、Service/Repository/Cache Race 通过。新增生产 GORM UoW/仓储内存 SQL 驱动与 miniredis Hook 回归覆盖事务阶段失败、授权/取消、重复/并发、缓存错误与提交后取消；没有真实删除或写数据。 |
+| 边界 | COMMIT 回执失败可能已提交，错误返回不等于回滚；内存驱动模拟的提交失败不能替代真实证据。Relay 位点/发布水位、ACK 后异步 ES 删除、Qdrant 缺失与旧创建复活仍待 M5-R2，不能将本问题 Resolved 描述为全链路索引删除完成。 |
+
+## 234. M2-R3 验证权限与真实 MySQL 依赖未就绪
+
+| 字段 | 内容 |
+|---|---|
+| 状态 | Resolved（2026-10-12，权限复验与本地 MySQL 依赖阻断解除；完整容量另待验收） |
+| 现象 | 普通沙箱扩大 Go 回归在 `cache/feed_recovery_test.go:20` 临时回环 socket 权限失败；获准环境同范围复验、Vet/Race/离线 Benchmark 通过。用户授权 Live 后，`go run ./cmd/feed-read-acceptance --allow-live --discover-viewer --limit=20 --samples=20` 退出 1：`read-only MySQL transaction unavailable`。 |
+| 根因证据 | 专用验收变量未配置，实际尝试项目 `.env` 的本机 `127.0.0.1:3306/twitter`。获准只读诊断确认 Docker 无运行中 MySQL，3306/3307 TCP 均不可达；尚无有效 Live 事务/SQL样本，不是项目性能失败。 |
+| 处理 | 已完成离线全部门禁；用户追加启动授权后执行 `docker start twitter-clone-mysql-1`，复用已有数据卷，实际端口 3307 健康。只读子进程临时覆盖目标端口，未修改 `.env`、写业务数据、执行 DDL 或安装依赖；凭据不输出。 |
+| 复验 | `go run ./cmd/feed-read-acceptance --allow-live --discover-viewer --limit=20 --samples=20` 返回 20 条，p95 5.910 ms；取第 20 个现有候选为排他 Cursor，Limit100/20 次样本返回 20 条，p95 5.997 ms。第 40 个候选之后返回 0，仅作终页边界记录；全部退出 0，计划见 `FEED_ACCEPTANCE_2026-10-12.md`。 |
+| 剩余范围 | 依赖未启动不再阻断；当前仅 316 条推文、fixture 1 个关注对象/40 条候选，不能代表高关注/深历史/并发容量。部署跨端旅程、Redis 多副本与端到端容量待独立矩阵验收，M2-R3 仍 Partial。 |
+
+## 233. M2-R1 沙箱回环限制、旧缓存夹具与客户端静态告警
+
+| 字段 | 内容 |
+|---|---|
+| 状态 | Resolved（2026-10-12，仅本轮执行路径；普通沙箱限制未修复） |
+| 现象 | `go test ./internal/module/tweet/service ./internal/module/tweet/cache ./internal/module/tweet/repository ./internal/module/tweet/grpc ./internal/gateway/handler -count=1`：Repository/grpc 通过，Service/Cache/Handler 因 `dial tcp 127.0.0.1 ... connectex ... forbidden by its access permissions` 失败；首个位置 `feed_pagination_test.go` 的 miniredis 初始化。 |
+| 原因/影响 | Windows 普通沙箱不允许既有/新增离线 Redis 回环夹具；不是真实 Redis 连接或业务断言失败，受阻包不能记为通过。 |
+| 处理 | 使用工作区 GOCACHE，按用户此前明确授权提交 require_escalated 复验请求；保留夹具/断言，不修改逻辑绕过权限。 |
+| 获准复验发现 | Cache/Repository/grpc/Handler 通过；Service 旧 `TestGetFeeds_HybridCacheFlow` 未配置新 `GetByIDs` 当前正文读取，触发 unexpected method call。旧测试同步为精确两次当前读取，缓存写入旧正文并断言当前正文返回；结束页游标期望改为 0。这是读取契约变更的夹具适配，不是放宽读取断言。 |
+| 客户端分析 | 定向 Flutter Test 两项通过；Analyze 在 `mobile/lib/features/tweet/data/tweet_repository.dart:5` 报已有未使用 `user_model.dart` 导入，退出 1。仅移除该导入，复验同一分析命令，不更改客户端运行行为或忽略告警。 |
+| 验证 | 修正夹具后，获准环境完整 Tweet/MQ/Gateway/三个服务入口扩大回归、对应 Vet、Tweet Service/Cache/Gateway Handler 全包 Race、Web 构建、Dart 格式化和 Mobile 两项 Test 全部通过；移除旧未使用导入后同一 Analyze 命令复验退出 0、No issues found。本轮未使用真实服务，具体命令见修复计划 M2-R1。 |
+
+## 232. M4-R1 完整验证与 Dart 工具受限
+
+| 字段 | 内容 |
+|---|---|
+| 状态 | Resolved（2026-10-12，仅本轮执行路径；普通沙箱限制未修复） |
+| 现象 | 首轮 `go test ./internal/module/messenger/... ./internal/gateway/handler -count=1` 的 Messenger 包通过，Gateway 在 `support_query_test.go:21` 临时回环 socket 出现 connectex 权限错误。Mobile 目录 `dart format test/chat_pagination_contract_test.dart` 普通执行无输出后被中止；提权请求被自动审批拒绝执行。 |
+| 原因 | Gateway 属 Windows 沙箱 socket 限制；Dart 普通启动停滞的具体原因尚未确定。提权失败信息为自动审批服务额度耗尽、提示额度恢复后重试，是审批不可完成，不是该操作被判定不安全。 |
+| 影响 | 首轮无法完成全 Gateway 回归、Web 构建和 Mobile 格式化/Analyze/Test；当时均保留为未通过/待执行，不使用之前轮次证据替代。 |
+| 已处理 | 保留断言与业务逻辑；在普通环境独立检查 Messenger、新增 HTTP 内存夹具、Vet、命令入口编译/Race；Dart 源码仅人工整理排版，未更换 SDK/工具路径绕过审批。新增 Mobile 测试不连接真实服务。 |
+| 授权后进展 | 用户明确要求重新提交提权请求后，Dart 格式化和完整离线验证请求获准执行；未更换工具/SDK 或修改断言绕过先前审批失败。 |
+| 最终验证 | Messenger 全模块测试/Race、新增 HTTP 分页测试、相关 Vet 与服务入口编译在普通环境通过；获准执行完整 Messenger/Gateway/两个入口回归、Gateway Handler 全包 Race、Web 构建、Dart 格式化、Mobile 3 项定向契约测试与定向 Analyze，全部通过。Web 仅保留原 Browserslist 陈旧提示。精确命令见修复计划 M4-R1；普通沙箱限制本身未修复。 |
+| 剩余验收 | 真实 MySQL 执行计划/索引应用、部署与多端翻页/延迟提交旅程未验收；不阻断本轮离线门禁，不得因此标记 Accepted。 |
+
+## 231. M3-R1 验证受到沙箱 socket 与 Web realpath 权限限制
+
+| 字段 | 内容 |
+|---|---|
+| 状态 | Resolved（2026-10-12，仅本轮执行路径） |
+| 现象 | `go test ./internal/module/follow/... ./internal/gateway/handler -count=1` 首轮在 `internal/gateway/handler/support_query_test.go:21` 因临时 Redis socket 权限失败；扩大测试及 Race 同样受回环端口限制；Web `npm run build` 首轮对 `web/index.html` 的 realpath 报 EPERM。 |
+| 原因与影响 | Windows 沙箱限制既有测试夹具的 socket 和 Vite 文件解析；不是真实 Redis/MySQL 故障。首轮失败未记为通过，未修改断言或源码来绕开问题。 |
+| 处理 | 同一源码与检查命令提交自动权限审查，在获准的执行环境中复验；未安装依赖或启动真实服务。 |
+| 验证 | Follow/Gateway Handler 目标及 Tweet/MQ/Gateway/四服务入口扩大测试、相同范围 Vet、Follow/Gateway Handler Race 和 Web 类型/生产构建全部通过。精确命令见修复计划 M3-R1 交付记录；普通沙箱限制仍未修复。 |
+
+## 230. M1 Proto 生成工具沙箱启动失败与首轮并发测试失败
+
+| 字段 | 内容 |
+|---|---|
+| 状态 | Resolved（2026-10-12，仅本轮执行路径） |
+| 现象 | `protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative api/tweet/v1/tweet.proto` 在 Windows 沙箱出现系统 DLL 重定位错误。M1 目标 `go test` 的 Tweet Service 出现 Mock GetByID 超出一次预期，RAG 测试另有回环 socket 权限错误。 |
+| 原因与影响 | Proto 和 socket 属工具/沙箱环境；GetByID 重入出现在既有缓存夹具，首轮截断日志未保留测试名。缓存 socket 不可用为疑因；本轮新增公共读取仅调用 GetByIDs。相同代码在允许回环端口的执行环境下复验通过，未观察到可重现业务回归，不能把普通沙箱限制记为已修复。 |
+| 处理 | Proto 与相同目标测试在自动审查允许的沙箱外执行；未修改旧缓存业务逻辑或放宽 Mock 断言。 |
+| 验证 | 五个目标包全部通过；`go test ./internal/module/agent/... ./internal/gateway/... ./cmd/agent-service ./cmd/tweet-service ./cmd/consumer -count=1`、同范围 `go vet` 与 `go test -race ./internal/module/agent/mcp/tools ./internal/module/agent/workflow/rag ./internal/module/agent/retrieval -count=1` 全部通过。未访问真实 Provider/数据库；新增入口用 Fake/内存 HTTP 验证。 |
+
+## 229. 架构评审离线验证受到 Windows 沙箱权限限制
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-10-12，仅本轮验证执行路径） |
+| 现象 | `go test ./internal/gateway/middleware ./internal/gateway/router ./internal/module/tweet/service ./internal/module/tweet/cache ./internal/mq/consumer ./internal/module/agent/runtime ./internal/module/agent/workflow/engine -count=1` 首轮在 `support_query_auth_test.go:106` 出现回环 socket 权限拒绝；`web` 的 `npm run build` 出现 Vite 对 `web/index.html` 的 realpath EPERM。 |
+| 原因与影响 | Windows 沙箱限制 miniredis 测试夹具临时回环端口及 Vite 文件解析。不是依赖真实 Redis，也不是业务断言或 TypeScript 编译失败；首轮不能记为通过。 |
+| 处理 | 在自动权限审查允许后，以工作区 GOCACHE 重新执行同一组离线测试和 Web 构建；未启动真实服务或修改业务源码。 |
+| 验证 | 上述 7 个 Go 包全部通过，同范围 `go vet` 通过，Web `vue-tsc -b && vite build` 通过。普通沙箱限制本身未修复；详情见 `docs/ARCHITECTURE_REVIEW_2026-10-12.md`。 |
+
+## 228. 悬浮客服账号消息桥无法复制 Vue 响应式对象
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-10-02，类型/浏览器复验） |
+| 现象 | 独立助手已登录，但 iframe 仍提示未登录；浏览器抛 postMessage DataCloneError。 |
+| 原因与影响 | 将 Vue reactive Proxy 账号对象直接放入消息体，structured clone 不支持；影响助手工作台和通用Host，原站 computed 普通对象路径的 Live 已通过。 |
+| 处理 | Host 仅复制 id/username/email 为普通字段快照，保留精确 Origin/source 和身份换代守卫。 |
+| 验证 | 助手29项单元测试、窗口4状态/7错误/身份切换/消息伪造/手机/IME夹具通过，两套Web构建通过；新版原站镜像同步。 |
+
+## 227. 全站客服验证工作目录与登录敏感调试日志
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-10-02，本机复验） |
+| 现象 | Python ruff/pyright 命令误在 Go 根目录执行，工具无法解析；原站 Login.vue 调试输出完整登录响应及个人资料。 |
+| 原因与影响 | 两项目并行验证时工作目录误配，不是 Go/业务编译错误；登录日志存在令牌泄露风险。 |
+| 处理 | Python 验证明确在 support-agent-service 运行；移除登录敏感 console.log。只修改本轮相关登录与客服文件。 |
+| 验证 | Python 112 测试、ruff、pyright 通过；Web npm run build、离线镜像打包通过，最新前端容器已切换。原有 Browserslist 数据过期提示为警告，未无关升级依赖。 |
+
+## 226. 演示部署预检中的 Gateway Mock 契约与前端离线构建阻断
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-09-26，定向离线复验） |
+| 现象 | `go test ./internal/gateway/...` 因 `MockTweetServiceClient` 缺少三个新增主体治理 RPC 方法而编译失败；`docker build --network none -f web/Dockerfile web` 停在全局安装 pnpm。 |
+| 原因与影响 | Tweet Proto 扩展后旧 Mock 未同步；现有前端 Dockerfile 在构建容器内安装依赖，不能在未预热依赖层时完全离线构建。运行容器未受影响。 |
+| 处理 | Mock 显式实现新增方法；保持原 Dockerfile 不变，新增 `web/Dockerfile.offline`，仅使用已通过 `npm run build` 的 `web/dist` 打包 Nginx 镜像。 |
+| 验证 | Gateway Handler/Router 与 Tweet gRPC 定向测试通过；离线镜像构建和部署核验结果以本轮进度记录为准。 |
+
+## 224. 项目写授权补丁误置于只读入口
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-09-26，离线复验） |
+| 现象 | 首次 `go test ./internal/module/agent/... ./cmd/agent-service -count=1` 在 `service/agent_project.go` 编译失败：`undefined: actorUserID`。 |
+| 原因与影响 | 相邻方法签名相似，写授权补丁落入只读的 `GetAgentProject`；未进入可运行服务。 |
+| 处理 | 从只读方法移除，并在 `CreateAgentProject`、`UpsertAgentProjectMember` 精确补入 Actor/Target 写授权测试。 |
+| 验证 | 受影响四包及 Agent 全包离线测试通过，`go vet` 单独执行。 |
+
+## 225. 本地工具 ACL 阻断普通执行
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-09-26，仅本轮执行路径） |
+| 现象 | 默认 `exec_command` 返回 `helper_unknown_error: apply deny-read ACLs`，普通 apply_patch 也无法启动。 |
+| 原因与影响 | 当前 Windows 沙箱辅助进程权限异常；不属于 Go 代码故障。 |
+| 处理 | 在用户此前授权的仓库范围内使用受审查的 escalated 命令；手工修改仍通过 Codex apply_patch 后端完成。 |
+| 验证 | 文件补丁、gofmt 和离线 Agent 全包测试均成功；默认沙箱辅助进程仍待宿主环境恢复。 |
+
 ## 195. G3 计划执行器首轮验证命令未严格短路
 
 | 字段 | 内容 |
@@ -2148,3 +2421,144 @@
 | 原因与影响 | 子 Agent 未继承仓库 ACL 提升路径；并行 Go 子进程在 Windows 环境偶发无诊断退出；该测试夹具不经过 `NewAgentService`，删除手工旧 Planner 后需要显式注入新 Planner。生产组合根始终装配 `ExplicitCapabilityPlanner`，故障未影响生产代码语义。 |
 | 处理 | 用户明确批准删除范围后，仅在仓库内用唯一锚点事务修改；测试改为显式注入 `NewExplicitCapabilityPlanner(nil)`，并使用项目缓存与 `-p=1` 串行复验。 |
 | 验证 | Planner/Unified Agent 定向测试、Agent Service 全包测试和 Service `go vet` 全部通过；没有外部调用、服务重启或业务副作用。 |
+
+
+## 219. 语义摘要部署配置类型与 Windows ACL 编辑故障
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-09-22，离线开发与验证） |
+| 现象 | 既有文件的直接 `apply_patch` 再次被 `apply deny-read ACLs` 阻断；首版事务脚本因重复元数据锚点拒绝继续。首次定向测试随后发现 `AGENT_SESSION_SUMMARY_MIN_MESSAGES` 的 `int` 配置值不能直接传给要求 `int64` 的 Service Option。 |
+| 原因与影响 | Windows Sandbox Helper 无法稳定读取既有项目文件；首版脚本没有把三个统一执行路径的相同元数据片段区分开；组合根缺少显式整数转换。故障仅发生在本地编辑和编译阶段，没有访问模型、MCP、公网、数据库或付费 API，没有启动或重启服务。 |
+| 处理 | 使用仓库内全锚点预校验事务脚本完成修改；三个重复位置显式批量处理；阈值在组合根转换为 `int64`。 |
+| 验证 | `go test -p=1 ./internal/module/agent/service ./cmd/agent-service -count=1` 通过。 |
+
+## 220. Agent gRPC Health 官方实现未进入 Vendor
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-09-24，离线开发与验证） |
+| 现象 | 为 Kubernetes 原生 gRPC Probe 接入 `google.golang.org/grpc/health` 后，定向测试因 `-mod=vendor` 找不到该实现包而在编译阶段失败；现有 Vendor 仅包含标准 Health Proto。 |
+| 原因与影响 | 仓库采用 Vendor 离线构建，不能在本批联网补依赖；直接保留新 import 会让生产镜像构建失败。故障仅发生在本地编译阶段，没有启动服务或执行外部调用。 |
+| 处理 | 基于已 Vendor 的 `grpc_health_v1` 实现线程安全的最小标准 Check 服务，注册默认服务与 `aiAgent.v1.AiAgentService`，并在优雅关闭前统一切换为 NOT_SERVING；未实现 Kubernetes Probe 不使用的 Watch 流。 |
+| 验证 | `TestAgentGRPCHealthLifecycle` 覆盖注册、SERVING 与关闭状态迁移；Helm api/all 角色渲染为原生 gRPC Probe，worker 角色保持 metrics TCP Probe。 |
+
+## 221. Production Compose 预检的 StrictMode 可选属性故障
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-09-24，离线开发与验证） |
+| 现象 | 首次运行生产 Compose 预检时，覆盖文件已成功渲染，但 PowerShell StrictMode 在读取已被 `!reset` 删除的 `build` 属性时终止。 |
+| 原因与影响 | Compose JSON 对不存在的可选字段不会输出属性；脚本使用直接属性访问，把“生产已删除 build”误判成脚本异常。没有启动容器、拉取镜像或读取真实 Secret。 |
+| 处理 | 新增统一 `Get-OptionalProperty`，对 build、deploy/resources、healthcheck、ports 和 environment 使用显式空值读取；必需字段仍保持严格失败。 |
+| 验证 | 29 服务强配置夹具通过，原始示例中的零 digest 被隔离子进程负向测试拒绝；两次测试均未输出 Secret。 |
+
+## 222. PEM 单证书解析与委托验证 ACL 故障
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-09-24，离线开发与验证） |
+| 现象 | L4 正向预检首次把有效自签名证书判为非法；同轮专用 `test_runner` 在读取项目地图时再次被 `apply deny-read ACLs` 阻断，未启动任何测试命令。 |
+| 原因与影响 | PowerShell/.NET 的单参数 `X509Certificate2.CreateFromPemFile` 会把仅含证书的文件同时当作私钥来源；这是脚本兼容性问题。子代理失败仍是本地 ACL 环境问题，不是代码失败。两者都发生在离线验证阶段。 |
+| 处理 | 证书文件改为提取 PEM DER 后独立构造 `X509Certificate2` 并检查有效期；随后使用证书+私钥双路径 `CreateFromPemFile` 验证密钥配对，同时拒绝部署配置不支持的加密私钥。测试由主进程在用户授权仓库边界内复验。 |
+| 验证 | 31 服务/31 镜像生产预检通过；通配 Origin 被拒绝；备份清单创建、复验和篡改拒绝通过；相关 Go Test、Vet、PowerShell Parser 与 `git diff --check` 通过。 |
+
+## 223. 验收记录首次 JSON 往返后 HMAC 不一致
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-09-24，离线开发与验证） |
+| 现象 | 第一版验收脚本能初始化 26 项记录，但首次 `SetCheck` 在读取刚写入的 JSON 后立即报 `acceptance record signature mismatch`。 |
+| 原因与影响 | 初始化内存对象中的嵌套 `OrderedDictionary` 与 `ConvertFrom-Json` 读回的 `PSCustomObject` 类型不同；两者虽然 JSON 语义相同，首版 Canonicalizer 在签名前仍得到不同表示。问题只影响本轮新增的离线记录脚本，没有触及业务服务或真实证据。 |
+| 处理 | `Write-SignedRecord` 在计算 HMAC 前先执行一次 JSON 写入/读回归一化，再由同一 Canonicalizer 对规范对象签名；Verify 额外重验计划中的 Stage、Title、Required 和四态语义。 |
+| 验证 | 自包含回归完成初始化、26 项全部通过的严格门禁、Blocked 状态、无证据伪通过拒绝、检查目录篡改拒绝、Record 篡改拒绝与附件篡改拒绝，输出 `production_acceptance_self_test=PASS checks=26`。 |
+
+## 224. DashScope 规划执行两阶段模型请求 500
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-09-26，本地真实模型复验） |
+| 现象 | 隔离账号的 `platform.search` Planning-Execute 首先在 step 1 返回 `model_error`；第一处修复后在 step 2 返回相同错误。聊天与草稿路径可正常调用同一 `qwen-plus`。 |
+| 原因与影响 | OpenAI-compatible 适配层在没有工具时仍发送 `tool_choice=none`，DashScope 返回 `When using tool_choice, tools must be set.`；执行阶段的受信策略消息使用 `developer` 角色，DashScope 返回该角色不在允许列表。失败 Run 已落库为 `failed/model_error`，没有执行站内搜索工具。 |
+| 处理 | 无工具时省略 `tool_choice`；仅对 `dashscope` Provider 将 `developer` 角色转换为受信 `system`，其他 Provider 保持原行为。分别添加回归测试，不记录 API Key 或模型请求正文。 |
+| 验证 | `go test ./internal/module/agent/model ./internal/module/agent/runtime ./internal/module/agent/service -count=1`、三包 `go vet` 和镜像构建通过；重建后的真实 Run `6ab7bb8ca32162e8bebbe99a` 为 `completed`，规划与目标验证均通过。临时灰度已撤回。 |
+
+## 225. 普通对话运行用量弹窗显示 Run Store 不可用
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-09-26，代码与离线测试）；浏览器登录态回归待验收 |
+| 现象 | 点击普通对话的“用量”后显示 `agent execution run store is unavailable`；此前单独创建的隔离 Run 能读取 Token，未覆盖默认开关关闭的聊天。 |
+| 原因与影响 | 普通 Runtime 会为消息生成 Run ID 并保存 Token 元数据，但 `AGENT_RECOVERABLE_RUNS_ENABLED=false` 时不写 Execution Run；读取接口也按同一开关拒绝已有 Run，前端只依赖 Run 核算接口。受影响的是默认部署中的普通对话与历史回看。 |
+| 处理 | 历史 Run 读取只要求仓储可用并继续按用户隔离；对话详情白名单投影已保存的 Token 总量/估算标志，前端优先权威 Run，缺失时展示消息级用量及缺少拆分的说明，新回复回读已持久化数据。 |
+| 验证 | Agent Service/gRPC、Gateway 定向测试与 Web 构建通过；当前用户截图对应的登录态历史记录尚未直接复验。 |
+
+## 226. 新发推文的标签未进入推荐趋势
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Resolved（2026-09-26，当前发推到趋势链路部署态已验收）；历史缺口待独立对账 |
+| 现象 | 发推成功后侧栏一直显示“暂无热门话题”；热榜 API 返回空列表，Redis 只有衰减到阈值以下的旧话题。 |
+| 原因与影响 | Canal Relay 的 Redis 位点指向已被 MySQL 清理的 `mysql-bin.000020`，当前最早保留的是 `.000021`；同步协程报 1236 后退出，但容器主进程继续运行。`tweet.created` 未送达 Consumer。侧栏只在挂载时加载一次。 |
+| 处理 | 启动前验证 binlog 历史；位点已清理时从最早保留文件重放，并显式警告更早事件仍需单独 Outbox 对账；同步协程异常退出时让服务失败而非假健康。消费端仅允许创建时间在 24 小时内的推文投影当前趋势，避免历史重放炒热旧话题。侧栏在发推成功后、窗口重新聚焦及可见期间每 30 秒刷新。 |
+| 验证 | `go test ./cmd/canal-relay ./internal/mq/consumer`、`go test -race`、`go vet`、`npm run build` 通过。Relay Dockerfile 改为按包编译，三项容器受控重建后均运行；Redis 位点由 `.000020` 前进到 `.000026`，Consumer 收到目标 `tweet.created`，`/api/v1/trends` 返回 `神话小说`、`山海新编`、`短篇幻想`；首页 HTTP 200。最早保留 binlog 之前的历史事件仍需单独对账。 |
+
+## 227. 私信页面重复响应同一条消息
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Partial（2026-09-27，前端离线修复；线上重复消息来源待核实） |
+| 现象 | 两个用户互发私信后，前端出现多次“你好”的响应。附件日志位于仓库外，受项目访问规则限制，本轮未读取到完整消息 ID 序列。 |
+| 已确认原因与影响 | 私信页面注册的消息处理器在卸载时没有移除；WebSocket 主动关闭后仍可能安排重连，且连接处于 CONNECTING 时可再次创建。重复处理会造成重复控制台日志与会话未读数偏高。尚未证明数据库是否也写入多条不同 ID 的消息。 |
+| 处理 | 页面卸载时注销监听器；Socket 限制为一个有效连接，取消主动断开后的重连计时器，并忽略过期 Socket 回调。没有修改消息持久化或发布语义。 |
+| 验证 | `web` 中 `npm run build` 通过，源文件 `git diff --check` 通过。线上需比较一次发送对应的 POST 数量、WebSocket 帧及消息 ID，并确认数据库记录数量；未完成前不标记 Resolved。 |
+
+## 228. 公网 HTTP 演示环境的媒体地址与分享复制异常
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Partial（2026-09-27，Tweet 服务端补丁与离线测试通过；服务器浏览器验收待做） |
+| 现象 | 新服务器上传图片返回 200 且 MinIO 已有对象，但带图 `POST /api/v1/tweets` 返回 500；Tweet 日志为 `invalid media url`。复制链接在公网 HTTP 下也可能失败。 |
+| 已确认原因与影响 | 旧部署 Compose 把 `MINIO_PUBLIC_URL` 固定为 `http://localhost:9000`，远端浏览器无法访问；改为同源 `/media` 后，Tweet 的 `validateMediaURLs` 仍只接受带主机名的 HTTP URL，Gateway 又把 gRPC `InvalidArgument` 错误映射为 500。分享处理器在非安全上下文中不能只依赖 Clipboard API。 |
+| 处理 | Gateway 上传返回同源 `/media/twitter-media/`，前端代理及剪贴板回退沿用先前修复；Tweet 现在仅接受规范化的同源上传路径，拒绝协议相对 URL、跨 bucket、目录穿越、编码绕过及查询片段；Gateway 将参数错误映射为 HTTP 400。旧媒体 URL 不改库记录。 |
+| 验证 | Tweet Service、Gateway Handler 定向测试与 `go vet` 通过；服务器还需复验上传、带图发布、媒体读取和 HTTP 剪贴板，未复验前不标记 Resolved。 |
+
+## 229. 离线部署包未向 Gateway 注入公网 Origin
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Partial（2026-09-27，新发布包离线预检通过；新服务器浏览器验收待做） |
+| 现象 | 旧演示包部署后，浏览器带公网 `Origin` 的注册请求被 Gateway 返回 403；无 `Origin` 的请求可返回 200。 |
+| 原因与影响 | Gateway 仅允许精确匹配的 `GATEWAY_ALLOWED_ORIGINS`，旧基础 Compose 未传该变量；生成的部署 Compose 原样继承，导致容器回退到只允许 localhost 的开发默认值。 |
+| 处理 | 基础 Compose 透传该变量，生成的部署 Compose 将其提升为必填项；发布包附加不含密钥的准确公网地址示例。媒体地址默认使用同源 `/media`，LM Studio 地址改为可配置，不把旧服务器 IP 编入镜像。 |
+| 验证 | `20260927-ecs1` 生成 Compose 在 Origin 为空时拒绝解析，在 `http://123.57.60.111:5173` 时通过；20 份镜像校验和一致，新前端镜像 `nginx -t`、Gateway 中间件/Handler/Router 定向测试通过。尚未在新服务器验收注册、WebSocket 与媒体链路。 |
+
+## 230. 云服务器 Agent 旧 AI 客户端与 Tweet 内部凭据缺失
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Partial（2026-09-27，代码与部署包离线验证通过；服务器模型/内部 RPC 验收待做） |
+| 现象 | 会话摘要在 Linux 容器中解析 `host.docker.internal` 失败；Tweet 风控活动报 `internal service credentials are not configured`。 |
+| 原因与影响 | Agent 的摘要模型虽然配置为 `qwen-plus`，旧 `ai.Client` 的 Chat/Embedding 仍走默认 LM Studio 地址且廉价客户端没有 API Token；新服务器没有 LM Studio。Tweet 与 Gateway 已透传内部令牌，但 Agent 容器没有传入，部署 `.env` 也未生成令牌。只改宿主机映射无法让云端模型认证和本地 Embedding 模型工作。 |
+| 处理 | Agent/Consumer 的旧客户端使用显式兼容 API Token，Compose 允许覆盖 Chat/Embedding 模型；新服务器 `.env` 保留原有数据库凭据并补齐同一个 Tweet 内部令牌、云端兼容地址/Token、`qwen-plus` 和 1024 维 `text-embedding-v3`。新生成的部署 Compose 把内部令牌设为必填，本地 LM Studio 默认行为不变。 |
+| 验证 | `go test` 覆盖认证 Chat 与 Embedding 请求；Agent/Consumer 编译、相关包 `go vet`、部署 Compose 配置及三服务令牌一致性离线通过。未调用付费 API；服务器需验证真实摘要、Embedding、内部 RPC 和费用。 |
+
+## 231. 离线部署包缺少 Agent 功能开关与完整监控依赖
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Partial（2026-09-27，全量交付物静态验证通过；线上重启和功能验收待做） |
+| 现象 | 已部署的 Agent 提示“发布给 Agent”未启用；上一版 `CoreOnly` 包也没有监控、可视化等第三方镜像。 |
+| 原因与影响 | 基础 Compose 采用安全的默认关闭值，旧部署 `.env` 未显式设置 Workflow-as-Tool、Skill Catalog、Recoverable Runs、Planning-Execute 和外部 MCP 等开关；全量 Compose 的监控服务还依赖仓库内的 bind-mount 配置，旧镜像包未包含这些文件。镜像存在不等于能力启用。 |
+| 处理 | 新增沿用旧凭据且拒绝覆盖的全功能部署环境生成脚本；显式开启已实现的 Agent 用户路径及治理依赖，Planning-Execute 灰度设为 100%。全量包导出 11 个业务和 18 个第三方镜像，并附带 Prometheus、Promtail、Grafana 挂载配置；压缩包不包含 `.env`。外部 MCP 写仍经过当前授权/审批；Marketplace 管理、托管 MCP 凭据和 Profile 实验缺少管理员或外部凭据，不自动伪启用。 |
+| 验证 | `20260927-ecs3-full` 的 Compose `config --quiet` 通过；29 个镜像与 Compose 引用逐一对应、29 份 SHA-256 独立复算一致；归档有 29 个镜像且没有 `.env`。未在云服务器重启服务，也未验收真实 MCP、审批恢复、发布、模型费用或监控采集。 |
+
+## 232. Support Query 真实环境 smoke 被本机 Docker 引擎阻塞
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | Blocked（2026-09-28，等待 Docker Desktop 或目标联调环境） |
+| 现象 | R6 离线代码、Race 和 Vet 通过后执行 `docker compose ps --format json`，Docker CLI 无法连接 `dockerDesktopLinuxEngine` 命名管道。 |
+| 原因与影响 | 本机 Docker Desktop Linux Engine 未运行或命名管道不可用；无法确认 Redis、Tweet Service、Gateway 的部署态状态，也没有重建或重启任何容器。因此 `POST /internal/v1/support/query` 的真实数据 smoke 尚未执行，不影响离线代码测试结论。 |
+| 处理 | 保持 `SUPPORT_QUERY_ENABLED=false` 默认值，不修改当前运行环境。待 Docker 或目标服务器可用后，配置同一份仓库外 JWT Secret，启用 Gateway 内部端点，并用隔离普通用户验证 Python→Gateway→Tweet Service、超时、重放和回滚。 |
+| 验证 | 当前只完成 `go test`、`go test -race`、`go vet`、Python 47 项测试和静态契约检查；不得标记为真实联调通过。 |

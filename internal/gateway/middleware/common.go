@@ -10,11 +10,27 @@ import (
 
 // CORS 跨域中间件
 func CORS() gin.HandlerFunc {
+	policy, err := OriginPolicyFromEnvironment()
+	if err != nil {
+		panic("invalid gateway origin policy: " + err.Error())
+	}
+	return CORSWithPolicy(policy)
+}
+
+func CORSWithPolicy(policy *OriginPolicy) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE, PATCH")
+		origin := c.GetHeader("Origin")
+		if origin != "" {
+			if policy == nil || !policy.Allows(origin) {
+				c.AbortWithStatus(403)
+				return
+			}
+			c.Header("Access-Control-Allow-Origin", origin)
+			c.Header("Access-Control-Allow-Credentials", "true")
+			c.Header("Vary", "Origin")
+			c.Header("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, Accept, Origin, Cache-Control, X-Requested-With")
+			c.Header("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE, PATCH")
+		}
 
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)

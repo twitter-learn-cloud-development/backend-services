@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -15,16 +16,16 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	followv1 "twitter-clone/api/follow/v1"
-	"twitter-clone/internal/domain"
 	"twitter-clone/internal/infrastructure/cache"
 	"twitter-clone/internal/infrastructure/mq"
 	"twitter-clone/internal/infrastructure/persistence"
+	"twitter-clone/internal/infrastructure/schema"
+	followModule "twitter-clone/internal/module/follow"
 	followGrpc "twitter-clone/internal/module/follow/grpc"
 	followRepository "twitter-clone/internal/module/follow/repository"
 	followService "twitter-clone/internal/module/follow/service"
-	tweetCache "twitter-clone/internal/module/tweet/cache"
 	tweetRepository "twitter-clone/internal/module/tweet/repository"
-	"twitter-clone/internal/mq/producer"
+	"twitter-clone/internal/pkg/database/uow"
 	"twitter-clone/pkg/logger"
 	"twitter-clone/pkg/pkg/snowflake"
 	"twitter-clone/pkg/registry"
@@ -57,7 +58,10 @@ func main() {
 	metric.StartMetricsServer(2113)
 
 	// 2. 初始化数据库
-	dbConfig := persistence.DefaultDBConfig()
+	dbConfig, err := persistence.ServiceDBConfig("follow-service")
+	if err != nil {
+		log.Fatal(err)
+	}
 	db, err := persistence.NewDB(dbConfig)
 	if err != nil {
 		log.Fatalf("❌ Failed to connect database: %v", err)
@@ -65,10 +69,10 @@ func main() {
 	log.Println("✅ Database connected")
 
 	// 3. 自动迁移
-	if err := db.AutoMigrate(&domain.Follow{}, &domain.Tweet{}); err != nil {
-		log.Fatalf("❌ Failed to migrate database: %v", err)
+	if err := schema.CheckRuntime(context.Background(), db, "follow-service"); err != nil {
+		log.Fatal(err)
 	}
-	log.Println("✅ Database migrated")
+	log.Println("Database schema verified; runtime DDL disabled")
 
 	// 4. 初始化 Redis
 	redisConfig := cache.DefaultRedisConfig()
@@ -93,20 +97,18 @@ func main() {
 
 	// 6. 创建依赖
 	followRepo := followRepository.NewFollowRepository(db)
-	tweetRepo := tweetRepository.NewTweetRepository(db)
-	timelineCache := tweetCache.NewTimelineCache(redisClient)
-	eventProducer, err := producer.NewEventProducer(mqClient)
-	if err != nil {
-		log.Fatalf("❌ Failed to create event producer: %v", err)
+	if err := followModule.DeclareRelationTopology(followTopologyAdapter{mqClient}); err != nil {
+		log.Fatal("follow relation topology unavailable")
 	}
 
 	// 7. 创建 Service
 	followSvc := followService.NewFollowService(
 		followRepo,
-		tweetRepo,
-		timelineCache,
-		eventProducer,
+		nil,
+		nil,
+		nil,
 	)
+	followSvc.SetOutboxDependencies(uow.NewGormManager(db), tweetRepository.NewMysqlOutboxEventRepo(db))
 
 	// 8. 初始化 Consul 注册中心
 	consulHost := getEnv("CONSUL_HOST", "localhost")
@@ -187,6 +189,13 @@ func main() {
 	log.Println("🛑 Shutting down server...")
 	grpcServer.GracefulStop()
 	log.Println("✅ Server exited")
+}
+
+type followTopologyAdapter struct{ *mq.RabbitMQ }
+
+func (a followTopologyAdapter) DeclareRelationQueue(name string) error {
+	_, err := a.DeclareQueue(name, true)
+	return err
 }
 
 func getEnv(key, fallback string) string {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, nextTick } from 'vue'
+import { ref, shallowRef, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { useMessengerStore, type Message } from '../stores/messenger'
@@ -8,6 +8,7 @@ import { PaperAirplaneIcon, ArrowLeftIcon, XMarkIcon } from '@heroicons/vue/24/s
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/zh-cn'
+import { MessageHistory, compareIDs } from '../utils/messageHistory'
 
 dayjs.extend(relativeTime)
 dayjs.locale('zh-cn')
@@ -17,10 +18,21 @@ const userStore = useUserStore()
 const messengerStore = useMessengerStore()
 
 const conversations = ref<Conversation[]>([])
-const currentMessages = ref<Message[]>([])
+const currentMessages = shallowRef<Message[]>([])
 const activePeerId = ref<string | null>(null)
 const messageInput = ref('')
 const loading = ref(false)
+const historyState = ref({ more: true, syncing: false, continuation: false, error: '' })
+const sending = ref(false), sendError = ref(''), listError = ref(''), listLoading = ref(false), listMore = ref(false)
+let listCursor = '0', listEpoch = 0, disposed = false
+let refreshAfterList = false
+let history: MessageHistory<Message> | null = null
+const loadOlder = async () => {
+    const selected = history, height = chatContainer.value?.scrollHeight || 0, top = chatContainer.value?.scrollTop || 0
+    await selected?.older(); await nextTick()
+    if (!disposed && selected === history && chatContainer.value) chatContainer.value.scrollTop = top + chatContainer.value.scrollHeight - height
+}
+const recoverMessages = () => history?.recover()
 const chatContainer = ref<HTMLElement | null>(null)
 
 const activeConversation = computed(() => {
@@ -33,66 +45,67 @@ const formatTime = (timestamp: number) => {
 }
 
 // 加载会话列表
-const loadConversations = async () => {
+const loadConversations = async (more = false) => {
+    if (disposed || (more && !listMore.value)) return
+    if (listLoading.value) { if (!more) refreshAfterList = true; return }
+    const epoch = more ? listEpoch : ++listEpoch, cursor = more ? listCursor : '0'
+    listLoading.value = true; listError.value = ''
     try {
-        const res = await getConversations({ limit: 50 })
-        conversations.value = res.data.conversations || []
-    } catch (e) {
-        console.error('Failed to load conversations', e)
+        const res = await getConversations({ limit: 50, cursor })
+        if (disposed || epoch !== listEpoch) return
+        const page = res.data
+        if (page.has_more && (!page.next_cursor || page.next_cursor === cursor)) throw new Error('cursor')
+        const rows = new Map((more ? conversations.value : []).map(c => [c.peer_id, c]))
+        for (const conv of page.conversations || []) rows.set(conv.peer_id, conv)
+        conversations.value = [...rows.values()].sort((a, b) => compareIDs(b.latest_message.id, a.latest_message.id))
+        listCursor = page.next_cursor || '0'; listMore.value = page.has_more
+    } catch { if (!disposed && epoch === listEpoch) listError.value = '会话加载失败，请重试' }
+    finally {
+        if (!disposed && epoch === listEpoch) {
+            listLoading.value = false
+            if (refreshAfterList) { refreshAfterList = false; void loadConversations() }
+        }
     }
 }
 
 // 加载聊天记录
 const loadMessages = async (peerId: string) => {
-    loading.value = true
-    try {
-        const res = await getMessages(peerId, { limit: 50 })
-        // 消息是倒序返回的，需要翻转
-        currentMessages.value = (res.data.messages || []).reverse()
-        activePeerId.value = peerId
-        scrollToBottom()
-        
-        // 标记已读逻辑... (后端 API 暂未实现)
-    } catch (e) {
-        console.error('Failed to load messages', e)
-    } finally {
-        loading.value = false
-    }
+    history?.dispose(); currentMessages.value = []; sendError.value = ''; messageInput.value = ''
+    const userID = String(userStore.user?.id || '')
+    const selected = new MessageHistory<Message>(async cursor => (await getMessages(peerId, { limit: 50, cursor })).data,
+        row => (row.sender_id === userID && row.receiver_id === peerId) || (row.sender_id === peerId && row.receiver_id === userID),
+        () => {
+            if (history !== selected || disposed) return
+            currentMessages.value = [...selected.items]; loading.value = selected.busy
+            historyState.value = { more: selected.hasMore, syncing: selected.syncing, continuation: selected.continuation, error: selected.error }
+        })
+    history = selected
+    await selected.older()
+    if (!disposed && history === selected) { scrollToBottom(); void loadConversations() }
 }
 
 // 发送消息
 const handleSendMessage = async () => {
-    if (!messageInput.value.trim() || !activePeerId.value) return
-    
+    if (!messageInput.value.trim() || !activePeerId.value || sending.value) return
+    const selected = history, peer = activePeerId.value, epoch = userStore.revision, content = messageInput.value
+    sending.value = true; sendError.value = ''
     try {
-        const content = messageInput.value
-        messageInput.value = '' // 立即清空
-        
         const res = await sendMessage({
-            receiver_id: activePeerId.value,
+            receiver_id: peer,
             content: content
         })
         
-        // 乐观更新：收到 WebSocket 推送前先显示 (或者等待 WS 推送)
-        // 这里依赖 WebSocket 推送来更新 UI，或者收到响应后手动添加
-        // 为了体验更好，我们可以手动添加一个 pending 状态的消息，但为了简单，先假设 WS 很快
-        // 其实 sendMessage 响应包含了 message 对象，可以直接添加
-        if (res.data) {
-             // 如果 WS 还没推过来，可以先 push
-             const newMsg = res.data
-             if (!currentMessages.value.find(m => m.id === newMsg.id)) {
-                 currentMessages.value.push(newMsg)
-                 scrollToBottom()
-             }
-        }
-    } catch (e) {
-        console.error('Failed to send message', e)
-    }
+        if (disposed || selected !== history || !userStore.isCurrent(epoch)) return
+        selected?.push(res.data)
+        if (messageInput.value === content) messageInput.value = ''
+        scrollToBottom(); void loadConversations()
+    } catch { if (!disposed && selected === history && userStore.isCurrent(epoch)) sendError.value = '发送结果未确定，草稿已保留。先同步历史再决定是否重发，重发可能重复。' }
+    finally { if (!disposed) sending.value = false }
 }
 
 const scrollToBottom = () => {
     nextTick(() => {
-        if (chatContainer.value) {
+        if (!disposed && chatContainer.value) {
             chatContainer.value.scrollTop = chatContainer.value.scrollHeight
         }
     })
@@ -100,41 +113,24 @@ const scrollToBottom = () => {
 
 // 监听 WebSocket 新消息
 const onNewMessage = (msg: Message) => {
-    console.log('New Message Received:', msg, 'ActivePeer:', activePeerId.value)
-    // 强制转换为字符串比较，避免 ID 精度丢失或类型不匹配问题
-    const senderId = String(msg.sender_id)
-    const receiverId = String(msg.receiver_id)
-    const activeId = String(activePeerId.value)
-
-    if ((senderId === activeId || receiverId === activeId)) {
-        // 只有当消息未存在时添加
-        if (!currentMessages.value.find(m => String(m.id) === String(msg.id))) {
-            currentMessages.value.push(msg)
-            scrollToBottom()
-        }
-    }
-    
-    // 更新会话列表的最新消息
-    const peerId = msg.sender_id === userStore.user?.id ? msg.receiver_id : msg.sender_id
-    const convIndex = conversations.value.findIndex(c => c.peer_id === peerId)
-    if (convIndex > -1) {
-        const conv = conversations.value[convIndex]
-        if (conv) {
-            conv.latest_message = msg
-            conv.unread_count = msg.sender_id !== userStore.user?.id ? (conv.unread_count + 1) : conv.unread_count
-            // 移到顶部
-            conversations.value.splice(convIndex, 1)
-            conversations.value.unshift(conv)
-        }
-    } else {
-        // 新会话，重新加载列表 (或者手动构造 Conversation 对象)
-        loadConversations()
-    }
+    if (disposed) return
+    if (msg.sender_id !== String(userStore.user?.id) && msg.receiver_id !== String(userStore.user?.id)) return
+    history?.push(msg)
+    scheduleSync()
 }
+let syncTimer: ReturnType<typeof setTimeout> | null = null
+const sync = () => { if (!disposed && document.visibilityState === 'visible') { void history?.recover(); void loadConversations() } }
+const scheduleSync = () => { if (syncTimer) return; syncTimer = setTimeout(() => { syncTimer = null; sync() }, 250) }
+let pollTimer: ReturnType<typeof setInterval> | null = null
 
-onMounted(async () => {
+onMounted(() => {
+    messengerStore.onMessage(onNewMessage)
+    messengerStore.onReady(scheduleSync)
+    messengerStore.connect()
+    document.addEventListener('visibilitychange', sync)
+    pollTimer = setInterval(sync, 30000)
     // 先加载会话列表
-    await loadConversations()
+    void loadConversations()
     
     // 如果有 query 参数，自动选中
     const queryPeerId = route.query.peer_id as string
@@ -144,7 +140,15 @@ onMounted(async () => {
         // 简单处理：只选中右侧，左侧不显示高亮（直到发送第一条消息）
     }
 
-    messengerStore.onMessage(onNewMessage)
+})
+
+onUnmounted(() => {
+    disposed = true; ++listEpoch; history?.dispose()
+    if (syncTimer) clearTimeout(syncTimer)
+    if (pollTimer) clearInterval(pollTimer)
+    document.removeEventListener('visibilitychange', sync)
+    messengerStore.offReady(scheduleSync)
+    messengerStore.offMessage(onNewMessage)
 })
 
 // 监听 activePeerId 变化，加载消息
@@ -152,6 +156,7 @@ watch(activePeerId, (newId) => {
     if (newId) {
         loadMessages(newId)
     } else {
+        history?.dispose(); history = null
         currentMessages.value = []
     }
 })
@@ -166,6 +171,7 @@ watch(activePeerId, (newId) => {
             私信
         </div>
         <div class="flex-1 overflow-y-auto">
+            <p v-if="listError" role="alert" class="p-3">{{ listError }} <button @click="loadConversations()">重试</button></p>
             <div 
                 v-for="conv in conversations" 
                 :key="conv.peer_id"
@@ -196,6 +202,7 @@ watch(activePeerId, (newId) => {
              <div v-if="conversations.length === 0" class="p-8 text-center text-gray-500">
                 暂无会话
             </div>
+            <button v-if="listMore" :disabled="listLoading" @click="loadConversations(true)" class="p-4 w-full">{{ listLoading ? '加载中…' : '加载更多会话' }}</button>
         </div>
     </div>
 
@@ -217,6 +224,9 @@ watch(activePeerId, (newId) => {
 
             <!-- Messages -->
             <div class="flex-1 overflow-y-auto p-4 space-y-4" ref="chatContainer">
+                <p v-if="historyState.error" role="alert">{{ historyState.error }}</p>
+                <button v-if="historyState.more" :disabled="loading || historyState.syncing" @click="loadOlder">{{ loading ? '加载中…' : '加载更早消息' }}</button>
+                <button :disabled="loading || historyState.syncing" @click="recoverMessages">{{ historyState.syncing ? '同步中…' : historyState.continuation ? '继续同步未读区间' : '同步最新消息' }}</button>
                 <div 
                     v-for="msg in currentMessages" 
                     :key="msg.id" 
@@ -244,6 +254,7 @@ watch(activePeerId, (newId) => {
 
             <!-- Input -->
             <div class="p-4 border-t border-gray-100 dark:border-gray-800 sticky bottom-0 bg-white dark:bg-black">
+                <p v-if="sendError" role="alert">{{ sendError }}</p>
                 <div class="relative flex items-center bg-gray-100 dark:bg-gray-900 rounded-full px-4 py-1">
                     <input 
                         v-model="messageInput"
@@ -254,7 +265,7 @@ watch(activePeerId, (newId) => {
                     />
                     <button 
                         @click="handleSendMessage"
-                        :disabled="!messageInput.trim()"
+                        :disabled="!messageInput.trim() || sending"
                         class="p-2 text-primary hover:bg-blue-50 dark:hover:bg-gray-800 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <PaperAirplaneIcon class="w-5 h-5 -rotate-90" />

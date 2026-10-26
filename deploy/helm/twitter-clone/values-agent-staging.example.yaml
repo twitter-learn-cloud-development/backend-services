@@ -1,0 +1,50 @@
+# Agent staging overlay for the L3 MCP/Workflow launch gate.
+# This file contains references and safe rollout values only. It contains no
+# credential, encryption key, provider token or MCP endpoint.
+services:
+  agentService:
+    image:
+      repository: replace-with-your-registry/twitter-clone-agent
+      tag: replace-with-immutable-tag
+      pullPolicy: IfNotPresent
+    processRole: all
+    runtimeV2Modes: "chat,consult,assist,workflow"
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+    recoverableRuns:
+      enabled: true
+      unifiedApprovalRecoveryEnabled: true
+      existingSecret: twitter-agent-checkpoint-keys
+      activeKeyID: v1
+    planningExecute:
+      enabled: true
+      canaryPercent: 5
+      platformSearchEnabled: true
+      webResearchEnabled: false
+      externalMCPReadEnabled: true
+      # Keep writes disabled until the signed read acceptance report and
+      # approval/resume failure drills have passed.
+      externalMCPWriteEnabled: false
+      workflowReadEnabled: true
+    externalMCP:
+      enabled: true
+      projectScopeEnabled: true
+      health:
+        enabled: true
+      acceptance:
+        # Enable only in a one-shot operator override after supplying a strict
+        # config, credential Secret, integrity Secret and report PVC.
+        enabled: false
+    workflowAsTool:
+      enabled: true
+    skillCatalog:
+      enabled: true
+    extensionCatalog:
+      enabled: false
+    extensionMarketplace:
+      enabled: false

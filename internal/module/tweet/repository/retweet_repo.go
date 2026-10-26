@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"twitter-clone/internal/domain"
+	"twitter-clone/internal/pkg/database/uow"
 	"twitter-clone/pkg/pkg/snowflake"
 )
 
@@ -35,7 +36,8 @@ func (r *retweetRepo) Create(ctx context.Context, userID, tweetID uint64) error 
 		CreatedAt: time.Now().UnixMilli(),
 	}
 
-	result := r.db.WithContext(ctx).
+	db := uow.ExtractTx(ctx, r.db)
+	result := db.WithContext(ctx).
 		Where("user_id = ? AND tweet_id = ?", userID, tweetID).
 		FirstOrCreate(retweet)
 

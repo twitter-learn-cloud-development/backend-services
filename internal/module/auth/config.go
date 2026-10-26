@@ -15,6 +15,8 @@ type RawConsulConfig struct {
 	Expiration string `mapstructure:"expiration"`
 	Kid        string `mapstructure:"kid"`
 	PrivateKey string `mapstructure:"private_key"`
+	Issuer     string `mapstructure:"issuer"`
+	Audience   string `mapstructure:"audience"`
 }
 
 // ProvideJWTConfig 通过 Wire 注入给 AuthService
@@ -51,5 +53,7 @@ func ProvideJWTConfig(raw *RawConsulConfig) (*service.JWTConfig, error) {
 		Expiration: duration,
 		Kid:        raw.Kid,
 		PrivateKey: privKey,
+		Issuer:     raw.Issuer,
+		Audience:   raw.Audience,
 	}, nil
 }

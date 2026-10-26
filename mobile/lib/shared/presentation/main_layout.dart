@@ -32,6 +32,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
     super.initState();
     // Start WebSocket real-time notification engine
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       ref.read(websocketServiceProvider).connect();
     });
   }

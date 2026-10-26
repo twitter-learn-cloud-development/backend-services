@@ -93,6 +93,23 @@ func TestOpenAICompatibleClientForwardsRequiredToolChoice(t *testing.T) {
 	}
 }
 
+func TestOpenAICompatibleClientOmitsToolChoiceWithoutTools(t *testing.T) {
+	fake := &fakeChatCompletionClient{response: openai.ChatCompletionResponse{
+		Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{Content: "answer"}}},
+	}}
+	client := NewOpenAICompatibleClient(fake, "model", "provider")
+
+	_, err := client.Complete(context.Background(), agentRuntime.ModelRequest{
+		ToolChoice: agentRuntime.ToolChoiceNone,
+	})
+	if err != nil {
+		t.Fatalf("Complete() error = %v", err)
+	}
+	if fake.request.ToolChoice != nil {
+		t.Fatalf("OpenAI tool choice = %#v, want omitted without tools", fake.request.ToolChoice)
+	}
+}
+
 func TestOpenAICompatibleClientRejectsUnsupportedToolChoice(t *testing.T) {
 	client := NewOpenAICompatibleClient(&fakeChatCompletionClient{}, "model", "provider")
 	_, err := client.Complete(context.Background(), agentRuntime.ModelRequest{ToolChoice: agentRuntime.ToolChoice("sometimes")})
@@ -115,6 +132,25 @@ func TestOpenAICompatibleClientSupportsDeveloperMessages(t *testing.T) {
 		t.Fatalf("Complete() error = %v", err)
 	}
 	if len(fake.request.Messages) != 2 || fake.request.Messages[0].Role != "developer" {
+		t.Fatalf("OpenAI messages = %+v", fake.request.Messages)
+	}
+}
+
+func TestOpenAICompatibleClientMapsDeveloperMessagesForDashScope(t *testing.T) {
+	fake := &fakeChatCompletionClient{response: openai.ChatCompletionResponse{
+		Choices: []openai.ChatCompletionChoice{{Message: openai.ChatCompletionMessage{Content: "answer"}}},
+	}}
+	client := NewOpenAICompatibleClient(fake, "model", "dashscope")
+
+	_, err := client.Complete(context.Background(), agentRuntime.ModelRequest{Messages: []agentRuntime.Message{
+		{Role: agentRuntime.RoleUser, Content: "question"},
+		{Role: agentRuntime.RoleDeveloper, Content: "policy"},
+	}})
+	if err != nil {
+		t.Fatalf("Complete() error = %v", err)
+	}
+	if len(fake.request.Messages) != 2 || fake.request.Messages[1].Role != openai.ChatMessageRoleSystem ||
+		fake.request.Messages[1].Content != "policy" {
 		t.Fatalf("OpenAI messages = %+v", fake.request.Messages)
 	}
 }

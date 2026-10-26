@@ -3,6 +3,8 @@ import MainLayout from '../layout/MainLayout.vue'
 import { ref, onMounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
+import { copyText } from '../utils/clipboard'
+import { resolveMediaUrl } from '../utils/media'
 
 import TweetCard from '../components/TweetCard.vue'
 import ReplyModal from '../components/ReplyModal.vue'
@@ -221,11 +223,15 @@ const handleRetweet = async () => {
 }
 
 // 分享
-const handleShare = () => {
+const handleShare = async () => {
     const url = `${window.location.origin}/tweets/${tweetId()}`
-    navigator.clipboard.writeText(url).then(() => {
+    try {
+        await copyText(url)
         alert('链接已复制到剪贴板')
-    })
+    } catch (error) {
+        console.error('Failed to copy tweet link', error)
+        alert('复制失败，请检查浏览器剪贴板权限')
+    }
 }
 
 const isSelf = () => {
@@ -272,8 +278,9 @@ onMounted(() => {
 // Lightbox 大图预览
 const lightboxOpen = ref(false)
 const lightboxIndex = ref(0)
+const mediaUrls = computed(() => (tweet.value?.media_urls || []).map(resolveMediaUrl))
 const lightboxList = computed(() => {
-    return (tweet.value?.media_urls || []).map(url => ({
+    return mediaUrls.value.map(url => ({
         url,
         type: isVideo(url) ? 'video' as const : 'image' as const
     }))
@@ -357,9 +364,9 @@ const isVideo = (url: string) => {
           </div>
 
           <!-- Media -->
-          <div v-if="tweet.media_urls && tweet.media_urls.length > 0" class="px-4 mt-3">
-              <div class="grid gap-2 rounded-2xl overflow-hidden" :class="tweet.media_urls.length > 1 ? 'grid-cols-2' : 'grid-cols-1'">
-                  <template v-for="(url, index) in tweet.media_urls" :key="index">
+          <div v-if="mediaUrls.length > 0" class="px-4 mt-3">
+              <div class="grid gap-2 rounded-2xl overflow-hidden" :class="mediaUrls.length > 1 ? 'grid-cols-2' : 'grid-cols-1'">
+                  <template v-for="(url, index) in mediaUrls" :key="index">
                       <video 
                           v-if="isVideo(url)" 
                           :src="url" 

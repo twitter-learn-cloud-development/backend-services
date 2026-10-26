@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"strconv"
 	"time"
@@ -50,6 +51,7 @@ func getEnvInt(key string, fallback int) int {
 
 // RabbitMQ RabbitMQ 客户端
 type RabbitMQ struct {
+	socket  net.Conn // Only bounded connections expose their owned transport.
 	conn    *amqp.Connection
 	channel *amqp.Channel
 	config  *RabbitMQConfig

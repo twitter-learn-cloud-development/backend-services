@@ -200,6 +200,20 @@ func (r *MongoAgentRepository) ResolveCurrentWorkflowRevision(ctx context.Contex
 		return r.GetWorkflowRevision(ctx, workflowID, workflow.CurrentRevisionID, userID)
 	}
 
+	var revision *WorkflowRevision
+	err = withSubjectWriteLease(ctx, r, userID, func() error {
+		var materializeErr error
+		revision, materializeErr = r.materializeLegacyWorkflowRevision(ctx, workflow)
+		return materializeErr
+	})
+	return revision, err
+}
+
+func (r *MongoAgentRepository) materializeLegacyWorkflowRevision(
+	ctx context.Context,
+	workflow *WorkflowDefinition,
+) (*WorkflowRevision, error) {
+	workflowID, userID := workflow.ID, workflow.UserID
 	// Legacy definitions are lazily materialized as revision 1. The unique
 	// workflow/revision index makes concurrent migration deterministic.
 	revision := newWorkflowRevision(workflow, 1, workflow.UpdatedAt)
@@ -291,6 +305,33 @@ func (r *MongoAgentRepository) AppendWorkflowStateEvents(ctx context.Context, ev
 	if len(events) == 0 {
 		return nil
 	}
+	userID, err := workflowStateEventOwner(events)
+	if err != nil || userID == 0 {
+		return err
+	}
+	return withSubjectWriteLease(ctx, r, userID, func() error {
+		return r.appendWorkflowStateEvents(ctx, events)
+	})
+}
+
+func workflowStateEventOwner(events []*WorkflowStateEvent) (uint64, error) {
+	var userID uint64
+	for _, event := range events {
+		if event == nil {
+			continue
+		}
+		if event.UserID == 0 || event.RunID.IsZero() {
+			return 0, errors.New("workflow state event identity is incomplete")
+		}
+		if userID != 0 && userID != event.UserID {
+			return 0, errors.New("workflow state events must have one owner")
+		}
+		userID = event.UserID
+	}
+	return userID, nil
+}
+
+func (r *MongoAgentRepository) appendWorkflowStateEvents(ctx context.Context, events []*WorkflowStateEvent) error {
 	models := make([]mongo.WriteModel, 0, len(events))
 	for _, event := range events {
 		if event == nil {
@@ -385,9 +426,15 @@ func (r *MongoAgentRepository) ListWorkflowStateEventsRange(
 }
 
 func (r *MongoAgentRepository) SaveWorkflowStateSnapshot(ctx context.Context, snapshot *WorkflowStateSnapshot) error {
-	if snapshot == nil {
-		return errors.New("workflow state snapshot is required")
+	if snapshot == nil || snapshot.UserID == 0 || snapshot.RunID.IsZero() {
+		return errors.New("workflow state snapshot identity is incomplete")
 	}
+	return withSubjectWriteLease(ctx, r, snapshot.UserID, func() error {
+		return r.saveWorkflowStateSnapshot(ctx, snapshot)
+	})
+}
+
+func (r *MongoAgentRepository) saveWorkflowStateSnapshot(ctx context.Context, snapshot *WorkflowStateSnapshot) error {
 	if snapshot.ID.IsZero() {
 		snapshot.ID = primitive.NewObjectID()
 	}
@@ -437,6 +484,17 @@ func (r *MongoAgentRepository) AdvanceWorkflowRunStateVersion(
 	if stateVersion < 0 {
 		return errors.New("workflow state version cannot be negative")
 	}
+	return withSubjectWriteLease(ctx, r, userID, func() error {
+		return r.advanceWorkflowRunStateVersion(ctx, runID, userID, stateVersion)
+	})
+}
+
+func (r *MongoAgentRepository) advanceWorkflowRunStateVersion(
+	ctx context.Context,
+	runID primitive.ObjectID,
+	userID uint64,
+	stateVersion int64,
+) error {
 	result, err := r.runColl.UpdateOne(ctx, bson.M{
 		"_id": runID, "user_id": userID,
 		"$or": bson.A{

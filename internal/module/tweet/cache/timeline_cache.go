@@ -3,7 +3,9 @@ package cache
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"math"
 	"math/rand"
 	"strconv"
 	"sync"
@@ -74,40 +76,7 @@ func NewTimelineCache(redis *redis.Client) *TimelineCache {
 
 // GetTimeline 获取用户的 Timeline（返回推文 ID 列表）
 func (c *TimelineCache) GetTimeline(ctx context.Context, userID uint64, cursor uint64, limit int) ([]uint64, error) {
-	key := c.getTimelineKey(userID)
-
-	// 使用 ZREVRANGEBYSCORE 按分数（推文 ID）倒序获取
-	// 因为 Snowflake ID 趋势递增，所以 ID 越大 = 时间越晚
-	var maxScore string
-	if cursor > 0 {
-		maxScore = fmt.Sprintf("(%d", cursor)
-	} else {
-		maxScore = "+inf"
-	}
-
-	// ZREVRANGEBYSCORE key max min LIMIT offset count
-	results, err := c.redis.ZRevRangeByScore(ctx, key, &redis.ZRangeBy{
-		Min:    "-inf",
-		Max:    maxScore,
-		Offset: 0,
-		Count:  int64(limit),
-	}).Result()
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to get timeline from redis: %w", err)
-	}
-
-	//转换为uint64
-	tweetIDs := make([]uint64, 0, len(results))
-	for _, result := range results {
-		tweetID, err := strconv.ParseUint(result, 10, 64)
-		if err != nil {
-			continue
-		}
-		tweetIDs = append(tweetIDs, tweetID)
-	}
-
-	return tweetIDs, nil
+	return c.exactTimelinePage(ctx, c.getTimelineKey(userID), cursor, limit)
 }
 
 // AddToTimeline 添加推文到用户的 Timeline
@@ -277,20 +246,34 @@ func (c *TimelineCache) getTimelineKey(userID uint64) string {
 
 // GetTrendingTopics 获取热门话题
 func (c *TimelineCache) GetTrendingTopics(ctx context.Context, limit int) ([]*domain.TrendingTopic, error) {
-	// ZREVRANGE trends:global 0 limit-1 WITHSCORES
-	res, err := c.redis.ZRevRangeWithScores(ctx, "trends:global", 0, int64(limit-1)).Result()
+	if limit <= 0 {
+		return []*domain.TrendingTopic{}, nil
+	}
+	res, err := c.redis.ZRevRangeByScoreWithScores(ctx, "trends:global", &redis.ZRangeBy{
+		Min: "1", Max: "+inf", Count: int64(limit),
+	}).Result()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get trending topics: %w", err)
 	}
 
 	topics := make([]*domain.TrendingTopic, 0, len(res))
 	for _, z := range res {
+		if z.Score > math.MaxInt32 {
+			z.Score = math.MaxInt32
+		}
 		topics = append(topics, &domain.TrendingTopic{
 			Topic: z.Member.(string),
-			Score: int32(z.Score),
+			Score: int32(math.Round(z.Score)),
 		})
 	}
 	return topics, nil
+}
+
+// InvalidateCelebrityLocal refreshes this process after a fenced projection write.
+func (c *TimelineCache) InvalidateCelebrityLocal(userID uint64) {
+	c.localCache.mu.Lock()
+	delete(c.localCache.items, userID)
+	c.localCache.mu.Unlock()
 }
 
 // IsCelebrity 检查用户是否是大V
@@ -563,9 +546,10 @@ func (c *TimelineCache) MGetBaseTweets(ctx context.Context, tweetIDs []uint64) (
 
 // InvalidateBaseTweet 广播删除 L1/L2 缓存
 func (c *TimelineCache) InvalidateBaseTweet(ctx context.Context, tweetID uint64) error {
-	_ = c.DeleteBaseTweet(ctx, tweetID)
+	deleteErr := c.DeleteBaseTweet(ctx, tweetID)
 	key := fmt.Sprintf("tweet:base:%d", tweetID)
-	return c.redis.Publish(ctx, "tweet_invalidations", key).Err()
+	// Still attempt the broadcast when DEL fails, but never mask either error.
+	return errors.Join(deleteErr, c.redis.Publish(ctx, "tweet_invalidations", key).Err())
 }
 
 // UserTimelineExpiration 大V时间线缓存过期时间为 7 天
@@ -632,22 +616,18 @@ func (c *TimelineCache) RebuildUserTimeline(ctx context.Context, userID uint64, 
 
 // PipelineGetCelebrityTweets 批量使用 Pipeline 获取多个大V的推文 ID (L2 Pull 缓存聚合)
 func (c *TimelineCache) PipelineGetCelebrityTweets(ctx context.Context, celebrityIDs []uint64, cursor uint64, limit int) (map[uint64][]uint64, []uint64, error) {
+	if limit < 1 || limit > TimelineMaxSize+1 {
+		return nil, nil, fmt.Errorf("invalid celebrity page limit")
+	}
 	if len(celebrityIDs) == 0 {
 		return make(map[uint64][]uint64), nil, nil
 	}
 
 	pipe := c.redis.Pipeline()
 
-	var maxScore string
-	if cursor > 0 {
-		maxScore = fmt.Sprintf("(%d", cursor)
-	} else {
-		maxScore = "+inf"
-	}
-
 	type cmdGroup struct {
 		existsCmd *redis.IntCmd
-		zrangeCmd *redis.StringSliceCmd
+		zrangeCmd *redis.Cmd
 	}
 	cmds := make(map[uint64]cmdGroup)
 
@@ -656,12 +636,7 @@ func (c *TimelineCache) PipelineGetCelebrityTweets(ctx context.Context, celebrit
 		initKey := c.getUserTimelineInitKey(id)
 
 		existsCmd := pipe.Exists(ctx, initKey)
-		zrangeCmd := pipe.ZRevRangeByScore(ctx, key, &redis.ZRangeBy{
-			Min:    "-inf",
-			Max:    maxScore,
-			Offset: 0,
-			Count:  int64(limit),
-		})
+		zrangeCmd := enqueueTimelinePage(ctx, pipe, key, cursor, limit)
 
 		cmds[id] = cmdGroup{
 			existsCmd: existsCmd,
@@ -686,15 +661,11 @@ func (c *TimelineCache) PipelineGetCelebrityTweets(ctx context.Context, celebrit
 
 		members, err := g.zrangeCmd.Result()
 		if err != nil {
-			continue
+			return nil, nil, fmt.Errorf("read celebrity page: %w", err)
 		}
-
-		ids := make([]uint64, 0, len(members))
-		for _, m := range members {
-			tweetID, err := strconv.ParseUint(m, 10, 64)
-			if err == nil {
-				ids = append(ids, tweetID)
-			}
+		ids, err := decodeTimelinePage(members, cursor, limit)
+		if err != nil {
+			return nil, nil, err
 		}
 		results[id] = ids
 	}

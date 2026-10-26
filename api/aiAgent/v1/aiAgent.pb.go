@@ -100,19 +100,22 @@ func (x *MainContent) GetDialogueKey() string {
 
 // 单条历史消息记录
 type RepositoryContentList struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Id               uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	UserId           uint64                 `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	DialogueId       uint64                 `protobuf:"varint,3,opt,name=dialogue_id,json=dialogueId,proto3" json:"dialogue_id,omitempty"`
-	Question         string                 `protobuf:"bytes,4,opt,name=question,proto3" json:"question,omitempty"`
-	Response         string                 `protobuf:"bytes,5,opt,name=response,proto3" json:"response,omitempty"`
-	DialogueKey      string                 `protobuf:"bytes,6,opt,name=dialogue_key,json=dialogueKey,proto3" json:"dialogue_key,omitempty"`
-	Role             string                 `protobuf:"bytes,7,opt,name=role,proto3" json:"role,omitempty"`
-	Content          string                 `protobuf:"bytes,8,opt,name=content,proto3" json:"content,omitempty"`
-	RunId            string                 `protobuf:"bytes,9,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`                                    // 白名单化的 Runtime Run ID
-	PublishableDraft bool                   `protobuf:"varint,10,opt,name=publishable_draft,json=publishableDraft,proto3" json:"publishable_draft,omitempty"` // 是否来自可显式确认发布的 Assist 草稿
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	Id                     uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	UserId                 uint64                 `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	DialogueId             uint64                 `protobuf:"varint,3,opt,name=dialogue_id,json=dialogueId,proto3" json:"dialogue_id,omitempty"`
+	Question               string                 `protobuf:"bytes,4,opt,name=question,proto3" json:"question,omitempty"`
+	Response               string                 `protobuf:"bytes,5,opt,name=response,proto3" json:"response,omitempty"`
+	DialogueKey            string                 `protobuf:"bytes,6,opt,name=dialogue_key,json=dialogueKey,proto3" json:"dialogue_key,omitempty"`
+	Role                   string                 `protobuf:"bytes,7,opt,name=role,proto3" json:"role,omitempty"`
+	Content                string                 `protobuf:"bytes,8,opt,name=content,proto3" json:"content,omitempty"`
+	RunId                  string                 `protobuf:"bytes,9,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`                                                        // 白名单化的 Runtime Run ID
+	PublishableDraft       bool                   `protobuf:"varint,10,opt,name=publishable_draft,json=publishableDraft,proto3" json:"publishable_draft,omitempty"`                     // 是否来自可显式确认发布的 Assist 草稿
+	HasRuntimeUsage        bool                   `protobuf:"varint,11,opt,name=has_runtime_usage,json=hasRuntimeUsage,proto3" json:"has_runtime_usage,omitempty"`                      // 消息元数据中存在 Runtime Token 记录
+	RuntimeTotalTokens     int64                  `protobuf:"varint,12,opt,name=runtime_total_tokens,json=runtimeTotalTokens,proto3" json:"runtime_total_tokens,omitempty"`             // 仅为该消息关联执行的 Token 总量
+	RuntimeTokensEstimated bool                   `protobuf:"varint,13,opt,name=runtime_tokens_estimated,json=runtimeTokensEstimated,proto3" json:"runtime_tokens_estimated,omitempty"` // true 表示总量含估算
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *RepositoryContentList) Reset() {
@@ -211,6 +214,27 @@ func (x *RepositoryContentList) GetRunId() string {
 func (x *RepositoryContentList) GetPublishableDraft() bool {
 	if x != nil {
 		return x.PublishableDraft
+	}
+	return false
+}
+
+func (x *RepositoryContentList) GetHasRuntimeUsage() bool {
+	if x != nil {
+		return x.HasRuntimeUsage
+	}
+	return false
+}
+
+func (x *RepositoryContentList) GetRuntimeTotalTokens() int64 {
+	if x != nil {
+		return x.RuntimeTotalTokens
+	}
+	return 0
+}
+
+func (x *RepositoryContentList) GetRuntimeTokensEstimated() bool {
+	if x != nil {
+		return x.RuntimeTokensEstimated
 	}
 	return false
 }
@@ -2284,6 +2308,7 @@ type AgentExecutionRun struct {
 	TaskTemplateId        string                      `protobuf:"bytes,26,opt,name=task_template_id,json=taskTemplateId,proto3" json:"task_template_id,omitempty"`
 	TaskTemplateRevision  int64                       `protobuf:"varint,27,opt,name=task_template_revision,json=taskTemplateRevision,proto3" json:"task_template_revision,omitempty"`
 	ExecutionStrategyPlan *AgentExecutionStrategyPlan `protobuf:"bytes,28,opt,name=execution_strategy_plan,json=executionStrategyPlan,proto3" json:"execution_strategy_plan,omitempty"`
+	Planning              *AgentPlanningEvidence      `protobuf:"bytes,29,opt,name=planning,proto3" json:"planning,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -2510,6 +2535,13 @@ func (x *AgentExecutionRun) GetTaskTemplateRevision() int64 {
 func (x *AgentExecutionRun) GetExecutionStrategyPlan() *AgentExecutionStrategyPlan {
 	if x != nil {
 		return x.ExecutionStrategyPlan
+	}
+	return nil
+}
+
+func (x *AgentExecutionRun) GetPlanning() *AgentPlanningEvidence {
+	if x != nil {
+		return x.Planning
 	}
 	return nil
 }
@@ -22439,6 +22471,210 @@ func (x *ConfigureExternalMCPToolResponse) GetTool() *ExternalMCPToolView {
 	return nil
 }
 
+type AgentPlanningEvidence struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Enabled             bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	PlanDigest          string                 `protobuf:"bytes,2,opt,name=plan_digest,json=planDigest,proto3" json:"plan_digest,omitempty"`
+	PlanningCalls       int32                  `protobuf:"varint,3,opt,name=planning_calls,json=planningCalls,proto3" json:"planning_calls,omitempty"`
+	ModelAttempts       int32                  `protobuf:"varint,4,opt,name=model_attempts,json=modelAttempts,proto3" json:"model_attempts,omitempty"`
+	AdmissionAttempts   int32                  `protobuf:"varint,5,opt,name=admission_attempts,json=admissionAttempts,proto3" json:"admission_attempts,omitempty"`
+	AdmissionRepairs    int32                  `protobuf:"varint,6,opt,name=admission_repairs,json=admissionRepairs,proto3" json:"admission_repairs,omitempty"`
+	RecoveryAttempts    int32                  `protobuf:"varint,7,opt,name=recovery_attempts,json=recoveryAttempts,proto3" json:"recovery_attempts,omitempty"`
+	Model               string                 `protobuf:"bytes,8,opt,name=model,proto3" json:"model,omitempty"`
+	Provider            string                 `protobuf:"bytes,9,opt,name=provider,proto3" json:"provider,omitempty"`
+	InputTokens         int32                  `protobuf:"varint,10,opt,name=input_tokens,json=inputTokens,proto3" json:"input_tokens,omitempty"`
+	OutputTokens        int32                  `protobuf:"varint,11,opt,name=output_tokens,json=outputTokens,proto3" json:"output_tokens,omitempty"`
+	TotalTokens         int32                  `protobuf:"varint,12,opt,name=total_tokens,json=totalTokens,proto3" json:"total_tokens,omitempty"`
+	UsageEstimated      bool                   `protobuf:"varint,13,opt,name=usage_estimated,json=usageEstimated,proto3" json:"usage_estimated,omitempty"`
+	EstimatedCostMicros int64                  `protobuf:"varint,14,opt,name=estimated_cost_micros,json=estimatedCostMicros,proto3" json:"estimated_cost_micros,omitempty"`
+	CostEstimated       bool                   `protobuf:"varint,15,opt,name=cost_estimated,json=costEstimated,proto3" json:"cost_estimated,omitempty"`
+	PricingVersion      string                 `protobuf:"bytes,16,opt,name=pricing_version,json=pricingVersion,proto3" json:"pricing_version,omitempty"`
+	GoalStatus          string                 `protobuf:"bytes,17,opt,name=goal_status,json=goalStatus,proto3" json:"goal_status,omitempty"`
+	VerificationStatus  string                 `protobuf:"bytes,18,opt,name=verification_status,json=verificationStatus,proto3" json:"verification_status,omitempty"`
+	CheckpointVersion   string                 `protobuf:"bytes,19,opt,name=checkpoint_version,json=checkpointVersion,proto3" json:"checkpoint_version,omitempty"`
+	CheckpointRevision  int64                  `protobuf:"varint,20,opt,name=checkpoint_revision,json=checkpointRevision,proto3" json:"checkpoint_revision,omitempty"`
+	CheckpointDigest    string                 `protobuf:"bytes,21,opt,name=checkpoint_digest,json=checkpointDigest,proto3" json:"checkpoint_digest,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *AgentPlanningEvidence) Reset() {
+	*x = AgentPlanningEvidence{}
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[276]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentPlanningEvidence) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentPlanningEvidence) ProtoMessage() {}
+
+func (x *AgentPlanningEvidence) ProtoReflect() protoreflect.Message {
+	mi := &file_api_aiAgent_v1_aiAgent_proto_msgTypes[276]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentPlanningEvidence.ProtoReflect.Descriptor instead.
+func (*AgentPlanningEvidence) Descriptor() ([]byte, []int) {
+	return file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP(), []int{276}
+}
+
+func (x *AgentPlanningEvidence) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *AgentPlanningEvidence) GetPlanDigest() string {
+	if x != nil {
+		return x.PlanDigest
+	}
+	return ""
+}
+
+func (x *AgentPlanningEvidence) GetPlanningCalls() int32 {
+	if x != nil {
+		return x.PlanningCalls
+	}
+	return 0
+}
+
+func (x *AgentPlanningEvidence) GetModelAttempts() int32 {
+	if x != nil {
+		return x.ModelAttempts
+	}
+	return 0
+}
+
+func (x *AgentPlanningEvidence) GetAdmissionAttempts() int32 {
+	if x != nil {
+		return x.AdmissionAttempts
+	}
+	return 0
+}
+
+func (x *AgentPlanningEvidence) GetAdmissionRepairs() int32 {
+	if x != nil {
+		return x.AdmissionRepairs
+	}
+	return 0
+}
+
+func (x *AgentPlanningEvidence) GetRecoveryAttempts() int32 {
+	if x != nil {
+		return x.RecoveryAttempts
+	}
+	return 0
+}
+
+func (x *AgentPlanningEvidence) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *AgentPlanningEvidence) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *AgentPlanningEvidence) GetInputTokens() int32 {
+	if x != nil {
+		return x.InputTokens
+	}
+	return 0
+}
+
+func (x *AgentPlanningEvidence) GetOutputTokens() int32 {
+	if x != nil {
+		return x.OutputTokens
+	}
+	return 0
+}
+
+func (x *AgentPlanningEvidence) GetTotalTokens() int32 {
+	if x != nil {
+		return x.TotalTokens
+	}
+	return 0
+}
+
+func (x *AgentPlanningEvidence) GetUsageEstimated() bool {
+	if x != nil {
+		return x.UsageEstimated
+	}
+	return false
+}
+
+func (x *AgentPlanningEvidence) GetEstimatedCostMicros() int64 {
+	if x != nil {
+		return x.EstimatedCostMicros
+	}
+	return 0
+}
+
+func (x *AgentPlanningEvidence) GetCostEstimated() bool {
+	if x != nil {
+		return x.CostEstimated
+	}
+	return false
+}
+
+func (x *AgentPlanningEvidence) GetPricingVersion() string {
+	if x != nil {
+		return x.PricingVersion
+	}
+	return ""
+}
+
+func (x *AgentPlanningEvidence) GetGoalStatus() string {
+	if x != nil {
+		return x.GoalStatus
+	}
+	return ""
+}
+
+func (x *AgentPlanningEvidence) GetVerificationStatus() string {
+	if x != nil {
+		return x.VerificationStatus
+	}
+	return ""
+}
+
+func (x *AgentPlanningEvidence) GetCheckpointVersion() string {
+	if x != nil {
+		return x.CheckpointVersion
+	}
+	return ""
+}
+
+func (x *AgentPlanningEvidence) GetCheckpointRevision() int64 {
+	if x != nil {
+		return x.CheckpointRevision
+	}
+	return 0
+}
+
+func (x *AgentPlanningEvidence) GetCheckpointDigest() string {
+	if x != nil {
+		return x.CheckpointDigest
+	}
+	return ""
+}
+
 var File_api_aiAgent_v1_aiAgent_proto protoreflect.FileDescriptor
 
 const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
@@ -22451,7 +22687,7 @@ const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
 	"\vdialogue_id\x18\x03 \x01(\x04R\n" +
 	"dialogueId\x12\x18\n" +
 	"\acontent\x18\x04 \x01(\tR\acontent\x12!\n" +
-	"\fdialogue_key\x18\x05 \x01(\tR\vdialogueKey\"\xae\x02\n" +
+	"\fdialogue_key\x18\x05 \x01(\tR\vdialogueKey\"\xc6\x03\n" +
 	"\x15RepositoryContentList\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x04R\x06userId\x12\x1f\n" +
@@ -22464,7 +22700,10 @@ const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
 	"\acontent\x18\b \x01(\tR\acontent\x12\x15\n" +
 	"\x06run_id\x18\t \x01(\tR\x05runId\x12+\n" +
 	"\x11publishable_draft\x18\n" +
-	" \x01(\bR\x10publishableDraft\"v\n" +
+	" \x01(\bR\x10publishableDraft\x12*\n" +
+	"\x11has_runtime_usage\x18\v \x01(\bR\x0fhasRuntimeUsage\x120\n" +
+	"\x14runtime_total_tokens\x18\f \x01(\x03R\x12runtimeTotalTokens\x128\n" +
+	"\x18runtime_tokens_estimated\x18\r \x01(\bR\x16runtimeTokensEstimated\"v\n" +
 	"\x12RepositoryDialogue\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x04R\x06userId\x12\x14\n" +
@@ -22658,7 +22897,7 @@ const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
 	"\x16selected_skill_version\x18\x10 \x01(\tR\x14selectedSkillVersion\x129\n" +
 	"\x19selected_task_template_id\x18\x11 \x01(\tR\x16selectedTaskTemplateId\x12E\n" +
 	"\x1fselected_task_template_revision\x18\x12 \x01(\x03R\x1cselectedTaskTemplateRevision\x12^\n" +
-	"\x17execution_strategy_plan\x18\x13 \x01(\v2&.aiAgent.v1.AgentExecutionStrategyPlanR\x15executionStrategyPlan\"\xe9\b\n" +
+	"\x17execution_strategy_plan\x18\x13 \x01(\v2&.aiAgent.v1.AgentExecutionStrategyPlanR\x15executionStrategyPlan\"\xa8\t\n" +
 	"\x11AgentExecutionRun\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12!\n" +
 	"\fdialogue_key\x18\x02 \x01(\tR\vdialogueKey\x12+\n" +
@@ -22693,7 +22932,8 @@ const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
 	"\rskill_version\x18\x19 \x01(\tR\fskillVersion\x12(\n" +
 	"\x10task_template_id\x18\x1a \x01(\tR\x0etaskTemplateId\x124\n" +
 	"\x16task_template_revision\x18\x1b \x01(\x03R\x14taskTemplateRevision\x12^\n" +
-	"\x17execution_strategy_plan\x18\x1c \x01(\v2&.aiAgent.v1.AgentExecutionStrategyPlanR\x15executionStrategyPlan\"h\n" +
+	"\x17execution_strategy_plan\x18\x1c \x01(\v2&.aiAgent.v1.AgentExecutionStrategyPlanR\x15executionStrategyPlan\x12=\n" +
+	"\bplanning\x18\x1d \x01(\v2!.aiAgent.v1.AgentPlanningEvidenceR\bplanning\"h\n" +
 	"\x1aAgentSkillKnowledgeBinding\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x1c\n" +
 	"\treference\x18\x02 \x01(\tR\treference\x12\x18\n" +
@@ -24573,7 +24813,32 @@ const file_api_aiAgent_v1_aiAgent_proto_rawDesc = "" +
 	"\n" +
 	"connection\x18\x03 \x01(\v2!.aiAgent.v1.ExternalMCPConnectionR\n" +
 	"connection\x123\n" +
-	"\x04tool\x18\x04 \x01(\v2\x1f.aiAgent.v1.ExternalMCPToolViewR\x04tool2\xd4Y\n" +
+	"\x04tool\x18\x04 \x01(\v2\x1f.aiAgent.v1.ExternalMCPToolViewR\x04tool\"\xd2\x06\n" +
+	"\x15AgentPlanningEvidence\x12\x18\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x1f\n" +
+	"\vplan_digest\x18\x02 \x01(\tR\n" +
+	"planDigest\x12%\n" +
+	"\x0eplanning_calls\x18\x03 \x01(\x05R\rplanningCalls\x12%\n" +
+	"\x0emodel_attempts\x18\x04 \x01(\x05R\rmodelAttempts\x12-\n" +
+	"\x12admission_attempts\x18\x05 \x01(\x05R\x11admissionAttempts\x12+\n" +
+	"\x11admission_repairs\x18\x06 \x01(\x05R\x10admissionRepairs\x12+\n" +
+	"\x11recovery_attempts\x18\a \x01(\x05R\x10recoveryAttempts\x12\x14\n" +
+	"\x05model\x18\b \x01(\tR\x05model\x12\x1a\n" +
+	"\bprovider\x18\t \x01(\tR\bprovider\x12!\n" +
+	"\finput_tokens\x18\n" +
+	" \x01(\x05R\vinputTokens\x12#\n" +
+	"\routput_tokens\x18\v \x01(\x05R\foutputTokens\x12!\n" +
+	"\ftotal_tokens\x18\f \x01(\x05R\vtotalTokens\x12'\n" +
+	"\x0fusage_estimated\x18\r \x01(\bR\x0eusageEstimated\x122\n" +
+	"\x15estimated_cost_micros\x18\x0e \x01(\x03R\x13estimatedCostMicros\x12%\n" +
+	"\x0ecost_estimated\x18\x0f \x01(\bR\rcostEstimated\x12'\n" +
+	"\x0fpricing_version\x18\x10 \x01(\tR\x0epricingVersion\x12\x1f\n" +
+	"\vgoal_status\x18\x11 \x01(\tR\n" +
+	"goalStatus\x12/\n" +
+	"\x13verification_status\x18\x12 \x01(\tR\x12verificationStatus\x12-\n" +
+	"\x12checkpoint_version\x18\x13 \x01(\tR\x11checkpointVersion\x12/\n" +
+	"\x13checkpoint_revision\x18\x14 \x01(\x03R\x12checkpointRevision\x12+\n" +
+	"\x11checkpoint_digest\x18\x15 \x01(\tR\x10checkpointDigest2\xd4Y\n" +
 	"\x0eAiAgentService\x12Z\n" +
 	"\x0flistAgentSkills\x12\".aiAgent.v1.ListAgentSkillsRequest\x1a#.aiAgent.v1.ListAgentSkillsResponse\x12T\n" +
 	"\rgetAgentSkill\x12 .aiAgent.v1.GetAgentSkillRequest\x1a!.aiAgent.v1.GetAgentSkillResponse\x12f\n" +
@@ -24687,7 +24952,7 @@ func file_api_aiAgent_v1_aiAgent_proto_rawDescGZIP() []byte {
 	return file_api_aiAgent_v1_aiAgent_proto_rawDescData
 }
 
-var file_api_aiAgent_v1_aiAgent_proto_msgTypes = make([]protoimpl.MessageInfo, 276)
+var file_api_aiAgent_v1_aiAgent_proto_msgTypes = make([]protoimpl.MessageInfo, 277)
 var file_api_aiAgent_v1_aiAgent_proto_goTypes = []any{
 	(*MainContent)(nil),                                      // 0: aiAgent.v1.MainContent
 	(*RepositoryContentList)(nil),                            // 1: aiAgent.v1.RepositoryContentList
@@ -24965,6 +25230,7 @@ var file_api_aiAgent_v1_aiAgent_proto_goTypes = []any{
 	(*ListExternalMCPToolsResponse)(nil),                     // 273: aiAgent.v1.ListExternalMCPToolsResponse
 	(*ConfigureExternalMCPToolRequest)(nil),                  // 274: aiAgent.v1.ConfigureExternalMCPToolRequest
 	(*ConfigureExternalMCPToolResponse)(nil),                 // 275: aiAgent.v1.ConfigureExternalMCPToolResponse
+	(*AgentPlanningEvidence)(nil),                            // 276: aiAgent.v1.AgentPlanningEvidence
 }
 var file_api_aiAgent_v1_aiAgent_proto_depIdxs = []int32{
 	3,   // 0: aiAgent.v1.ModelKind.file_kind_list:type_name -> aiAgent.v1.FileKind
@@ -24982,349 +25248,350 @@ var file_api_aiAgent_v1_aiAgent_proto_depIdxs = []int32{
 	23,  // 12: aiAgent.v1.RunAgentResponse.approval_state:type_name -> aiAgent.v1.AgentApprovalState
 	25,  // 13: aiAgent.v1.RunAgentResponse.execution_strategy_plan:type_name -> aiAgent.v1.AgentExecutionStrategyPlan
 	25,  // 14: aiAgent.v1.AgentExecutionRun.execution_strategy_plan:type_name -> aiAgent.v1.AgentExecutionStrategyPlan
-	28,  // 15: aiAgent.v1.AgentSkill.knowledge:type_name -> aiAgent.v1.AgentSkillKnowledgeBinding
-	29,  // 16: aiAgent.v1.AgentSkill.profile:type_name -> aiAgent.v1.AgentSkillProfileBinding
-	30,  // 17: aiAgent.v1.AgentSkill.budget:type_name -> aiAgent.v1.AgentSkillBudget
-	31,  // 18: aiAgent.v1.AgentSkill.output:type_name -> aiAgent.v1.AgentSkillOutputContract
-	32,  // 19: aiAgent.v1.AgentSkill.workflow:type_name -> aiAgent.v1.AgentSkillWorkflowBinding
-	33,  // 20: aiAgent.v1.ListAgentSkillsResponse.skills:type_name -> aiAgent.v1.AgentSkill
-	33,  // 21: aiAgent.v1.GetAgentSkillResponse.skill:type_name -> aiAgent.v1.AgentSkill
-	38,  // 22: aiAgent.v1.AgentExtension.skill:type_name -> aiAgent.v1.AgentExtensionSkillReference
-	39,  // 23: aiAgent.v1.AgentExtension.mcp:type_name -> aiAgent.v1.AgentExtensionMCPReference
-	40,  // 24: aiAgent.v1.ListAgentExtensionsResponse.extensions:type_name -> aiAgent.v1.AgentExtension
-	41,  // 25: aiAgent.v1.ListAgentExtensionsResponse.sources:type_name -> aiAgent.v1.AgentExtensionSourceStatus
-	44,  // 26: aiAgent.v1.AgentMarketplaceExtension.publisher:type_name -> aiAgent.v1.AgentMarketplacePublisher
-	45,  // 27: aiAgent.v1.ListAgentMarketplaceExtensionsResponse.releases:type_name -> aiAgent.v1.AgentMarketplaceExtension
-	48,  // 28: aiAgent.v1.GetAgentMarketplaceManagementAccessResponse.access:type_name -> aiAgent.v1.AgentMarketplaceManagementAccess
-	51,  // 29: aiAgent.v1.AgentMarketplaceManagedPublisher.signing_keys:type_name -> aiAgent.v1.AgentMarketplaceSigningKey
-	52,  // 30: aiAgent.v1.ListAgentMarketplacePublishersResponse.publishers:type_name -> aiAgent.v1.AgentMarketplaceManagedPublisher
-	52,  // 31: aiAgent.v1.RegisterAgentMarketplacePublisherResponse.publisher:type_name -> aiAgent.v1.AgentMarketplaceManagedPublisher
-	52,  // 32: aiAgent.v1.RotateAgentMarketplacePublisherKeyResponse.publisher:type_name -> aiAgent.v1.AgentMarketplaceManagedPublisher
-	52,  // 33: aiAgent.v1.RevokeAgentMarketplacePublisherKeyResponse.publisher:type_name -> aiAgent.v1.AgentMarketplaceManagedPublisher
-	52,  // 34: aiAgent.v1.SetAgentMarketplacePublisherVerificationResponse.publisher:type_name -> aiAgent.v1.AgentMarketplaceManagedPublisher
-	63,  // 35: aiAgent.v1.AgentMarketplaceManagedRelease.manifest:type_name -> aiAgent.v1.AgentMarketplaceManifest
-	64,  // 36: aiAgent.v1.ListAgentMarketplaceManagedReleasesResponse.releases:type_name -> aiAgent.v1.AgentMarketplaceManagedRelease
-	63,  // 37: aiAgent.v1.PublishAgentMarketplaceReleaseRequest.manifest:type_name -> aiAgent.v1.AgentMarketplaceManifest
-	64,  // 38: aiAgent.v1.PublishAgentMarketplaceReleaseResponse.release:type_name -> aiAgent.v1.AgentMarketplaceManagedRelease
-	64,  // 39: aiAgent.v1.WithdrawAgentMarketplaceReleaseResponse.release:type_name -> aiAgent.v1.AgentMarketplaceManagedRelease
-	71,  // 40: aiAgent.v1.ListAgentMarketplaceAuditEventsResponse.events:type_name -> aiAgent.v1.AgentMarketplaceAuditEvent
-	74,  // 41: aiAgent.v1.CreateAgentTaskTemplateResponse.task_template:type_name -> aiAgent.v1.AgentTaskTemplate
-	74,  // 42: aiAgent.v1.ListAgentTaskTemplatesResponse.task_templates:type_name -> aiAgent.v1.AgentTaskTemplate
-	74,  // 43: aiAgent.v1.ArchiveAgentTaskTemplateResponse.task_template:type_name -> aiAgent.v1.AgentTaskTemplate
-	0,   // 44: aiAgent.v1.RunAgentTaskTemplateRequest.main_content:type_name -> aiAgent.v1.MainContent
-	27,  // 45: aiAgent.v1.GetAgentRunResponse.run:type_name -> aiAgent.v1.AgentExecutionRun
-	132, // 46: aiAgent.v1.WorkflowRunAccounting.usage:type_name -> aiAgent.v1.ExecutionTokenUsage
-	133, // 47: aiAgent.v1.WorkflowRunAccounting.budget:type_name -> aiAgent.v1.ExecutionBudgetSnapshot
-	132, // 48: aiAgent.v1.AgentRunAccounting.parent_usage:type_name -> aiAgent.v1.ExecutionTokenUsage
-	133, // 49: aiAgent.v1.AgentRunAccounting.parent_budget:type_name -> aiAgent.v1.ExecutionBudgetSnapshot
-	132, // 50: aiAgent.v1.AgentRunAccounting.child_usage:type_name -> aiAgent.v1.ExecutionTokenUsage
-	132, // 51: aiAgent.v1.AgentRunAccounting.total_usage:type_name -> aiAgent.v1.ExecutionTokenUsage
-	85,  // 52: aiAgent.v1.AgentRunAccounting.children:type_name -> aiAgent.v1.WorkflowRunAccounting
-	86,  // 53: aiAgent.v1.GetAgentRunAccountingResponse.accounting:type_name -> aiAgent.v1.AgentRunAccounting
-	27,  // 54: aiAgent.v1.IssueAgentResumeGrantResponse.run:type_name -> aiAgent.v1.AgentExecutionRun
-	0,   // 55: aiAgent.v1.callApiOfAiRequest.main_content:type_name -> aiAgent.v1.MainContent
-	0,   // 56: aiAgent.v1.consultContentRequest.main_content:type_name -> aiAgent.v1.MainContent
-	8,   // 57: aiAgent.v1.consultContentResponse.tweet_list:type_name -> aiAgent.v1.TweetResult
-	0,   // 58: aiAgent.v1.assistPublishTwitterRequest.main_content:type_name -> aiAgent.v1.MainContent
-	7,   // 59: aiAgent.v1.assistPublishTwitterResponse.tweet_list:type_name -> aiAgent.v1.Tweet
-	104, // 60: aiAgent.v1.CreateWorkflowResponse.workflow:type_name -> aiAgent.v1.WorkflowDetail
-	104, // 61: aiAgent.v1.UpdateWorkflowResponse.workflow:type_name -> aiAgent.v1.WorkflowDetail
-	103, // 62: aiAgent.v1.ListWorkflowsResponse.workflows:type_name -> aiAgent.v1.WorkflowSummary
-	104, // 63: aiAgent.v1.GetWorkflowResponse.workflow:type_name -> aiAgent.v1.WorkflowDetail
-	105, // 64: aiAgent.v1.ListWorkflowRevisionsResponse.revisions:type_name -> aiAgent.v1.WorkflowRevisionSummary
-	106, // 65: aiAgent.v1.GetWorkflowRevisionResponse.revision:type_name -> aiAgent.v1.WorkflowRevisionDetail
-	107, // 66: aiAgent.v1.PublishWorkflowToolResponse.publication:type_name -> aiAgent.v1.WorkflowToolPublication
-	107, // 67: aiAgent.v1.GetWorkflowToolPublicationResponse.publication:type_name -> aiAgent.v1.WorkflowToolPublication
-	107, // 68: aiAgent.v1.UnpublishWorkflowToolResponse.publication:type_name -> aiAgent.v1.WorkflowToolPublication
-	108, // 69: aiAgent.v1.RunWorkflowResponse.run:type_name -> aiAgent.v1.WorkflowRun
-	108, // 70: aiAgent.v1.GetWorkflowRunResponse.run:type_name -> aiAgent.v1.WorkflowRun
-	132, // 71: aiAgent.v1.AgentRunTrace.usage:type_name -> aiAgent.v1.ExecutionTokenUsage
-	133, // 72: aiAgent.v1.AgentRunTrace.budget:type_name -> aiAgent.v1.ExecutionBudgetSnapshot
-	132, // 73: aiAgent.v1.AgentLLMCallTrace.usage:type_name -> aiAgent.v1.ExecutionTokenUsage
-	134, // 74: aiAgent.v1.GetWorkflowRunTraceResponse.run:type_name -> aiAgent.v1.AgentRunTrace
-	135, // 75: aiAgent.v1.GetWorkflowRunTraceResponse.steps:type_name -> aiAgent.v1.AgentStepTrace
-	136, // 76: aiAgent.v1.GetWorkflowRunTraceResponse.llm_calls:type_name -> aiAgent.v1.AgentLLMCallTrace
-	137, // 77: aiAgent.v1.GetWorkflowRunTraceResponse.tool_calls:type_name -> aiAgent.v1.AgentToolCallTrace
-	141, // 78: aiAgent.v1.SearchWorkflowBlackboardResponse.entries:type_name -> aiAgent.v1.WorkflowBlackboardEntry
-	134, // 79: aiAgent.v1.WorkflowRunEvent.run:type_name -> aiAgent.v1.AgentRunTrace
-	135, // 80: aiAgent.v1.WorkflowRunEvent.step:type_name -> aiAgent.v1.AgentStepTrace
-	136, // 81: aiAgent.v1.WorkflowRunEvent.llm_call:type_name -> aiAgent.v1.AgentLLMCallTrace
-	137, // 82: aiAgent.v1.WorkflowRunEvent.tool_call:type_name -> aiAgent.v1.AgentToolCallTrace
-	109, // 83: aiAgent.v1.ListWorkflowRunsResponse.runs:type_name -> aiAgent.v1.WorkflowRunSummary
-	109, // 84: aiAgent.v1.CancelWorkflowRunResponse.run:type_name -> aiAgent.v1.WorkflowRunSummary
-	108, // 85: aiAgent.v1.GetWorkflowRunReplayResponse.run:type_name -> aiAgent.v1.WorkflowRun
-	105, // 86: aiAgent.v1.GetWorkflowRunReplayResponse.revision:type_name -> aiAgent.v1.WorkflowRevisionSummary
-	149, // 87: aiAgent.v1.GetWorkflowRunReplayResponse.events:type_name -> aiAgent.v1.WorkflowReplayStateEvent
-	150, // 88: aiAgent.v1.GetWorkflowRunReplayResponse.snapshot:type_name -> aiAgent.v1.WorkflowReplaySnapshot
-	151, // 89: aiAgent.v1.GetWorkflowRunReplayResponse.compensations:type_name -> aiAgent.v1.WorkflowReplayCompensation
-	152, // 90: aiAgent.v1.GetWorkflowRunReplayResponse.integrity:type_name -> aiAgent.v1.WorkflowReplayIntegrity
-	157, // 91: aiAgent.v1.GetWorkflowCompensationJournalResponse.run:type_name -> aiAgent.v1.WorkflowCompensationRunSummary
-	155, // 92: aiAgent.v1.GetWorkflowCompensationJournalResponse.entries:type_name -> aiAgent.v1.WorkflowCompensationJournalEntry
-	108, // 93: aiAgent.v1.RetryWorkflowCompensationResponse.run:type_name -> aiAgent.v1.WorkflowRun
-	161, // 94: aiAgent.v1.ListToolApprovalsResponse.approvals:type_name -> aiAgent.v1.ToolApprovalRequest
-	161, // 95: aiAgent.v1.DecideToolApprovalResponse.approval:type_name -> aiAgent.v1.ToolApprovalRequest
-	108, // 96: aiAgent.v1.IssueWorkflowResumeGrantResponse.run:type_name -> aiAgent.v1.WorkflowRun
-	108, // 97: aiAgent.v1.ResumeWorkflowRunResponse.run:type_name -> aiAgent.v1.WorkflowRun
-	170, // 98: aiAgent.v1.CreateProviderConfigResponse.provider_config:type_name -> aiAgent.v1.ProviderConfig
-	170, // 99: aiAgent.v1.UpdateProviderConfigResponse.provider_config:type_name -> aiAgent.v1.ProviderConfig
-	170, // 100: aiAgent.v1.ListProviderConfigsResponse.provider_configs:type_name -> aiAgent.v1.ProviderConfig
-	170, // 101: aiAgent.v1.GetProviderConfigResponse.provider_config:type_name -> aiAgent.v1.ProviderConfig
-	181, // 102: aiAgent.v1.AgentProfileVersion.spec:type_name -> aiAgent.v1.AgentProfileSpec
-	186, // 103: aiAgent.v1.AgentProfileExperimentStats.stable:type_name -> aiAgent.v1.AgentProfileExperimentArmStats
-	186, // 104: aiAgent.v1.AgentProfileExperimentStats.candidate:type_name -> aiAgent.v1.AgentProfileExperimentArmStats
-	185, // 105: aiAgent.v1.AgentProfileExperiment.policy:type_name -> aiAgent.v1.AgentProfileExperimentPolicy
-	187, // 106: aiAgent.v1.AgentProfileExperiment.stats:type_name -> aiAgent.v1.AgentProfileExperimentStats
-	189, // 107: aiAgent.v1.AgentProfileQualityEvidence.reference:type_name -> aiAgent.v1.AgentEvalEvidenceReference
-	190, // 108: aiAgent.v1.AgentProfilePublishApproval.quality_evidence:type_name -> aiAgent.v1.AgentProfileQualityEvidence
-	181, // 109: aiAgent.v1.CreateAgentProfileDraftRequest.spec:type_name -> aiAgent.v1.AgentProfileSpec
-	182, // 110: aiAgent.v1.CreateAgentProfileDraftResponse.profile_version:type_name -> aiAgent.v1.AgentProfileVersion
-	182, // 111: aiAgent.v1.PublishAgentProfileVersionResponse.profile_version:type_name -> aiAgent.v1.AgentProfileVersion
-	189, // 112: aiAgent.v1.RequestAgentProfilePublishApprovalRequest.quality_evidence:type_name -> aiAgent.v1.AgentEvalEvidenceReference
-	191, // 113: aiAgent.v1.RequestAgentProfilePublishApprovalResponse.approval:type_name -> aiAgent.v1.AgentProfilePublishApproval
-	191, // 114: aiAgent.v1.ListAgentProfilePublishApprovalsResponse.approvals:type_name -> aiAgent.v1.AgentProfilePublishApproval
-	191, // 115: aiAgent.v1.GetAgentProfilePublishApprovalResponse.approval:type_name -> aiAgent.v1.AgentProfilePublishApproval
-	191, // 116: aiAgent.v1.DecideAgentProfilePublishApprovalResponse.approval:type_name -> aiAgent.v1.AgentProfilePublishApproval
-	191, // 117: aiAgent.v1.RetryAgentProfilePublishApprovalResponse.approval:type_name -> aiAgent.v1.AgentProfilePublishApproval
-	182, // 118: aiAgent.v1.ListAgentProfileVersionsResponse.profile_versions:type_name -> aiAgent.v1.AgentProfileVersion
-	182, // 119: aiAgent.v1.GetAgentProfileVersionResponse.profile_version:type_name -> aiAgent.v1.AgentProfileVersion
-	183, // 120: aiAgent.v1.GetAgentProfileReleaseResponse.profile_release:type_name -> aiAgent.v1.AgentProfileRelease
-	183, // 121: aiAgent.v1.UpsertAgentProfileReleaseResponse.profile_release:type_name -> aiAgent.v1.AgentProfileRelease
-	184, // 122: aiAgent.v1.ListAgentProfileAuditEventsResponse.audit_events:type_name -> aiAgent.v1.AgentProfileAuditEvent
-	216, // 123: aiAgent.v1.GetAgentProfileManagementAccessResponse.access:type_name -> aiAgent.v1.AgentProfileManagementAccess
-	217, // 124: aiAgent.v1.ListAgentProfileRoleBindingsResponse.role_bindings:type_name -> aiAgent.v1.AgentProfileRoleBinding
-	217, // 125: aiAgent.v1.UpsertAgentProfileRoleBindingResponse.role_binding:type_name -> aiAgent.v1.AgentProfileRoleBinding
-	218, // 126: aiAgent.v1.ListAgentProfileRoleAuditEventsResponse.audit_events:type_name -> aiAgent.v1.AgentProfileRoleAuditEvent
-	185, // 127: aiAgent.v1.StartAgentProfileExperimentRequest.policy:type_name -> aiAgent.v1.AgentProfileExperimentPolicy
-	188, // 128: aiAgent.v1.StartAgentProfileExperimentResponse.experiment:type_name -> aiAgent.v1.AgentProfileExperiment
-	188, // 129: aiAgent.v1.ListAgentProfileExperimentsResponse.experiments:type_name -> aiAgent.v1.AgentProfileExperiment
-	188, // 130: aiAgent.v1.GetAgentProfileExperimentResponse.experiment:type_name -> aiAgent.v1.AgentProfileExperiment
-	188, // 131: aiAgent.v1.EvaluateAgentProfileExperimentResponse.experiment:type_name -> aiAgent.v1.AgentProfileExperiment
-	188, // 132: aiAgent.v1.StopAgentProfileExperimentResponse.experiment:type_name -> aiAgent.v1.AgentProfileExperiment
-	242, // 133: aiAgent.v1.AgentProject.members:type_name -> aiAgent.v1.AgentProjectMember
-	243, // 134: aiAgent.v1.CreateAgentProjectResponse.project:type_name -> aiAgent.v1.AgentProject
-	243, // 135: aiAgent.v1.ListAgentProjectsResponse.projects:type_name -> aiAgent.v1.AgentProject
-	243, // 136: aiAgent.v1.GetAgentProjectResponse.project:type_name -> aiAgent.v1.AgentProject
-	243, // 137: aiAgent.v1.UpsertAgentProjectMemberResponse.project:type_name -> aiAgent.v1.AgentProject
-	243, // 138: aiAgent.v1.RemoveAgentProjectMemberResponse.project:type_name -> aiAgent.v1.AgentProject
-	254, // 139: aiAgent.v1.ExternalMCPToolView.schema:type_name -> aiAgent.v1.ExternalMCPToolSchema
-	255, // 140: aiAgent.v1.ExternalMCPToolView.policy:type_name -> aiAgent.v1.ExternalMCPToolPolicy
-	254, // 141: aiAgent.v1.ExternalMCPToolSnapshot.tools:type_name -> aiAgent.v1.ExternalMCPToolSchema
-	241, // 142: aiAgent.v1.CreateExternalMCPConnectionResponse.connection:type_name -> aiAgent.v1.ExternalMCPConnection
-	241, // 143: aiAgent.v1.UpdateExternalMCPConnectionResponse.connection:type_name -> aiAgent.v1.ExternalMCPConnection
-	241, // 144: aiAgent.v1.ListExternalMCPConnectionsResponse.connections:type_name -> aiAgent.v1.ExternalMCPConnection
-	241, // 145: aiAgent.v1.GetExternalMCPConnectionResponse.connection:type_name -> aiAgent.v1.ExternalMCPConnection
-	241, // 146: aiAgent.v1.DiscoverExternalMCPToolsResponse.connection:type_name -> aiAgent.v1.ExternalMCPConnection
-	257, // 147: aiAgent.v1.DiscoverExternalMCPToolsResponse.snapshot:type_name -> aiAgent.v1.ExternalMCPToolSnapshot
-	241, // 148: aiAgent.v1.ApproveExternalMCPSnapshotResponse.connection:type_name -> aiAgent.v1.ExternalMCPConnection
-	257, // 149: aiAgent.v1.ApproveExternalMCPSnapshotResponse.snapshot:type_name -> aiAgent.v1.ExternalMCPToolSnapshot
-	241, // 150: aiAgent.v1.ListExternalMCPToolsResponse.connection:type_name -> aiAgent.v1.ExternalMCPConnection
-	257, // 151: aiAgent.v1.ListExternalMCPToolsResponse.snapshot:type_name -> aiAgent.v1.ExternalMCPToolSnapshot
-	256, // 152: aiAgent.v1.ListExternalMCPToolsResponse.tools:type_name -> aiAgent.v1.ExternalMCPToolView
-	241, // 153: aiAgent.v1.ConfigureExternalMCPToolResponse.connection:type_name -> aiAgent.v1.ExternalMCPConnection
-	256, // 154: aiAgent.v1.ConfigureExternalMCPToolResponse.tool:type_name -> aiAgent.v1.ExternalMCPToolView
-	34,  // 155: aiAgent.v1.AiAgentService.listAgentSkills:input_type -> aiAgent.v1.ListAgentSkillsRequest
-	36,  // 156: aiAgent.v1.AiAgentService.getAgentSkill:input_type -> aiAgent.v1.GetAgentSkillRequest
-	42,  // 157: aiAgent.v1.AiAgentService.listAgentExtensions:input_type -> aiAgent.v1.ListAgentExtensionsRequest
-	46,  // 158: aiAgent.v1.AiAgentService.listAgentMarketplaceExtensions:input_type -> aiAgent.v1.ListAgentMarketplaceExtensionsRequest
-	49,  // 159: aiAgent.v1.AiAgentService.getAgentMarketplaceManagementAccess:input_type -> aiAgent.v1.GetAgentMarketplaceManagementAccessRequest
-	53,  // 160: aiAgent.v1.AiAgentService.listAgentMarketplacePublishers:input_type -> aiAgent.v1.ListAgentMarketplacePublishersRequest
-	55,  // 161: aiAgent.v1.AiAgentService.registerAgentMarketplacePublisher:input_type -> aiAgent.v1.RegisterAgentMarketplacePublisherRequest
-	57,  // 162: aiAgent.v1.AiAgentService.rotateAgentMarketplacePublisherKey:input_type -> aiAgent.v1.RotateAgentMarketplacePublisherKeyRequest
-	59,  // 163: aiAgent.v1.AiAgentService.revokeAgentMarketplacePublisherKey:input_type -> aiAgent.v1.RevokeAgentMarketplacePublisherKeyRequest
-	61,  // 164: aiAgent.v1.AiAgentService.setAgentMarketplacePublisherVerification:input_type -> aiAgent.v1.SetAgentMarketplacePublisherVerificationRequest
-	65,  // 165: aiAgent.v1.AiAgentService.listAgentMarketplaceManagedReleases:input_type -> aiAgent.v1.ListAgentMarketplaceManagedReleasesRequest
-	67,  // 166: aiAgent.v1.AiAgentService.publishAgentMarketplaceRelease:input_type -> aiAgent.v1.PublishAgentMarketplaceReleaseRequest
-	69,  // 167: aiAgent.v1.AiAgentService.withdrawAgentMarketplaceRelease:input_type -> aiAgent.v1.WithdrawAgentMarketplaceReleaseRequest
-	72,  // 168: aiAgent.v1.AiAgentService.listAgentMarketplaceAuditEvents:input_type -> aiAgent.v1.ListAgentMarketplaceAuditEventsRequest
-	75,  // 169: aiAgent.v1.AiAgentService.createAgentTaskTemplate:input_type -> aiAgent.v1.CreateAgentTaskTemplateRequest
-	77,  // 170: aiAgent.v1.AiAgentService.listAgentTaskTemplates:input_type -> aiAgent.v1.ListAgentTaskTemplatesRequest
-	79,  // 171: aiAgent.v1.AiAgentService.archiveAgentTaskTemplate:input_type -> aiAgent.v1.ArchiveAgentTaskTemplateRequest
-	81,  // 172: aiAgent.v1.AiAgentService.runAgentTaskTemplate:input_type -> aiAgent.v1.RunAgentTaskTemplateRequest
-	9,   // 173: aiAgent.v1.AiAgentService.getModelDetailedInformation:input_type -> aiAgent.v1.getModelDetailedInformationRequest
-	11,  // 174: aiAgent.v1.AiAgentService.getRepositoryDialogue:input_type -> aiAgent.v1.getRepositoryDialogueRequest
-	13,  // 175: aiAgent.v1.AiAgentService.getDialogueDetail:input_type -> aiAgent.v1.getDialogueDetailRequest
-	15,  // 176: aiAgent.v1.AiAgentService.endDialogueSession:input_type -> aiAgent.v1.EndDialogueSessionRequest
-	17,  // 177: aiAgent.v1.AiAgentService.analysisFiles:input_type -> aiAgent.v1.analysisFilesRequest
-	19,  // 178: aiAgent.v1.AiAgentService.runAgent:input_type -> aiAgent.v1.RunAgentRequest
-	82,  // 179: aiAgent.v1.AiAgentService.getAgentRun:input_type -> aiAgent.v1.GetAgentRunRequest
-	84,  // 180: aiAgent.v1.AiAgentService.getAgentRunAccounting:input_type -> aiAgent.v1.GetAgentRunAccountingRequest
-	88,  // 181: aiAgent.v1.AiAgentService.resumeAgentRun:input_type -> aiAgent.v1.ResumeAgentRunRequest
-	89,  // 182: aiAgent.v1.AiAgentService.issueAgentResumeGrant:input_type -> aiAgent.v1.IssueAgentResumeGrantRequest
-	91,  // 183: aiAgent.v1.AiAgentService.callApiOfAi:input_type -> aiAgent.v1.callApiOfAiRequest
-	93,  // 184: aiAgent.v1.AiAgentService.consultContent:input_type -> aiAgent.v1.consultContentRequest
-	95,  // 185: aiAgent.v1.AiAgentService.assistPublishTwitter:input_type -> aiAgent.v1.assistPublishTwitterRequest
-	97,  // 186: aiAgent.v1.AiAgentService.confirmPublishTwitter:input_type -> aiAgent.v1.ConfirmPublishTwitterRequest
-	99,  // 187: aiAgent.v1.AiAgentService.multiAgentPublishTwitter:input_type -> aiAgent.v1.MultiAgentPublishTwitterRequest
-	101, // 188: aiAgent.v1.AiAgentService.analyzeAlert:input_type -> aiAgent.v1.AnalyzeAlertRequest
-	110, // 189: aiAgent.v1.AiAgentService.createWorkflow:input_type -> aiAgent.v1.CreateWorkflowRequest
-	112, // 190: aiAgent.v1.AiAgentService.updateWorkflow:input_type -> aiAgent.v1.UpdateWorkflowRequest
-	114, // 191: aiAgent.v1.AiAgentService.listWorkflows:input_type -> aiAgent.v1.ListWorkflowsRequest
-	116, // 192: aiAgent.v1.AiAgentService.getWorkflow:input_type -> aiAgent.v1.GetWorkflowRequest
-	118, // 193: aiAgent.v1.AiAgentService.listWorkflowRevisions:input_type -> aiAgent.v1.ListWorkflowRevisionsRequest
-	120, // 194: aiAgent.v1.AiAgentService.getWorkflowRevision:input_type -> aiAgent.v1.GetWorkflowRevisionRequest
-	122, // 195: aiAgent.v1.AiAgentService.publishWorkflowTool:input_type -> aiAgent.v1.PublishWorkflowToolRequest
-	124, // 196: aiAgent.v1.AiAgentService.getWorkflowToolPublication:input_type -> aiAgent.v1.GetWorkflowToolPublicationRequest
-	126, // 197: aiAgent.v1.AiAgentService.unpublishWorkflowTool:input_type -> aiAgent.v1.UnpublishWorkflowToolRequest
-	128, // 198: aiAgent.v1.AiAgentService.runWorkflow:input_type -> aiAgent.v1.RunWorkflowRequest
-	130, // 199: aiAgent.v1.AiAgentService.getWorkflowRun:input_type -> aiAgent.v1.GetWorkflowRunRequest
-	138, // 200: aiAgent.v1.AiAgentService.getWorkflowRunTrace:input_type -> aiAgent.v1.GetWorkflowRunTraceRequest
-	140, // 201: aiAgent.v1.AiAgentService.searchWorkflowBlackboard:input_type -> aiAgent.v1.SearchWorkflowBlackboardRequest
-	143, // 202: aiAgent.v1.AiAgentService.watchWorkflowRunEvents:input_type -> aiAgent.v1.WatchWorkflowRunEventsRequest
-	145, // 203: aiAgent.v1.AiAgentService.listWorkflowRuns:input_type -> aiAgent.v1.ListWorkflowRunsRequest
-	147, // 204: aiAgent.v1.AiAgentService.cancelWorkflowRun:input_type -> aiAgent.v1.CancelWorkflowRunRequest
-	153, // 205: aiAgent.v1.AiAgentService.getWorkflowRunReplay:input_type -> aiAgent.v1.GetWorkflowRunReplayRequest
-	156, // 206: aiAgent.v1.AiAgentService.getWorkflowCompensationJournal:input_type -> aiAgent.v1.GetWorkflowCompensationJournalRequest
-	159, // 207: aiAgent.v1.AiAgentService.retryWorkflowCompensation:input_type -> aiAgent.v1.RetryWorkflowCompensationRequest
-	162, // 208: aiAgent.v1.AiAgentService.listToolApprovals:input_type -> aiAgent.v1.ListToolApprovalsRequest
-	164, // 209: aiAgent.v1.AiAgentService.decideToolApproval:input_type -> aiAgent.v1.DecideToolApprovalRequest
-	166, // 210: aiAgent.v1.AiAgentService.issueWorkflowResumeGrant:input_type -> aiAgent.v1.IssueWorkflowResumeGrantRequest
-	168, // 211: aiAgent.v1.AiAgentService.resumeWorkflowRun:input_type -> aiAgent.v1.ResumeWorkflowRunRequest
-	171, // 212: aiAgent.v1.AiAgentService.createProviderConfig:input_type -> aiAgent.v1.CreateProviderConfigRequest
-	173, // 213: aiAgent.v1.AiAgentService.updateProviderConfig:input_type -> aiAgent.v1.UpdateProviderConfigRequest
-	175, // 214: aiAgent.v1.AiAgentService.listProviderConfigs:input_type -> aiAgent.v1.ListProviderConfigsRequest
-	177, // 215: aiAgent.v1.AiAgentService.getProviderConfig:input_type -> aiAgent.v1.GetProviderConfigRequest
-	179, // 216: aiAgent.v1.AiAgentService.revokeProviderConfig:input_type -> aiAgent.v1.RevokeProviderConfigRequest
-	244, // 217: aiAgent.v1.AiAgentService.createAgentProject:input_type -> aiAgent.v1.CreateAgentProjectRequest
-	246, // 218: aiAgent.v1.AiAgentService.listAgentProjects:input_type -> aiAgent.v1.ListAgentProjectsRequest
-	248, // 219: aiAgent.v1.AiAgentService.getAgentProject:input_type -> aiAgent.v1.GetAgentProjectRequest
-	250, // 220: aiAgent.v1.AiAgentService.upsertAgentProjectMember:input_type -> aiAgent.v1.UpsertAgentProjectMemberRequest
-	252, // 221: aiAgent.v1.AiAgentService.removeAgentProjectMember:input_type -> aiAgent.v1.RemoveAgentProjectMemberRequest
-	258, // 222: aiAgent.v1.AiAgentService.createExternalMCPConnection:input_type -> aiAgent.v1.CreateExternalMCPConnectionRequest
-	260, // 223: aiAgent.v1.AiAgentService.updateExternalMCPConnection:input_type -> aiAgent.v1.UpdateExternalMCPConnectionRequest
-	262, // 224: aiAgent.v1.AiAgentService.listExternalMCPConnections:input_type -> aiAgent.v1.ListExternalMCPConnectionsRequest
-	264, // 225: aiAgent.v1.AiAgentService.getExternalMCPConnection:input_type -> aiAgent.v1.GetExternalMCPConnectionRequest
-	266, // 226: aiAgent.v1.AiAgentService.revokeExternalMCPConnection:input_type -> aiAgent.v1.RevokeExternalMCPConnectionRequest
-	268, // 227: aiAgent.v1.AiAgentService.discoverExternalMCPTools:input_type -> aiAgent.v1.DiscoverExternalMCPToolsRequest
-	270, // 228: aiAgent.v1.AiAgentService.approveExternalMCPSnapshot:input_type -> aiAgent.v1.ApproveExternalMCPSnapshotRequest
-	272, // 229: aiAgent.v1.AiAgentService.listExternalMCPTools:input_type -> aiAgent.v1.ListExternalMCPToolsRequest
-	274, // 230: aiAgent.v1.AiAgentService.configureExternalMCPTool:input_type -> aiAgent.v1.ConfigureExternalMCPToolRequest
-	192, // 231: aiAgent.v1.AiAgentService.createAgentProfileDraft:input_type -> aiAgent.v1.CreateAgentProfileDraftRequest
-	194, // 232: aiAgent.v1.AiAgentService.publishAgentProfileVersion:input_type -> aiAgent.v1.PublishAgentProfileVersionRequest
-	196, // 233: aiAgent.v1.AiAgentService.requestAgentProfilePublishApproval:input_type -> aiAgent.v1.RequestAgentProfilePublishApprovalRequest
-	198, // 234: aiAgent.v1.AiAgentService.listAgentProfilePublishApprovals:input_type -> aiAgent.v1.ListAgentProfilePublishApprovalsRequest
-	200, // 235: aiAgent.v1.AiAgentService.getAgentProfilePublishApproval:input_type -> aiAgent.v1.GetAgentProfilePublishApprovalRequest
-	202, // 236: aiAgent.v1.AiAgentService.decideAgentProfilePublishApproval:input_type -> aiAgent.v1.DecideAgentProfilePublishApprovalRequest
-	204, // 237: aiAgent.v1.AiAgentService.retryAgentProfilePublishApproval:input_type -> aiAgent.v1.RetryAgentProfilePublishApprovalRequest
-	206, // 238: aiAgent.v1.AiAgentService.listAgentProfileVersions:input_type -> aiAgent.v1.ListAgentProfileVersionsRequest
-	208, // 239: aiAgent.v1.AiAgentService.getAgentProfileVersion:input_type -> aiAgent.v1.GetAgentProfileVersionRequest
-	210, // 240: aiAgent.v1.AiAgentService.getAgentProfileRelease:input_type -> aiAgent.v1.GetAgentProfileReleaseRequest
-	212, // 241: aiAgent.v1.AiAgentService.upsertAgentProfileRelease:input_type -> aiAgent.v1.UpsertAgentProfileReleaseRequest
-	214, // 242: aiAgent.v1.AiAgentService.listAgentProfileAuditEvents:input_type -> aiAgent.v1.ListAgentProfileAuditEventsRequest
-	219, // 243: aiAgent.v1.AiAgentService.getAgentProfileManagementAccess:input_type -> aiAgent.v1.GetAgentProfileManagementAccessRequest
-	221, // 244: aiAgent.v1.AiAgentService.listAgentProfileRoleBindings:input_type -> aiAgent.v1.ListAgentProfileRoleBindingsRequest
-	223, // 245: aiAgent.v1.AiAgentService.upsertAgentProfileRoleBinding:input_type -> aiAgent.v1.UpsertAgentProfileRoleBindingRequest
-	225, // 246: aiAgent.v1.AiAgentService.deleteAgentProfileRoleBinding:input_type -> aiAgent.v1.DeleteAgentProfileRoleBindingRequest
-	227, // 247: aiAgent.v1.AiAgentService.listAgentProfileRoleAuditEvents:input_type -> aiAgent.v1.ListAgentProfileRoleAuditEventsRequest
-	229, // 248: aiAgent.v1.AiAgentService.startAgentProfileExperiment:input_type -> aiAgent.v1.StartAgentProfileExperimentRequest
-	231, // 249: aiAgent.v1.AiAgentService.listAgentProfileExperiments:input_type -> aiAgent.v1.ListAgentProfileExperimentsRequest
-	233, // 250: aiAgent.v1.AiAgentService.getAgentProfileExperiment:input_type -> aiAgent.v1.GetAgentProfileExperimentRequest
-	235, // 251: aiAgent.v1.AiAgentService.evaluateAgentProfileExperiment:input_type -> aiAgent.v1.EvaluateAgentProfileExperimentRequest
-	237, // 252: aiAgent.v1.AiAgentService.stopAgentProfileExperiment:input_type -> aiAgent.v1.StopAgentProfileExperimentRequest
-	239, // 253: aiAgent.v1.AiAgentService.recordAgentProfileExperimentOutcome:input_type -> aiAgent.v1.RecordAgentProfileExperimentOutcomeRequest
-	35,  // 254: aiAgent.v1.AiAgentService.listAgentSkills:output_type -> aiAgent.v1.ListAgentSkillsResponse
-	37,  // 255: aiAgent.v1.AiAgentService.getAgentSkill:output_type -> aiAgent.v1.GetAgentSkillResponse
-	43,  // 256: aiAgent.v1.AiAgentService.listAgentExtensions:output_type -> aiAgent.v1.ListAgentExtensionsResponse
-	47,  // 257: aiAgent.v1.AiAgentService.listAgentMarketplaceExtensions:output_type -> aiAgent.v1.ListAgentMarketplaceExtensionsResponse
-	50,  // 258: aiAgent.v1.AiAgentService.getAgentMarketplaceManagementAccess:output_type -> aiAgent.v1.GetAgentMarketplaceManagementAccessResponse
-	54,  // 259: aiAgent.v1.AiAgentService.listAgentMarketplacePublishers:output_type -> aiAgent.v1.ListAgentMarketplacePublishersResponse
-	56,  // 260: aiAgent.v1.AiAgentService.registerAgentMarketplacePublisher:output_type -> aiAgent.v1.RegisterAgentMarketplacePublisherResponse
-	58,  // 261: aiAgent.v1.AiAgentService.rotateAgentMarketplacePublisherKey:output_type -> aiAgent.v1.RotateAgentMarketplacePublisherKeyResponse
-	60,  // 262: aiAgent.v1.AiAgentService.revokeAgentMarketplacePublisherKey:output_type -> aiAgent.v1.RevokeAgentMarketplacePublisherKeyResponse
-	62,  // 263: aiAgent.v1.AiAgentService.setAgentMarketplacePublisherVerification:output_type -> aiAgent.v1.SetAgentMarketplacePublisherVerificationResponse
-	66,  // 264: aiAgent.v1.AiAgentService.listAgentMarketplaceManagedReleases:output_type -> aiAgent.v1.ListAgentMarketplaceManagedReleasesResponse
-	68,  // 265: aiAgent.v1.AiAgentService.publishAgentMarketplaceRelease:output_type -> aiAgent.v1.PublishAgentMarketplaceReleaseResponse
-	70,  // 266: aiAgent.v1.AiAgentService.withdrawAgentMarketplaceRelease:output_type -> aiAgent.v1.WithdrawAgentMarketplaceReleaseResponse
-	73,  // 267: aiAgent.v1.AiAgentService.listAgentMarketplaceAuditEvents:output_type -> aiAgent.v1.ListAgentMarketplaceAuditEventsResponse
-	76,  // 268: aiAgent.v1.AiAgentService.createAgentTaskTemplate:output_type -> aiAgent.v1.CreateAgentTaskTemplateResponse
-	78,  // 269: aiAgent.v1.AiAgentService.listAgentTaskTemplates:output_type -> aiAgent.v1.ListAgentTaskTemplatesResponse
-	80,  // 270: aiAgent.v1.AiAgentService.archiveAgentTaskTemplate:output_type -> aiAgent.v1.ArchiveAgentTaskTemplateResponse
-	26,  // 271: aiAgent.v1.AiAgentService.runAgentTaskTemplate:output_type -> aiAgent.v1.RunAgentResponse
-	10,  // 272: aiAgent.v1.AiAgentService.getModelDetailedInformation:output_type -> aiAgent.v1.getModelDetailedInformationResponse
-	12,  // 273: aiAgent.v1.AiAgentService.getRepositoryDialogue:output_type -> aiAgent.v1.getRepositoryDialogueResponse
-	14,  // 274: aiAgent.v1.AiAgentService.getDialogueDetail:output_type -> aiAgent.v1.getDialogueDetailResponse
-	16,  // 275: aiAgent.v1.AiAgentService.endDialogueSession:output_type -> aiAgent.v1.EndDialogueSessionResponse
-	18,  // 276: aiAgent.v1.AiAgentService.analysisFiles:output_type -> aiAgent.v1.analysisFilesResponse
-	26,  // 277: aiAgent.v1.AiAgentService.runAgent:output_type -> aiAgent.v1.RunAgentResponse
-	83,  // 278: aiAgent.v1.AiAgentService.getAgentRun:output_type -> aiAgent.v1.GetAgentRunResponse
-	87,  // 279: aiAgent.v1.AiAgentService.getAgentRunAccounting:output_type -> aiAgent.v1.GetAgentRunAccountingResponse
-	26,  // 280: aiAgent.v1.AiAgentService.resumeAgentRun:output_type -> aiAgent.v1.RunAgentResponse
-	90,  // 281: aiAgent.v1.AiAgentService.issueAgentResumeGrant:output_type -> aiAgent.v1.IssueAgentResumeGrantResponse
-	92,  // 282: aiAgent.v1.AiAgentService.callApiOfAi:output_type -> aiAgent.v1.callApiOfAiResponse
-	94,  // 283: aiAgent.v1.AiAgentService.consultContent:output_type -> aiAgent.v1.consultContentResponse
-	96,  // 284: aiAgent.v1.AiAgentService.assistPublishTwitter:output_type -> aiAgent.v1.assistPublishTwitterResponse
-	98,  // 285: aiAgent.v1.AiAgentService.confirmPublishTwitter:output_type -> aiAgent.v1.ConfirmPublishTwitterResponse
-	100, // 286: aiAgent.v1.AiAgentService.multiAgentPublishTwitter:output_type -> aiAgent.v1.MultiAgentPublishTwitterResponse
-	102, // 287: aiAgent.v1.AiAgentService.analyzeAlert:output_type -> aiAgent.v1.AnalyzeAlertResponse
-	111, // 288: aiAgent.v1.AiAgentService.createWorkflow:output_type -> aiAgent.v1.CreateWorkflowResponse
-	113, // 289: aiAgent.v1.AiAgentService.updateWorkflow:output_type -> aiAgent.v1.UpdateWorkflowResponse
-	115, // 290: aiAgent.v1.AiAgentService.listWorkflows:output_type -> aiAgent.v1.ListWorkflowsResponse
-	117, // 291: aiAgent.v1.AiAgentService.getWorkflow:output_type -> aiAgent.v1.GetWorkflowResponse
-	119, // 292: aiAgent.v1.AiAgentService.listWorkflowRevisions:output_type -> aiAgent.v1.ListWorkflowRevisionsResponse
-	121, // 293: aiAgent.v1.AiAgentService.getWorkflowRevision:output_type -> aiAgent.v1.GetWorkflowRevisionResponse
-	123, // 294: aiAgent.v1.AiAgentService.publishWorkflowTool:output_type -> aiAgent.v1.PublishWorkflowToolResponse
-	125, // 295: aiAgent.v1.AiAgentService.getWorkflowToolPublication:output_type -> aiAgent.v1.GetWorkflowToolPublicationResponse
-	127, // 296: aiAgent.v1.AiAgentService.unpublishWorkflowTool:output_type -> aiAgent.v1.UnpublishWorkflowToolResponse
-	129, // 297: aiAgent.v1.AiAgentService.runWorkflow:output_type -> aiAgent.v1.RunWorkflowResponse
-	131, // 298: aiAgent.v1.AiAgentService.getWorkflowRun:output_type -> aiAgent.v1.GetWorkflowRunResponse
-	139, // 299: aiAgent.v1.AiAgentService.getWorkflowRunTrace:output_type -> aiAgent.v1.GetWorkflowRunTraceResponse
-	142, // 300: aiAgent.v1.AiAgentService.searchWorkflowBlackboard:output_type -> aiAgent.v1.SearchWorkflowBlackboardResponse
-	144, // 301: aiAgent.v1.AiAgentService.watchWorkflowRunEvents:output_type -> aiAgent.v1.WorkflowRunEvent
-	146, // 302: aiAgent.v1.AiAgentService.listWorkflowRuns:output_type -> aiAgent.v1.ListWorkflowRunsResponse
-	148, // 303: aiAgent.v1.AiAgentService.cancelWorkflowRun:output_type -> aiAgent.v1.CancelWorkflowRunResponse
-	154, // 304: aiAgent.v1.AiAgentService.getWorkflowRunReplay:output_type -> aiAgent.v1.GetWorkflowRunReplayResponse
-	158, // 305: aiAgent.v1.AiAgentService.getWorkflowCompensationJournal:output_type -> aiAgent.v1.GetWorkflowCompensationJournalResponse
-	160, // 306: aiAgent.v1.AiAgentService.retryWorkflowCompensation:output_type -> aiAgent.v1.RetryWorkflowCompensationResponse
-	163, // 307: aiAgent.v1.AiAgentService.listToolApprovals:output_type -> aiAgent.v1.ListToolApprovalsResponse
-	165, // 308: aiAgent.v1.AiAgentService.decideToolApproval:output_type -> aiAgent.v1.DecideToolApprovalResponse
-	167, // 309: aiAgent.v1.AiAgentService.issueWorkflowResumeGrant:output_type -> aiAgent.v1.IssueWorkflowResumeGrantResponse
-	169, // 310: aiAgent.v1.AiAgentService.resumeWorkflowRun:output_type -> aiAgent.v1.ResumeWorkflowRunResponse
-	172, // 311: aiAgent.v1.AiAgentService.createProviderConfig:output_type -> aiAgent.v1.CreateProviderConfigResponse
-	174, // 312: aiAgent.v1.AiAgentService.updateProviderConfig:output_type -> aiAgent.v1.UpdateProviderConfigResponse
-	176, // 313: aiAgent.v1.AiAgentService.listProviderConfigs:output_type -> aiAgent.v1.ListProviderConfigsResponse
-	178, // 314: aiAgent.v1.AiAgentService.getProviderConfig:output_type -> aiAgent.v1.GetProviderConfigResponse
-	180, // 315: aiAgent.v1.AiAgentService.revokeProviderConfig:output_type -> aiAgent.v1.RevokeProviderConfigResponse
-	245, // 316: aiAgent.v1.AiAgentService.createAgentProject:output_type -> aiAgent.v1.CreateAgentProjectResponse
-	247, // 317: aiAgent.v1.AiAgentService.listAgentProjects:output_type -> aiAgent.v1.ListAgentProjectsResponse
-	249, // 318: aiAgent.v1.AiAgentService.getAgentProject:output_type -> aiAgent.v1.GetAgentProjectResponse
-	251, // 319: aiAgent.v1.AiAgentService.upsertAgentProjectMember:output_type -> aiAgent.v1.UpsertAgentProjectMemberResponse
-	253, // 320: aiAgent.v1.AiAgentService.removeAgentProjectMember:output_type -> aiAgent.v1.RemoveAgentProjectMemberResponse
-	259, // 321: aiAgent.v1.AiAgentService.createExternalMCPConnection:output_type -> aiAgent.v1.CreateExternalMCPConnectionResponse
-	261, // 322: aiAgent.v1.AiAgentService.updateExternalMCPConnection:output_type -> aiAgent.v1.UpdateExternalMCPConnectionResponse
-	263, // 323: aiAgent.v1.AiAgentService.listExternalMCPConnections:output_type -> aiAgent.v1.ListExternalMCPConnectionsResponse
-	265, // 324: aiAgent.v1.AiAgentService.getExternalMCPConnection:output_type -> aiAgent.v1.GetExternalMCPConnectionResponse
-	267, // 325: aiAgent.v1.AiAgentService.revokeExternalMCPConnection:output_type -> aiAgent.v1.RevokeExternalMCPConnectionResponse
-	269, // 326: aiAgent.v1.AiAgentService.discoverExternalMCPTools:output_type -> aiAgent.v1.DiscoverExternalMCPToolsResponse
-	271, // 327: aiAgent.v1.AiAgentService.approveExternalMCPSnapshot:output_type -> aiAgent.v1.ApproveExternalMCPSnapshotResponse
-	273, // 328: aiAgent.v1.AiAgentService.listExternalMCPTools:output_type -> aiAgent.v1.ListExternalMCPToolsResponse
-	275, // 329: aiAgent.v1.AiAgentService.configureExternalMCPTool:output_type -> aiAgent.v1.ConfigureExternalMCPToolResponse
-	193, // 330: aiAgent.v1.AiAgentService.createAgentProfileDraft:output_type -> aiAgent.v1.CreateAgentProfileDraftResponse
-	195, // 331: aiAgent.v1.AiAgentService.publishAgentProfileVersion:output_type -> aiAgent.v1.PublishAgentProfileVersionResponse
-	197, // 332: aiAgent.v1.AiAgentService.requestAgentProfilePublishApproval:output_type -> aiAgent.v1.RequestAgentProfilePublishApprovalResponse
-	199, // 333: aiAgent.v1.AiAgentService.listAgentProfilePublishApprovals:output_type -> aiAgent.v1.ListAgentProfilePublishApprovalsResponse
-	201, // 334: aiAgent.v1.AiAgentService.getAgentProfilePublishApproval:output_type -> aiAgent.v1.GetAgentProfilePublishApprovalResponse
-	203, // 335: aiAgent.v1.AiAgentService.decideAgentProfilePublishApproval:output_type -> aiAgent.v1.DecideAgentProfilePublishApprovalResponse
-	205, // 336: aiAgent.v1.AiAgentService.retryAgentProfilePublishApproval:output_type -> aiAgent.v1.RetryAgentProfilePublishApprovalResponse
-	207, // 337: aiAgent.v1.AiAgentService.listAgentProfileVersions:output_type -> aiAgent.v1.ListAgentProfileVersionsResponse
-	209, // 338: aiAgent.v1.AiAgentService.getAgentProfileVersion:output_type -> aiAgent.v1.GetAgentProfileVersionResponse
-	211, // 339: aiAgent.v1.AiAgentService.getAgentProfileRelease:output_type -> aiAgent.v1.GetAgentProfileReleaseResponse
-	213, // 340: aiAgent.v1.AiAgentService.upsertAgentProfileRelease:output_type -> aiAgent.v1.UpsertAgentProfileReleaseResponse
-	215, // 341: aiAgent.v1.AiAgentService.listAgentProfileAuditEvents:output_type -> aiAgent.v1.ListAgentProfileAuditEventsResponse
-	220, // 342: aiAgent.v1.AiAgentService.getAgentProfileManagementAccess:output_type -> aiAgent.v1.GetAgentProfileManagementAccessResponse
-	222, // 343: aiAgent.v1.AiAgentService.listAgentProfileRoleBindings:output_type -> aiAgent.v1.ListAgentProfileRoleBindingsResponse
-	224, // 344: aiAgent.v1.AiAgentService.upsertAgentProfileRoleBinding:output_type -> aiAgent.v1.UpsertAgentProfileRoleBindingResponse
-	226, // 345: aiAgent.v1.AiAgentService.deleteAgentProfileRoleBinding:output_type -> aiAgent.v1.DeleteAgentProfileRoleBindingResponse
-	228, // 346: aiAgent.v1.AiAgentService.listAgentProfileRoleAuditEvents:output_type -> aiAgent.v1.ListAgentProfileRoleAuditEventsResponse
-	230, // 347: aiAgent.v1.AiAgentService.startAgentProfileExperiment:output_type -> aiAgent.v1.StartAgentProfileExperimentResponse
-	232, // 348: aiAgent.v1.AiAgentService.listAgentProfileExperiments:output_type -> aiAgent.v1.ListAgentProfileExperimentsResponse
-	234, // 349: aiAgent.v1.AiAgentService.getAgentProfileExperiment:output_type -> aiAgent.v1.GetAgentProfileExperimentResponse
-	236, // 350: aiAgent.v1.AiAgentService.evaluateAgentProfileExperiment:output_type -> aiAgent.v1.EvaluateAgentProfileExperimentResponse
-	238, // 351: aiAgent.v1.AiAgentService.stopAgentProfileExperiment:output_type -> aiAgent.v1.StopAgentProfileExperimentResponse
-	240, // 352: aiAgent.v1.AiAgentService.recordAgentProfileExperimentOutcome:output_type -> aiAgent.v1.RecordAgentProfileExperimentOutcomeResponse
-	254, // [254:353] is the sub-list for method output_type
-	155, // [155:254] is the sub-list for method input_type
-	155, // [155:155] is the sub-list for extension type_name
-	155, // [155:155] is the sub-list for extension extendee
-	0,   // [0:155] is the sub-list for field type_name
+	276, // 15: aiAgent.v1.AgentExecutionRun.planning:type_name -> aiAgent.v1.AgentPlanningEvidence
+	28,  // 16: aiAgent.v1.AgentSkill.knowledge:type_name -> aiAgent.v1.AgentSkillKnowledgeBinding
+	29,  // 17: aiAgent.v1.AgentSkill.profile:type_name -> aiAgent.v1.AgentSkillProfileBinding
+	30,  // 18: aiAgent.v1.AgentSkill.budget:type_name -> aiAgent.v1.AgentSkillBudget
+	31,  // 19: aiAgent.v1.AgentSkill.output:type_name -> aiAgent.v1.AgentSkillOutputContract
+	32,  // 20: aiAgent.v1.AgentSkill.workflow:type_name -> aiAgent.v1.AgentSkillWorkflowBinding
+	33,  // 21: aiAgent.v1.ListAgentSkillsResponse.skills:type_name -> aiAgent.v1.AgentSkill
+	33,  // 22: aiAgent.v1.GetAgentSkillResponse.skill:type_name -> aiAgent.v1.AgentSkill
+	38,  // 23: aiAgent.v1.AgentExtension.skill:type_name -> aiAgent.v1.AgentExtensionSkillReference
+	39,  // 24: aiAgent.v1.AgentExtension.mcp:type_name -> aiAgent.v1.AgentExtensionMCPReference
+	40,  // 25: aiAgent.v1.ListAgentExtensionsResponse.extensions:type_name -> aiAgent.v1.AgentExtension
+	41,  // 26: aiAgent.v1.ListAgentExtensionsResponse.sources:type_name -> aiAgent.v1.AgentExtensionSourceStatus
+	44,  // 27: aiAgent.v1.AgentMarketplaceExtension.publisher:type_name -> aiAgent.v1.AgentMarketplacePublisher
+	45,  // 28: aiAgent.v1.ListAgentMarketplaceExtensionsResponse.releases:type_name -> aiAgent.v1.AgentMarketplaceExtension
+	48,  // 29: aiAgent.v1.GetAgentMarketplaceManagementAccessResponse.access:type_name -> aiAgent.v1.AgentMarketplaceManagementAccess
+	51,  // 30: aiAgent.v1.AgentMarketplaceManagedPublisher.signing_keys:type_name -> aiAgent.v1.AgentMarketplaceSigningKey
+	52,  // 31: aiAgent.v1.ListAgentMarketplacePublishersResponse.publishers:type_name -> aiAgent.v1.AgentMarketplaceManagedPublisher
+	52,  // 32: aiAgent.v1.RegisterAgentMarketplacePublisherResponse.publisher:type_name -> aiAgent.v1.AgentMarketplaceManagedPublisher
+	52,  // 33: aiAgent.v1.RotateAgentMarketplacePublisherKeyResponse.publisher:type_name -> aiAgent.v1.AgentMarketplaceManagedPublisher
+	52,  // 34: aiAgent.v1.RevokeAgentMarketplacePublisherKeyResponse.publisher:type_name -> aiAgent.v1.AgentMarketplaceManagedPublisher
+	52,  // 35: aiAgent.v1.SetAgentMarketplacePublisherVerificationResponse.publisher:type_name -> aiAgent.v1.AgentMarketplaceManagedPublisher
+	63,  // 36: aiAgent.v1.AgentMarketplaceManagedRelease.manifest:type_name -> aiAgent.v1.AgentMarketplaceManifest
+	64,  // 37: aiAgent.v1.ListAgentMarketplaceManagedReleasesResponse.releases:type_name -> aiAgent.v1.AgentMarketplaceManagedRelease
+	63,  // 38: aiAgent.v1.PublishAgentMarketplaceReleaseRequest.manifest:type_name -> aiAgent.v1.AgentMarketplaceManifest
+	64,  // 39: aiAgent.v1.PublishAgentMarketplaceReleaseResponse.release:type_name -> aiAgent.v1.AgentMarketplaceManagedRelease
+	64,  // 40: aiAgent.v1.WithdrawAgentMarketplaceReleaseResponse.release:type_name -> aiAgent.v1.AgentMarketplaceManagedRelease
+	71,  // 41: aiAgent.v1.ListAgentMarketplaceAuditEventsResponse.events:type_name -> aiAgent.v1.AgentMarketplaceAuditEvent
+	74,  // 42: aiAgent.v1.CreateAgentTaskTemplateResponse.task_template:type_name -> aiAgent.v1.AgentTaskTemplate
+	74,  // 43: aiAgent.v1.ListAgentTaskTemplatesResponse.task_templates:type_name -> aiAgent.v1.AgentTaskTemplate
+	74,  // 44: aiAgent.v1.ArchiveAgentTaskTemplateResponse.task_template:type_name -> aiAgent.v1.AgentTaskTemplate
+	0,   // 45: aiAgent.v1.RunAgentTaskTemplateRequest.main_content:type_name -> aiAgent.v1.MainContent
+	27,  // 46: aiAgent.v1.GetAgentRunResponse.run:type_name -> aiAgent.v1.AgentExecutionRun
+	132, // 47: aiAgent.v1.WorkflowRunAccounting.usage:type_name -> aiAgent.v1.ExecutionTokenUsage
+	133, // 48: aiAgent.v1.WorkflowRunAccounting.budget:type_name -> aiAgent.v1.ExecutionBudgetSnapshot
+	132, // 49: aiAgent.v1.AgentRunAccounting.parent_usage:type_name -> aiAgent.v1.ExecutionTokenUsage
+	133, // 50: aiAgent.v1.AgentRunAccounting.parent_budget:type_name -> aiAgent.v1.ExecutionBudgetSnapshot
+	132, // 51: aiAgent.v1.AgentRunAccounting.child_usage:type_name -> aiAgent.v1.ExecutionTokenUsage
+	132, // 52: aiAgent.v1.AgentRunAccounting.total_usage:type_name -> aiAgent.v1.ExecutionTokenUsage
+	85,  // 53: aiAgent.v1.AgentRunAccounting.children:type_name -> aiAgent.v1.WorkflowRunAccounting
+	86,  // 54: aiAgent.v1.GetAgentRunAccountingResponse.accounting:type_name -> aiAgent.v1.AgentRunAccounting
+	27,  // 55: aiAgent.v1.IssueAgentResumeGrantResponse.run:type_name -> aiAgent.v1.AgentExecutionRun
+	0,   // 56: aiAgent.v1.callApiOfAiRequest.main_content:type_name -> aiAgent.v1.MainContent
+	0,   // 57: aiAgent.v1.consultContentRequest.main_content:type_name -> aiAgent.v1.MainContent
+	8,   // 58: aiAgent.v1.consultContentResponse.tweet_list:type_name -> aiAgent.v1.TweetResult
+	0,   // 59: aiAgent.v1.assistPublishTwitterRequest.main_content:type_name -> aiAgent.v1.MainContent
+	7,   // 60: aiAgent.v1.assistPublishTwitterResponse.tweet_list:type_name -> aiAgent.v1.Tweet
+	104, // 61: aiAgent.v1.CreateWorkflowResponse.workflow:type_name -> aiAgent.v1.WorkflowDetail
+	104, // 62: aiAgent.v1.UpdateWorkflowResponse.workflow:type_name -> aiAgent.v1.WorkflowDetail
+	103, // 63: aiAgent.v1.ListWorkflowsResponse.workflows:type_name -> aiAgent.v1.WorkflowSummary
+	104, // 64: aiAgent.v1.GetWorkflowResponse.workflow:type_name -> aiAgent.v1.WorkflowDetail
+	105, // 65: aiAgent.v1.ListWorkflowRevisionsResponse.revisions:type_name -> aiAgent.v1.WorkflowRevisionSummary
+	106, // 66: aiAgent.v1.GetWorkflowRevisionResponse.revision:type_name -> aiAgent.v1.WorkflowRevisionDetail
+	107, // 67: aiAgent.v1.PublishWorkflowToolResponse.publication:type_name -> aiAgent.v1.WorkflowToolPublication
+	107, // 68: aiAgent.v1.GetWorkflowToolPublicationResponse.publication:type_name -> aiAgent.v1.WorkflowToolPublication
+	107, // 69: aiAgent.v1.UnpublishWorkflowToolResponse.publication:type_name -> aiAgent.v1.WorkflowToolPublication
+	108, // 70: aiAgent.v1.RunWorkflowResponse.run:type_name -> aiAgent.v1.WorkflowRun
+	108, // 71: aiAgent.v1.GetWorkflowRunResponse.run:type_name -> aiAgent.v1.WorkflowRun
+	132, // 72: aiAgent.v1.AgentRunTrace.usage:type_name -> aiAgent.v1.ExecutionTokenUsage
+	133, // 73: aiAgent.v1.AgentRunTrace.budget:type_name -> aiAgent.v1.ExecutionBudgetSnapshot
+	132, // 74: aiAgent.v1.AgentLLMCallTrace.usage:type_name -> aiAgent.v1.ExecutionTokenUsage
+	134, // 75: aiAgent.v1.GetWorkflowRunTraceResponse.run:type_name -> aiAgent.v1.AgentRunTrace
+	135, // 76: aiAgent.v1.GetWorkflowRunTraceResponse.steps:type_name -> aiAgent.v1.AgentStepTrace
+	136, // 77: aiAgent.v1.GetWorkflowRunTraceResponse.llm_calls:type_name -> aiAgent.v1.AgentLLMCallTrace
+	137, // 78: aiAgent.v1.GetWorkflowRunTraceResponse.tool_calls:type_name -> aiAgent.v1.AgentToolCallTrace
+	141, // 79: aiAgent.v1.SearchWorkflowBlackboardResponse.entries:type_name -> aiAgent.v1.WorkflowBlackboardEntry
+	134, // 80: aiAgent.v1.WorkflowRunEvent.run:type_name -> aiAgent.v1.AgentRunTrace
+	135, // 81: aiAgent.v1.WorkflowRunEvent.step:type_name -> aiAgent.v1.AgentStepTrace
+	136, // 82: aiAgent.v1.WorkflowRunEvent.llm_call:type_name -> aiAgent.v1.AgentLLMCallTrace
+	137, // 83: aiAgent.v1.WorkflowRunEvent.tool_call:type_name -> aiAgent.v1.AgentToolCallTrace
+	109, // 84: aiAgent.v1.ListWorkflowRunsResponse.runs:type_name -> aiAgent.v1.WorkflowRunSummary
+	109, // 85: aiAgent.v1.CancelWorkflowRunResponse.run:type_name -> aiAgent.v1.WorkflowRunSummary
+	108, // 86: aiAgent.v1.GetWorkflowRunReplayResponse.run:type_name -> aiAgent.v1.WorkflowRun
+	105, // 87: aiAgent.v1.GetWorkflowRunReplayResponse.revision:type_name -> aiAgent.v1.WorkflowRevisionSummary
+	149, // 88: aiAgent.v1.GetWorkflowRunReplayResponse.events:type_name -> aiAgent.v1.WorkflowReplayStateEvent
+	150, // 89: aiAgent.v1.GetWorkflowRunReplayResponse.snapshot:type_name -> aiAgent.v1.WorkflowReplaySnapshot
+	151, // 90: aiAgent.v1.GetWorkflowRunReplayResponse.compensations:type_name -> aiAgent.v1.WorkflowReplayCompensation
+	152, // 91: aiAgent.v1.GetWorkflowRunReplayResponse.integrity:type_name -> aiAgent.v1.WorkflowReplayIntegrity
+	157, // 92: aiAgent.v1.GetWorkflowCompensationJournalResponse.run:type_name -> aiAgent.v1.WorkflowCompensationRunSummary
+	155, // 93: aiAgent.v1.GetWorkflowCompensationJournalResponse.entries:type_name -> aiAgent.v1.WorkflowCompensationJournalEntry
+	108, // 94: aiAgent.v1.RetryWorkflowCompensationResponse.run:type_name -> aiAgent.v1.WorkflowRun
+	161, // 95: aiAgent.v1.ListToolApprovalsResponse.approvals:type_name -> aiAgent.v1.ToolApprovalRequest
+	161, // 96: aiAgent.v1.DecideToolApprovalResponse.approval:type_name -> aiAgent.v1.ToolApprovalRequest
+	108, // 97: aiAgent.v1.IssueWorkflowResumeGrantResponse.run:type_name -> aiAgent.v1.WorkflowRun
+	108, // 98: aiAgent.v1.ResumeWorkflowRunResponse.run:type_name -> aiAgent.v1.WorkflowRun
+	170, // 99: aiAgent.v1.CreateProviderConfigResponse.provider_config:type_name -> aiAgent.v1.ProviderConfig
+	170, // 100: aiAgent.v1.UpdateProviderConfigResponse.provider_config:type_name -> aiAgent.v1.ProviderConfig
+	170, // 101: aiAgent.v1.ListProviderConfigsResponse.provider_configs:type_name -> aiAgent.v1.ProviderConfig
+	170, // 102: aiAgent.v1.GetProviderConfigResponse.provider_config:type_name -> aiAgent.v1.ProviderConfig
+	181, // 103: aiAgent.v1.AgentProfileVersion.spec:type_name -> aiAgent.v1.AgentProfileSpec
+	186, // 104: aiAgent.v1.AgentProfileExperimentStats.stable:type_name -> aiAgent.v1.AgentProfileExperimentArmStats
+	186, // 105: aiAgent.v1.AgentProfileExperimentStats.candidate:type_name -> aiAgent.v1.AgentProfileExperimentArmStats
+	185, // 106: aiAgent.v1.AgentProfileExperiment.policy:type_name -> aiAgent.v1.AgentProfileExperimentPolicy
+	187, // 107: aiAgent.v1.AgentProfileExperiment.stats:type_name -> aiAgent.v1.AgentProfileExperimentStats
+	189, // 108: aiAgent.v1.AgentProfileQualityEvidence.reference:type_name -> aiAgent.v1.AgentEvalEvidenceReference
+	190, // 109: aiAgent.v1.AgentProfilePublishApproval.quality_evidence:type_name -> aiAgent.v1.AgentProfileQualityEvidence
+	181, // 110: aiAgent.v1.CreateAgentProfileDraftRequest.spec:type_name -> aiAgent.v1.AgentProfileSpec
+	182, // 111: aiAgent.v1.CreateAgentProfileDraftResponse.profile_version:type_name -> aiAgent.v1.AgentProfileVersion
+	182, // 112: aiAgent.v1.PublishAgentProfileVersionResponse.profile_version:type_name -> aiAgent.v1.AgentProfileVersion
+	189, // 113: aiAgent.v1.RequestAgentProfilePublishApprovalRequest.quality_evidence:type_name -> aiAgent.v1.AgentEvalEvidenceReference
+	191, // 114: aiAgent.v1.RequestAgentProfilePublishApprovalResponse.approval:type_name -> aiAgent.v1.AgentProfilePublishApproval
+	191, // 115: aiAgent.v1.ListAgentProfilePublishApprovalsResponse.approvals:type_name -> aiAgent.v1.AgentProfilePublishApproval
+	191, // 116: aiAgent.v1.GetAgentProfilePublishApprovalResponse.approval:type_name -> aiAgent.v1.AgentProfilePublishApproval
+	191, // 117: aiAgent.v1.DecideAgentProfilePublishApprovalResponse.approval:type_name -> aiAgent.v1.AgentProfilePublishApproval
+	191, // 118: aiAgent.v1.RetryAgentProfilePublishApprovalResponse.approval:type_name -> aiAgent.v1.AgentProfilePublishApproval
+	182, // 119: aiAgent.v1.ListAgentProfileVersionsResponse.profile_versions:type_name -> aiAgent.v1.AgentProfileVersion
+	182, // 120: aiAgent.v1.GetAgentProfileVersionResponse.profile_version:type_name -> aiAgent.v1.AgentProfileVersion
+	183, // 121: aiAgent.v1.GetAgentProfileReleaseResponse.profile_release:type_name -> aiAgent.v1.AgentProfileRelease
+	183, // 122: aiAgent.v1.UpsertAgentProfileReleaseResponse.profile_release:type_name -> aiAgent.v1.AgentProfileRelease
+	184, // 123: aiAgent.v1.ListAgentProfileAuditEventsResponse.audit_events:type_name -> aiAgent.v1.AgentProfileAuditEvent
+	216, // 124: aiAgent.v1.GetAgentProfileManagementAccessResponse.access:type_name -> aiAgent.v1.AgentProfileManagementAccess
+	217, // 125: aiAgent.v1.ListAgentProfileRoleBindingsResponse.role_bindings:type_name -> aiAgent.v1.AgentProfileRoleBinding
+	217, // 126: aiAgent.v1.UpsertAgentProfileRoleBindingResponse.role_binding:type_name -> aiAgent.v1.AgentProfileRoleBinding
+	218, // 127: aiAgent.v1.ListAgentProfileRoleAuditEventsResponse.audit_events:type_name -> aiAgent.v1.AgentProfileRoleAuditEvent
+	185, // 128: aiAgent.v1.StartAgentProfileExperimentRequest.policy:type_name -> aiAgent.v1.AgentProfileExperimentPolicy
+	188, // 129: aiAgent.v1.StartAgentProfileExperimentResponse.experiment:type_name -> aiAgent.v1.AgentProfileExperiment
+	188, // 130: aiAgent.v1.ListAgentProfileExperimentsResponse.experiments:type_name -> aiAgent.v1.AgentProfileExperiment
+	188, // 131: aiAgent.v1.GetAgentProfileExperimentResponse.experiment:type_name -> aiAgent.v1.AgentProfileExperiment
+	188, // 132: aiAgent.v1.EvaluateAgentProfileExperimentResponse.experiment:type_name -> aiAgent.v1.AgentProfileExperiment
+	188, // 133: aiAgent.v1.StopAgentProfileExperimentResponse.experiment:type_name -> aiAgent.v1.AgentProfileExperiment
+	242, // 134: aiAgent.v1.AgentProject.members:type_name -> aiAgent.v1.AgentProjectMember
+	243, // 135: aiAgent.v1.CreateAgentProjectResponse.project:type_name -> aiAgent.v1.AgentProject
+	243, // 136: aiAgent.v1.ListAgentProjectsResponse.projects:type_name -> aiAgent.v1.AgentProject
+	243, // 137: aiAgent.v1.GetAgentProjectResponse.project:type_name -> aiAgent.v1.AgentProject
+	243, // 138: aiAgent.v1.UpsertAgentProjectMemberResponse.project:type_name -> aiAgent.v1.AgentProject
+	243, // 139: aiAgent.v1.RemoveAgentProjectMemberResponse.project:type_name -> aiAgent.v1.AgentProject
+	254, // 140: aiAgent.v1.ExternalMCPToolView.schema:type_name -> aiAgent.v1.ExternalMCPToolSchema
+	255, // 141: aiAgent.v1.ExternalMCPToolView.policy:type_name -> aiAgent.v1.ExternalMCPToolPolicy
+	254, // 142: aiAgent.v1.ExternalMCPToolSnapshot.tools:type_name -> aiAgent.v1.ExternalMCPToolSchema
+	241, // 143: aiAgent.v1.CreateExternalMCPConnectionResponse.connection:type_name -> aiAgent.v1.ExternalMCPConnection
+	241, // 144: aiAgent.v1.UpdateExternalMCPConnectionResponse.connection:type_name -> aiAgent.v1.ExternalMCPConnection
+	241, // 145: aiAgent.v1.ListExternalMCPConnectionsResponse.connections:type_name -> aiAgent.v1.ExternalMCPConnection
+	241, // 146: aiAgent.v1.GetExternalMCPConnectionResponse.connection:type_name -> aiAgent.v1.ExternalMCPConnection
+	241, // 147: aiAgent.v1.DiscoverExternalMCPToolsResponse.connection:type_name -> aiAgent.v1.ExternalMCPConnection
+	257, // 148: aiAgent.v1.DiscoverExternalMCPToolsResponse.snapshot:type_name -> aiAgent.v1.ExternalMCPToolSnapshot
+	241, // 149: aiAgent.v1.ApproveExternalMCPSnapshotResponse.connection:type_name -> aiAgent.v1.ExternalMCPConnection
+	257, // 150: aiAgent.v1.ApproveExternalMCPSnapshotResponse.snapshot:type_name -> aiAgent.v1.ExternalMCPToolSnapshot
+	241, // 151: aiAgent.v1.ListExternalMCPToolsResponse.connection:type_name -> aiAgent.v1.ExternalMCPConnection
+	257, // 152: aiAgent.v1.ListExternalMCPToolsResponse.snapshot:type_name -> aiAgent.v1.ExternalMCPToolSnapshot
+	256, // 153: aiAgent.v1.ListExternalMCPToolsResponse.tools:type_name -> aiAgent.v1.ExternalMCPToolView
+	241, // 154: aiAgent.v1.ConfigureExternalMCPToolResponse.connection:type_name -> aiAgent.v1.ExternalMCPConnection
+	256, // 155: aiAgent.v1.ConfigureExternalMCPToolResponse.tool:type_name -> aiAgent.v1.ExternalMCPToolView
+	34,  // 156: aiAgent.v1.AiAgentService.listAgentSkills:input_type -> aiAgent.v1.ListAgentSkillsRequest
+	36,  // 157: aiAgent.v1.AiAgentService.getAgentSkill:input_type -> aiAgent.v1.GetAgentSkillRequest
+	42,  // 158: aiAgent.v1.AiAgentService.listAgentExtensions:input_type -> aiAgent.v1.ListAgentExtensionsRequest
+	46,  // 159: aiAgent.v1.AiAgentService.listAgentMarketplaceExtensions:input_type -> aiAgent.v1.ListAgentMarketplaceExtensionsRequest
+	49,  // 160: aiAgent.v1.AiAgentService.getAgentMarketplaceManagementAccess:input_type -> aiAgent.v1.GetAgentMarketplaceManagementAccessRequest
+	53,  // 161: aiAgent.v1.AiAgentService.listAgentMarketplacePublishers:input_type -> aiAgent.v1.ListAgentMarketplacePublishersRequest
+	55,  // 162: aiAgent.v1.AiAgentService.registerAgentMarketplacePublisher:input_type -> aiAgent.v1.RegisterAgentMarketplacePublisherRequest
+	57,  // 163: aiAgent.v1.AiAgentService.rotateAgentMarketplacePublisherKey:input_type -> aiAgent.v1.RotateAgentMarketplacePublisherKeyRequest
+	59,  // 164: aiAgent.v1.AiAgentService.revokeAgentMarketplacePublisherKey:input_type -> aiAgent.v1.RevokeAgentMarketplacePublisherKeyRequest
+	61,  // 165: aiAgent.v1.AiAgentService.setAgentMarketplacePublisherVerification:input_type -> aiAgent.v1.SetAgentMarketplacePublisherVerificationRequest
+	65,  // 166: aiAgent.v1.AiAgentService.listAgentMarketplaceManagedReleases:input_type -> aiAgent.v1.ListAgentMarketplaceManagedReleasesRequest
+	67,  // 167: aiAgent.v1.AiAgentService.publishAgentMarketplaceRelease:input_type -> aiAgent.v1.PublishAgentMarketplaceReleaseRequest
+	69,  // 168: aiAgent.v1.AiAgentService.withdrawAgentMarketplaceRelease:input_type -> aiAgent.v1.WithdrawAgentMarketplaceReleaseRequest
+	72,  // 169: aiAgent.v1.AiAgentService.listAgentMarketplaceAuditEvents:input_type -> aiAgent.v1.ListAgentMarketplaceAuditEventsRequest
+	75,  // 170: aiAgent.v1.AiAgentService.createAgentTaskTemplate:input_type -> aiAgent.v1.CreateAgentTaskTemplateRequest
+	77,  // 171: aiAgent.v1.AiAgentService.listAgentTaskTemplates:input_type -> aiAgent.v1.ListAgentTaskTemplatesRequest
+	79,  // 172: aiAgent.v1.AiAgentService.archiveAgentTaskTemplate:input_type -> aiAgent.v1.ArchiveAgentTaskTemplateRequest
+	81,  // 173: aiAgent.v1.AiAgentService.runAgentTaskTemplate:input_type -> aiAgent.v1.RunAgentTaskTemplateRequest
+	9,   // 174: aiAgent.v1.AiAgentService.getModelDetailedInformation:input_type -> aiAgent.v1.getModelDetailedInformationRequest
+	11,  // 175: aiAgent.v1.AiAgentService.getRepositoryDialogue:input_type -> aiAgent.v1.getRepositoryDialogueRequest
+	13,  // 176: aiAgent.v1.AiAgentService.getDialogueDetail:input_type -> aiAgent.v1.getDialogueDetailRequest
+	15,  // 177: aiAgent.v1.AiAgentService.endDialogueSession:input_type -> aiAgent.v1.EndDialogueSessionRequest
+	17,  // 178: aiAgent.v1.AiAgentService.analysisFiles:input_type -> aiAgent.v1.analysisFilesRequest
+	19,  // 179: aiAgent.v1.AiAgentService.runAgent:input_type -> aiAgent.v1.RunAgentRequest
+	82,  // 180: aiAgent.v1.AiAgentService.getAgentRun:input_type -> aiAgent.v1.GetAgentRunRequest
+	84,  // 181: aiAgent.v1.AiAgentService.getAgentRunAccounting:input_type -> aiAgent.v1.GetAgentRunAccountingRequest
+	88,  // 182: aiAgent.v1.AiAgentService.resumeAgentRun:input_type -> aiAgent.v1.ResumeAgentRunRequest
+	89,  // 183: aiAgent.v1.AiAgentService.issueAgentResumeGrant:input_type -> aiAgent.v1.IssueAgentResumeGrantRequest
+	91,  // 184: aiAgent.v1.AiAgentService.callApiOfAi:input_type -> aiAgent.v1.callApiOfAiRequest
+	93,  // 185: aiAgent.v1.AiAgentService.consultContent:input_type -> aiAgent.v1.consultContentRequest
+	95,  // 186: aiAgent.v1.AiAgentService.assistPublishTwitter:input_type -> aiAgent.v1.assistPublishTwitterRequest
+	97,  // 187: aiAgent.v1.AiAgentService.confirmPublishTwitter:input_type -> aiAgent.v1.ConfirmPublishTwitterRequest
+	99,  // 188: aiAgent.v1.AiAgentService.multiAgentPublishTwitter:input_type -> aiAgent.v1.MultiAgentPublishTwitterRequest
+	101, // 189: aiAgent.v1.AiAgentService.analyzeAlert:input_type -> aiAgent.v1.AnalyzeAlertRequest
+	110, // 190: aiAgent.v1.AiAgentService.createWorkflow:input_type -> aiAgent.v1.CreateWorkflowRequest
+	112, // 191: aiAgent.v1.AiAgentService.updateWorkflow:input_type -> aiAgent.v1.UpdateWorkflowRequest
+	114, // 192: aiAgent.v1.AiAgentService.listWorkflows:input_type -> aiAgent.v1.ListWorkflowsRequest
+	116, // 193: aiAgent.v1.AiAgentService.getWorkflow:input_type -> aiAgent.v1.GetWorkflowRequest
+	118, // 194: aiAgent.v1.AiAgentService.listWorkflowRevisions:input_type -> aiAgent.v1.ListWorkflowRevisionsRequest
+	120, // 195: aiAgent.v1.AiAgentService.getWorkflowRevision:input_type -> aiAgent.v1.GetWorkflowRevisionRequest
+	122, // 196: aiAgent.v1.AiAgentService.publishWorkflowTool:input_type -> aiAgent.v1.PublishWorkflowToolRequest
+	124, // 197: aiAgent.v1.AiAgentService.getWorkflowToolPublication:input_type -> aiAgent.v1.GetWorkflowToolPublicationRequest
+	126, // 198: aiAgent.v1.AiAgentService.unpublishWorkflowTool:input_type -> aiAgent.v1.UnpublishWorkflowToolRequest
+	128, // 199: aiAgent.v1.AiAgentService.runWorkflow:input_type -> aiAgent.v1.RunWorkflowRequest
+	130, // 200: aiAgent.v1.AiAgentService.getWorkflowRun:input_type -> aiAgent.v1.GetWorkflowRunRequest
+	138, // 201: aiAgent.v1.AiAgentService.getWorkflowRunTrace:input_type -> aiAgent.v1.GetWorkflowRunTraceRequest
+	140, // 202: aiAgent.v1.AiAgentService.searchWorkflowBlackboard:input_type -> aiAgent.v1.SearchWorkflowBlackboardRequest
+	143, // 203: aiAgent.v1.AiAgentService.watchWorkflowRunEvents:input_type -> aiAgent.v1.WatchWorkflowRunEventsRequest
+	145, // 204: aiAgent.v1.AiAgentService.listWorkflowRuns:input_type -> aiAgent.v1.ListWorkflowRunsRequest
+	147, // 205: aiAgent.v1.AiAgentService.cancelWorkflowRun:input_type -> aiAgent.v1.CancelWorkflowRunRequest
+	153, // 206: aiAgent.v1.AiAgentService.getWorkflowRunReplay:input_type -> aiAgent.v1.GetWorkflowRunReplayRequest
+	156, // 207: aiAgent.v1.AiAgentService.getWorkflowCompensationJournal:input_type -> aiAgent.v1.GetWorkflowCompensationJournalRequest
+	159, // 208: aiAgent.v1.AiAgentService.retryWorkflowCompensation:input_type -> aiAgent.v1.RetryWorkflowCompensationRequest
+	162, // 209: aiAgent.v1.AiAgentService.listToolApprovals:input_type -> aiAgent.v1.ListToolApprovalsRequest
+	164, // 210: aiAgent.v1.AiAgentService.decideToolApproval:input_type -> aiAgent.v1.DecideToolApprovalRequest
+	166, // 211: aiAgent.v1.AiAgentService.issueWorkflowResumeGrant:input_type -> aiAgent.v1.IssueWorkflowResumeGrantRequest
+	168, // 212: aiAgent.v1.AiAgentService.resumeWorkflowRun:input_type -> aiAgent.v1.ResumeWorkflowRunRequest
+	171, // 213: aiAgent.v1.AiAgentService.createProviderConfig:input_type -> aiAgent.v1.CreateProviderConfigRequest
+	173, // 214: aiAgent.v1.AiAgentService.updateProviderConfig:input_type -> aiAgent.v1.UpdateProviderConfigRequest
+	175, // 215: aiAgent.v1.AiAgentService.listProviderConfigs:input_type -> aiAgent.v1.ListProviderConfigsRequest
+	177, // 216: aiAgent.v1.AiAgentService.getProviderConfig:input_type -> aiAgent.v1.GetProviderConfigRequest
+	179, // 217: aiAgent.v1.AiAgentService.revokeProviderConfig:input_type -> aiAgent.v1.RevokeProviderConfigRequest
+	244, // 218: aiAgent.v1.AiAgentService.createAgentProject:input_type -> aiAgent.v1.CreateAgentProjectRequest
+	246, // 219: aiAgent.v1.AiAgentService.listAgentProjects:input_type -> aiAgent.v1.ListAgentProjectsRequest
+	248, // 220: aiAgent.v1.AiAgentService.getAgentProject:input_type -> aiAgent.v1.GetAgentProjectRequest
+	250, // 221: aiAgent.v1.AiAgentService.upsertAgentProjectMember:input_type -> aiAgent.v1.UpsertAgentProjectMemberRequest
+	252, // 222: aiAgent.v1.AiAgentService.removeAgentProjectMember:input_type -> aiAgent.v1.RemoveAgentProjectMemberRequest
+	258, // 223: aiAgent.v1.AiAgentService.createExternalMCPConnection:input_type -> aiAgent.v1.CreateExternalMCPConnectionRequest
+	260, // 224: aiAgent.v1.AiAgentService.updateExternalMCPConnection:input_type -> aiAgent.v1.UpdateExternalMCPConnectionRequest
+	262, // 225: aiAgent.v1.AiAgentService.listExternalMCPConnections:input_type -> aiAgent.v1.ListExternalMCPConnectionsRequest
+	264, // 226: aiAgent.v1.AiAgentService.getExternalMCPConnection:input_type -> aiAgent.v1.GetExternalMCPConnectionRequest
+	266, // 227: aiAgent.v1.AiAgentService.revokeExternalMCPConnection:input_type -> aiAgent.v1.RevokeExternalMCPConnectionRequest
+	268, // 228: aiAgent.v1.AiAgentService.discoverExternalMCPTools:input_type -> aiAgent.v1.DiscoverExternalMCPToolsRequest
+	270, // 229: aiAgent.v1.AiAgentService.approveExternalMCPSnapshot:input_type -> aiAgent.v1.ApproveExternalMCPSnapshotRequest
+	272, // 230: aiAgent.v1.AiAgentService.listExternalMCPTools:input_type -> aiAgent.v1.ListExternalMCPToolsRequest
+	274, // 231: aiAgent.v1.AiAgentService.configureExternalMCPTool:input_type -> aiAgent.v1.ConfigureExternalMCPToolRequest
+	192, // 232: aiAgent.v1.AiAgentService.createAgentProfileDraft:input_type -> aiAgent.v1.CreateAgentProfileDraftRequest
+	194, // 233: aiAgent.v1.AiAgentService.publishAgentProfileVersion:input_type -> aiAgent.v1.PublishAgentProfileVersionRequest
+	196, // 234: aiAgent.v1.AiAgentService.requestAgentProfilePublishApproval:input_type -> aiAgent.v1.RequestAgentProfilePublishApprovalRequest
+	198, // 235: aiAgent.v1.AiAgentService.listAgentProfilePublishApprovals:input_type -> aiAgent.v1.ListAgentProfilePublishApprovalsRequest
+	200, // 236: aiAgent.v1.AiAgentService.getAgentProfilePublishApproval:input_type -> aiAgent.v1.GetAgentProfilePublishApprovalRequest
+	202, // 237: aiAgent.v1.AiAgentService.decideAgentProfilePublishApproval:input_type -> aiAgent.v1.DecideAgentProfilePublishApprovalRequest
+	204, // 238: aiAgent.v1.AiAgentService.retryAgentProfilePublishApproval:input_type -> aiAgent.v1.RetryAgentProfilePublishApprovalRequest
+	206, // 239: aiAgent.v1.AiAgentService.listAgentProfileVersions:input_type -> aiAgent.v1.ListAgentProfileVersionsRequest
+	208, // 240: aiAgent.v1.AiAgentService.getAgentProfileVersion:input_type -> aiAgent.v1.GetAgentProfileVersionRequest
+	210, // 241: aiAgent.v1.AiAgentService.getAgentProfileRelease:input_type -> aiAgent.v1.GetAgentProfileReleaseRequest
+	212, // 242: aiAgent.v1.AiAgentService.upsertAgentProfileRelease:input_type -> aiAgent.v1.UpsertAgentProfileReleaseRequest
+	214, // 243: aiAgent.v1.AiAgentService.listAgentProfileAuditEvents:input_type -> aiAgent.v1.ListAgentProfileAuditEventsRequest
+	219, // 244: aiAgent.v1.AiAgentService.getAgentProfileManagementAccess:input_type -> aiAgent.v1.GetAgentProfileManagementAccessRequest
+	221, // 245: aiAgent.v1.AiAgentService.listAgentProfileRoleBindings:input_type -> aiAgent.v1.ListAgentProfileRoleBindingsRequest
+	223, // 246: aiAgent.v1.AiAgentService.upsertAgentProfileRoleBinding:input_type -> aiAgent.v1.UpsertAgentProfileRoleBindingRequest
+	225, // 247: aiAgent.v1.AiAgentService.deleteAgentProfileRoleBinding:input_type -> aiAgent.v1.DeleteAgentProfileRoleBindingRequest
+	227, // 248: aiAgent.v1.AiAgentService.listAgentProfileRoleAuditEvents:input_type -> aiAgent.v1.ListAgentProfileRoleAuditEventsRequest
+	229, // 249: aiAgent.v1.AiAgentService.startAgentProfileExperiment:input_type -> aiAgent.v1.StartAgentProfileExperimentRequest
+	231, // 250: aiAgent.v1.AiAgentService.listAgentProfileExperiments:input_type -> aiAgent.v1.ListAgentProfileExperimentsRequest
+	233, // 251: aiAgent.v1.AiAgentService.getAgentProfileExperiment:input_type -> aiAgent.v1.GetAgentProfileExperimentRequest
+	235, // 252: aiAgent.v1.AiAgentService.evaluateAgentProfileExperiment:input_type -> aiAgent.v1.EvaluateAgentProfileExperimentRequest
+	237, // 253: aiAgent.v1.AiAgentService.stopAgentProfileExperiment:input_type -> aiAgent.v1.StopAgentProfileExperimentRequest
+	239, // 254: aiAgent.v1.AiAgentService.recordAgentProfileExperimentOutcome:input_type -> aiAgent.v1.RecordAgentProfileExperimentOutcomeRequest
+	35,  // 255: aiAgent.v1.AiAgentService.listAgentSkills:output_type -> aiAgent.v1.ListAgentSkillsResponse
+	37,  // 256: aiAgent.v1.AiAgentService.getAgentSkill:output_type -> aiAgent.v1.GetAgentSkillResponse
+	43,  // 257: aiAgent.v1.AiAgentService.listAgentExtensions:output_type -> aiAgent.v1.ListAgentExtensionsResponse
+	47,  // 258: aiAgent.v1.AiAgentService.listAgentMarketplaceExtensions:output_type -> aiAgent.v1.ListAgentMarketplaceExtensionsResponse
+	50,  // 259: aiAgent.v1.AiAgentService.getAgentMarketplaceManagementAccess:output_type -> aiAgent.v1.GetAgentMarketplaceManagementAccessResponse
+	54,  // 260: aiAgent.v1.AiAgentService.listAgentMarketplacePublishers:output_type -> aiAgent.v1.ListAgentMarketplacePublishersResponse
+	56,  // 261: aiAgent.v1.AiAgentService.registerAgentMarketplacePublisher:output_type -> aiAgent.v1.RegisterAgentMarketplacePublisherResponse
+	58,  // 262: aiAgent.v1.AiAgentService.rotateAgentMarketplacePublisherKey:output_type -> aiAgent.v1.RotateAgentMarketplacePublisherKeyResponse
+	60,  // 263: aiAgent.v1.AiAgentService.revokeAgentMarketplacePublisherKey:output_type -> aiAgent.v1.RevokeAgentMarketplacePublisherKeyResponse
+	62,  // 264: aiAgent.v1.AiAgentService.setAgentMarketplacePublisherVerification:output_type -> aiAgent.v1.SetAgentMarketplacePublisherVerificationResponse
+	66,  // 265: aiAgent.v1.AiAgentService.listAgentMarketplaceManagedReleases:output_type -> aiAgent.v1.ListAgentMarketplaceManagedReleasesResponse
+	68,  // 266: aiAgent.v1.AiAgentService.publishAgentMarketplaceRelease:output_type -> aiAgent.v1.PublishAgentMarketplaceReleaseResponse
+	70,  // 267: aiAgent.v1.AiAgentService.withdrawAgentMarketplaceRelease:output_type -> aiAgent.v1.WithdrawAgentMarketplaceReleaseResponse
+	73,  // 268: aiAgent.v1.AiAgentService.listAgentMarketplaceAuditEvents:output_type -> aiAgent.v1.ListAgentMarketplaceAuditEventsResponse
+	76,  // 269: aiAgent.v1.AiAgentService.createAgentTaskTemplate:output_type -> aiAgent.v1.CreateAgentTaskTemplateResponse
+	78,  // 270: aiAgent.v1.AiAgentService.listAgentTaskTemplates:output_type -> aiAgent.v1.ListAgentTaskTemplatesResponse
+	80,  // 271: aiAgent.v1.AiAgentService.archiveAgentTaskTemplate:output_type -> aiAgent.v1.ArchiveAgentTaskTemplateResponse
+	26,  // 272: aiAgent.v1.AiAgentService.runAgentTaskTemplate:output_type -> aiAgent.v1.RunAgentResponse
+	10,  // 273: aiAgent.v1.AiAgentService.getModelDetailedInformation:output_type -> aiAgent.v1.getModelDetailedInformationResponse
+	12,  // 274: aiAgent.v1.AiAgentService.getRepositoryDialogue:output_type -> aiAgent.v1.getRepositoryDialogueResponse
+	14,  // 275: aiAgent.v1.AiAgentService.getDialogueDetail:output_type -> aiAgent.v1.getDialogueDetailResponse
+	16,  // 276: aiAgent.v1.AiAgentService.endDialogueSession:output_type -> aiAgent.v1.EndDialogueSessionResponse
+	18,  // 277: aiAgent.v1.AiAgentService.analysisFiles:output_type -> aiAgent.v1.analysisFilesResponse
+	26,  // 278: aiAgent.v1.AiAgentService.runAgent:output_type -> aiAgent.v1.RunAgentResponse
+	83,  // 279: aiAgent.v1.AiAgentService.getAgentRun:output_type -> aiAgent.v1.GetAgentRunResponse
+	87,  // 280: aiAgent.v1.AiAgentService.getAgentRunAccounting:output_type -> aiAgent.v1.GetAgentRunAccountingResponse
+	26,  // 281: aiAgent.v1.AiAgentService.resumeAgentRun:output_type -> aiAgent.v1.RunAgentResponse
+	90,  // 282: aiAgent.v1.AiAgentService.issueAgentResumeGrant:output_type -> aiAgent.v1.IssueAgentResumeGrantResponse
+	92,  // 283: aiAgent.v1.AiAgentService.callApiOfAi:output_type -> aiAgent.v1.callApiOfAiResponse
+	94,  // 284: aiAgent.v1.AiAgentService.consultContent:output_type -> aiAgent.v1.consultContentResponse
+	96,  // 285: aiAgent.v1.AiAgentService.assistPublishTwitter:output_type -> aiAgent.v1.assistPublishTwitterResponse
+	98,  // 286: aiAgent.v1.AiAgentService.confirmPublishTwitter:output_type -> aiAgent.v1.ConfirmPublishTwitterResponse
+	100, // 287: aiAgent.v1.AiAgentService.multiAgentPublishTwitter:output_type -> aiAgent.v1.MultiAgentPublishTwitterResponse
+	102, // 288: aiAgent.v1.AiAgentService.analyzeAlert:output_type -> aiAgent.v1.AnalyzeAlertResponse
+	111, // 289: aiAgent.v1.AiAgentService.createWorkflow:output_type -> aiAgent.v1.CreateWorkflowResponse
+	113, // 290: aiAgent.v1.AiAgentService.updateWorkflow:output_type -> aiAgent.v1.UpdateWorkflowResponse
+	115, // 291: aiAgent.v1.AiAgentService.listWorkflows:output_type -> aiAgent.v1.ListWorkflowsResponse
+	117, // 292: aiAgent.v1.AiAgentService.getWorkflow:output_type -> aiAgent.v1.GetWorkflowResponse
+	119, // 293: aiAgent.v1.AiAgentService.listWorkflowRevisions:output_type -> aiAgent.v1.ListWorkflowRevisionsResponse
+	121, // 294: aiAgent.v1.AiAgentService.getWorkflowRevision:output_type -> aiAgent.v1.GetWorkflowRevisionResponse
+	123, // 295: aiAgent.v1.AiAgentService.publishWorkflowTool:output_type -> aiAgent.v1.PublishWorkflowToolResponse
+	125, // 296: aiAgent.v1.AiAgentService.getWorkflowToolPublication:output_type -> aiAgent.v1.GetWorkflowToolPublicationResponse
+	127, // 297: aiAgent.v1.AiAgentService.unpublishWorkflowTool:output_type -> aiAgent.v1.UnpublishWorkflowToolResponse
+	129, // 298: aiAgent.v1.AiAgentService.runWorkflow:output_type -> aiAgent.v1.RunWorkflowResponse
+	131, // 299: aiAgent.v1.AiAgentService.getWorkflowRun:output_type -> aiAgent.v1.GetWorkflowRunResponse
+	139, // 300: aiAgent.v1.AiAgentService.getWorkflowRunTrace:output_type -> aiAgent.v1.GetWorkflowRunTraceResponse
+	142, // 301: aiAgent.v1.AiAgentService.searchWorkflowBlackboard:output_type -> aiAgent.v1.SearchWorkflowBlackboardResponse
+	144, // 302: aiAgent.v1.AiAgentService.watchWorkflowRunEvents:output_type -> aiAgent.v1.WorkflowRunEvent
+	146, // 303: aiAgent.v1.AiAgentService.listWorkflowRuns:output_type -> aiAgent.v1.ListWorkflowRunsResponse
+	148, // 304: aiAgent.v1.AiAgentService.cancelWorkflowRun:output_type -> aiAgent.v1.CancelWorkflowRunResponse
+	154, // 305: aiAgent.v1.AiAgentService.getWorkflowRunReplay:output_type -> aiAgent.v1.GetWorkflowRunReplayResponse
+	158, // 306: aiAgent.v1.AiAgentService.getWorkflowCompensationJournal:output_type -> aiAgent.v1.GetWorkflowCompensationJournalResponse
+	160, // 307: aiAgent.v1.AiAgentService.retryWorkflowCompensation:output_type -> aiAgent.v1.RetryWorkflowCompensationResponse
+	163, // 308: aiAgent.v1.AiAgentService.listToolApprovals:output_type -> aiAgent.v1.ListToolApprovalsResponse
+	165, // 309: aiAgent.v1.AiAgentService.decideToolApproval:output_type -> aiAgent.v1.DecideToolApprovalResponse
+	167, // 310: aiAgent.v1.AiAgentService.issueWorkflowResumeGrant:output_type -> aiAgent.v1.IssueWorkflowResumeGrantResponse
+	169, // 311: aiAgent.v1.AiAgentService.resumeWorkflowRun:output_type -> aiAgent.v1.ResumeWorkflowRunResponse
+	172, // 312: aiAgent.v1.AiAgentService.createProviderConfig:output_type -> aiAgent.v1.CreateProviderConfigResponse
+	174, // 313: aiAgent.v1.AiAgentService.updateProviderConfig:output_type -> aiAgent.v1.UpdateProviderConfigResponse
+	176, // 314: aiAgent.v1.AiAgentService.listProviderConfigs:output_type -> aiAgent.v1.ListProviderConfigsResponse
+	178, // 315: aiAgent.v1.AiAgentService.getProviderConfig:output_type -> aiAgent.v1.GetProviderConfigResponse
+	180, // 316: aiAgent.v1.AiAgentService.revokeProviderConfig:output_type -> aiAgent.v1.RevokeProviderConfigResponse
+	245, // 317: aiAgent.v1.AiAgentService.createAgentProject:output_type -> aiAgent.v1.CreateAgentProjectResponse
+	247, // 318: aiAgent.v1.AiAgentService.listAgentProjects:output_type -> aiAgent.v1.ListAgentProjectsResponse
+	249, // 319: aiAgent.v1.AiAgentService.getAgentProject:output_type -> aiAgent.v1.GetAgentProjectResponse
+	251, // 320: aiAgent.v1.AiAgentService.upsertAgentProjectMember:output_type -> aiAgent.v1.UpsertAgentProjectMemberResponse
+	253, // 321: aiAgent.v1.AiAgentService.removeAgentProjectMember:output_type -> aiAgent.v1.RemoveAgentProjectMemberResponse
+	259, // 322: aiAgent.v1.AiAgentService.createExternalMCPConnection:output_type -> aiAgent.v1.CreateExternalMCPConnectionResponse
+	261, // 323: aiAgent.v1.AiAgentService.updateExternalMCPConnection:output_type -> aiAgent.v1.UpdateExternalMCPConnectionResponse
+	263, // 324: aiAgent.v1.AiAgentService.listExternalMCPConnections:output_type -> aiAgent.v1.ListExternalMCPConnectionsResponse
+	265, // 325: aiAgent.v1.AiAgentService.getExternalMCPConnection:output_type -> aiAgent.v1.GetExternalMCPConnectionResponse
+	267, // 326: aiAgent.v1.AiAgentService.revokeExternalMCPConnection:output_type -> aiAgent.v1.RevokeExternalMCPConnectionResponse
+	269, // 327: aiAgent.v1.AiAgentService.discoverExternalMCPTools:output_type -> aiAgent.v1.DiscoverExternalMCPToolsResponse
+	271, // 328: aiAgent.v1.AiAgentService.approveExternalMCPSnapshot:output_type -> aiAgent.v1.ApproveExternalMCPSnapshotResponse
+	273, // 329: aiAgent.v1.AiAgentService.listExternalMCPTools:output_type -> aiAgent.v1.ListExternalMCPToolsResponse
+	275, // 330: aiAgent.v1.AiAgentService.configureExternalMCPTool:output_type -> aiAgent.v1.ConfigureExternalMCPToolResponse
+	193, // 331: aiAgent.v1.AiAgentService.createAgentProfileDraft:output_type -> aiAgent.v1.CreateAgentProfileDraftResponse
+	195, // 332: aiAgent.v1.AiAgentService.publishAgentProfileVersion:output_type -> aiAgent.v1.PublishAgentProfileVersionResponse
+	197, // 333: aiAgent.v1.AiAgentService.requestAgentProfilePublishApproval:output_type -> aiAgent.v1.RequestAgentProfilePublishApprovalResponse
+	199, // 334: aiAgent.v1.AiAgentService.listAgentProfilePublishApprovals:output_type -> aiAgent.v1.ListAgentProfilePublishApprovalsResponse
+	201, // 335: aiAgent.v1.AiAgentService.getAgentProfilePublishApproval:output_type -> aiAgent.v1.GetAgentProfilePublishApprovalResponse
+	203, // 336: aiAgent.v1.AiAgentService.decideAgentProfilePublishApproval:output_type -> aiAgent.v1.DecideAgentProfilePublishApprovalResponse
+	205, // 337: aiAgent.v1.AiAgentService.retryAgentProfilePublishApproval:output_type -> aiAgent.v1.RetryAgentProfilePublishApprovalResponse
+	207, // 338: aiAgent.v1.AiAgentService.listAgentProfileVersions:output_type -> aiAgent.v1.ListAgentProfileVersionsResponse
+	209, // 339: aiAgent.v1.AiAgentService.getAgentProfileVersion:output_type -> aiAgent.v1.GetAgentProfileVersionResponse
+	211, // 340: aiAgent.v1.AiAgentService.getAgentProfileRelease:output_type -> aiAgent.v1.GetAgentProfileReleaseResponse
+	213, // 341: aiAgent.v1.AiAgentService.upsertAgentProfileRelease:output_type -> aiAgent.v1.UpsertAgentProfileReleaseResponse
+	215, // 342: aiAgent.v1.AiAgentService.listAgentProfileAuditEvents:output_type -> aiAgent.v1.ListAgentProfileAuditEventsResponse
+	220, // 343: aiAgent.v1.AiAgentService.getAgentProfileManagementAccess:output_type -> aiAgent.v1.GetAgentProfileManagementAccessResponse
+	222, // 344: aiAgent.v1.AiAgentService.listAgentProfileRoleBindings:output_type -> aiAgent.v1.ListAgentProfileRoleBindingsResponse
+	224, // 345: aiAgent.v1.AiAgentService.upsertAgentProfileRoleBinding:output_type -> aiAgent.v1.UpsertAgentProfileRoleBindingResponse
+	226, // 346: aiAgent.v1.AiAgentService.deleteAgentProfileRoleBinding:output_type -> aiAgent.v1.DeleteAgentProfileRoleBindingResponse
+	228, // 347: aiAgent.v1.AiAgentService.listAgentProfileRoleAuditEvents:output_type -> aiAgent.v1.ListAgentProfileRoleAuditEventsResponse
+	230, // 348: aiAgent.v1.AiAgentService.startAgentProfileExperiment:output_type -> aiAgent.v1.StartAgentProfileExperimentResponse
+	232, // 349: aiAgent.v1.AiAgentService.listAgentProfileExperiments:output_type -> aiAgent.v1.ListAgentProfileExperimentsResponse
+	234, // 350: aiAgent.v1.AiAgentService.getAgentProfileExperiment:output_type -> aiAgent.v1.GetAgentProfileExperimentResponse
+	236, // 351: aiAgent.v1.AiAgentService.evaluateAgentProfileExperiment:output_type -> aiAgent.v1.EvaluateAgentProfileExperimentResponse
+	238, // 352: aiAgent.v1.AiAgentService.stopAgentProfileExperiment:output_type -> aiAgent.v1.StopAgentProfileExperimentResponse
+	240, // 353: aiAgent.v1.AiAgentService.recordAgentProfileExperimentOutcome:output_type -> aiAgent.v1.RecordAgentProfileExperimentOutcomeResponse
+	255, // [255:354] is the sub-list for method output_type
+	156, // [156:255] is the sub-list for method input_type
+	156, // [156:156] is the sub-list for extension type_name
+	156, // [156:156] is the sub-list for extension extendee
+	0,   // [0:156] is the sub-list for field type_name
 }
 
 func init() { file_api_aiAgent_v1_aiAgent_proto_init() }
@@ -25338,7 +25605,7 @@ func file_api_aiAgent_v1_aiAgent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_aiAgent_v1_aiAgent_proto_rawDesc), len(file_api_aiAgent_v1_aiAgent_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   276,
+			NumMessages:   277,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

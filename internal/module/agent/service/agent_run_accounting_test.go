@@ -139,3 +139,26 @@ func TestGetAgentRunAccountingRejectsCrossTenantParent(t *testing.T) {
 		t.Fatalf("child store called for unauthorized parent %q", childStore.parentRunID)
 	}
 }
+
+func TestGetAgentRunAccountingReadsHistoricalRunWhenRecoverableWritesDisabled(t *testing.T) {
+	parentStore := &memoryAgentExecutionRunStore{run: &repository.AgentExecutionRun{
+		ID: "historical-run", UserID: 51, Status: repository.AgentExecutionRunCompleted,
+		InputTokens: 12, OutputTokens: 3, TotalTokens: 15,
+		AccountingVersion: repository.ExecutionAccountingVersion,
+	}}
+	svc := NewAgentService(
+		"http://127.0.0.1:1/v1", "test", "model", "127.0.0.1:1", nil, nil, nil,
+		WithAgentExecutionRunStore(parentStore),
+		WithAgentRunAccountingStore(&agentRunAccountingStoreFake{}),
+		WithRecoverableAgentRuns(false),
+	)
+	defer svc.Close()
+
+	view, err := svc.GetAgentRunAccounting(context.Background(), 51, "historical-run", 10)
+	if err != nil || view == nil || view.TotalUsage.TotalTokens != 15 || !view.Complete {
+		t.Fatalf("historical run accounting = %+v, %v", view, err)
+	}
+	if _, err := svc.GetAgentRunAccounting(context.Background(), 52, "historical-run", 10); err == nil {
+		t.Fatal("cross-tenant historical run was readable")
+	}
+}

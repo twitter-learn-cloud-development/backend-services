@@ -1,5 +1,418 @@
 # Twitter Clone 云原生微服务项目 — 进展与规划
 
+## 仓库同步与 Python 客服纳管（2026-10-26）
+
+| 功能模块 | 状态 | 范围 |
+|---|---|---|
+| 历史开发同步 | Implemented（源码整理） | 纳入当前 Go/Web/Mobile、部署工具及状态文档；不把历史离线门禁改成生产 Accepted |
+| Python 使用向导 | Implemented（源码迁入） | `support-agent-service/` 共用主仓库 Git，独立依赖/镜像/前端；更新 Compose 构建和脚本定位，保留旧相邻目录备份 |
+| 运行环境 | 本轮不变 | 不迁移密钥、不启动/停止服务、不创建测试用户、不调用付费 Provider、不执行数据库迁移 |
+
+本轮命令、复验结果与限制统一记录于
+`support-agent-service/docs/repository-sync-2026-10-26.md`。
+
+
+## 架构修复 M2-R3补充轮：有界并发只读验收（2026-10-15）
+
+| 功能模块 | 轮次 | 状态 | 本轮交付 |
+|---|---|---|---|
+| Feed容量工具 | R3-D1 并发与快照 | Implemented（离线验证） | 每样本独立ReadOnly+RR事务/回滚，最多8并发/100样本/20页/60秒；有界池/取消退出，复用生产查询，精确ID/lookahead连续页与可见性/关注校验 |
+| 数据与报告 | R3-D2 证据质量 | Implemented（离线验证） | 有界关注探针/表行估计/EXPLAIN、最少页/行/关注门槛；v2成功/失败/截断/延迟统计和可选p95预算，固定脱敏错误；capacity_accepted恒false |
+| 操作收口 | R3-D3 文档与兼容 | Implemented（离线验证） | 默认不联网/不读凭据，旧参数保留但独立样本事务与v2字段需适配；旧v1报告保留历史解释，完整命令/限制/回退记录于FEED_ACCEPTANCE_RUNBOOK |
+
+最终通过（Go每shell显式`GOCACHE=<repo>/tmp/go-build-cache`）：
+
+```powershell
+go test ./cmd/feed-read-acceptance ./internal/module/tweet/repository ./internal/module/follow/repository -count=1
+go vet ./cmd/feed-read-acceptance ./internal/module/tweet/repository ./internal/module/follow/repository
+go test -race ./cmd/feed-read-acceptance ./internal/module/tweet/repository ./internal/module/follow/repository -count=1
+# 最后追加JSON判定字段后，仅入口再次运行以上Test/Vet/Race
+```
+
+11个入口顶层测试（含非法页子场景）通过，数据库驱动夹具只检验查询/事务装配与输出，不证明真实MySQL权限/执行计划/隔离效果；并发取消夹具核验实际峰值3个session及关闭，成功样本逐个建事务。CLI默认门禁/非法预算在连接前拒绝；gofmt与本轮空白检查通过。旧v1未消费关注布尔结果、空样本可产生耗时报告的缺口已修复（ISSUES248），没有本轮编译或测试失败。
+
+本轮没有访问真实MySQL/Redis、启动依赖、DDL/种子写入、索引变更/压力操作、部署或发布。未改生产Feed/API/两端，不重复Web/Mobile构建。M2-R3完整容量和M8-R3现场继续Partial；下一步需先准备受控高关注/稀疏深历史fixture和明确负载/资源预算，再运行v2并留存源码/环境/原始资源证据，不能从本机Fake或旧小数据集推定通过。
+
+## 架构修复 M4-R2：私信跨端与实时恢复（2026-10-15）
+
+| 功能模块 | 轮次 | 状态 | 本轮交付 |
+|---|---|---|---|
+| Messenger | R2-A 提示发布 | Implemented（离线验证） | MySQL成功后共用2秒Redis提示预算/Trace、固定结果指标，无无界goroutine；失败不诱导已存消息自动重发 |
+| Gateway | R2-B Socket生命周期 | Implemented（离线验证） | 订阅ACK后ready、单writer/心跳/有界读写/认证到期、取消并等待reader，修复double-close |
+| Web | R2-C 分页与恢复 | Implemented（离线验证） | 会话与历史续页、字符串ID去重/已读合并、独立锚点3页补拉/继续、ready/前台/周期恢复、草稿和旧响应隔离 |
+| Mobile | R2-D 分页与恢复 | Implemented（离线验证） | 同样恢复边界，Socket ready、同账号另一设备发送合并、Widget处置和不确定发送草稿保留 |
+| 契约与运维 | R2-E | Implemented（配置与离线验证） | API/运行手册/指标及告警规则；无新Proto/DDL/依赖升级，持久收件箱/幂等发送/ACK另列需求 |
+
+最终通过：Messenger/Gateway目标Test、Vet、Race，两生产入口编译；Web18项测试与构建；Flutter analyze零问题、完整32项测试；本轮格式化/空白检查。修复vendor缺少promauto/testutil导致的编译失败（复用现有core/dto，不更新vendor）、Web模板never推断和Flutter规范提示，详见ISSUES247。命令与夹具覆盖见`MESSENGER_RECOVERY_RUNBOOK.md`。
+
+M4代码/离线闭环，模块整体仍Partial：既有索引未应用，真实MySQL计划/深历史、断网/多设备/多副本/容量及告警送达未Accepted；Pub/Sub是可丢失提示，已读非设备确认，发送无幂等键，ID非提交序列。没有真实业务写入/DDL/部署或验收签发。M8-R3和M2-R3完整容量继续Partial；下一步需按各自运行手册补受控现场证据，不能重复离线测试替代。
+
+## 架构修复 M8-R3：部署验收工具与证据门禁（2026-10-15）
+
+用户选择本轮仅完成工具与离线验证；模块整体Partial，真实部署/31项现场旅程未Accepted。
+
+| 功能模块 | 轮次 | 状态 | 本轮交付 |
+|---|---|---|---|
+| M8 发布与功能收口 | R3-A 发布/环境身份 | Implemented（离线验证通过） | v2签名绑定审核发布清单/source/环境快照/部署ID/前版清单，应用/基础设施digest与公开配置版本，拒绝候选和漂移 |
+| 验收证据 | R3-B 逐项现场观察 | Implemented（离线验证通过） | Passed必须有check/身份/时间/actor/原始证据摘要对应观察；24小时新鲜度、有界严格JSON/路径、签名全字段覆盖、写锁/独占初始化 |
+| 用户旅程 | R3-C 31项目录 | Partial | 新增认证、搜索可见性、Feed私信、Schema owner和共享准入；完整现场手册和待办，真实旅程Not run |
+| 兼容与发布门禁 | R3-D v1/CI | Implemented（离线验证通过） | v1可读但不可release-ready，新v2夹具接CI；合成目录独立、清理跨平台；真实Actions未执行 |
+
+最终通过：四脚本AST，v2 31项/24个拒绝用例、v1 31项且release_ready=false，发布工具目标Test/Vet/Race，12服务CLI矩阵和workflow production-config新夹具接线。CLI默认缓存访问拒绝已通过每命令显式repo/tmp/go-build-cache复验解决；根signature以外字段均签名，嵌套signature注入夹具通过，ISSUES246已Resolved。业务/前端没有变更，未重复全仓/Web/Mobile检查；真实Actions与现场证据未验收。
+
+计划/兼容/回退详见 `DEPLOYMENT_ACCEPTANCE_RUNBOOK.md`；本次现场待办见 `DEPLOYMENT_ACCEPTANCE_2026-10-15.md`。无HTTP/Proto/客户端变更、业务依赖启动/联网探测、DDL/数据写入/恢复、Provider/MCP/告警或Registry/部署操作。下一代码轮次可补M4-R2私信跨端实时恢复；M2-R3容量与M8-R3真实验收继续保留Partial。
+
+## 架构修复 M8-R2：认证与剩余产品契约（2026-10-14）
+
+| 功能模块 | 轮次 | 状态 | 本轮交付 |
+|---|---|---|---|
+| M8 发布与功能收口 | R2-A 认证语义/HTTP | Implemented（代码与离线验证） | 本地退出回执/全设备501、密码修改与身份/字节/请求/超时/错误边界 |
+| Web | R2-B 会话与安全入口 | Implemented（代码与离线验证） | 成对保存与损坏缓存清理、代次隔离/跨标签重载、Axios/SSE401、身份切换Socket/页面/客服重建、密码修改 |
+| Mobile | R2-C 会话与安全入口 | Implemented（代码与离线验证） | 串行持久化/排队Logout竞争、认证驱动路由、通知缓存换代、Socket重连取消/旧回调、密码修改/退出和敏感日志移除 |
+| 产品契约 | R2-D 差异账本 | Implemented（文档） | 入口差异、服务端撤销/找回密码Planned，删除执行继续关闭 |
+
+最终复验：Go全仓`go test ./... -count=1`、Auth/User/Gateway与domain相关Vet、Auth/User/Gateway Race通过；Web完整build与13项测试通过；Flutter analyze零问题、完整25项测试通过，含Socket取消重连/处置后禁止建连、旧网关非JSON错误兼容。补充User领域未找到错误映射，数据库故障不再伪报404。首次回环沙箱失败正常提权复验通过，4条本轮风格info已修复，见ISSUES245。
+
+本轮没有新增Schema/Proto字段/会话存储或真实服务操作。**本地退出和密码修改不会提前撤销JWT**，既有令牌仍有效至到期；HTTP退出是能力回执，客户端清理不依赖它成功。真实多标签/跨设备/Socket/密码并发与不确定回执仍待部署验收；不声明全设备退出、全功能跨端等价或生产Accepted。计划/兼容/回退和差异详见 `AUTH_SESSION_CONTRACT.md`、`API_REFERENCE.md` 与 `ARCHITECTURE_REMEDIATION_PLAN.md`。下一轮M8-R3部署验收准备与证据门禁，真实操作按环境与授权边界推进。
+
+## 架构修复 M8-R1：完整发布流水线（2026-10-13）
+
+本机完整验证与Mobile修复收口：2026-10-14。
+
+| 功能模块 | 轮次 | 状态 | 本轮交付 |
+|---|---|---|---|
+| M8 发布与功能收口 | R1 完整发布流水线 | Implemented（代码与本机离线验证；真实CI/镜像未Accepted） | 包级构建/完整镜像目录、Go/Web/Mobile/配置CI门禁、显式Registry发布、离线发布回执/清单与只读复验 |
+
+- [x] M8-R1-A：Makefile build覆盖全部./cmd/...、run按包；10服务Dockerfile移除main.go构建、Go1.25.5/CGO0/trimpath，Agent附带admission-admin；frontend沿用现有npm锁定安装/真实5556端口，Schema迁移镜像纳入矩阵。
+- [x] M8-R1-B：CI由Go.mod选版本，全仓Test/Vet/指定Race/包级Linux构建、Web npm ci/build/test、Flutter3.44.2 lockfile/analyze/test、生产Compose和验收记录夹具；任何门禁失败不生成完整清单。
+- [x] M8-R1-C：catalog.json单一12组件矩阵覆盖全部Compose build服务与独立Job；默认候选OCI、main显式dispatch publish才登录/Registry上传且需审核基础digest，移除自动Git/Helm更新和latest标签。
+- [x] M8-R1-D：离线release-manifest记录真实CI输出、12镜像/9检查精确回执、干净Git HEAD绑定、配置/锁/SQL/Schema摘要、候选/发布区分与只读Verify/require-published；拒绝缺项/漂移/坏digest/重复JSON/伪部署Accepted、路径逃逸/覆盖，CLI真实拒绝当前脏工作区。
+- [x] releaseplan/CLI Test/Race、全仓compile-only/Vet、全部cmd Windows/Linux构建、Web vue-tsc及npm test七项、实际Compose九项config-only夹具、26项验收记录自测/PS Parser与静态接线通过。compile-only不是完整Test；问题见ISSUES244。
+- [x] 审批恢复复验：完整go test ./...与CI同范围工程Race、Web build/npm test全部通过；Flutter analyze --no-pub零问题、flutter test --no-pub全部16项通过，只用已有依赖/本机Mock。
+- [x] Mobile门禁修复：移除未使用导入/空类与弃用ColorScheme字段、Color.withValues替换旧透明度API、相关页面await后检查mounted；Workflow输入对话框context与页面context区分。旧计数器烟测替换为Mock Storage/ProviderScope真实登录、表单验证与注册入口/零API调用，补页面卸载后迟到成功/失败测试；未禁用Lint。
+- [ ] 真实GitHub Actions、12镜像构建/拉取、锁安装/Registry发布、实际生产配置/权限/Secret、clean-host与部署旅程尚未执行或Accepted；没有安装本机依赖/启动业务服务/执行DDL/发布/部署。
+
+M8-R1代码与本机离线门禁已收口，下一代码轮次为M8-R2认证与剩余产品契约。部署接受仍false，用户删除继续关闭；M2-R3完整容量Partial、M4-R2仍Planned。旧Helm/演示tag导出保留为历史路径；新发布清单不能证明其已迁移。启用、证据可信边界、回滚和准确验证命令见 `RELEASE_PIPELINE_RUNBOOK.md`。
+
+## 架构修复 M7-R2：Agent角色依赖与共享准入（2026-10-13）
+
+状态：Implemented（代码与离线验证）；共享开关默认false，真实依赖/容量/费用与部署未Accepted。
+
+| 功能模块 | 轮次 | 状态 | 本轮交付 |
+|---|---|---|---|
+| M7 服务与运行隔离 | R2 Agent依赖与共享准入 | Implemented（离线验证） | Persona角色Port、共享Run/Provider租约与估算预算、取消恢复、独立初始化与启用门禁 |
+
+- [x] M7-R2-A：AgentPersonaStore/SQLPersonaStore；MemoryManager移除GORM。仅API/all读取Persona凭据、打开/校验MySQL并装配认知引擎，Worker无需Persona DB；保留既有Mongo/检索/模型等装配边界。
+- [x] M7-R2-B：Redis TIME/同slot原子global/user/workflow租约、独立token/续租/释放/失效取消、嵌套scope借用；配额/TTL/脚本访问有界，策略未初始化/漂移失败关闭，不自动切本地。
+- [x] M7-R2-C：Runtime/Router、Workflow LLM与Agent兼容/Workflow策略SDK共享Provider并发、输入估算+输出上限、可选统一费用预留；失效取消传给SDK，失败不退分钟预留。API/all启用必须完整Runtime v2模式，业务依赖前检查；保持原单Run预算/工具审批。
+- [x] M7-R2-D：默认离线agent-admission-admin，Live只读与摘要/操作声明初始化、连接/操作共5秒；三Compose和.env透传、生产Worker凭据/健康探测、固定标签指标与告警接线。
+- [x] 双client竞争/嵌套/崩溃/续租/替代token/取消、Token/费用/坏状态原子拒绝、Fake SDK/HTTP零调用拦截、Persona SQL/Port、角色AST/YAML/CLI测试；完整Agent+Schema/Persistence/两入口测试、Vet、相关Race通过。编译/SQL夹具和沙箱回环问题见ISSUES243。
+- [ ] 真实Redis持久化/noeviction/故障/多进程与Provider账单、MySQL最小权限、告警投递、API/Worker副本部署与容量验收；摘要/RAG/Embedding/Reranker/Temporal/Eval调用仍不在共享Provider预算内。
+
+下一代码轮次：M8-R1完整发布流水线。M2-R3完整容量保持Partial、M4-R2保持Planned，数据删除继续关闭。本轮无新DDL、真实依赖启动/写入/初始化、镜像构建或部署；启用/变更/回滚必须停止并排空旧owner，保留控制状态，不能由租约过期推断远端调用停止。参见 `AGENT_SHARED_ADMISSION_RUNBOOK.md`。
+
+## 架构修复 M7-R1：数据所有权与独立迁移（2026-10-13）
+
+| 功能模块 | 轮次 | 状态 | 本轮交付 |
+|---|---|---|---|
+| M7 服务与运行隔离 | R1 数据所有权/迁移 | Implemented（离线验证）；真实Schema/账号/Job未Accepted | 可执行Owner目录/只读启动Schema、独立Bootstrap Job/权限计划、生产八角色凭据、Tweet只读Follow Port |
+
+- [x] 八MySQL入口和MemoryManager构造不再AutoMigrate，按runtime role≤32表/5秒参数化metadata校验InnoDB/列/64位身份/NOT NULL/精确索引；开关启用额外校验Follow/Publication，失败拒绝启动。NewDB初始化与driver I/O有界/规范DSN、移除密码fallback。
+- [x] Owner目录生成稳定离线DDL/计划摘要；schema-migrate默认不读凭据或联网、独立Live≤60秒/非root迁移凭据、执行匹配计划和操作声明；同连接Owner锁/先全量预检既有表/仅CREATE缺表/写后重验，DDL不确定停止并支持核验后重跑，不ALTER/DROP/自动改既有表。
+- [x] 只输出的角色访问GRANT计划/无账号或权限操作；八角色生产Compose独立凭据/强制策略、部署预检非root/不同账号/迁移隔离；默认离线单次Compose Job与按包构建Dockerfile，运行容器无迁移凭据。
+- [x] TweetService依赖收窄为FollowReadRepository，生产只读wrapper不导出写接口；Persona领域模型/原UserPersona类型兼容；表/缓存Owner、共享Outbox/Feed/CDC例外与升级/回滚矩阵已记录。
+- [x] GORM offline计划/SQL元数据与命名锁驱动、预检拒绝/部分DDL/回执不确定重跑/取消/权限范围/配置/CLI/生产YAML/PS语法；扩大模块与入口回归、Vet、指定Race和格式检查通过。接线/后缀/旧夹具修复见ISSUES242。
+- [ ] 未执行真实DDL/账号创建/GRANT/服务重启/Docker构建或部署；运行权限/继承角色/Schema细节/MDL/备份回滚与容量未Accepted。共享MySQL、Feed跨表候选、Consumer跨模块读、角色分支前Agent MySQL和其他账号路径未由本轮消除；生产配置非root不证明实际最小权限。
+
+下一代码轮次：M7-R2 Agent依赖与共享准入。旧表升级仍需具体审核SQL，回滚保留所有新表/索引/Outbox/位点且禁止恢复旧AutoMigrate；参见 `DATA_OWNERSHIP_MIGRATION_RUNBOOK.md`。M2-R3完整容量保持Partial，M4-R2保持Planned。
+
+## 架构修复 M6-R2：受控重放与多副本衰减（2026-10-13）
+
+| 功能模块 | 轮次 | 状态 | 本轮交付 |
+|---|---|---|---|
+| M6 互动热度一致性 | R2 重放与多副本 | Implemented（离线验证）；真实恢复/容量未Accepted | 默认离线互动重放、专用会话/Confirm重建、服务器分钟桶原子衰减/TTL/基数保护 |
+
+- [x] `engagement-dlq-replay` 默认不读取MQ凭据/联网，Live检查另显式allow-live；Execute要求operator/reason、最多100消息/60秒/累计1—10次，只回互动专用Ingress，Confirm后ACK。毒消息/身份时间缺失/过期/次数耗尽保留，取消/发布失败保留批次，ACK不确定停止；固定摘要报告。生命周期CLI路由范围不变。
+- [x] 每互动队列独立消费+Confirm连接/QoS1、5秒总初始化与协议取消，关闭/Publisher Channel失败重建拓扑和订阅；不替换共享生命周期Channel。会话取消中断在途，关闭等待循环/Watcher；入口等待Timeline及衰减退出。
+- [x] 移除50秒锁/ZINTERSTORE，Redis TIME分钟桶/7天状态与分值裁剪同Lua；最多10000基数/保留原Top100/0.95一次衰减，保留剩余TTL/无TTL修复24小时、时钟回拨拒绝，遗漏桶不追算；固定指标和两项新告警。
+- [x] 32并发同桶、50秒窗口/重启重试/跨桶/TTL/排名/错类型数值/超基数/取消；重放路由/Confirmed ACK/毒消息/过期/累计/批次失败，独立会话重建/取消/专属Publisher、net.Pipe协议取消、默认CLI离线/参数门禁和指标/YAML；扩大测试/Vet/Race及格式检查通过。
+- [ ] 真实Redis AOF/OOM/淘汰/故障切换、多实例进程崩溃/时钟/10000基数延迟，RabbitMQ实际绑定/双连接断连/权限/Confirm不确定、告警和容量仍未Accepted。Header计数不构成跨ACK不确定的全局次数账本，检查会NACK/requeue并可能改DLQ顺序，本机操作声明不替代服务端RBAC/审批账本。
+
+下一代码轮次：M7-R1数据所有权与迁移治理；M2-R3完整容量继续Partial，M4-R2保持Planned。无需新SQL迁移，本轮未启动真实依赖/执行真实重放/写入/部署。升级必须停旧衰减owner，回滚保留桶/标记/队列并暂停旧执行，详见 `ENGAGEMENT_RECOVERY_RUNBOOK.md`。
+
+## 架构修复 M6-R1：互动原子幂等投影（2026-10-13）
+
+| 功能模块 | 轮次 | 状态 | 本轮交付 |
+|---|---|---|---|
+| M6 互动热度一致性 | R1 原子幂等投影 | Implemented（离线验证）；真实恢复未Accepted | 稳定实体事件/重复点赞语义、Lua原子去重/频控/计分、回执后ACK、专用Retry/DLQ与观测 |
+
+- [x] 点赞关系与Outbox同UoW，生产仓储锁定当前读返回实际ID；重复点赞不新增事件、重新点赞新关系ID。评论/点赞使用engagement-v1与实体事件键/时间/Trace，保留旧JSON字段；3秒事务和持久身份校验。
+- [x] 移除先ACK再goroutine/内存batcher计分，两个队列各串行执行/8秒Context/关闭等待；读取当前公共事实，最多32主题/4096字节映射，缺少创建回执时重试。
+- [x] Redis TIME + Lua在写前预验类型/值，事件摘要/共享1小时前三次频控/2或5权重/热度TTL/7天回执原子提交；48小时外仅记expired，摘要冲突永久失败，ACK丢失后幂等。
+- [x] 1/2/4秒专用Retry、最多3次与独立DLQ，Confirm后ACK原消息，失败退避保留；固定日志/Trace/指标与三告警。R2自动Retry/DLQ前移，人工互动重放仍未开放。
+- [x] 并发32重复、ACK丢失、频控/预检/TTL、隐藏/乱序/过期/冲突/主题上限、生产GORM内存SQL/ClientFoundRows/回滚、Outbox/Trace与恢复路由；扩大回归/Vet/Race、gofmt/diff通过，夹具/回环问题见ISSUES240。
+- [ ] 真实Schema/权限、MySQL锁/提交不确定、Redis持久化/淘汰/多实例/崩溃、Broker绑定/告警和容量未Accepted；7天标记不是永久存储，全局热点ZSet/跨slot Lua限制保留。
+
+下一代码轮次：M6-R2受控重放与多副本衰减。旧分钟Ticker/50秒锁没有本轮多副本时间桶证明，人工重放保持关闭；升级需停旧互动消费者，回滚保留队列与标记，详见 `ENGAGEMENT_PROJECTION_RUNBOOK.md`。本轮未执行DDL、真实服务/业务/Redis/MQ写入或部署。
+
+## 架构修复 M3-R3：晋升/降级与回填清理（2026-10-13）
+
+| 功能模块 | 轮次 | 状态 | 本轮交付 |
+|---|---|---|---|
+| M3 Follow关系与派生任务 | R3 晋升/降级与回填清理 | Implemented（离线验证）；默认开关关闭/迁移未执行 | v1入口持久双任务/回执、作者共享进度、关系当前事实分页、SQL/Redis围栏、独立Retry/DLQ/告警、受控修复入口 |
+
+- [x] Consumer已接线独立关注入口/Confirm Publisher/QoS10；回执与author/pair任务同事务，成功登记才ACK；重复摘要冲突拒绝，ClientFoundRows不破坏去重。坏事件/3次失败入专用DLQ，1/2/4秒Retry只回专用Ingress。
+- [x] 每lane每次Claim1、100条页/15秒执行/90秒租约；作者revision/epoch/共享游标，5000/4500防抖与首次迁移区间继承；历史关系批验当前状态、推文历史含软删除/隐藏供清理，写后代次变化重置页，旧取关不按旧动作覆盖重新关注。
+- [x] SQL页回执围栏/成功续页/5次失败保留；关闭释放租约恢复本次次数。Redis服务器时间/epoch/token阻止陈旧Begin/写入，精确字符串ID、幂等Unread、初始化/重建marker失效和TTL。
+- [x] Service回填/取关/晋升降级goroutine移除，旧Align拒绝执行；Follow入口移除Tweet/Timeline装配与Tweet AutoMigrate。显式最多100scope检查/审批修复只登记任务，持久审批/操作摘要；低基数指标与三告警，默认不读取凭据/联网。
+- [x] 5012粉丝/断点续跑/降级、250推文/当前代次、SQL原子登记/冲突/ClientFoundRows/租约、miniredis过期/陈旧围栏、MQ Retry/DLQ/ACK、CLI/指标/YAML回归；扩大测试/Vet/Race与最终复验见开发计划。编译遗漏导入修复见ISSUES239。
+- [ ] FOLLOW_PROJECTION_WORKER_ENABLED默认false；新表/历史索引SQL未执行，真实Schema/权限/绑定/Redis故障/多实例/热作者和深历史容量未Accepted。Redis淘汰后DBComplete不证明缓存完整，需显式修复；跨副本L1窗口、无DB历史关系的残留和Redis Cluster不支持边界见Runbook。
+
+下一代码轮次：M6-R1互动投影可靠消费；M2-R3完整容量继续Partial。本轮未启动真实依赖、执行DDL、真实业务/Redis/MQ写入、镜像发布或部署。
+
+## 架构修复 M3-R2：Follow 关系事件原子提交（2026-10-13）
+
+| 功能模块 | 轮次 | 状态 | 本轮交付 |
+|---|---|---|---|
+| M3 Follow关系与派生任务 | R2 关系事件原子提交 | Implemented（离线验证） | pair锁/短事务事实+Outbox、代次事件/重复语义、生产装配与Schema门禁、Relay路由/持久暂存队列 |
+
+- [x] Follow/Unfollow使用追加Mutation Port，缺少事务/事件依赖fail-closed；pair协调行锁和至多2条有效关系重验，历史重复不自动丢数据。旧仓储写方法也要求UoW，不走原Count/Insert竞争路径。
+- [x] 3秒内关系变更与Outbox同事务，唯一键冲突回滚；重复当前状态不产事件，重新关注新关系ID/事件键。兼容旧两身份字段，追加v1/代次/发生时间/Trace Context。
+- [x] Follow生产入口配置UoW/Outbox、新表/已有Outbox索引存在门禁，声明持久follow.relations.v1与两个绑定；Canal路由和publication检查兼容，人工重放仍关闭。手工迁移/最小账号权限/灰度回滚已记录，本轮未执行真实DDL或部署。
+- [x] 真实GORM/UoW/仓储内存SQL故障回滚、并发重复/重新关注/历史重复/取消/模拟COMMIT不确定，Schema/路由/拓扑/Trace兼容回归；扩大测试、Vet、Race通过。Warn未初始化空指针修复与复验见ISSUES238。
+- [ ] 新关注队列本轮没有Consumer，只持久暂存事件；旧提交后缓存goroutine和大V传播/取关100条清理仍留技术债，不宣称全量恢复。M3-R3负责唯一持久owner、分页/租约/Retry/DLQ/代次重验与受控对账。
+- [ ] 真实Schema/权限、MySQL行锁/提交回执丢失、Relay/Broker绑定/消费/恢复及容量未Accepted；M2-R3完整容量继续Partial。协议字段/客户端未变，本轮不重复Web/Mobile构建。
+
+下一轮：**M3-R3 晋升/降级与回填清理**。详细操作边界见 `FOLLOW_RELATION_OUTBOX_RUNBOOK.md`，实际验证命令见开发计划M3-R2交付记录。
+
+## 架构修复 M5-R3：文本/向量拆分与对账（2026-10-13）
+
+| 功能模块 | 轮次 | 状态 | 本轮交付 |
+|---|---|---|---|
+| M5 删除与索引生命周期 | R3 文本/向量拆分与对账 | Implemented（离线验证）；真实环境未 Accepted | 独立任务/lane/Profile、元数据只读对账、受控修复登记、可选发布回执/Confirm重放/保留计划与积压告警 |
+
+- [x] 新创建 ACK 前幂等登记 sync_text/sync_vector；旧 sync_es 转登记子任务。两 lane 各批次 5 条；Embedding 锁外执行，模型/维度/版本匹配与写前/写后事实重验，文本不调用模型。失配/非有限向量/后端错误进入独立退避和耗尽保留。
+- [x] 显式 1—100 Tweet IDs 的元数据对账；修复需目标/事实/索引计划摘要匹配，仅登记 Worker 任务，同 Tweet 原子事务与持久去重，跨 Tweet 部分结果可见。默认命令不读取凭据/不联网；正文/身份/操作人仅输出摘要。
+- [x] 可选 Confirm 回执账本（默认关闭、手工迁移未执行）；事件检查/受控创建删除治理重放/发布感知保留候选计划。首次回执保留，冲突失败，部分回执可恢复；点赞/评论重放继续关闭，年龄 GC 无删除模式。
+- [x] 固定标签的次数/耗时/持久积压/最老年龄及失败遥测；三类 Prometheus 告警规则，离线 YAML 解析与指标断言。运维权限、灰度/回滚/真实矩阵见 `INDEX_RECONCILIATION_RUNBOOK.md`。
+- [x] 目标 Core/CLI/Persistence 检查、扩大 Tweet/MQ/Canal/ES/Qdrant 与五个入口测试/Vet及受影响包 Race 全部通过，最后完善后完整复验通过；含100ms阻塞AMQP握手、有界回执、计划漂移、部分执行与事务回滚。格式检查通过。
+- [ ] 真实 Schema/迁移、ES/Qdrant/Embedding、Broker 路由/回执、进程重启、多实例、召回/容量和告警送达未验收；consistent 仅表示元数据一致，命名锁不防远端迟到写。M2-R3 完整容量继续 Partial。
+- [ ] 下一代码轮次：M3-R2 Follow 关系事件原子提交，然后 M3-R3 持久传播；互动 ACK-before-async 继续归 M6。
+
+验证结果与命令见 `ARCHITECTURE_REMEDIATION_PLAN.md` 的 M5-R3 交付记录；本轮未执行真实索引/MQ/业务写入、DDL、部署、付费模型或数据清理。
+
+## 架构修复 M5-R2：持久索引删除与恢复边界（2026-10-13）
+
+| 功能模块 | 轮次 | 状态 | 本轮交付 |
+|---|---|---|---|
+| M5 删除与索引生命周期 | R2 版本化派生投影 | Implemented（离线验证，当前事实重验） | 独立 delete_es/delete_vector 持久任务、创建当前事实/写后重验和协作命名锁；Relay FIFO事务位点/Confirm/恢复门禁 |
+
+- [x] 删除消息成功 ACK 前登记两个唯一任务；部分失败使用 Confirm-before-ACK 重试补齐。任务独立领取/重试/完成，Owner/Token/Lease 围栏与耗尽保留沿用，移除 ACK 后无持久状态的异步 ES 删除。
+- [x] `sync_es` 读取当前 MySQL Public 正文，已删/缺失/非 Public 只清理；创建/删除同 primary 命名锁串行化，写后重验。会话锁有界等待/释放，异常锁回执丢弃连接；不开网络调用期间的 SQL 长事务。
+- [x] ES/Qdrant 有界删除回执校验；Vector 固定 tweets 规范 UUID 和字符串 tweet_id 别名，不动 Collection。缺依赖/未知404/坏回执不记成功，固定低敏失败码。
+- [x] Canal 多行全部转发、坏行明确失败；事务提交边界排在前序事件之后，Broker Confirm 后存位点；取消不给未确认边界。未知路由使 Worker 明确退出，年龄 Outbox GC 停用；缺失/清理位点默认拒绝启动。
+- [x] 定向与扩大 Go 回归/Vet、Consumer/Canal/Repository/ES/Qdrant Race、格式检查通过；Handler登记与ACK补测定向Race通过。迁移/回滚与真实矩阵见 `INDEX_LIFECYCLE_RUNBOOK.md`。
+- [ ] 未执行真实索引删除/Embedding、DDL或部署；单primary命名锁不提供远端迟到写的服务端版本围栏。Broker Confirm也不证明路由/消费；真实断连、进程重启、多实例/容量仍待验收，不能宣称生产全链路保证。
+- [ ] 下一轮 M5-R3：拆分文本/向量创建、只读对账和受控修复/发布感知保留；历史缺失事件/清理Binlog、Timeline旧粉丝上限、异步缓存清理继续待治理。M2-R3完整容量独立保持Partial。
+
+## 架构修复 M5-R1：删除 Outbox（2026-10-13）
+
+| 功能模块 | 轮次 | 状态 | 本轮交付 |
+|---|---|---|---|
+| M5 删除与索引生命周期 | R1 删除 Outbox | Implemented（离线验证） | 有效推文行锁/作者校验、软删除和兼容 TWEET_DELETED 同 UoW；错误传播、稳定事件键和提交后有界缓存失效 |
+
+- [x] 新增 `TweetDeletionRepository`，事务中仅读删除身份并锁有效行；生产软删除使用 `ExtractTx`。缺失/已删维持 NotFound，读取失败保留错误，并发删除仅一次成功状态转移和事件。
+- [x] 3 秒事务内鉴权/删除/Outbox；原直接 MQ 发布移除。旧 Payload/路由兼容，Outbox 主键和 `tweet-deleted:<id>` 唯一键固定事件身份；持久化/提交失败不返回伪成功。
+- [x] 提交成功后本地 L1 失效、800 ms Redis 删除/广播；提交后请求取消不跳过尝试，缓存错误有低敏日志且不改报业务回滚。原 `InvalidateBaseTweet` 吞 DEL 错误已修复，见 ISSUES 235。
+- [x] 生产 GORM UoW/仓储的内存 SQL 驱动回归、miniredis 缓存故障与提交后取消测试通过；Tweet/Canal/MQ/三个入口扩大测试、Vet 和 Service/Repository/Cache Race 全部通过。
+- [ ] 真实 MySQL 锁/提交回执丢失、Relay 位点与消息重放、索引故障尚未验收。COMMIT 错误可表示结果不确定；事件持久入库不等于已投递。未执行真实删除/DDL/MQ/索引写入或部署；账号删除生产开关继续关闭。
+- [ ] 下一轮 M5-R2：持久 ES/Qdrant 删除任务、创建重验/防复活、发布水位/补偿重放；M2-R3 完整容量独立保持 Partial。
+
+## 架构修复 M2-R3：跨端与容量验收（2026-10-12）
+
+| 功能模块 | 轮次 | 状态 | 本轮交付 |
+|---|---|---|---|
+| M2 Feed 完整性 | R3 跨端与容量验收 | Partial（跨端/离线与小数据集 Live SQL 通过，完整容量待验收） | Web/Mobile 字符串 ID 去重、请求换代和错误/空页继续状态；真实 HomeScreen Widget 测试；只读 MySQL/EXPLAIN 入口、实际查询与离线 Scanner 基线 |
+
+- [x] Web Home 和 Mobile FeedNotifier 页面不直接重复追加，刷新/账号/页签换代丢弃旧响应及 finally；单代加载互斥，最多 3 个无新增页有界续拉，用户可继续；失败保留列表/失败游标精确重试，结束不再请求。
+- [x] 首页推荐流 ListTweets HTTP Cursor 同步为字符串，保持现有 Proto 类型/编号；两端 ID/Cursor 不经过 Number；补大整数 Handler 回归。
+- [x] Web 7 项状态测试/构建，Mobile 6 项状态+2 项 HomeScreen Widget+2 项契约测试/Analyze/格式化，Go 目标/扩大回归/Vet/Race/预算测试与格式检查全部通过。
+- [x] 只读 `cmd/feed-read-acceptance` 显式 Live 门禁、只读事务、复用生产 SQL/关系校验/EXPLAIN，固定低敏输出；不执行 DDL/种子或 Redis写入。验收操作说明见 `FEED_ACCEPTANCE_RUNBOOK.md`。
+- [x] 离线 Scanner 基线已执行并记录 CPU/Go/20x 数据、批次数/分配，明确 Fake/日志边界；不能外推成真实 DB QPS/百万 DAU，证据见 `FEED_ACCEPTANCE_2026-10-12.md`。
+- [x] 用户授权启动后复用原数据卷启动 `twitter-clone-mysql-1`，3307 running/healthy；MySQL 8.0.46 现有 316 条推文/7 条有效关注，fixture 有 1 个关注对象/40 条候选。只读首页和第二页各返回 20 条，20 次样本 p95 为 5.910/5.997 ms；终页返回 0 仅作边界记录。EXPLAIN 与资源/索引证据见 `FEED_ACCEPTANCE_2026-10-12.md`，ISSUES 234 的依赖阻断已解除；没有 DDL/业务写入或修改 `.env`。
+- [ ] 未覆盖高关注/长历史/稀疏大数据、部署浏览器/真机、多副本 Redis/端到端负载；同一事务重复 SQL 的小数据集耗时不代表完整容量达标，保持 Partial。
+- [ ] 后续代码轮次按总表 M5-R1 删除 Outbox；M2-R3 的必需 Live 证据独立待收口，不将本模块标记 Accepted。
+
+## 架构修复 M2-R2：Following Feed 恢复与关系校验（2026-10-12）
+
+| 功能模块 | 轮次 | 状态 | 本轮交付 |
+|---|---|---|---|
+| M2 Feed 完整性 | R2 缓存重建与关系校验 | Implemented（离线验证） | 当前关系限定的有界 FollowingFeedRepository，批量关系重验与 Follows 可见性；普通 Inbox v2 空/非空标记、租约围栏及原子合并恢复；当前读取不再受旧关注/大 V 缓存截断 |
+
+- [x] 当前共享 MySQL 的 follows 只读 EXISTS 子查询覆盖所有有效关注对象和自身记录；按精确 Tweet ID 分页，深历史和大 V 读取不依赖旧 IDs-only 100 条或作者缓存重建上限，不做在线全量关注枚举。
+- [x] FollowReadRepository 每批最多 100 个作者重验当前关系，过滤取关和他人 Private/Shadowban，允许当前粉丝读取 Follows；授权读取失败返回明确错误，不用旧 Inbox 权限兜底。自身记录独立允许，语义见 API_REFERENCE。
+- [x] 冷缓存恢复最新至多 1000 条权威候选，跨副本 3 秒租约、2 秒查询边界、Token 条件提交；原子合并保留并发 Fanout，不清空 Inbox。v2 初始化标记有效 5 分钟、Inbox 7 天，空 Feed 不重复重建，非空缓存丢失会再次恢复。Redis/投影失败不影响已成功读取的当前页，数据库/关系失败不伪装空页。
+- [x] SQL DryRun、Service Fake 与 Redis 夹具覆盖 205 个关注作者/1205 条深历史、失效大 V 关联、取关发生在候选读取与校验之间、Follows/Private/Shadowban/自身授权、空缓存/丢失/重建失败、16 个并发冷请求单一 owner、租约过期/旧 Token/并发新 Fanout/TTL/非法输入/缺失 Port。
+- [x] 目标五包、Tweet/Follow/MQ/Gateway/四个服务入口扩大回归、同范围 Vet、Tweet Service/Cache/Follow Repository Race、gofmt/diff check 通过；命令见修复计划。HTTP/Proto/生产客户端没有变更，未重复执行 Web/Mobile 构建。
+- [x] 方案偏差：通过权威关系查询恢复大 V 有效关联，不在请求路径在线全量重建旧 Redis 关联集合；旧后台关联/晋升传播仍交 M3-R3。Redis 目前是派生投影，不宣称缓存命中优化；每页 MySQL 读取成本和共享表只读边界列入真实验收/M7。
+- [ ] 真实 MySQL 索引/执行计划、Redis 多副本故障/容量和部署用户旅程未验收。未做 DDL、真实服务写入或数据清理；下一轮 M2-R3 跨端与容量验收。
+
+## 架构修复 M2-R1：Following Feed 稳定分页（2026-10-12）
+
+| 功能模块 | 轮次 | 状态 | 本轮交付 |
+|---|---|---|---|
+| M2 Feed 完整性 | R1 稳定分页 | Implemented（离线验证） | 普通/大 V 候选 limit+1、ID 倒序归并去重、消费候选 Cursor、有界过滤补齐、Redis 同分数精确读取、HTTP 字符串游标与批量资料 |
+
+- [x] 每批消费最多 100、单请求最多扫描 1000，空过滤页达到上限仍返回推进后的游标；前瞻/未消费候选留下一页，结束游标为 0。
+- [x] 候选正文使用当前 MySQL 批量读取，过滤删除和他人非公共记录，不返回旧 L1/L2 正文；Feed 旧缓存夹具新增两次精确批量读取并验证当前正文覆盖旧正文。
+- [x] Redis 既有 key/float 分数写入格式保留；有界原子脚本展开游标与末端同分数桶，按 uint64 精确排序过滤，覆盖 2^53 以上、跨十进制位数与 uint64 上界；非法成员明确降级/失败。
+- [x] 拉模式内部保留第 101 条，公开最大 100；缓存来源失败从原请求游标整体切换 pull；正文失败返回错误，不假装空页；不再从 Feed 主路径启动旧下一页预热 goroutine。
+- [x] Gateway 严格解析 Cursor/Limit，认证用户传可信上下文、批量公开资料；HTTP `next_cursor` 改为字符串，Proto 字段不变，Web/Mobile 已原样透传；新增 HTTP/SQL/gRPC/移动端数据层契约测试。
+- [x] 扩大 Tweet/MQ/Gateway/相关入口测试、Vet、Tweet Service/Cache/Gateway Handler 全包 Race、Web 构建、Dart 格式化、Mobile 两项契约 Test 与定向 Analyze 全部通过；Analyze 发现旧未使用导入后仅移除单行并复验，无告警。完整命令见修复计划，首轮沙箱/旧测试契约失败与处理见 ISSUES 233。
+- [ ] 下一轮：M2-R2 缓存重建与关系校验。
+- [ ] 真实 MySQL/Redis 查询与部署旅程/压测未验收；全关注事实重验、普通空缓存/大 V 完整历史恢复与 Follows 权限支持留 M2-R2，跨端去重/加载/空页用户交互及容量留 M2-R3。此轮仅保证已取候选范围的分页与当前正文事实。
+
+## 架构修复 M4-R1：私信历史分页（2026-10-12）
+
+| 功能模块 | 轮次 | 状态 | 本轮交付 |
+|---|---|---|---|
+| M4 私信历史与投递 | R1 历史分页 | Implemented（离线验证） | 消息 ID 排他 Cursor、会话首次 ID 上界与分组后 Cursor、limit+1、默认 20/最大 100、页内幂等已读；Gateway 批量公开资料和固定低敏错误 |
+
+- [x] 追加 ConversationPageRepository/MessagePageReadRepository Port，当前 MySQL Repository 与 Service 接线；Proto/HTTP 字段不变，Web/Mobile 数据层保持字符串 Cursor。
+- [x] 消息按 ID 倒序而非单独时间排序；会话先按首次上界分组，再应用已交付的最新消息 ID 下界，避免同一会话跨页重复。上界不是跨请求事务快照，不覆盖低 ID 延迟提交保证。
+- [x] 仅同步标记本页交付给接收者的消息 ID；未获取历史、前瞻行和新消息保留未读。更新失败明确返回错误，去除旧异步全会话标记。该边界从 M4-R2 前移以保证分页语义。
+- [x] 补 SQL DryRun 与 Service/Gateway Fake 测试：同毫秒、大整数、100/101 条、并发新增、跨用户/非法游标、取消、坏页、空页、失败与身份限制；新增 Mobile 数据层契约测试源码。
+- [x] 新增独立索引迁移 SQL；本轮未执行 DDL、启动容器或改写历史数据。批量读取替代逐会话/资料 N+1，但大历史会话分组仍需独立投影与真实性能验收。
+- [x] Messenger 全模块测试/Race、新增 Gateway HTTP 分页测试及其定向 Race、Messenger/Gateway/入口 Vet、Gateway/两个命令入口编译通过；本轮 Go 文件 gofmt 与 diff check 通过。
+- [x] 用户要求重新提交审批后，获准执行完整 Messenger/Gateway/两个入口回归、Gateway Handler 全包 Race、Web 构建、Dart 格式化、Mobile 3 项定向契约测试与定向 Analyze，全部通过。首轮环境/审批失败已按真实过程记录并关闭本轮阻断，见 ISSUES 232。
+- [ ] 真实 MySQL 执行计划、索引部署、延迟提交及多端用户翻页旅程未验收；M4-R2 负责分页 UI/去重/重连，Redis Pub/Sub 未变成持久投递。
+- [ ] 下一轮：M2-R1 Feed 稳定分页；本轮已完成离线门禁，真实部署验收保持独立。
+
+## 架构修复 M3-R1：Follow Cursor 契约（2026-10-12）
+
+| 功能模块 | 轮次 | 状态 | 本轮交付 |
+|---|---|---|---|
+| M3 Follow 关系与派生任务 | R1 Cursor 契约 | Implemented（离线验证） | 公开粉丝/关注列表使用 FollowerPage/FolloweePage，游标来自关注关系 ID，仓储 limit+1 前瞻不被公开 100 条上限截断；Gateway 保留字符串大整数、空数组和明确参数/失败码 |
+
+- [x] 新增 FolloweePage Port；复用既有 FollowerPage Port，未修改旧 FollowRepository 接口或 Proto 字段编号。
+- [x] 测试覆盖用户 ID/关系 ID 不同序、100/101 条、空页/结束页、软删除、翻页间新增关系、非法/重复参数、取消、缺失分页 Port、坏页与大整数 HTTP 往返；SQL DryRun 验证实际 GORM 查询生成，不连接 MySQL。
+- [x] Follow/Gateway Handler 目标测试；Tweet/MQ/Gateway/Follow-Tweet-Consumer-Gateway 命令入口扩大回归；对应 Vet、Follow/Gateway Handler Race、Web `npm run build` 和格式检查通过。
+- [x] Web 已原样回传字符串 Cursor，无字段或页面代码适配；Mobile 当前没有关注/粉丝列表分页入口，未运行 Flutter 验证。旧版本在途页需从首页重新拉取。
+- [ ] 真实 MySQL 查询执行/索引计划、实际服务部署与用户翻页旅程未验收。大 V 传播/对账与 Feed 降级仍有旧 IDs-only 上限，留在 M3-R3/M2，不能将本轮描述为 Hybrid Fanout 全量修复。
+- [ ] 下一轮：M4-R1 私信历史分页。其余状态见 `docs/ARCHITECTURE_REMEDIATION_PLAN.md` 总表。
+
+## 架构修复 M1：公共搜索可见性（2026-10-12）
+
+开发主线按 `docs/ARCHITECTURE_REMEDIATION_PLAN.md` 的 **8 个功能模块、21 个轮次**执行；依据当前架构评审 F1—F10，不改变原生产上线计划的真实验收要求。
+
+| 功能模块 | 轮次 | 状态 | 本轮交付 |
+|---|---|---|---|
+| M1 搜索可见性与可信上下文 | R1 权威公共读取 | Implemented（离线验证） | 追加 GetPublicTweets RPC，直接批量读取当前 MySQL 事实，过滤删除、隐藏和非公共记录，1—100 输入项有界/去重/顺序返回 |
+| M1 | R2 MCP/RAG 接入 | Implemented（离线验证） | 共用 retrieval Adapter；当前正文校验发生在 Reranker/Evidence/认知上下文之前，取消旧索引正文兜底，生产组合根注入 |
+| M1 | R3 回归与验收 | Implemented（离线验证） | 目标五包、Agent/Gateway/相关 cmd 扩大回归、Vet、MCP/RAG/Reader Race 与差异格式检查通过 |
+
+- [x] Fake gRPC/内存 HTTP 测试覆盖旧正文替换、删除/Shadowban/私密/粉丝可见过滤、全部候选剔除、权威服务失败、非法/重复/越界响应、批量边界和取消。
+- [x] Tweet Proto 经 protoc 生成，Gateway Mock 同步新增方法；既有 HTTP/Web/Mobile 字段未变，无客户端代码修改。
+- [x] 首轮 Windows 沙箱工具/socket 失败已记录 ISSUES 230；自动审查允许的执行环境下复验及扩大回归通过，未修改旧缓存测试或业务路径以掩盖失败。
+- [ ] 先部署新 TweetService，再部署 Agent，并执行真实删除/治理后的 ES/Qdrant/MCP/认知上下文验收；本轮未启动容器、调用真实模型或修改业务数据。
+- [ ] M1 交付时 M2—M8 为 Planned；后续状态以修复计划轮次总表与最新交付记录为准。索引删除/旧创建复活、历史作者/详情工具、其他列表可见性仍按后续轮次收口，M1 不是全站授权审计完成。
+
+## 全站只读客服本机集成（2026-10-02）
+
+- [x] 根 App.vue 注册右下角可收缩小栖客服，任意路由共享同一懒加载 iframe；收缩/推文路由跳转保留会话与草稿。
+- [x] 复用既有账号；精确 Origin/source 的消息桥只传内存身份，退出/切换清空旧会话和迟到回复。未重构原站 LocalStorage 认证；移除 Login 的令牌/个人资料调试输出。
+- [x] 查询引用由 Python 校验业务记录生成，前后端限制数字推文路径，详情接口继续鉴权；演示数据不生成链接。
+- [x] 6 篇用户指南在独立客服知识库发布并验证真实召回，覆盖 Workflow 与社交操作，不扩展原Go Agent权限。窗口4状态/7错误反馈与身份隔离夹具通过；Vue消息桥普通字段快照修正已同步。
+- [x] Web 类型/构建与本机镜像通过。隔离 Live 浏览器：真实登录、推文查询与引用幂等回放、真实详情页、收缩保留、Workflow 已发布指南问答、手机布局、匿名/跨账号拒绝通过（2 用户、1 推文、2 次模型问答，数据保留）。
+- [ ] 当前为本机 iframe 5174 集成，仍需助手前端进程；生产域名/TLS/反代未验收。此测试不等于 Go Agent、用户 Workflow、MCP、Temporal 或生产故障旅程通过。
+
+## 本机演示验收预检（2026-09-26）
+
+- [x] 后续受控切换：从当前源码重新构建 Agent/Gateway 镜像，Web `npm run build` 后用 `web/Dockerfile.offline` 离线打包前端。旧镜像已保留 `rollback-20260926` 标签；三服务依次重建，运行镜像 ID 与 `20260926-2` 候选一致，容器重启次数为 0。
+- [x] 切换后 Agent 容器内 `/metrics` 可达、Gateway `/health` 为 HTTP 200、前端 `/` 与 `/agent` 为 HTTP 200。Gateway Mock 新增 Tweet RPC 方法后定向测试通过；这些只证明构建、启动和基础可达，不是认证后的 Agent E2E 或 L3/L5 Live 验收。
+- [x] 获得额外许可后，Tweet 服务亦从当前源码重建并单独切换至 `20260926-2`，旧镜像保存为 `rollback-20260926`；容器镜像 ID 匹配、重启次数为 0，Consul 有 1 个 passing 实例，Gateway 健康接口仍为 HTTP 200。
+- [ ] Agent 的 Planning-Execute、Recoverable Runs 与 External MCP 仍默认关闭；新增 Tweet 内部 RPC 尚未执行部署态调用，真实模型、MCP、工作流审批恢复和发推旅程也未执行，不得将本机演示标记为完整通过。
+- [x] 只读检查：当前 Compose 中 Agent、Gateway、Frontend 及基础依赖均处于 running；本机 Web `/agent` 与 Gateway `/health` 返回 HTTP 200。此结果只证明旧部署可达，不证明当前源码的功能旅程。
+- [x] 当前源码的 `helm lint`、staging `helm template`、Web `npm run build`、L3/L4 Runbook 指定的四个 Go 包离线测试，以及 26 项上线证据记录器自测通过。
+- [ ] 运行中的 Agent/Gateway/Frontend 镜像创建于 2026-08-12，且没有源码挂载；当前多批工作区修改没有进入容器。Agent 容器中 Recoverable Runs 为 false、External MCP 为 false、Planning-Execute 主开关未配置（默认关闭），Workflow-as-Tool 为 true。不得把这套旧容器的只读预检登记为当前源码的 L3/L5 Live 验收。
+- [ ] 在受控窗口构建并部署精确源码版本，记录镜像 digest、备份与回滚点后，按 `docs/agent_launch_runbook.md` 用明确授权的测试账户执行真实模型/MCP/审批/发推旅程；需要真实外部调用与发布授权。生产删除仍保持关闭。
+
+## 用户删除 Agent 工作流状态转换写入计数（2026-09-26）
+
+- [x] 补偿领取、完成、挂起、失败、拒绝，以及工作流运行取消和最终状态提交，在 Mongo 写入前获取用户主体计数。
+- [x] 仅有补偿记录 ID 的三个入口先只读确认归属，更新条件绑定同一用户；明确未匹配且未写入的冲突释放计数，网络回执不确定仍保留阻断。
+- [x] 缺失身份边界及“确定未写入/不确定写入”的计数语义有离线回归测试。
+- [x] 本批验证：仓储与 Service 定向测试、Agent 全包及服务入口离线测试、Agent `go vet`、仓储工作流/围栏目标 `go test -race` 通过；未执行真实 Mongo 集成/故障测试。
+- [ ] 其他 Agent 直接仓储和后台写路径、正计数只读对账/受控恢复、真实 Mongo 并发与故障演练仍未完成；生产删除继续关闭。
+
+## 用户删除 Agent 工作流派生写入计数增量（2026-09-26）
+
+- [x] 工作流状态事件、周期快照、补偿计划和运行状态游标在 Mongo 写入前登记同一用户的 `active_writes`；确认成功后释放，结果不确定时保留阻断。
+- [x] 事件和补偿计划批量写入拒绝混合用户或缺失身份；保持原有幂等 Upsert、版本游标与冲突错误语义。
+- [x] 本批验证：仓储定向测试、Agent 全包及服务入口离线测试、Agent `go vet`、仓储工作流/围栏目标 `go test -race` 通过；未运行真实 Mongo 集成测试。
+- [ ] 补偿领取/完成/挂起/失败/拒绝、运行取消/最终提交，以及其他 Agent 直接仓储与后台写路径仍未全覆盖。错误后正计数缺少受控核对/恢复，真实 Mongo 并发和故障演练未完成；生产删除继续关闭。
+
+## 用户删除 Agent 工作流写入计数增量（2026-09-26）
+
+- [x] 工作流定义创建/更新与运行记录创建/更新在仓储写入前登记主体计数；旧工作流首次读取时的惰性版本补建也登记。
+- [x] 四个基础写入口拒绝缺失用户归属的记录；成功确认后释放计数，结果不确定时保留计数以阻断删除。
+- [x] 本批验证：Agent 全包与服务入口离线测试、Agent `go vet`、仓储工作流/围栏目标 `go test -race` 均通过；未运行真实 Mongo 集成测试。
+- [ ] 工作流事件、快照、补偿记录、运行控制及其他 Agent 直接仓储/后台写入口未全部覆盖；正计数的只读对账与受控恢复、真实 Mongo 并发/故障注入和 staging 验收仍缺失。生产删除继续关闭。
+
+## 用户删除 Agent 对话写入计数（2026-09-26）
+
+- [x] Agent Mongo 用户主体新增原子 `active_writes` 计数；未围栏时获取写入资格，围栏安装只允许零进行中写入。无需 Mongo 事务，兼容当前单节点开发环境。
+- [x] `CreateDialogue`、`SaveMessage`、`SaveMessages` 在真实写入前登记，同一批消息校验用户归属。成功确认后释放；Mongo 写入结果不确定时保留计数，禁止删除抢跑。
+- [x] 离线测试覆盖写入期间拒绝安装围栏、非法负计数、取消后的成功释放、失败写入保留阻断，以及冻结用户不能启动写入。
+- [x] 本批验证：`go test ./internal/module/agent/... ./cmd/agent-service -count=1`、`go vet ./internal/module/agent/... ./cmd/agent-service`、Repository 围栏目标 `go test -race` 与 `git diff --check` 通过；未执行真实 Mongo 故障演练。
+- [ ] 其他 Agent 持久化路径尚未全部纳入计数；崩溃或结果不确定留下的计数需要专门的只读核对与受控恢复协议。生产删除仍关闭；真实 Mongo 并发与故障注入验收尚未完成。
+
+## 用户删除跨服务写围栏增量（2026-09-26）
+
+- [x] 新增未注册的 Agent Mongo + Tweet MySQL 复合围栏适配器；先取得 Agent 收据，再调用 Tweet 内部安装 RPC，形成绑定两项权威摘要的 v2 回执。部分失败保留已安装围栏，可按同一请求重试。
+- [x] Agent Mongo 仓储向 Service 提供统一写授权；对话、Run、Workflow、Provider、MCP、模板、审批、项目及部分后台回写入口接入检查。项目创建、成员添加和补偿重试补齐；冻结目标用户不能被重新加入项目。
+- [x] 复合回执拒绝重复/非法权威、未来时间和错误 Tweet 来源；覆盖取消执行、部分失败及入口阻断测试。Agent 全包离线回归通过。
+- [ ] 生产删除继续关闭：Agent 目前是写前预检查，未与 Mongo 写入事务/租约串行化；直接仓储与后台写路径也未全部覆盖。生产 Registry、Worker 调度、用户 API、跨存储故障恢复和 staging 验收仍未接入。不得把本轮回执视作删除安全的充分证据。
+
+## 用户删除可恢复协议（2026-09-25）
+
+- [x] 完成固定八阶段 Plan、确定性 Inventory/Plan Digest、Revision Checkpoint、严格依赖、租约接管和 Receipt/Failure 约束。
+- [x] 预检成功持久化协议初始快照；Legal Hold、Subject Busy 或清单失败不生成可误用执行计划。
+- [x] 覆盖阶段篡改、超长租约、租约过期、失败重试和未知外部存储的 fail-closed 测试。
+- [x] 完成阶段级 Mongo 双 Revision CAS、Plan Digest 绑定和控制面 Claim/Complete Coordinator；复用 Retention Subject Lease 阻断 Legal Hold/并发执行，并阻止预检或取消覆盖活动阶段。
+- [x] 完成不可变 Capability Registry/Snapshot：适配器身份与版本参与稳定摘要，Plan 绑定快照摘要，Claim/Complete 在获取执行租约前按当前注册表复验，部署能力漂移时 fail-closed。
+- [x] 完成有界追加审计：Claim/Success/Failure 事件以序号、前序摘要、Plan/Capability Digest 和双 Revision 形成哈希链，并与 Checkpoint 在同一 Mongo CAS 中原子追加；执行开始后禁止重新预检覆盖审计。
+- [x] 离线验证：删除领域/服务/仓储目标测试、Agent 全包回归、三个目标包 Race/Vet 与差异格式检查通过；未启动服务、容器或数据库，未访问公网、模型或付费 API。
+- [x] 完成存储无关的破坏性 Adapter v1 契约：稳定 Operation Key、短期 Legal Hold 决策、用户身份摘要、固定 Scope、幂等 Receipt 回放、独立 Post-state 读回与零残留验证均可复用；合规夹具覆盖单次变更、同键回放、Hold/过期拒绝、能力/Scope 漂移和伪造证据。
+- [x] 完成未注册的 Mongo owned-data Adapter 边界：预检与执行共用 18 类独占集合清单，项目级 MCP/共享关系和治理记录被排除；事务内重验 Legal Hold Revision/Evidence、删除、逐集合零残留计数并持久化不可变幂等回执。未接 Worker、CLI 或生产注册表。
+- [x] 完成未注册的共享关系 Adapter：同一 Mongo 事务内重验治理与所有权，只解绑非 Owner 项目成员、个人 MCP Connection/Snapshot 与 Profile Role Binding，并持久化零残留幂等回执；项目 Owner、项目级 MCP 创建者和 Marketplace Publisher Owner 必须先显式转移。
+- [x] 完成未注册的可恢复用户删除 Worker：严格按八阶段 Claim/Complete 租约执行，阶段失败写入固定失败码并只重试失败阶段；每个破坏性 Adapter 调用前重新签发 Legal Hold 治理决策，删除后立即读回并校验结构化 Receipt/Post-state。
+- [x] 完成跨存储验证与最终确认：五个权威 Adapter 再观察必须全部零残留；最终收据绑定 Plan、Capability Snapshot、Checkpoint Revision 与前七阶段回执摘要，最后一次 Checkpoint/审计 CAS 同时把请求原子置为 completed。
+- [x] 完成未注册的 Agent Mongo Fence Authority：Fence Identity 持久化在 retention subject，首次安装使用 Legal Hold Revision CAS；同请求可携新的短期治理凭据重入，竞争请求、治理漂移和损坏记录均 fail-closed，并提供 `AuthorizeSubjectWrite` 写授权契约。
+- [ ] 生产仍不可执行：Agent Service 仅有主要入口的写前授权，未覆盖全部写路径或关闭写入竞态；Worker 未接后台调度/CLI/组合根，用户 API、所有权转移、真实 Mongo 副本集与 MinIO/Qdrant/Tweet 故障恢复、大用户批次及 staging Live Evidence 仍待完成。
+
+## 上线收口阶段（2026-09-25）
+
+> 唯一上线计划：`docs/PRODUCTION_LAUNCH_COMPLETION_PLAN.md`
+
+- [x] 完成生产调用链真实性审计：确认短计划/VerifiedRunner 尚未进入 `RunAgent` 主链，MCP/Workflow 能力默认关闭，不能按“已上线”口径描述。
+- [x] 将会话语义摘要与长期记忆统一接入 Chat、站内/公网检索、External MCP、Workflow 与 Skill Runtime。
+- [x] 增加 `AGENT_SESSION_SUMMARY_MODEL`、`AGENT_SESSION_SUMMARY_MIN_MESSAGES`、`AGENT_SESSION_SUMMARY_IDLE_DELAY` 部署配置。
+- [x] Agent Service 与组合根离线定向测试通过。
+- [x] 完成语义摘要低基数指标、Mongo 到期调度与租约 Worker，并以事实/偏好/决定/纠正/注入残留五类固定样本验证长会话预算边界。
+- [x] 完成 Planning-Execute 第一增量：站内搜索以稳定用户灰度进入默认关闭的短期模型规划、确定性准入和 VerifiedRunner 主链，并持久化低敏计划/用量/验证证据。
+- [x] 补齐 Planning-Execute 低基数指标、脱敏 Run 查看与加密 Verified Checkpoint 人工澄清恢复；恢复时重新求交当前授权工具并验证现实证据。
+- [x] 完成 Web Research 第二个只读迁移：独立默认关闭灰度、搜索到页面双证据、缺页阻断、低基数指标和人工澄清后的重新授权恢复。
+- [x] 已按 MCP、Workflow、审批写入顺序完成 Planning-Execute 离线迁移，并逐项覆盖撤权、恢复和回滚；下一步进入真实 MCP/Workflow 与部署态验收。
+- [x] 完成 Agent 应用数据保留 Worker：覆盖对话、执行 Trace、Workflow/Agent Checkpoint 与 Tool Result，具备 Mongo 跨实例租约、逐候选 Claim、有界批次/超时、默认关闭与 Dry-run、对象先删后清引用和低基数指标。
+- [x] 将 retention 参数接入本地 Compose、生产覆盖、Helm 与环境变量示例，并补充分阶段启用和回滚手册。
+- [x] 增加用户级清理 Guard、Legal Hold 互斥与默认预览 CLI；增加对话孤儿消息扫描、24 小时宽限和单条 Claim 回收，避免依赖 Mongo 事务。
+- [x] 增加私有 MinIO Tool Result 孤儿对象只读审计：有界 Cursor、年龄宽限、Mongo 引用逐项复核、键摘要报告和查询失败 fail-closed；因旧对象键无法安全复用用户级 Legal Hold Guard，暂不提供删除模式。
+- [ ] 在 staging 审核至少两个 Dry-run 周期，演练 Hold/清理竞争、真实删除和恢复，并完成用户删除流程与 MinIO 已孤立对象生命周期后，才允许开启破坏性删除。
+- [ ] 完成 External MCP 与 Workflow-as-Tool 的真实部署验收、撤权和审批恢复演练。
+- [ ] 完成生产部署覆盖、Secrets、TLS、健康检查、备份恢复、监控告警、数据保留执行验收与灰度回滚。
+- [ ] 完成 staging E2E、故障注入、修复和正式上线。
+
 ## 📋 项目概述
 
 基于 Go 语言的 Twitter 仿真微服务系统，采用云原生架构部署在 Kubernetes (Minikube) 上。
@@ -1152,3 +1565,166 @@ P2 第一、第二增量验证：
 - [x] **兼容边界**：保留 `compat.chat/consult/assist`，因为历史 Dialogue Mode 恢复和产品指标仍引用这些值；本轮没有迁移持久数据或删除旧会话能力。
 - [x] **离线验证**：Planner/Unified Agent 定向测试、Agent Service 全包测试与 Service `go vet` 通过；未联网、调用模型/付费 API、数据库或 MCP，也未启动/重启服务。
 - [ ] **下一增量**：审计 `unified_agent.go` Profile switch 与 Multi-Agent 固定模板的重复编排，只删除可证明无调用者或已有等价 Runtime 路径的分支；Marketplace/Profile 继续冻结。
+
+## 2026-09-24 上线收口 L2：External MCP 只读 Planning-Execute
+
+- [x] **独立默认关闭灰度**：新增 `AGENT_PLANNING_EXECUTE_EXTERNAL_MCP_READ_ENABLED`；只有 Planning 主开关、非零稳定用户灰度、External MCP 总开关与该路由开关同时满足时，`runtime.external_mcp` 才进入短计划执行，关闭后原样回退既有 Runtime 路径。
+- [x] **只读目录最小暴露**：Planning 路径只从 `ListExecutableTools` 获取当前租户可执行的只读工具，风险/写工具不会进入 Planner 或计划任务；无只读工具时保留原治理路径，目录读取错误立即返回且不被后续查询掩盖。
+- [x] **真实完成证据**：计划任务复用 `ExternalMCPReadGoalCollector/Verifier` 与 External MCP Environment；只有允许工具的成对成功 Action/Observation 且前后授权快照一致时才完成，缺失 Observation fail-closed。
+- [x] **恢复时重新授权**：`goal.v1` Checkpoint 固定初始 Task 工具集合；人工澄清恢复重新读取当前连接、项目成员、Active Snapshot 与 Tool Policy，撤权后在 Runtime/远端调用前失败，不允许恢复时扩权。
+- [x] **离线验证**：新增独立开关、读写混合目录最小暴露、缺失证据阻断、Legacy 回滚与暂停后撤权五类测试；Agent Service 全包测试及 Service race 检查通过。未访问真实 MCP、模型、公网、数据库或付费 API，未启动或重启服务。
+- [ ] **下一批**：迁移 Workflow-as-Tool 只读 Planning-Execute，继续复用不可变 Publication/Revision、父子 Run 和权威 child output 证据；之后再评估审批写入迁移，不扩张 Marketplace、Profile 或新管理控制面。
+
+## 2026-09-24 上线收口 L2：Workflow-as-Tool 只读 Planning-Execute
+
+- [x] **独立默认关闭灰度**：新增 `AGENT_PLANNING_EXECUTE_WORKFLOW_READ_ENABLED`；只有 Planning 主开关、非零稳定用户灰度、Workflow-as-Tool 总开关与该路由开关同时满足时，`runtime.workflow` 才进入短计划执行，关闭后原样回退既有 Runtime 路径。
+- [x] **当前发布目录最小暴露**：Planner 只接收当前用户 Active Publication 生成的只读 Workflow Tool；目录继续重验用户所有权、Publication Revision、不可变 Workflow Revision/DSL Hash 和可发布策略，未发布、漂移或重复绑定均 fail-closed。
+- [x] **权威完成证据**：计划任务复用 Workflow Environment 与 `WorkflowToolGoalCollector/Verifier`；只有结构化结果同时匹配前后不可变发布快照、父 Run/Action、用户隔离的权威 child Run、成功状态和 OutputJSON digest 才完成，模型声明或伪造 Observation 不能通过。
+- [x] **恢复时重新授权**：`goal.v1` Checkpoint 固定初始 Task 工具集合；人工澄清恢复重新读取当前 Active Publication 并与原集合取交集，暂停期间停用发布会在 Runtime Resume 前失败，不执行旧版本工具，也不允许恢复时扩权。
+- [x] **回滚、指标与配置**：Workflow Profile 纳入低基数 Planning 指标；组合根、`.env.example` 与 Compose 增加独立开关，默认均关闭。Legacy Runtime 保持单开关即时回滚所有者，未新增执行器或 Profile 分支。
+- [x] **离线验证**：新增独立开关、真实 child Workflow 成功证据、伪完成阻断、Legacy 回滚与暂停后停用发布五类测试；Agent Service、Runtime、Evidence、Environment 及全 Agent 包普通测试、Workflow 定向 Race 和 Agent/Cmd Vet 全部通过。未访问模型、Mongo、Redis、MCP、公网或付费 API，未启动或重启服务。
+- [x] **下一批已完成**：External MCP 审批写入已迁移至 Planning-Execute，复用现有 Approval/Resume、稳定幂等键和当前授权证据；未扩张 Marketplace、Profile、Workflow 节点或管理控制面。
+
+## 2026-09-24 上线收口 L2：External MCP 审批写入 Planning-Execute
+
+- [x] **独立默认关闭灰度**：新增 `AGENT_PLANNING_EXECUTE_EXTERNAL_MCP_WRITE_ENABLED`，且强制依赖 `AGENT_UNIFIED_APPROVAL_RECOVERY_ENABLED`；关闭后继续使用原 governed Runtime，读灰度不因此扩大权限。
+- [x] **Planner 不拥有授权**：写灰度读取当前租户 `ListGovernedTools`，确定性 Planning Policy 从 ToolDefinition 写入类别和审批要求；`PlannedVerifiedRunner` 只允许无审批 read 或必须审批的 risky/write，非法组合 fail-closed。
+- [x] **完整审批检查点**：Planning 写动作返回 `approval_required` 时加密保存完整 `goal.v1` VerifiedCheckpoint，而非降级为 `react.v1`；一次性 Resume Grant 和恢复入口均识别该版本，并继续绑定原 Task、Plan、Environment Snapshot、动作与审批。
+- [x] **重授权与幂等**：批准恢复重新读取当前连接、成员关系、Active Snapshot、Tool Policy 与 Profile，精确校验审批的 Run/Step/Tool/Input Digest/Idempotency Key；平台注入稳定远端幂等键，完整回归证明远端调用一次且重复 Resume Token 被拒绝。
+- [x] **完成证据边界**：新增 `ExternalMCPGovernedGoalCollector/Verifier`，证明稳定租户授权/Schema/Policy 快照下的成对成功 Observation。通用 MCP 无统一业务查询接口，因此具体第三方后状态读回归入 L3 Live Acceptance；第一方 Tweet 继续由显式 `ConfirmPublishTwitter` 与 Timeline 后状态验证负责，不新增 Planner 发布能力。
+- [x] **离线验证**：Runtime 写计划审批挂起、governed Evidence、服务路由及完整“计划 -> 挂起 -> 加密持久化 -> 批准 -> 恢复 -> 单次远端调用”回归已通过；Runtime/Environment/Evidence/Workflow Tool/Service 受影响包测试、关键链路 Race、受影响包 `go vet`、Compose 配置解析与 `git diff --check` 均通过。未访问模型、公网、真实 MCP、数据库或付费 API，未启动/重启服务。
+- [ ] **下一批**：进入 L3 MCP/Workflow Live Acceptance 与生产部署收口；需要用户明确提供真实 MCP、部署目标和 Secret 交付方式后才执行联网/写验收。
+
+## 2026-09-24 上线收口 L3：Helm 灰度入口与验收证据交付
+
+- [x] **Planning-Execute 生产接线**：Helm Values 与 Agent Deployment 已接入主开关、稳定用户 canary、平台/Web/MCP 读写/Workflow 独立路由、输出上限和修复次数；模板校验所有依赖关系，默认保持关闭。
+- [x] **会话与 Runtime 配置补齐**：Helm 接入 `AGENT_RUNTIME_V2_MODES` 和全部 `AGENT_SESSION_SUMMARY_*` 配置，避免 Compose 已可用而 Kubernetes 缺少同等能力。
+- [x] **角色感知健康检查**：Agent Service 注册标准 gRPC Health Check；api/all 使用 gRPC startup/readiness/liveness，worker 使用 metrics TCP 探针；优雅关闭前先切换为 NOT_SERVING。
+- [x] **验收报告交付**：MCP Acceptance Job 保持 `backoffLimit: 0`，支持将签名报告写入已有 PVC；模板拒绝相对挂载路径和带路径分隔符的文件名，避免写入越界或覆盖路径混淆。
+- [x] **安全灰度样例**：新增 `values-agent-staging.example.yaml`，只提供占位镜像、资源和默认关闭的小流量配置，不包含真实 Endpoint、Token 或密钥。
+- [x] **运维边界**：新增 `docs/agent_launch_runbook.md`，明确 Secret 文件交付、先读后写、Workflow 父子证据、故障演练、独立回滚和“离线通过不等于真实上线”的停止线。
+- [x] **离线验证**：gRPC Health 定向测试、Helm 默认/灰度/worker/验收 Job 正向渲染和依赖/路径负向门禁已通过；未访问公网、模型、真实 MCP、数据库或付费 API，未启动/重启服务。
+- [ ] **真实 L3 证据**：仍需在目标 Kubernetes 环境执行第三方 MCP 读/审批写、旧凭据与成员撤销、真实 Workflow Publication 父子链路、超时/证书/DNS/Pod 故障演练。
+- [x] **下一批已开始**：L4 第一增量已新增独立生产 Compose 覆盖、仓库外 Secret 环境模板、不可变镜像/弱口令/跨开关预检和 Helm Mock Embedding 门禁；真实验收仍需部署目标和受控 Secret 文件。
+
+## 2026-09-24 上线收口 L4：生产 Compose 静态基线
+
+- [x] **开发/生产隔离**：保留现有 `docker-compose.yaml` 作为开发拓扑，新增 `docker-compose.production.yaml` 仅覆盖生产约束；生产覆盖使用 `!reset` 删除本地 build 与内部宿主机端口。
+- [x] **不可变制品**：29 个服务均要求 `repository@sha256:<digest>`，禁止 `latest`、普通 tag 和模板零 digest；应用容器只能拉取已构建镜像。
+- [x] **运行边界**：统一 `unless-stopped`、资源 reservation/limit、`no-new-privileges`；关键数据/业务服务增加健康检查，Frontend/Gateway 仅绑定 `127.0.0.1`，其余服务不发布宿主机端口。
+- [x] **Secret 与依赖门禁**：真实环境文件必须位于仓库外；预检密码/JWT/内部令牌长度、两类 32 字节 Base64 主密钥、HTTPS Provider/媒体 URL，以及 Planning/MCP/Workflow/Web Search 跨开关依赖。
+- [x] **真实模型路径**：Compose Agent/Consumer 强制 `MOCK_EMBEDDING=false` 并禁止 `host.docker.internal`；Helm 新增 `mockEmbedding=false` 默认值，Planning 开启时 Mock 直接渲染失败。
+- [x] **离线验证**：使用无真实凭据的临时夹具完成 29 服务生产渲染与预检；示例占位 digest 负向测试 fail-closed。未拉取镜像、启动容器、访问公网或调用模型/API。
+- [ ] **下一增量**：完善宿主机 TLS/Origin/Cookie 配置、数据库与对象存储备份恢复 Runbook、Agent/队列/Provider 告警和数据保留策略；随后执行 clean-host 与重启/回滚验收。
+
+## 2026-09-24 上线收口 L4：TLS、安全入口、告警与恢复门禁
+
+- [x] **唯一公网 TLS 入口**：新增 `edge-proxy`，仅其发布 `80/443`；HTTP 跳转 HTTPS，页面、API 和 WebSocket 分流到内部 Frontend/Gateway，证书与私钥通过仓库外 Compose Secret 只读挂载。
+- [x] **Origin 与 JWT 收紧**：HTTP CORS 和 WebSocket 复用精确 Origin 白名单，生产拒绝 `*`；JWT 生成与 Gateway 验证共同绑定 RS256、过期时间、Issuer 和 Audience，生产缺失配置时拒绝启动。
+- [x] **Alertmanager 鉴权去硬编码**：`/alerts` 默认使用 `Authorization: Bearer`，Token 来自至少 32 字符的 Secret 文件并常量时间比较；旧 Header 仅作为同 Secret 的滚动升级兼容入口，未配置返回 503，错误 Token 返回 401，API 文档已同步。
+- [x] **生产观测基线**：Prometheus 接入规则与 Alertmanager，覆盖 Target、HTTP 5xx、队列、Provider/LLM、Tool、MCP、Planning、Summary 与费用异常；Loki/Prometheus/Alertmanager/Jaeger 配置保留期，Promtail 移除高基数 `trace_id` Label。
+- [x] **备份完整性门禁**：新增七类备份产物的 SHA-256 Manifest 创建/验证脚本，离线测试证明单文件篡改会被拒绝；恢复顺序、RPO/RTO 和证据模板已写入 Runbook，但未声称创建了真实备份或完成恢复。
+- [x] **生产预检增强**：校验证书有效期、证书/私钥匹配、公开 HTTPS URL、Origin、JWT、外部 Secret 与唯一公网端口；一次性假证书夹具通过 `31 services / 31 images` 正向渲染，通配 Origin 负向测试通过。
+- [x] **离线代码验证**：Gateway Middleware/Router/Auth Service 目标测试与相关 Vet、PowerShell 语法、Compose 正向预检、备份创建/复验/篡改拒绝和 `git diff --check` 通过；未拉取镜像、启动/重启服务、访问公网或调用付费 API。
+- [ ] **真实 L4 验收**：仍需目标主机、真实镜像摘要、受信域名证书和 Secret，执行 clean-host 启动、浏览器 Origin/WebSocket、告警投递、真实备份恢复、服务重启与无数据删除回滚；应用级数据删除任务也仍待实现。
+- [ ] **下一批**：在用户提供目标部署参数后执行 L4 Live Acceptance；若参数尚未就绪，只准备不触网的验收记录模板与 L5 固定旅程，不再扩张控制面。
+
+## 2026-09-24 上线收口 L4/L5：签名验收证据门禁
+
+- [x] **固定检查目录**：新增 26 项 L3/L4/L5 Required Check，覆盖真实 MCP 读写/撤权、Workflow 父子链、clean-host、TLS、告警、备份恢复、重启回滚、数据删除、固定产品旅程和七类故障演练；目录不包含 Credential 或环境专属值。
+- [x] **四态事实模型**：每项只能是 `not_run/passed/failed/blocked`；通过必须绑定证据，失败/阻塞必须写原因，未执行不能携带结果。任一 Required Check 未通过时 `-RequireReleaseReady` 返回非零。
+- [x] **证据完整性**：Record、HMAC Key 和 Evidence Root 默认强制位于仓库外；记录只保存相对路径、大小和 SHA-256。计划变更、Record 编辑、附件缺失/改动、Key ID 错误和签名错误均 fail-closed。
+- [x] **脱敏与大小边界**：每项最多 8 个、单个不超过 50 MiB 的证据文件；Reason 有界并拒绝常见 Secret 赋值形态。记录不保存 Prompt、模型正文、Token、Cookie、数据库转储或 Endpoint Credential。
+- [x] **固定旅程定义**：Runbook 明确同一隔离账号上的对话压缩、站内/公网搜索、引用草稿、审批前零副作用、批准后单写、Run Inspection 与 Resume 不重放七步证据。
+- [x] **自包含离线回归**：新增脚本自动覆盖 26/26 Release Ready、未完成严格拒绝、无证据伪通过、检查目录篡改、Record 篡改和 Evidence 篡改，并自动清理夹具；未访问网络、模型、MCP、数据库或付费 API，未启动/重启服务。
+- [ ] **Live Evidence Pending**：该门禁只规范证据，不执行真实检查。下一批仍需目标服务器、域名/证书、镜像摘要、Secret 交付、Provider/Web Search/MCP 和数据保留参数后才能生成正式 Record。
+## 2026-09-25 上线收口 L4：用户删除请求与只读预检
+
+- [x] **持久化状态机**：新增 `agent_data_deletion_requests`，一个用户最多一个 Active 请求；请求通过 Revision、短租约和 CAS 在 requested、preflight running、Hold/Busy blocked、preview ready、failed 与 cancelled 间转换。
+- [x] **与 Legal Hold 互斥**：预检复用现有用户级 retention subject lease；活动 Hold 不做清单查询，重叠清理任务返回 subject busy，Mongo 查询失败记录固定失败码并 fail-closed。
+- [x] **分类只读清单**：按代码中可证明字段分别统计直接用户资产、共享项目/权限关系和必须另行治理的审计证据；覆盖 Workflow 定义/版本/状态/补偿、Provider、MCP、任务模板、发布绑定、Profile/Marketplace 和产品归因。
+- [x] **默认安全运维入口**：新增 `agent-data-deletion-request`；`request/preflight/cancel` 默认 Plan-only，必须显式 `--execute` 才修改请求控制状态，`get` 只读。命令没有物理删除动作。
+- [x] **不夸大完成度**：请求固定 `execution_supported=false`，Qdrant、MinIO 与 Tweet Service 内容保持外部未覆盖；没有用户 API 或删除执行器。
+- [x] **离线验证**：Repository/Service/CLI 目标测试、Agent 全包测试、关键包与 CLI Race、Agent 与 CLI Vet 通过；覆盖分类/租户过滤、成功预览、Legal Hold、并发 Claim、清单故障、默认 Plan-only 与 CLI 分发。未连接 Mongo/MinIO、未访问公网或付费 API，未启动/重启服务。
+- [x] **分阶段协议与控制面 CAS**：完成八阶段协议、预检快照、Mongo 双 Revision CAS、Retention Subject Lease/Legal Hold 互斥和无 Adapter 的 Claim/Complete Coordinator；CLI 与生产组合根均未接执行入口。
+- [x] **能力与审计控制面**：已补不可变 Capability Snapshot、运行时漂移拒绝、有界哈希链审计和 Checkpoint/审计同 CAS；执行开始后预检不能覆盖历史。
+- [x] **Adapter v1 契约**：已定义稳定 Operation Key、Legal Hold 短期决策、不可变 Receipt、幂等回放和权威 Post-state 零残留验证。
+- [x] **Mongo owned-data Adapter 边界**：固定 18 类独占集合并由预检共用；MCP/项目共享关系与治理记录排除。事务内完成权威治理重验、逐集合删除/计数、零残留和持久幂等回执；Adapter 未注册，未接 Worker/CLI。
+- [x] **离线验证**：Mongo Adapter/预检/通用契约目标测试、Agent 全包、Repository/Deletion Race、Vet 与差异格式检查通过；未连接 Mongo、未启动服务或容器、未访问外网或付费 API。
+- [x] **后续批次已交付**：MinIO/Qdrant/Tweet Service Adapter 边界、持久外部操作 Journal 与跨存储零残留聚合已经实现但未注册；没有真实 Mongo 副本集、故障恢复和 Live Evidence 前继续保持不可执行。
+
+## 2026-09-25 上线收口 L4：跨存储用户删除范围原语
+
+- [x] **MinIO 当前键范围**：Tool Result Store 可按租户哈希前缀有界计数和删除；每页先验证所有 Key 均属于目标前缀且符合当前格式，出现跨租户/畸形 Key 时零删除失败，删除后再次观察到空列表才返回。
+- [x] **Qdrant Filter 原语**：REST Client 增加精确 Count 与 `wait=true` Delete-by-filter，空 Filter、非法 Collection 名和异常响应均 fail-closed；共享 Episodic Memory 可复用既有字符串 `user_id` 服务端过滤。
+- [x] **Tweet Service 端口契约**：固定 authored tweets/comments、likes、bookmarks、retweets、poll votes 六类清单，命令隐藏原始用户 ID，结果摘要绑定前后计数和完成时间且强制零残留。现有逐条 DeleteTweet 没有被误接为用户级删除。
+- [x] **跨存储聚合**：报告精确要求共享关系、MinIO、Qdrant、Tweet Service、Mongo owned-data 五项 Capability Snapshot/Post-state；拒绝缺失、重复、Adapter 漂移、跨用户状态、未来观察和任意残留，报告仅保存 Subject Digest。
+- [x] **离线验证**：Qdrant、Object Store、Deletion 三个目标包测试通过；未连接 MinIO/Qdrant/Tweet/MySQL/Mongo，未启动服务、访问公网或调用付费 API。
+- [x] **后续 Adapter 边界已交付**：统一持久幂等/治理重验包装、Tweet 内部 RPC 与共享关系 Adapter 已实现但均未注册；在 Worker、最终确认、真实故障恢复和 Live Evidence 完成前 `execution_supported=false` 不变。
+
+## 2026-09-25 上线收口 L4：Tweet 用户删除内部事务边界
+
+- [x] **受保护内部 RPC**：新增 `ObserveTweetSubjectData` 与 `DeleteTweetSubjectData`，服务端和 Agent Client 都纳入既有 `pkg/serviceauth` 精确方法白名单；Token 缺失时 fail-closed，不暴露到 Gateway 或用户 API。
+- [x] **单事务删除与派生清理**：Tweet Service 在一个 MySQL UoW 内硬删除主体拥有的 authored tweets/comments、likes、bookmarks、retweets、poll votes，同时移除作者 Tweet 的投票/互动依赖，并为每条作者 Tweet 写幂等 `TWEET_DELETED` Outbox。提交后只做尽力缓存失效，不能把缓存成功冒充事务成功。
+- [x] **持久幂等回执**：新增 `tweet_subject_deletion_operations`，Operation Key 唯一绑定 Subject/Governance Digest，回执只保存前后计数、完成时间和 SHA-256；同键回放不重复删除或写 Outbox，命令最长有效 15 分钟，残留记录、篡改回执和冲突重放均 fail-closed。
+- [x] **有界事务**：单次最多处理 1000 条作者 Tweet，超过上限返回明确错误，未实现批处理协议前不尝试无界事务。原始用户 ID 仅在内部认证调用与 SQL 边界使用，不进入持久删除回执。
+- [x] **未注册 Agent Adapter**：新增 gRPC Adapter 负责请求/响应双重契约校验，但没有加入 Capability Registry、Worker 或 CLI；它不能替代调用前 Legal Hold 权威重验，也不改变 `execution_supported=false`。
+- [x] **离线验证**：Agent Deletion、Tweet Service/gRPC/Repository、Agent/Tweet 组合根定向测试与相关 Vet 通过；覆盖成功、零残留、幂等回放、治理冲突、过期命令、超量拒绝、Proto 字段兼容和篡改回执。未连接 MySQL/Redis/RabbitMQ/Mongo/MinIO/Qdrant，未启动或重启服务，未访问外网或付费 API。
+- [ ] **Tweet 历史残留边界**：本批零残留只证明固定六类主体记录；旧 `outbox_events` 的内容/身份保留及他人回复形成的不可见孤儿内容尚未进入权威清单。Canal 日志已停止输出 Payload，但生产删除前仍需明确有界事件保留和孤儿内容策略。
+- [x] **共享关系 Adapter**：已在后续批次实现事务内安全解绑与三类所有权 blocker；未注册、未接 Worker。
+- [x] **Worker 与最终确认**：已实现未注册的八阶段 Worker、失败阶段恢复、结构化写栅栏/破坏性 Adapter 回执复核、五存储零残留报告和最终状态原子 CAS。
+- [x] **Agent Fence Authority**：Mongo retention subject 已持久化 Fence Identity，原子安装时重验 Legal Hold Revision；同请求重入、竞争请求、治理漂移和损坏记录均有离线契约覆盖。当前没有接入生产 Worker。
+- [x] **Tweet 本地门闩已完成**：每用户固定行、事务锁、六类写入口拦截、删除前置校验与受认证安装 RPC 已由下一批交付。
+- [ ] **下一批**：建立 Agent/Tweet 组合门闩回执，并让 Agent 侧全部主体写入口消费统一 Authorizer；完成跨服务栅栏前不设计后台调度或用户 API，不改变 `execution_supported=false`。
+
+## 2026-09-26 上线收口 L4：Tweet 主体写门闩
+
+- [x] **持久串行化锚点**：新增 `tweet_subject_write_fences`，每个用户固定一行；正常写与门闩安装都在业务 UoW 内先创建锚点再 `FOR UPDATE`，关闭“预检查后删除并发写回”的 TOCTOU 窗口。
+- [x] **六类写入口覆盖**：发布 Tweet/投票、点赞、评论、投票、收藏与转发均在同一事务先调用 `AuthorizeSubjectWrite`；依赖缺失、记录损坏或已安装门闩都 fail-closed。收藏、转发和投票仓储已改为消费外层事务。
+- [x] **删除顺序门禁**：用户级物理删除事务先调用 `RequireSubjectWriteFence`；未安装门闩时不读取删除清单、不删除业务数据、不写 Outbox 或完成回执。
+- [x] **内部安装契约**：新增 `EnforceTweetSubjectWriteFence` gRPC，绑定 Request、Subject、Plan、Capability、Governance Digest 和短期 Deadline；同请求重放返回既有 Revision，竞争请求返回冲突。RPC 纳入既有服务身份精确白名单，不暴露到 Gateway。
+- [x] **错误语义与生成契约**：用户写 RPC 将已删除主体、门闩损坏或门闩依赖缺失映射为 `FailedPrecondition`；Proto 字段号和方法兼容测试覆盖新增契约，Go/gRPC 文件由本地 `protoc` 重新生成。
+- [x] **离线验证**：Tweet Service/Repository/gRPC 全包、Agent Deletion Client、Tweet/Agent 组合根定向测试通过；关键 Tweet 包 Race 与受影响包 Vet 通过。未连接 MySQL/Mongo/Redis/RabbitMQ，未启动或重启服务，未访问公网或付费 API。
+- [ ] **仍未上线**：Agent 侧全部主体写入口尚未统一授权，Agent Mongo 与 Tweet MySQL Authority 尚未形成单一跨服务 Fence Receipt；生产 Capability Registry、后台调度、用户 API 与 Live Evidence 继续为空，`execution_supported=false` 不变。
+
+## 2026-09-26 Agent 本地真实链路验收（非生产放行）
+
+- [x] **隔离账号与真实模型**：通过正常注册/登录创建隔离账号，`qwen-plus` 完成对话 Run；没有复用管理员身份。DashScope 兼容请求的两处参数错误已修复，见 Issue 224。
+- [x] **Planning-Execute 站内搜索**：临时启用 Recoverable Runs、49% 稳定灰度及仅站内搜索路由后，Run `6ab7bb8ca32162e8bebbe99a` 完成；持久记录显示 `runtime.platform_search`、`planning_calls=1`、`goal_status=verified`、`verification_status=passed`，Provider 为 DashScope，规划用量为 728 Token（Provider 精确值）。这不是联网搜索、MCP 或所有 Planning 路由的验收。
+- [x] **Recoverable Runs 最小持久性**：已完成对话 Run `6ab7b3edff049d840935efba` 在 Agent 重启后仍可按原账号读取，状态 `completed`、revision 2；未验证挂起审批、租约接管或跨副本 Resume。
+- [x] **显式发布**：草稿 Run `6ab7b6761f070a931b8f1a3b` 产出精确测试文案，调用 `/agent/confirm` 后 Tweet `2103819831835901952` 在详情 API 与作者时间线均可读回；Mongo Run 已记录 `publishable_draft=true` 和该 Tweet ID。只使用隔离测试账号，未自动发布。
+- [x] **灰度回滚**：隔离账号无挂起/运行中 Run；临时检查点密钥、Planning、Recoverable、External MCP 和统一审批恢复环境变量均已撤回，Agent 容器保留修复后的镜像并恢复原有关闭状态。
+- [ ] **真实 MCP 与审批恢复**：本机协议夹具仅提供 HTTP，带 Bearer 的连接被 HTTPS 安全门禁正确拒绝；没有真实第三方 HTTPS MCP 及凭据，未执行读/审批写、挂起恢复、撤权或故障注入。不得以本地夹具替代第三方证据。
+- [ ] **其余上线门禁**：Workflow-as-Tool 父子 Run、浏览器 UI（本机自动化 ACL 故障）、持久 Checkpoint Secret、生产 TLS/备份恢复/回滚及 26 项签名验收记录仍未完成。此次本地成功不等于 L3/L4/L5 放行。
+
+## 2026-09-26 Agent 演示问题复核（仍非生产放行）
+
+- [x] **会话排版**：Agent 回答改为 Vue 安全结构渲染，支持段落、三级内标题、列表、引用、代码块及受限 HTTPS/HTTP 文本链接；默认对话提示词要求长回答自然分段。未引入 `v-html` 或 npm 新依赖，尚未在真实登录浏览器完成视觉验收。
+- [x] **会话用量可见性**：对历史消息中的唯一 Run ID 有界并发读取现有权威 Accounting API，在对话顶部展示已核算总 Token，单条回答展示该 Run Token。旧消息无 Run ID、查询失败或子工作流数据不完整时标记“部分/不可用”，不把缺失数据记作零。隔离账号对话 `000000001fcb31ab13d6fc08` 的 Run `6ab7d03fde54a8607748bcd6` 实际读取到输入 734、输出 6、总计 740 Token；尚未验证大对话的线上延迟及浏览器展示。
+- [x] **热榜零分根因**：本地 Redis `trends:global` 旧条目已衰减至约 `10^-40`，旧实现转成 `int32` 后返回 0；Tweet 查询现过滤 `<1` 的非活跃话题并对有效分数四舍五入，Explore/侧栏使用后端同一话题词，显示“近期热度”而非错误的“推文数”。旧推文可搜索不等于近期热点。Redis 回归与 Web 构建通过；受控保留回滚镜像并更新 Tweet/Frontend 后，`/agent` 返回 200，`/trends` 对当前无活跃话题返回空列表。浏览器视觉验收仍因本机 CUA ACL 故障未完成。
+- [x] **发布与审批代码路径**：Workflow 编辑器已有显式 `PublishTweet` 节点；普通聊天无写工具，草稿发布是独立确认动作，所以这两条路不会自然弹出工具审批。PublishTweet Workflow、父子审批桥接和幂等恢复四个离线回归通过。
+- [x] **真实 Workflow 审批**：隔离账号 Run `6ab7cfd1de54a8607748bc64` 挂起后在审批收件箱可见，拒绝后 Run 为 rejected 且目标推文不存在。另一隔离账号 Run `6ab7cfffde54a8607748bc95` 在审批前无推文，批准并签发恢复授权后只发布一条唯一标识的测试推文；重复 Resume 被拒绝，推文仍只有一条。这验证直接 Workflow 写节点的拒绝、批准和幂等性，不覆盖 Workflow-as-Tool 父子审批或重启恢复。
+- [x] **部署状态**：Agent、Tweet、Frontend 从当前源码离线重建并受控切换，原镜像有 `rollback-20260926-*` 标签；Agent 临时验收开关回到 Compose 配置值：Planning-Execute、Recoverable Runs、External MCP 关闭，Workflow-as-Tool 保持开启。`/agent` 返回 HTTP 200。
+- [ ] **非 MCP 待验收**：Workflow-as-Tool 父子审批、过期/重启恢复，浏览器排版与会话 Token 视觉检查，Provider 超时、预算耗尽、畸形模型、Redis/Mongo 重启，以及 L4 TLS/备份恢复/回滚/告警和 26 项签名证据门禁。MCP 真实第三方读写、撤权与故障演练由用户决定稍后执行。
+
+## 2026-09-26 对话用量历史兼容修复
+
+- [x] 根因：`AGENT_RECOVERABLE_RUNS_ENABLED=false` 时普通 Runtime 仍给消息生成 `run_id`，但不写入 Execution Run；`GetAgentExecutionRun` 又把关闭写入开关当成历史读取禁令，导致“运行用量”弹窗返回 `agent execution run store is unavailable`。上轮仅验证了开关开启期间创建的隔离 Run，未覆盖用户当前模式。
+- [x] 已存在的 Run 在关闭新可恢复执行后仍可按用户身份只读；对话历史只投影 Mongo 消息中已保存的 Runtime Token 总量与估算标志。前端优先读权威 Run，缺失时展示“仅有消息记录用量”，既不伪造输入/输出拆分，也不把缺失当零。新回复保存后回读消息用量，页面切换时停止旧会话的结果回填。
+- [x] Proto 新字段仅追加，旧客户端兼容；Go 定向回归、Gateway 回归、Web 构建通过。部署态登录浏览器视觉检查与旧记录实际回读仍待验证。
+
+## 2026-09-27 全功能离线部署交付（线上待验收）
+
+- [x] 生成 `20260927-ecs3-full`：11 个业务镜像、18 个第三方镜像和全量 Compose 所需的 Prometheus、Promtail、Grafana 挂载配置；旧版包与镜像保留用于回滚。
+- [x] 独立 `.env` 沿用已有数据库、模型、内部服务和加密凭据，启用 Workflow-as-Tool、Skill Catalog、Recoverable Runs、Planning-Execute 100% 灰度、External MCP、统一审批恢复及其他已实现的用户路径；压缩包不含密钥。
+- [x] Compose 静态解析、功能开关、镜像清单、29 个归档的 SHA-256 和压缩包内容校验通过。
+- [ ] 新服务器受控替换 `.env`、导入镜像并重建服务后，分别验收工作流发布、真实模型、站内/Web、MCP 授权与审批恢复、发推和监控。真实 MCP 连接、搜索 Provider Key、Marketplace 管理员身份仍需用户侧配置；此批未修改线上服务，不等于生产放行。
+
+## 2026-09-28 Python 客服 Support Query 边界（离线实现）
+
+- [x] **统一内部端点**：新增默认关闭的 `POST /internal/v1/support/query`，通过 operation registry 执行只读能力；当前只注册 `content.list_recent`，没有问题类别路由，也没有在 Gateway 访问数据库。
+- [x] **可信主体与纵深授权**：短期服务 JWT 严格校验 issuer/audience/subject/HS256/时间/jti；用户主体只取 `act.user_id`。`content.list_recent` 拒绝未知参数，并强制用该主体调用 Tweet `GetUserTimeline`，下游返回跨主体数据时 fail-closed。
+- [x] **防重放与幂等**：JWT `jti` 和 `actor + tool_call_id` 均使用 Redis 原子键与 TTL；同一工具调用的相同请求可安全重试，不同请求返回 `tool_call_conflict`。Redis 缺失时启用配置直接拒绝启动，请求期故障返回固定 503。
+- [x] **最小披露证据**：响应仅返回资源引用、可见性、时间和聚合计数，不返回 Tweet 正文、原始用户 ID、服务地址或下游错误文本；Trace 仅记录低基数 operation/result/duration。
+- [x] **离线验证**：Support Query Module、Gateway Middleware/Handler/Router 和组合根目标测试通过，覆盖 JWT audience/actor、防重放、幂等冲突、未知 operation、伪造 user_id、跨主体下游响应与正文脱敏。
+- [ ] **真实联调待执行**：尚未启用配置、重启 Gateway 或连接 Python 服务；需要同一份仓库外 Secret、真实 Redis/Tweet Service 和隔离普通用户完成端到端 smoke。离线通过不等于生产上线。

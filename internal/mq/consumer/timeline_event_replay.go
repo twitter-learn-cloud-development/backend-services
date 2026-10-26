@@ -144,8 +144,10 @@ type TimelineEventReplayReport struct {
 }
 
 type TimelineEventDLQReplayer struct {
-	broker timelineEventReplayBroker
-	now    func() time.Time
+	broker    timelineEventReplayBroker
+	now       func() time.Time
+	inspector func(amqp.Delivery, timelineEventReplayRoute, int) (TimelineEventReplayEntry, bool)
+	declare   func(timelineRecoveryTopologyBroker) error
 }
 
 func NewTimelineEventDLQReplayer(broker timelineEventReplayBroker) (*TimelineEventDLQReplayer, error) {
@@ -163,6 +165,10 @@ func (r *TimelineEventDLQReplayer) Run(
 		return TimelineEventReplayReport{}, err
 	}
 	route, _ := timelineEventReplayRouteForKind(options.Kind)
+	return r.runRoute(ctx, options, route)
+}
+
+func (r *TimelineEventDLQReplayer) runRoute(ctx context.Context, options TimelineEventReplayOptions, route timelineEventReplayRoute) (TimelineEventReplayReport, error) {
 	mode := "inspect"
 	if options.Execute {
 		mode = "execute"
@@ -182,7 +188,11 @@ func (r *TimelineEventDLQReplayer) Run(
 		report.ReasonSHA256 = timelineEventReplayDigest([]byte(options.Reason))
 	}
 	if options.Execute {
-		if err := DeclareTimelineRecoveryTopology(r.broker); err != nil {
+		declare := r.declare
+		if declare == nil {
+			declare = DeclareTimelineRecoveryTopology
+		}
+		if err := declare(r.broker); err != nil {
 			return report, fmt.Errorf("declare timeline replay topology: %w", err)
 		}
 		if err := r.broker.EnablePublisherConfirms(); err != nil {
@@ -236,7 +246,7 @@ func (r *TimelineEventDLQReplayer) inspect(
 	report TimelineEventReplayReport,
 ) (TimelineEventReplayReport, error) {
 	for _, delivery := range deliveries {
-		entry, eligible := inspectTimelineEventReplayDelivery(delivery, route, options.MaxReplayCount)
+		entry, eligible := r.inspectDelivery(delivery, route, options.MaxReplayCount)
 		report.Inspected++
 		if eligible {
 			report.Eligible++
@@ -262,7 +272,7 @@ func (r *TimelineEventDLQReplayer) replay(
 		if err := ctx.Err(); err != nil {
 			return report, errors.Join(err, requeueTimelineEventDeliveries(deliveries[index:]))
 		}
-		entry, eligible := inspectTimelineEventReplayDelivery(delivery, route, options.MaxReplayCount)
+		entry, eligible := r.inspectDelivery(delivery, route, options.MaxReplayCount)
 		report.Inspected++
 		if !eligible {
 			report.Retained++
@@ -309,6 +319,13 @@ func (r *TimelineEventDLQReplayer) replay(
 		report.Entries = append(report.Entries, entry)
 	}
 	return report, nil
+}
+
+func (r *TimelineEventDLQReplayer) inspectDelivery(delivery amqp.Delivery, route timelineEventReplayRoute, max int) (TimelineEventReplayEntry, bool) {
+	if r.inspector != nil {
+		return r.inspector(delivery, route, max)
+	}
+	return inspectTimelineEventReplayDelivery(delivery, route, max)
 }
 
 func inspectTimelineEventReplayDelivery(

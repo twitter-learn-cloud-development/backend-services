@@ -8,8 +8,10 @@ import (
 )
 
 const (
-	ExchangeTimelineIngress = "timeline.ingress"
-	ExchangeTimelineRetry   = "timeline.retry"
+	ExchangeTimelineIngress    = "timeline.ingress"
+	ExchangeTimelineRetry      = "timeline.retry"
+	QueueTweetLikedRetryV1     = "queue.tweet.liked.retry.v1"
+	QueueCommentCreatedRetryV1 = "queue.comment.created.retry.v1"
 
 	QueueTweetFanoutRetryV2             = "queue.tweet.fanout.retry.v2"
 	QueueTweetDeleteRetryV2             = "queue.tweet.delete.retry.v2"
@@ -38,6 +40,8 @@ type timelineRecoveryRoute struct {
 }
 
 var timelineRecoveryRoutes = []timelineRecoveryRoute{
+	{sourceRoutingKey: RoutingKeyTweetLiked, ingressRoutingKey: "tweet.liked.timeline", retryRoutingKey: "tweet.liked.timeline.retry", queue: QueueTweetLiked, retryQueue: QueueTweetLikedRetryV1},
+	{sourceRoutingKey: RoutingKeyCommentCreated, ingressRoutingKey: "comment.created.timeline", retryRoutingKey: "comment.created.timeline.retry", queue: QueueCommentCreated, retryQueue: QueueCommentCreatedRetryV1},
 	{
 		sourceRoutingKey:  RoutingKeyTweetCreated,
 		ingressRoutingKey: RoutingKeyTimelineTweetCreated,

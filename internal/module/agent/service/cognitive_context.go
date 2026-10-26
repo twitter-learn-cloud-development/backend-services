@@ -32,13 +32,19 @@ func (s *AgentService) SetCognitiveEngine(memoryManager *rag.MemoryManager, casc
 			s.summaryWriter = memoryManager
 		}
 	}
+	s.startSessionSummaryWorker()
 }
 
 func (s *AgentService) buildCognitiveContext(ctx context.Context, userID uint64, query string) cognitiveContextResult {
+	started := time.Now()
+	outcome := semanticContextOutcomeDisabled
 	result := cognitiveContextResult{
 		Intent:         rag.IntentGlobalKnowledge,
 		RewrittenQuery: query,
 	}
+	defer func() {
+		s.observeSemanticContext(result.Intent, outcome, result.ChunkCount, time.Since(started))
+	}()
 	if s.memoryManager == nil {
 		return result
 	}
@@ -66,6 +72,7 @@ func (s *AgentService) buildCognitiveContext(ctx context.Context, userID uint64,
 
 	if result.Intent == rag.IntentDirectAction {
 		result.ContextBlock = buildPersonaOnlyBlock(persona)
+		outcome = semanticContextOutcomePersonaOnly
 		return result
 	}
 
@@ -80,11 +87,13 @@ func (s *AgentService) buildCognitiveContext(ctx context.Context, userID uint64,
 	)
 	if err != nil {
 		logger.Warn(ctx, "build cognitive context failed", zap.Error(err))
+		outcome = semanticContextOutcomeFailed
 		return result
 	}
 
 	result.ContextBlock = block
 	result.ChunkCount = len(chunks)
+	outcome = semanticContextOutcomeCompleted
 	return result
 }
 

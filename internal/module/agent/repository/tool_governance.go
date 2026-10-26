@@ -123,6 +123,20 @@ type ToolExecutionRepository interface {
 	FailToolExecution(ctx context.Context, executionID primitive.ObjectID, attemptID, errorMessage string) error
 }
 
+func (r *MongoAgentRepository) ToolResultReferenceExists(ctx context.Context, key string) (bool, error) {
+	if r == nil || r.executionColl == nil {
+		return false, errors.New("tool execution repository is unavailable")
+	}
+	if key == "" {
+		return false, errors.New("tool result reference key is required")
+	}
+	count, err := r.executionColl.CountDocuments(ctx, bson.M{"output_reference.key": key}, options.Count().SetLimit(1))
+	if err != nil {
+		return false, fmt.Errorf("lookup tool result reference: %w", err)
+	}
+	return count > 0, nil
+}
+
 type ToolGovernanceReconcileResult struct {
 	ExpiredApprovals       int64
 	ReleasedApprovalLeases int64

@@ -86,7 +86,11 @@ func (h *TweetHandler) CreateTweet(c *gin.Context) {
 	})
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
+		statusCode := http.StatusInternalServerError
+		if status.Code(err) == codes.InvalidArgument {
+			statusCode = http.StatusBadRequest
+		}
+		c.JSON(statusCode, gin.H{
 			"error": err.Error(),
 		})
 		return
@@ -257,34 +261,31 @@ func (h *TweetHandler) GetFeeds(c *gin.Context) {
 	}
 	defer entry.Exit()
 
-	cursorStr := c.DefaultQuery("cursor", "0")
-	cursor, _ := strconv.ParseUint(cursorStr, 10, 64)
-
-	limitStr := c.DefaultQuery("limit", "20")
-	limit, _ := strconv.ParseInt(limitStr, 10, 32)
-
+	cursor, limit, ok := parseFeedPageQuery(c)
+	if !ok {
+		return
+	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
 
 	resp, err := h.tweetClient.GetFeeds(ctx, &tweetv1.GetFeedsRequest{
-		UserId: userID,
-		Cursor: cursor,
-		Limit:  int32(limit),
+		UserId:           userID,
+		Cursor:           cursor,
+		Limit:            limit,
+		RequestingUserId: userID,
 	})
 
 	if err != nil {
 		sentinel.TraceError(entry, err) // 🎯 追踪错误以使得 Sentinel 统计错误比率触发自适应熔断
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		writeFeedPageError(c, err)
 		return
 	}
 
-	tweets := h.enrichTweetsWithUserInfo(ctx, resp.Tweets, userID)
+	tweets := h.enrichFeedTweets(ctx, resp.Tweets)
 
 	c.JSON(http.StatusOK, gin.H{
 		"tweets":      tweets,
-		"next_cursor": resp.NextCursor,
+		"next_cursor": strconv.FormatUint(resp.NextCursor, 10),
 		"has_more":    resp.HasMore,
 	})
 }
@@ -840,6 +841,10 @@ func (h *TweetHandler) enrichTweetsWithUserInfo(ctx context.Context, tweets []*t
 		userInfoMap[uid] = formatUser(resp.User)
 	}
 
+	return formatEnrichedTweets(tweets, userInfoMap)
+}
+
+func formatEnrichedTweets(tweets []*tweetv1.Tweet, userInfoMap map[uint64]gin.H) []gin.H {
 	// 3. 组装结果
 	result := make([]gin.H, 0, len(tweets))
 	for _, t := range tweets {
@@ -973,7 +978,7 @@ func (h *TweetHandler) ListTweets(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"tweets":      tweets,
-		"next_cursor": resp.NextCursor,
+		"next_cursor": strconv.FormatUint(resp.NextCursor, 10),
 		"has_more":    resp.HasMore,
 	})
 }

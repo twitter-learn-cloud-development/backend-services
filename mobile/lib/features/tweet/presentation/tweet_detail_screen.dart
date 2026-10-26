@@ -19,8 +19,6 @@ class TweetDetailScreen extends ConsumerStatefulWidget {
   ConsumerState<TweetDetailScreen> createState() => _TweetDetailScreenState();
 }
 
-class _HomeScreenScrollOffset {} // Just an empty state marker
-
 class _TweetDetailScreenState extends ConsumerState<TweetDetailScreen> {
   Tweet? _tweet;
   List<CommentModel> _comments = [];
@@ -59,11 +57,13 @@ class _TweetDetailScreenState extends ConsumerState<TweetDetailScreen> {
     try {
       final repo = ref.read(tweetRepositoryProvider);
       final tweet = await repo.getTweet(widget.tweetId);
+      if (!mounted) return;
       setState(() {
         _tweet = tweet;
         _isLoadingTweet = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isLoadingTweet = false;
       });
@@ -115,6 +115,7 @@ class _TweetDetailScreenState extends ConsumerState<TweetDetailScreen> {
     try {
       final repo = ref.read(tweetRepositoryProvider);
       final newComment = await repo.createComment(widget.tweetId, content);
+      if (!mounted) return;
       
       setState(() {
         _comments.insert(0, newComment);
@@ -137,13 +138,16 @@ class _TweetDetailScreenState extends ConsumerState<TweetDetailScreen> {
       );
     } catch (e) {
       debugPrint('Create comment error: $e');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('回复失败: $e')),
       );
     } finally {
-      setState(() {
-        _isSubmittingComment = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isSubmittingComment = false;
+        });
+      }
     }
   }
 

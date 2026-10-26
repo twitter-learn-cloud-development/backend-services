@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -21,15 +22,21 @@ import (
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/worker"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
 
 	aiAgentv1 "twitter-clone/api/aiAgent/v1"
 	tweetv1 "twitter-clone/api/tweet/v1"
 	userv1 "twitter-clone/api/user/v1"
+	"twitter-clone/internal/domain"
 	"twitter-clone/internal/infrastructure/cache"
 	mongoInfra "twitter-clone/internal/infrastructure/mongo"
 	"twitter-clone/internal/infrastructure/mq"
 	"twitter-clone/internal/infrastructure/persistence"
+	"twitter-clone/internal/infrastructure/schema"
+	agentAdmission "twitter-clone/internal/module/agent/admission"
 	agentConsumer "twitter-clone/internal/module/agent/consumer"
 	agentCredential "twitter-clone/internal/module/agent/credential"
 	agentGrpc "twitter-clone/internal/module/agent/grpc"
@@ -42,6 +49,7 @@ import (
 	agentProfile "twitter-clone/internal/module/agent/profile"
 	agentProject "twitter-clone/internal/module/agent/project"
 	"twitter-clone/internal/module/agent/repository"
+	"twitter-clone/internal/module/agent/retrieval"
 	agentRuntime "twitter-clone/internal/module/agent/runtime"
 	agentService "twitter-clone/internal/module/agent/service"
 	agentStartup "twitter-clone/internal/module/agent/startup"
@@ -94,6 +102,18 @@ func main() {
 		processPlan.StartsWorkers(),
 		processPlan.TrendingReporterOwner(),
 	)
+	sharedConfig, sharedEnabled, err := agentAdmission.FromEnv(os.LookupEnv)
+	if err != nil {
+		log.Fatal(err)
+	}
+	runtimeRollout, rolloutErr := agentRuntime.ParseRollout(getEnv(agentRuntime.RuntimeV2ModesEnv, ""))
+	if rolloutErr != nil {
+		log.Printf("⚠️ Invalid %s, falling back to legacy runtime: %v", agentRuntime.RuntimeV2ModesEnv, rolloutErr)
+		runtimeRollout = agentRuntime.Rollout{}
+	}
+	if err := processPlan.ValidateSharedAdmission(sharedEnabled, runtimeRollout); err != nil {
+		log.Fatal(err)
+	}
 
 	// 1. 初始化 MongoDB
 	traceShutdown, traceErr := appTrace.InitTracerProvider(
@@ -132,6 +152,24 @@ func main() {
 		log.Println("✅ Agent trace indexes ensured")
 	}
 	recoverableAgentRuns := getEnvBool("AGENT_RECOVERABLE_RUNS_ENABLED", false)
+	planningExecuteConfig := agentService.PlanningExecuteConfig{
+		Enabled:                 getEnvBool("AGENT_PLANNING_EXECUTE_ENABLED", false),
+		CanaryPercent:           int(getEnvNonNegativeInt64("AGENT_PLANNING_EXECUTE_CANARY_PERCENT", 0)),
+		PlatformSearchEnabled:   getEnvBool("AGENT_PLANNING_EXECUTE_PLATFORM_SEARCH_ENABLED", false),
+		WebResearchEnabled:      getEnvBool("AGENT_PLANNING_EXECUTE_WEB_RESEARCH_ENABLED", false),
+		ExternalMCPReadEnabled:  getEnvBool("AGENT_PLANNING_EXECUTE_EXTERNAL_MCP_READ_ENABLED", false),
+		ExternalMCPWriteEnabled: getEnvBool("AGENT_PLANNING_EXECUTE_EXTERNAL_MCP_WRITE_ENABLED", false),
+		WorkflowReadEnabled:     getEnvBool("AGENT_PLANNING_EXECUTE_WORKFLOW_READ_ENABLED", false),
+		MaxOutputTokens:         getEnvPositiveInt("AGENT_PLANNING_MAX_OUTPUT_TOKENS", agentService.DefaultPlanningMaxOutputTokens),
+		ParseRepairs:            int(getEnvNonNegativeInt64("AGENT_PLANNING_PARSE_REPAIRS", 1)),
+		AdmissionRepairs:        int(getEnvNonNegativeInt64("AGENT_PLANNING_ADMISSION_REPAIRS", 1)),
+	}
+	if err := planningExecuteConfig.Validate(); err != nil {
+		log.Fatalf("invalid Planning-Execute configuration: %v", err)
+	}
+	if planningExecuteConfig.Enabled && !recoverableAgentRuns {
+		log.Fatal("AGENT_PLANNING_EXECUTE_ENABLED requires AGENT_RECOVERABLE_RUNS_ENABLED")
+	}
 	goalRuntimeEnabled := getEnvBool("AGENT_GOAL_RUNTIME_ENABLED", false)
 	platformSearchGoalShadowEnabled := getEnvBool("AGENT_GOAL_RUNTIME_PLATFORM_SEARCH_SHADOW_ENABLED", false)
 	webResearchGoalShadowEnabled := getEnvBool("AGENT_GOAL_RUNTIME_WEB_RESEARCH_SHADOW_ENABLED", false)
@@ -225,6 +263,9 @@ func main() {
 	if unifiedApprovalRecovery && (!recoverableAgentRuns || !externalMCPEnabled) {
 		log.Fatal("AGENT_UNIFIED_APPROVAL_RECOVERY_ENABLED requires AGENT_RECOVERABLE_RUNS_ENABLED and AGENT_EXTERNAL_MCP_ENABLED")
 	}
+	if planningExecuteConfig.ExternalMCPWriteEnabled && !unifiedApprovalRecovery {
+		log.Fatal("AGENT_PLANNING_EXECUTE_EXTERNAL_MCP_WRITE_ENABLED requires AGENT_UNIFIED_APPROVAL_RECOVERY_ENABLED")
+	}
 	multiAgentPlannerEnabled := getEnvBool("AGENT_MULTI_AGENT_PLANNER_ENABLED", false)
 	multiAgentExecutionEnabled := getEnvBool("AGENT_MULTI_AGENT_EXECUTION_ENABLED", false)
 	if multiAgentExecutionEnabled && (!multiAgentPlannerEnabled || !recoverableAgentRuns) {
@@ -299,7 +340,11 @@ func main() {
 	}
 
 	// 3. 初始化 AI Embedding 客户端
-	aiClient := ai.NewClient(getEnv("LM_STUDIO_API_URL", "http://localhost:1234/v1"))
+	aiClient := ai.NewClientWithConfig(
+		getEnv("LM_STUDIO_API_URL", "http://localhost:1234/v1"),
+		getEnv("LM_STUDIO_API_TOKEN", ""),
+		nil,
+	)
 	chatModelLocal := getEnv("LM_STUDIO_MODEL_CHAT", "qwen2.5-3b-instruct")
 	chatModelPremium := getEnv("DASHSCOPE_MODEL_CHAT", getEnv("PREMIUM_AI_MODEL_CHAT", "qwen-plus"))
 	log.Println("✅ AI Embedding client initialized")
@@ -321,36 +366,38 @@ func main() {
 	// 4. 连接 tweet-service（通过 Consul 服务发现）
 	consulAddrTweetService := getEnv("CONSUL_HOST", "localhost") + ":" + getEnv("CONSUL_PORT", "8500")
 	tweetTarget := fmt.Sprintf("consul://%s/tweet-service?healthy=true", consulAddrTweetService)
-	tweetRiskControlMethods := []string{
+	tweetPrivilegedMethods := []string{
 		tweetv1.TweetService_GetAuthorPostingStats_FullMethodName,
 		tweetv1.TweetService_ApplyTweetModeration_FullMethodName,
+		tweetv1.TweetService_ObserveTweetSubjectData_FullMethodName,
+		tweetv1.TweetService_DeleteTweetSubjectData_FullMethodName,
 	}
 	internalServiceIdentity := getEnv("TWEET_INTERNAL_SERVICE_IDENTITY", "agent-service")
 	internalServiceToken := getEnv("TWEET_INTERNAL_SERVICE_TOKEN", "")
-	var tweetRiskControlAuthInterceptor grpc.UnaryClientInterceptor
+	var tweetPrivilegedAuthInterceptor grpc.UnaryClientInterceptor
 	if strings.TrimSpace(internalServiceToken) == "" {
-		guard, guardErr := serviceauth.NewFailClosedUnaryClientInterceptor(tweetRiskControlMethods)
+		guard, guardErr := serviceauth.NewFailClosedUnaryClientInterceptor(tweetPrivilegedMethods)
 		if guardErr != nil {
 			log.Fatalf("configure Tweet risk-control client guard: %v", guardErr)
 		}
-		tweetRiskControlAuthInterceptor = guard
-		log.Println("Tweet risk-control client is unavailable until TWEET_INTERNAL_SERVICE_TOKEN is configured")
+		tweetPrivilegedAuthInterceptor = guard
+		log.Println("Tweet privileged client is unavailable until TWEET_INTERNAL_SERVICE_TOKEN is configured")
 	} else {
 		credential, credentialErr := serviceauth.NewStaticCredential(
 			internalServiceIdentity,
 			internalServiceToken,
-			tweetRiskControlMethods,
+			tweetPrivilegedMethods,
 		)
 		if credentialErr != nil {
 			log.Fatalf("configure Tweet risk-control client authentication: %v", credentialErr)
 		}
-		tweetRiskControlAuthInterceptor = credential.UnaryClientInterceptor()
-		log.Printf("Tweet risk-control client authentication enabled for identity %q", internalServiceIdentity)
+		tweetPrivilegedAuthInterceptor = credential.UnaryClientInterceptor()
+		log.Printf("Tweet privileged client authentication enabled for identity %q", internalServiceIdentity)
 	}
 	tweetConn, err := grpc.NewClient(tweetTarget,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
-		grpc.WithChainUnaryInterceptor(tweetRiskControlAuthInterceptor),
+		grpc.WithChainUnaryInterceptor(tweetPrivilegedAuthInterceptor),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy": "round_robin"}`),
 	)
 	if err != nil {
@@ -380,12 +427,27 @@ func main() {
 	)
 
 	// 🆕 初始化 MySQL/Redis/RabbitMQ (用于影子风控与舆情播报双轨并行)
-	dbConfig := persistence.DefaultDBConfig()
-	db, err := persistence.NewDB(dbConfig)
-	if err != nil {
-		log.Fatalf("❌ Failed to connect database: %v", err)
+	var personaStore domain.AgentPersonaStore
+	if processPlan.NeedsPersona() {
+		dbConfig, err := persistence.ServiceDBConfig("agent-service")
+		if err != nil {
+			log.Fatal(err)
+		}
+		db, err := persistence.NewDB(dbConfig)
+		if err != nil {
+			log.Fatal("persona database unavailable")
+		}
+		if err := schema.CheckRuntime(context.Background(), db, "agent-service"); err != nil {
+			log.Fatal(err)
+		}
+		raw, err := db.DB()
+		if err != nil {
+			log.Fatal("persona pool unavailable")
+		}
+		defer raw.Close()
+		personaStore = repository.SQLPersonaStore{DB: db}
+		log.Println("Agent Persona database enabled for API role")
 	}
-	log.Println("✅ Database connected for Agent Service bypass")
 
 	redisConfig := cache.DefaultRedisConfig()
 	redisClient, err := cache.NewRedis(redisConfig)
@@ -418,11 +480,6 @@ func main() {
 		agentMcp.WithPageReader(webAccess.page),
 	)
 	// 6. 初始化 AgentService（注入 Repository, aiClient 和 redisClient）
-	runtimeRollout, rolloutErr := agentRuntime.ParseRollout(getEnv(agentRuntime.RuntimeV2ModesEnv, ""))
-	if rolloutErr != nil {
-		log.Printf("⚠️ Invalid %s, falling back to legacy runtime: %v", agentRuntime.RuntimeV2ModesEnv, rolloutErr)
-		runtimeRollout = agentRuntime.Rollout{}
-	}
 	profileReleases, profileReleaseErr := agentProfile.ParseReleases(getEnv(agentProfile.ReleasesEnv, ""))
 	if profileReleaseErr != nil {
 		log.Fatalf("invalid %s: %v", agentProfile.ReleasesEnv, profileReleaseErr)
@@ -626,6 +683,7 @@ func main() {
 	toolResultStoreOptions := []agentService.PersistentToolResultStoreOption{
 		agentService.WithToolResultLimits(toolResultInlineMaxBytes, toolResultMaxBytes),
 	}
+	var toolResultObjectStore agentService.ToolResultObjectStore
 	if getEnvBool("AGENT_TOOL_RESULT_OBJECT_STORE_ENABLED", false) {
 		objectStore, objectStoreErr := agentObjectStore.NewMinIOToolResultStore(agentObjectStore.MinIOToolResultConfig{
 			Endpoint:  getEnv("AGENT_TOOL_RESULT_MINIO_ENDPOINT", getEnv("MINIO_ENDPOINT", "localhost:9000")),
@@ -643,6 +701,7 @@ func main() {
 			log.Fatalf("failed to initialize private tool result bucket: %v", objectStoreErr)
 		}
 		bucketCancel()
+		toolResultObjectStore = objectStore
 		toolResultStoreOptions = append(toolResultStoreOptions, agentService.WithToolResultObjectStore(objectStore))
 		log.Printf("private tool result object store enabled: bucket=%s inline_max=%d max=%d", getEnv("AGENT_TOOL_RESULT_MINIO_BUCKET", "agent-tool-results"), toolResultInlineMaxBytes, toolResultMaxBytes)
 	}
@@ -659,9 +718,47 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to register agent execution metrics: %v", err)
 	}
+	dataRetentionMetrics, err := agentService.NewPrometheusDataRetentionObserver(prometheus.DefaultRegisterer)
+	if err != nil {
+		log.Fatalf("failed to register Agent data retention metrics: %v", err)
+	}
+	dataRetentionConfig := agentService.DefaultDataRetentionConfig()
+	dataRetentionConfig.Enabled = getEnvBool("AGENT_DATA_RETENTION_ENABLED", false)
+	dataRetentionConfig.DryRun = getEnvBool("AGENT_DATA_RETENTION_DRY_RUN", true)
+	dataRetentionConfig.Interval = getEnvDuration("AGENT_DATA_RETENTION_INTERVAL", dataRetentionConfig.Interval)
+	dataRetentionConfig.LeaseDuration = getEnvDuration("AGENT_DATA_RETENTION_LEASE_DURATION", dataRetentionConfig.LeaseDuration)
+	dataRetentionConfig.OperationTimeout = getEnvDuration("AGENT_DATA_RETENTION_OPERATION_TIMEOUT", dataRetentionConfig.OperationTimeout)
+	dataRetentionConfig.DialogueRetention = getEnvDuration("AGENT_DIALOGUE_RETENTION", dataRetentionConfig.DialogueRetention)
+	dataRetentionConfig.OrphanMessageGracePeriod = getEnvDuration("AGENT_ORPHAN_MESSAGE_GRACE_PERIOD", dataRetentionConfig.OrphanMessageGracePeriod)
+	dataRetentionConfig.TraceRetention = getEnvDuration("AGENT_TRACE_RETENTION", dataRetentionConfig.TraceRetention)
+	dataRetentionConfig.TerminalCheckpointRetention = getEnvDuration("AGENT_TERMINAL_CHECKPOINT_RETENTION", dataRetentionConfig.TerminalCheckpointRetention)
+	dataRetentionConfig.SuspendedCheckpointRetention = getEnvDuration("AGENT_SUSPENDED_CHECKPOINT_RETENTION", dataRetentionConfig.SuspendedCheckpointRetention)
+	dataRetentionConfig.ToolResultRetention = getEnvDuration("AGENT_TOOL_RESULT_RETENTION", dataRetentionConfig.ToolResultRetention)
+	dataRetentionConfig.BatchSize = getEnvPositiveInt("AGENT_DATA_RETENTION_BATCH_SIZE", dataRetentionConfig.BatchSize)
+	if err := dataRetentionConfig.Validate(); err != nil {
+		log.Fatalf("invalid Agent data retention configuration: %v", err)
+	}
+	dataRetentionWorker, err := agentService.NewDataRetentionWorker(
+		repo,
+		toolResultObjectStore,
+		dataRetentionMetrics,
+		dataRetentionConfig,
+		fmt.Sprintf("%s-%d", getEnv("HOSTNAME", "agent-service"), os.Getpid()),
+	)
+	if err != nil {
+		log.Fatalf("initialize Agent data retention worker: %v", err)
+	}
 	unifiedProductMetrics, err := agentService.NewPrometheusUnifiedAgentProductObserver(prometheus.DefaultRegisterer)
 	if err != nil {
 		log.Fatalf("failed to register Unified Agent product metrics: %v", err)
+	}
+	planningExecuteMetrics, err := agentService.NewPrometheusPlanningExecuteObserver(prometheus.DefaultRegisterer)
+	if err != nil {
+		log.Fatalf("failed to register Planning-Execute metrics: %v", err)
+	}
+	sessionSummaryMetrics, err := agentService.NewPrometheusSessionSummaryObserver(prometheus.DefaultRegisterer)
+	if err != nil {
+		log.Fatalf("failed to register session summary metrics: %v", err)
 	}
 	goalRuntimeShadowMetrics, err := agentService.NewPrometheusGoalRuntimeShadowObserver(prometheus.DefaultRegisterer)
 	if err != nil {
@@ -731,6 +828,26 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to configure Agent capability catalog: %v", err)
 	}
+	var runtimeAdmission agentRuntime.AdmissionController = agentRuntime.NewInMemoryConcurrencyLimiter(agentRuntime.ConcurrencyLimits{MaxPerUser: 2, MaxPerWorkflow: 2})
+	var providerAdmission agentModel.CallAdmission
+	if sharedEnabled {
+		metrics, err := agentAdmission.NewMetrics(nil)
+		if err != nil {
+			log.Fatal("shared admission metrics unavailable")
+		}
+		shared, err := agentAdmission.New(redisClient, sharedConfig, metrics)
+		if err != nil {
+			log.Fatal(err)
+		}
+		bounded, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		err = shared.Ready(bounded)
+		cancel()
+		if err != nil {
+			log.Fatal("shared admission not initialized or policy mismatch")
+		}
+		runtimeAdmission = shared
+		providerAdmission = shared
+	}
 	svc := agentService.NewAgentService(
 		getEnv("DASHSCOPE_API_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
 		getEnv("DASHSCOPE_API_KEY", ""),
@@ -740,6 +857,18 @@ func main() {
 		aiClient,
 		redisClient,
 		agentService.WithRuntimeRollout(runtimeRollout),
+		agentService.WithRuntimeAdmission(runtimeAdmission),
+		agentService.WithProviderAdmission(providerAdmission),
+		agentService.WithPlanningExecute(planningExecuteConfig, nil),
+		agentService.WithPlanningExecuteObserver(planningExecuteMetrics),
+		agentService.WithSessionSummaryPolicy(
+			int64(getEnvPositiveInt("AGENT_SESSION_SUMMARY_MIN_MESSAGES", 12)),
+			getEnvDuration("AGENT_SESSION_SUMMARY_IDLE_DELAY", 2*time.Minute),
+		),
+		agentService.WithSessionSummarySweepInterval(
+			getEnvDuration("AGENT_SESSION_SUMMARY_SWEEP_INTERVAL", 15*time.Second),
+		),
+		agentService.WithSessionSummaryObserver(sessionSummaryMetrics),
 		agentService.WithProfileResolver(profileResolver),
 		agentService.WithExecutionTraceStore(traceRecorder, traceRepo),
 		agentService.WithTraceContentSampler(traceContentSampler),
@@ -839,6 +968,15 @@ func main() {
 		log.Println("Agent MCP Server disabled for worker-only process role")
 	}
 	log.Printf("✅ Agent Runtime rollout loaded: v2_modes=%s", runtimeRollout.String())
+	log.Printf("Planning-Execute enabled=%t canary_percent=%d platform_search=%t web_research=%t external_mcp_read=%t external_mcp_write=%t workflow_read=%t",
+		planningExecuteConfig.Enabled,
+		planningExecuteConfig.CanaryPercent,
+		planningExecuteConfig.PlatformSearchEnabled,
+		planningExecuteConfig.WebResearchEnabled,
+		planningExecuteConfig.ExternalMCPReadEnabled,
+		planningExecuteConfig.ExternalMCPWriteEnabled,
+		planningExecuteConfig.WorkflowReadEnabled,
+	)
 	log.Printf("✅ Recoverable Agent run lifecycle enabled=%t checkpoint_max_bytes=%d resume_lease=%s",
 		recoverableAgentRuns,
 		getEnvPositiveInt("AGENT_RUN_CHECKPOINT_MAX_BYTES", agentService.DefaultAgentRunCheckpointMaxBytes),
@@ -846,30 +984,31 @@ func main() {
 	)
 	log.Printf("Unified Agent approval recovery enabled=%t", unifiedApprovalRecovery)
 	log.Printf("✅ Agent Profile catalog loaded: persisted=%t configured_overrides=%d", profileStoreEnabled, len(profileReleases))
-	memoryManager := rag.NewMemoryManager(
-		db,
-		esClient,
-		qdrantClient,
-		aiClient,
-		chatModelLocal,
-		embeddingModel,
-		rag.WithEpisodicMemoryConfig(rag.EpisodicMemoryConfig{
-			CollectionName:    getEnv("AGENT_EPISODIC_COLLECTION", rag.DefaultEpisodicCollectionName),
-			EmbeddingVersion:  getEnv("AGENT_EPISODIC_EMBEDDING_VERSION", rag.DefaultEpisodicEmbeddingVersion),
-			LegacyReadEnabled: getEnvBool("AGENT_EPISODIC_LEGACY_READ_ENABLED", true),
-		}),
-		rag.WithScoringConfig(rag.ScoringConfig{
-			SimilarityThreshold: getEnvFloat64("AGENT_RAG_SIMILARITY_THRESHOLD", 0.65),
-			SimilarityWeight:    getEnvFloat64("AGENT_RAG_SIMILARITY_WEIGHT", 0.60),
-			TimeDecayWeight:     getEnvFloat64("AGENT_RAG_TIME_DECAY_WEIGHT", 0.25),
-			FrequencyWeight:     getEnvFloat64("AGENT_RAG_FREQUENCY_WEIGHT", 0.15),
-			TimeDecayLambda:     getEnvFloat64("AGENT_RAG_TIME_DECAY_LAMBDA", 0.00001),
-			KeywordBonus:        getEnvFloat64("AGENT_RAG_KEYWORD_BONUS", 0.15),
-		}),
-	)
-	cascadeRouter := rag.NewCascadeRouter(aiClient, chatModelLocal)
-	svc.SetCognitiveEngine(memoryManager, cascadeRouter, embeddingModel)
 	if processPlan.StartsAPI() {
+		memoryManager := rag.NewMemoryManager(
+			personaStore,
+			esClient,
+			qdrantClient,
+			aiClient,
+			getEnv("AGENT_SESSION_SUMMARY_MODEL", chatModelLocal),
+			embeddingModel,
+			rag.WithPublicTweetReader(retrieval.NewGRPCPublicTweetReader(tweetClient)),
+			rag.WithEpisodicMemoryConfig(rag.EpisodicMemoryConfig{
+				CollectionName:    getEnv("AGENT_EPISODIC_COLLECTION", rag.DefaultEpisodicCollectionName),
+				EmbeddingVersion:  getEnv("AGENT_EPISODIC_EMBEDDING_VERSION", rag.DefaultEpisodicEmbeddingVersion),
+				LegacyReadEnabled: getEnvBool("AGENT_EPISODIC_LEGACY_READ_ENABLED", true),
+			}),
+			rag.WithScoringConfig(rag.ScoringConfig{
+				SimilarityThreshold: getEnvFloat64("AGENT_RAG_SIMILARITY_THRESHOLD", 0.65),
+				SimilarityWeight:    getEnvFloat64("AGENT_RAG_SIMILARITY_WEIGHT", 0.60),
+				TimeDecayWeight:     getEnvFloat64("AGENT_RAG_TIME_DECAY_WEIGHT", 0.25),
+				FrequencyWeight:     getEnvFloat64("AGENT_RAG_FREQUENCY_WEIGHT", 0.15),
+				TimeDecayLambda:     getEnvFloat64("AGENT_RAG_TIME_DECAY_LAMBDA", 0.00001),
+				KeywordBonus:        getEnvFloat64("AGENT_RAG_KEYWORD_BONUS", 0.15),
+			}),
+		)
+		cascadeRouter := rag.NewCascadeRouter(aiClient, chatModelLocal)
+		svc.SetCognitiveEngine(memoryManager, cascadeRouter, embeddingModel)
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
@@ -889,6 +1028,7 @@ func main() {
 		workflowTool.WithLLMCostEstimator(svc.RuntimeCostEstimator()),
 		workflowTool.WithLLMTraceRecorder(traceRecorder),
 		workflowTool.WithLLMContentSampler(traceContentSampler),
+		workflowTool.WithLLMCallAdmission(providerAdmission),
 	))
 	mustRegisterWorkflowTool(workflowRegistry, workflowTool.NewWebSearchTool(webAccess.search))
 	mustRegisterWorkflowTool(workflowRegistry, workflowTool.NewPageReadTool(webAccess.page))
@@ -916,6 +1056,17 @@ func main() {
 	var riskMQClient *mq.RabbitMQ
 	var temporalTaskWorker worker.Worker
 	if processPlan.StartsWorkers() {
+		if dataRetentionConfig.Enabled {
+			go dataRetentionWorker.Run(backgroundCtx)
+			log.Printf(
+				"Agent application data retention enabled: dry_run=%t interval=%s batch_size=%d",
+				dataRetentionConfig.DryRun,
+				dataRetentionConfig.Interval,
+				dataRetentionConfig.BatchSize,
+			)
+		} else {
+			log.Println("Agent application data retention disabled")
+		}
 		mqConfig := mq.DefaultRabbitMQConfig()
 		mqClient, err = mq.NewRabbitMQ(mqConfig)
 		if err != nil {
@@ -1065,6 +1216,7 @@ func main() {
 	}
 
 	var grpcServer *grpc.Server
+	var grpcHealthServer *agentGRPCHealthServer
 	if processPlan.StartsAPI() {
 		// API processes alone register the discoverable gRPC endpoint.
 		consulAddr := getEnv("CONSUL_HOST", "localhost") + ":" + getEnv("CONSUL_PORT", "8500")
@@ -1090,6 +1242,7 @@ func main() {
 		}
 
 		grpcServer = grpc.NewServer(grpc.StatsHandler(otelgrpc.NewServerHandler()))
+		grpcHealthServer = newAgentGRPCHealthServer(grpcServer)
 		agentServerOptions := []agentGrpc.AgentServerOption{}
 		if profileAdminToken != "" {
 			agentServerOptions = append(agentServerOptions, agentGrpc.WithProfileAdministration(profileManager, profileAdminToken))
@@ -1140,6 +1293,9 @@ func main() {
 	<-quit
 
 	log.Println("🛑 Shutting down Agent Service...")
+	if grpcHealthServer != nil {
+		markAgentGRPCNotServing(grpcHealthServer)
+	}
 	backgroundCancel()
 	if temporalTaskWorker != nil {
 		temporalTaskWorker.Stop()
@@ -1162,6 +1318,61 @@ func main() {
 		riskMQClient.Close()
 	}
 	log.Println("✅ Server exited")
+}
+
+type agentGRPCHealthServer struct {
+	healthpb.UnimplementedHealthServer
+
+	mu       sync.RWMutex
+	statuses map[string]healthpb.HealthCheckResponse_ServingStatus
+}
+
+func newAgentGRPCHealthServer(server grpc.ServiceRegistrar) *agentGRPCHealthServer {
+	healthServer := &agentGRPCHealthServer{
+		statuses: map[string]healthpb.HealthCheckResponse_ServingStatus{
+			"": healthpb.HealthCheckResponse_SERVING,
+			aiAgentv1.AiAgentService_ServiceDesc.ServiceName: healthpb.HealthCheckResponse_SERVING,
+		},
+	}
+	healthpb.RegisterHealthServer(server, healthServer)
+	return healthServer
+}
+
+func (server *agentGRPCHealthServer) Check(
+	_ context.Context,
+	request *healthpb.HealthCheckRequest,
+) (*healthpb.HealthCheckResponse, error) {
+	service := ""
+	if request != nil {
+		service = request.GetService()
+	}
+	server.mu.RLock()
+	serviceStatus, exists := server.statuses[service]
+	server.mu.RUnlock()
+	if !exists {
+		return nil, status.Error(codes.NotFound, "unknown health service")
+	}
+	return &healthpb.HealthCheckResponse{Status: serviceStatus}, nil
+}
+
+func (server *agentGRPCHealthServer) setServingStatus(
+	service string,
+	serviceStatus healthpb.HealthCheckResponse_ServingStatus,
+) {
+	server.mu.Lock()
+	server.statuses[service] = serviceStatus
+	server.mu.Unlock()
+}
+
+func markAgentGRPCNotServing(healthServer *agentGRPCHealthServer) {
+	if healthServer == nil {
+		return
+	}
+	healthServer.setServingStatus("", healthpb.HealthCheckResponse_NOT_SERVING)
+	healthServer.setServingStatus(
+		aiAgentv1.AiAgentService_ServiceDesc.ServiceName,
+		healthpb.HealthCheckResponse_NOT_SERVING,
+	)
 }
 
 func registerWorkflowMCPTools(registry *workflowTool.ToolRegistry, svc *agentService.AgentService) {

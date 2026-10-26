@@ -1,105 +1,290 @@
-name: Twitter Clone CI/CD
+name: Twitter Clone Release Gates
 
 on:
   push:
-    branches: [ "main" ]
-    paths-ignore:
-      - 'pkg/es/es.go'
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch:
+    inputs:
+      publish:
+        description: "Push all images after gates (main only; configure the release environment)"
+        type: boolean
+        default: false
+      go_builder:
+        description: "Reviewed Go builder repository@sha256 digest for publishing"
+        default: "golang:1.25.5-alpine"
+      go_runtime:
+        description: "Reviewed Alpine runtime repository@sha256 digest for publishing"
+        default: "alpine:latest"
+      web_builder:
+        description: "Reviewed Node builder repository@sha256 digest for publishing"
+        default: "node:22-alpine"
+      web_runtime:
+        description: "Reviewed nginx runtime repository@sha256 digest for publishing"
+        default: "nginx:alpine"
 
 permissions:
-  contents: write
+  contents: read
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  # 1. Test Job: Runs Go Unit Tests
-  test:
-    name: Run Unit Tests
+  plan:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v4
+      - uses: actions/checkout@v4
         with:
-          go-version: '1.25.3'
+          persist-credentials: false
+      - uses: actions/setup-go@v4
+        with:
+          go-version-file: go.mod
+      - id: plan
+        run: |
+          set -euo pipefail
+          MATRIX="$(go run ./cmd/release-manifest --matrix)"
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
 
-      - name: Install dependencies
-        run: go mod download
-
-      - name: Run Tests
-        run: go test ./... -v
-
-  # 2. Build Job: Builds Docker Images (Only on Push to Main)
-  build-and-push:
-    name: Build Docker Images
-    needs: test
-    if: github.event_name == 'push'
+  go:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        service: [user-service, tweet-service, follow-service, gateway, consumer]
+    timeout-minutes: 45
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v4
+        with:
+          go-version-file: go.mod
+      - name: Go test, vet, package builds and affected race checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .codex-tmp/release-checks .codex-tmp/binaries
+          go test ./... -count=1 2>&1 | tee .codex-tmp/go-test.log
+          go run ./cmd/release-manifest --record-check go_test --source-sha "$GITHUB_SHA" --evidence-file .codex-tmp/go-test.log --out .codex-tmp/release-checks/go_test.json
+          go vet ./... 2>&1 | tee .codex-tmp/go-vet.log
+          echo "go vet ./... passed" >> .codex-tmp/go-vet.log
+          go run ./cmd/release-manifest --record-check go_vet --source-sha "$GITHUB_SHA" --evidence-file .codex-tmp/go-vet.log --out .codex-tmp/release-checks/go_vet.json
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o .codex-tmp/binaries/ ./cmd/...
+          echo "linux/amd64 package-level build ./cmd/... passed" > .codex-tmp/package-build.log
+          go run ./cmd/release-manifest --record-check package_build --source-sha "$GITHUB_SHA" --evidence-file .codex-tmp/package-build.log --out .codex-tmp/release-checks/package_build.json
+          go test -race ./internal/infrastructure/... ./internal/module/... ./internal/mq/... ./internal/gateway/... ./internal/releaseplan ./cmd/release-manifest -count=1 2>&1 | tee .codex-tmp/go-race.log
+          go run ./cmd/release-manifest --record-check go_race --source-sha "$GITHUB_SHA" --evidence-file .codex-tmp/go-race.log --out .codex-tmp/release-checks/go_race.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-checks-go
+          include-hidden-files: true
+          path: .codex-tmp/release-checks/*.json
+          if-no-files-found: error
+          retention-days: 14
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v4
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Locked Web build and pager tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .codex-tmp/release-checks
+          npm ci --prefix web
+          npm run build --prefix web 2>&1 | tee .codex-tmp/web-build.log
+          go run ./cmd/release-manifest --record-check web_build --source-sha "$GITHUB_SHA" --evidence-file .codex-tmp/web-build.log --out .codex-tmp/release-checks/web_build.json
+          npm test --prefix web 2>&1 | tee .codex-tmp/web-test.log
+          go run ./cmd/release-manifest --record-check web_test --source-sha "$GITHUB_SHA" --evidence-file .codex-tmp/web-test.log --out .codex-tmp/release-checks/web_test.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-checks-web
+          include-hidden-files: true
+          path: .codex-tmp/release-checks/*.json
+          if-no-files-found: error
+          retention-days: 14
 
-      - name: Login to Docker Hub
-        # NOTE: You must set DOCKER_USERNAME and DOCKER_PASSWORD in GitHub Repository Secrets
-        uses: docker/login-action@v2
+  mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v4
+        with:
+          go-version-file: go.mod
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.2"
+          channel: stable
+          cache: true
+      - name: Locked Mobile analysis and tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .codex-tmp/release-checks
+          cd mobile
+          flutter pub get --enforce-lockfile
+          flutter analyze --no-pub 2>&1 | tee ../.codex-tmp/mobile-analyze.log
+          cd ..
+          go run ./cmd/release-manifest --record-check mobile_analyze --source-sha "$GITHUB_SHA" --evidence-file .codex-tmp/mobile-analyze.log --out .codex-tmp/release-checks/mobile_analyze.json
+          cd mobile
+          flutter test --no-pub 2>&1 | tee ../.codex-tmp/mobile-test.log
+          cd ..
+          go run ./cmd/release-manifest --record-check mobile_test --source-sha "$GITHUB_SHA" --evidence-file .codex-tmp/mobile-test.log --out .codex-tmp/release-checks/mobile_test.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-checks-mobile
+          include-hidden-files: true
+          path: .codex-tmp/release-checks/*.json
+          if-no-files-found: error
+          retention-days: 14
+
+  production-config:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v4
+        with:
+          go-version-file: go.mod
+      - name: Offline production gate fixtures (never starts services)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force .codex-tmp/release-checks | Out-Null
+          ./scripts/test-production-compose.ps1 | Tee-Object .codex-tmp/production-config.log
+          ./scripts/test-production-acceptance-record.ps1 | Out-Null
+          ./scripts/test-deployment-evidence.ps1 | Out-Null
+          go run ./cmd/release-manifest --record-check production_config --source-sha $env:GITHUB_SHA --evidence-file .codex-tmp/production-config.log --out .codex-tmp/release-checks/production_config.json
+          if ($LASTEXITCODE -ne 0) { throw 'production check receipt failed' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-checks-production
+          include-hidden-files: true
+          path: .codex-tmp/release-checks/*.json
+          if-no-files-found: error
+          retention-days: 14
+
+  build-images:
+    needs: [plan, go, web, mobile, production-config]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main' && 'release' || 'ci-build' }}
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      PUBLISH_IMAGES: ${{ github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main' }}
+      COMPONENT: ${{ matrix.service }}
+      IMAGE_REPOSITORY: docker.io/${{ vars.DOCKER_NAMESPACE || 'twitter-clone' }}/${{ matrix.service }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v4
+        with:
+          go-version-file: go.mod
+      - name: Vendor modules for the Docker path context
+        run: go mod vendor
+      - id: bases
+        name: Validate build inputs before Docker/publishing
+        shell: bash
+        env:
+          GO_BUILDER: ${{ inputs.go_builder || 'golang:1.25.5-alpine' }}
+          GO_RUNTIME: ${{ inputs.go_runtime || 'alpine:latest' }}
+          WEB_BUILDER: ${{ inputs.web_builder || 'node:22-alpine' }}
+          WEB_RUNTIME: ${{ inputs.web_runtime || 'nginx:alpine' }}
+          PUBLISH_NAMESPACE: ${{ vars.DOCKER_NAMESPACE }}
+        run: |
+          set -euo pipefail
+          BUILDER="$GO_BUILDER"; RUNTIME="$GO_RUNTIME"
+          if [ "$COMPONENT" = frontend ]; then BUILDER="$WEB_BUILDER"; RUNTIME="$WEB_RUNTIME"; fi
+          if [ "$PUBLISH_IMAGES" = true ]; then test -n "$PUBLISH_NAMESPACE"; fi
+          go run ./cmd/release-manifest --validate-bases --builder-image "$BUILDER" --runtime-image "$RUNTIME" --published="$PUBLISH_IMAGES"
+          printf 'builder=%s\nruntime=%s\n' "$BUILDER" "$RUNTIME" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v4
+      - name: Registry login for explicit publication
+        if: env.PUBLISH_IMAGES == 'true'
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build and Push ${{ matrix.service }}
-        uses: docker/build-push-action@v4
+      - id: image
+        uses: docker/build-push-action@v7
         with:
-          context: .
-          file: deploy/docker/${{ matrix.service == 'user-service' && 'user' || matrix.service == 'tweet-service' && 'tweet' || matrix.service == 'follow-service' && 'follow' || matrix.service }}.dockerfile
-          push: true
-          tags: |
-            ${{ secrets.DOCKER_USERNAME }}/${{ matrix.service }}:latest
-            ${{ secrets.DOCKER_USERNAME }}/${{ matrix.service }}:${{ github.sha }}
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          tags: ${{ env.IMAGE_REPOSITORY }}:${{ github.sha }}
+          outputs: ${{ env.PUBLISH_IMAGES == 'true' && 'type=registry' || format('type=oci,dest=/tmp/{0}.tar', matrix.service) }}
+          build-args: |
+            BUILDER_IMAGE=${{ steps.bases.outputs.builder }}
+            RUNTIME_IMAGE=${{ steps.bases.outputs.runtime }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+      - name: Record actual image output
+        shell: bash
+        env:
+          IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
+          BUILDER: ${{ steps.bases.outputs.builder }}
+          RUNTIME: ${{ steps.bases.outputs.runtime }}
+        run: |
+          go run ./cmd/release-manifest --record-image "$COMPONENT" --source-sha "$GITHUB_SHA" --repository "$IMAGE_REPOSITORY" --digest "$IMAGE_DIGEST" --builder-image "$BUILDER" --runtime-image "$RUNTIME" --published="$PUBLISH_IMAGES" --out ".codex-tmp/image-receipts/$COMPONENT.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: image-receipt-${{ matrix.service }}
+          include-hidden-files: true
+          path: .codex-tmp/image-receipts/*.json
+          if-no-files-found: error
+          retention-days: 14
 
-  # 3. Update GitOps Manifests
-  update-manifests:
-    name: Update Helm Values
-    needs: build-and-push
+  release-manifest:
+    needs: [go, web, mobile, production-config, build-images]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 10
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Update Image Tags
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v4
+        with:
+          go-version-file: go.mod
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: image-receipt-*
+          path: .codex-tmp/image-receipts
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-checks-*
+          path: .codex-tmp/release-checks
+          merge-multiple: true
+      - name: Assemble exact source/catalog/check/digest manifest
         run: |
-          # Install yq
-          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-          sudo chmod a+x /usr/local/bin/yq
-
-          # Update tags
-          TAG="${{ github.sha }}"
-          VALUES_FILE="deploy/helm/twitter-clone/values.yaml"
-          
-          yq -i ".services.userService.image.tag = \"$TAG\"" $VALUES_FILE
-          yq -i ".services.tweetService.image.tag = \"$TAG\"" $VALUES_FILE
-          yq -i ".services.followService.image.tag = \"$TAG\"" $VALUES_FILE
-          yq -i ".services.gateway.image.tag = \"$TAG\"" $VALUES_FILE
-          yq -i ".services.consumer.image.tag = \"$TAG\"" $VALUES_FILE
-
-      - name: Commit and Push
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add deploy/helm/twitter-clone/values.yaml
-          if git diff-index --quiet HEAD; then
-            echo "No changes to commit"
-          else
-            git commit -m "chore: update image tags to ${{ github.sha }} [skip ci]"
-            git push
-          fi
+          set -euo pipefail
+          go run ./cmd/release-manifest --assemble --source-sha "$GITHUB_SHA" --receipts-dir .codex-tmp/image-receipts --checks-dir .codex-tmp/release-checks --out .codex-tmp/release-manifest.json
+          go run ./cmd/release-manifest --verify-manifest .codex-tmp/release-manifest.json > /dev/null
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-manifest-${{ github.sha }}
+          include-hidden-files: true
+          path: .codex-tmp/release-manifest.json
+          if-no-files-found: error
+          retention-days: 30
 

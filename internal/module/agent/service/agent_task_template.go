@@ -85,6 +85,9 @@ func (s *AgentService) CreateAgentTaskTemplate(
 	ctx context.Context,
 	request CreateAgentTaskTemplateRequest,
 ) (*AgentTaskTemplateView, error) {
+	if err := s.authorizeSubjectWrite(ctx, request.UserID); err != nil {
+		return nil, err
+	}
 	if s == nil || !s.agentTaskTemplatesEnabled {
 		return nil, ErrAgentTaskTemplatesDisabled
 	}
@@ -214,6 +217,9 @@ func (s *AgentService) ArchiveAgentTaskTemplate(
 	templateID string,
 	expectedRevision int64,
 ) (*AgentTaskTemplateView, error) {
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return nil, err
+	}
 	if s == nil || s.agentTaskTemplateStore == nil {
 		return nil, ErrAgentTaskTemplateStoreUnavailable
 	}
@@ -238,6 +244,9 @@ func (s *AgentService) RunAgentTaskTemplate(
 	ctx context.Context,
 	request RunAgentTaskTemplateRequest,
 ) (*UnifiedAgentResult, error) {
+	if err := s.authorizeSubjectWrite(ctx, request.UserID); err != nil {
+		return nil, err
+	}
 	if s == nil || !s.agentTaskTemplatesEnabled {
 		return nil, ErrAgentTaskTemplatesDisabled
 	}

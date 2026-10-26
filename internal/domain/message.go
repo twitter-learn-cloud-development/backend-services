@@ -42,3 +42,22 @@ type MessageRepository interface {
 	// MarkAsRead 标记会话已读
 	MarkAsRead(ctx context.Context, conversationID string, readerID uint64) error
 }
+
+// ConversationPage keeps a first-read ID upper bound so new messages do not
+// move conversations across pages. This is not a cross-request DB snapshot.
+type ConversationPage struct {
+	Conversations []*Conversation
+	SnapshotID    uint64
+}
+
+type ConversationPageRepository interface {
+	// limit includes the caller's lookahead row. before applies to the grouped
+	// latest ID, while snapshot applies to messages before grouping.
+	ListConversationPage(ctx context.Context, userID, snapshot, before uint64, limit int) (ConversationPage, error)
+}
+
+type MessagePageReadRepository interface {
+	// Mark only delivered IDs owned by this reader, never messages arriving
+	// after the page was fetched.
+	MarkMessagePageRead(ctx context.Context, conversationID string, readerID uint64, ids []uint64) error
+}

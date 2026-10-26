@@ -1,7 +1,24 @@
 # Agent Runtime Context（当前实现与演进边界）
 
-> 最近核对：2026-08-09
-> 当前计划：`docs/AGENT_CORE_REFOCUS_PLAN.md`
+> 2026-10-13 M7-R2覆盖下方角色/Persona历史状态：MemoryManager依赖domain.AgentPersonaStore，SQL适配器归Agent Repository；只有API/all读凭据/打开MySQL/校验agent_personas/装配认知引擎，Worker无Persona DB。Runtime核心无基础设施导入，共享admission adapter实现global/user/workflow与Provider原子租约/服务器时间/续租/失效取消、分钟估算预算；Runtime/Router、Workflow LLM、Agent兼容/策略SDK已注入。开关默认false，API/all启用须完整Runtime v2模式（依赖前校验）及独立初始化匹配策略，热路径故障失败且不自动切本地；管理CLI默认离线/Live共5秒/摘要声明，不清状态。完整Agent Test/Vet/相关Race通过，无真实初始化/部署；摘要/RAG/Embedding/Reranker/Temporal/Eval不在共享费用，Worker其他装配仍保留，整体隔离/权限/容量/计费仍Partial；见AGENT_SHARED_ADMISSION_RUNBOOK。
+
+> 2026-10-13 M7-R1存储治理：AgentService采用独立角色MySQL凭据和启动只读agent_personas Schema检查；UserPersona为domain.AgentPersona兼容别名，MemoryManager不再隐式AutoMigrate。独立Owner建缺表Job/访问计划已离线验证，但MySQL仍在角色分支前装配、MemoryManager仍持有GORM，Persona应用Port与角色依赖隔离归M7-R2；真实迁移/账号权限未验收，不能宣称Runtime已隔离数据库或共享准入已完成。
+
+> 2026-10-12 M1 公共检索修复已离线验证：MCP 语义/混合搜索与认知公共知识检索，在重排和模型上下文之前使用 `retrieval.GRPCPublicTweetReader` 批量读取 TweetService 当前公共正文。索引不再是正文/可见性事实源；失败返回低敏错误，认知装配沿用失败省略上下文语义。新增 RPC/Proto 采用追加兼容，部署先 TweetService 后 Agent；目标/Agent-Gateway 扩大回归、Vet 与检索目标 Race 通过，真实存储/部署仍未验收，其他读取入口与索引清理未全量收口。
+
+> 2026-09-26 工作流状态转换增量：补偿领取/完成/挂起/失败/拒绝与运行取消/最终提交已纳入 Mongo 主体计数；按补偿 ID 的更新先解析用户归属，更新条件再绑定归属。确定未写入冲突释放计数，不确定回执继续保留。其他 Agent 写入口、正计数恢复与真实 Mongo 验收仍缺失，生产删除关闭。
+
+> 2026-09-26 工作流派生写入增量：状态事件、周期快照、补偿计划及运行游标已登记 Mongo 主体计数；批量事件/补偿记录要求同一用户。补偿执行状态、运行取消/最终提交及其他直接写入口仍有缺口，真实 Mongo 故障与正计数恢复未验收，生产删除关闭。
+
+> 2026-09-26 工作流写入增量：定义与运行记录创建/更新、旧定义惰性版本补建已使用主体写入计数；事件、快照、补偿和运行控制等直接写入口未全覆盖。正计数对账恢复与真实 Mongo 故障验证仍缺失，生产删除关闭。
+
+> 2026-09-26 对话写入增量：Agent retention subject 原子计数在围栏安装前必须归零；CreateDialogue/SaveMessage/SaveMessages 先登记，成功确认后释放，结果不确定时保留阻断。其他 Mongo/外部存储写入仍未统一登记，遗留计数恢复及真实并发验证缺失，生产删除保持关闭。
+
+> 2026-09-26 增量：未注册的 Agent/Tweet 复合 Subject Write Fence 返回 v2 双权威回执；Agent Service 主要用户写入口接入 Mongo-backed 授权。对话创建和消息写入另外使用主体计数与安装围栏互斥；其他直接仓储和后台写入仍有缺口，生产数据删除维持关闭。
+
+> 最近核对：2026-09-26
+> 当前计划：`docs/PRODUCTION_LAUNCH_COMPLETION_PLAN.md`
+> 核心重聚焦历史：`docs/AGENT_CORE_REFOCUS_PLAN.md`
 > 历史强化计划：`docs/AGENT_RUNTIME_STRENGTHENING_PLAN.md`
 > 进度：`docs/PROJECT_PROGRESS.md`
 
@@ -9,15 +26,16 @@
 
 | 阶段 | 状态 | 当前证据 |
 |------|------|----------|
-| G0 Goal Runtime 基线 | Complete | 已冻结外围扩张并建立 20 个端到端任务矩阵；`runtime/goal.go` 已新增 TaskSpec、Environment、EvidenceLedger 与 Verifier，未接入生产 RunAgent |
+| G0 Goal Runtime 基线 | Complete | 已冻结外围扩张并建立 20 个端到端任务矩阵；`runtime/goal.go` 定义 TaskSpec、Environment、EvidenceLedger 与 Verifier。生产接入已覆盖默认关闭的平台搜索、Web 研究、External MCP 只读/审批写入与 Workflow-as-Tool 只读稳定灰度 |
 | G1 VerifiedRunner | Complete | opt-in Adapter 已复用 AgentRunner，支持工具交集、前后快照、结构化观察证据、完成验证、共享预算有界修复和 Verified Checkpoint/Resume；恢复时保留 Task/Evidence/Before/修复次数并重新授权当前工具。站内搜索严格 Schema Collector/Verifier 已通过两个默认关闭开关接入只观测 Shadow，复用既有 RunResult，不重复模型/工具调用，也不替换生产响应 |
-| G2 Environment Packs | Complete | Twitter/Web Read、Workflow-as-Tool、External MCP 与 Tweet Write Pack 已闭环当前 Catalog/Task/策略交集和低敏快照；写操作由 Timeline 前后状态与领域 Collector/Verifier 验证，Environment 仍不执行工具。生产 Goal 执行继续关闭，真实审批/写入集成验收归 G4 |
+| G2 Environment Packs | Complete | Twitter/Web Read、Workflow-as-Tool、External MCP 与 Tweet Write Pack 已闭环当前 Catalog/Task/策略交集和低敏快照；Environment 仍不执行工具。平台搜索、Web 研究、External MCP 只读/审批写与 Workflow-as-Tool 只读路径可由各自默认关闭的 Planning-Execute 开关灰度接管。Tweet Write 有 Timeline 后状态领域验证；通用 External MCP 写入只验证稳定授权/策略绑定下的成功观察，具体远端后状态留给 L3 选定 Connector 读回验收 |
 | G3 Unified Planning | Complete | 一至三步短计划、确定性 Admission、一次受限恢复、显式能力默认 Planner 与低敏 TaskOutcome 已具备 E2E-02/11/18 离线证据 |
-| G4 Task Migration | Complete | E2E-05 至 E2E-20 固定迁移矩阵已具备离线或受控进程内结果证据；E2E-20 固定 Provider 错误分类、显式允许回退和 denied/exhausted blocked 终态，不产生伪造答案。Legacy Runtime 仍是唯一生产执行所有者，生产 Goal execution 与部署态依赖继续待验收 |
+| G4 Task Migration | In Progress | E2E-05 至 E2E-20 固定迁移矩阵具备离线或受控进程内证据；平台搜索、Web 研究、External MCP 只读/审批写与 Workflow-as-Tool 只读已完成独立默认关闭的稳定用户 Planning-Execute 灰度、低基数指标、脱敏 Run 投影及 `goal.v1` 加密 Verified Checkpoint 恢复。External MCP 写入复用既有 Approval/Resume、平台稳定幂等键和当前目录重授权，重复恢复令牌不会重复远端调用。第一方发推保持显式确认边界。Legacy Runtime 仍是一键回滚所有者；真实 MCP/Workflow、进程重启和部署态依赖继续待验收 |
 | G5 Cleanup | In Progress | 首个增量删除无生产调用者的关键词能力 Planner、命名兼容构造器及专属测试；显式能力 Planner/Catalog 保持唯一默认路由。历史 Compat Profile 因旧会话恢复与指标仍可达而保留；Marketplace/Profile 继续冻结 |
+| L0-L5 上线收口 | In Progress | `PRODUCTION_LAUNCH_COMPLETION_PLAN.md` 是唯一上线清单。会话语义摘要已具备 Mongo 到期调度、租约 Worker、失败降级、低基数指标和五类长会话固定门禁；短计划/VerifiedRunner 已具备平台、Web、External MCP 只读/审批写入与 Workflow-as-Tool 只读独立灰度、脱敏检查和 `goal.v1` 加密恢复。L4 默认关闭/Dry-run 的数据保留 Worker 已覆盖对话、孤儿消息、Trace、Checkpoint 与 Tool Result，并以用户级 Guard 实现 Legal Hold/清理互斥；MinIO 已孤立 Key 可通过有界 Cursor 命令只读审计，输出摘要且查询失败 fail-closed。用户删除控制面已有不可变 Capability Snapshot、Checkpoint 同 CAS 哈希链审计、五类未注册 Adapter、未注册八阶段 Worker和 Agent 侧 Mongo 持久 Fence Authority。Tweet Service 已新增每用户 MySQL 持久门闩、六类事务内写拦截、删除前置校验和受认证安装 RPC。生产注册表仍为空；Agent 全写入口、Agent/Tweet 跨服务组合回执、真实 Mongo/MySQL 竞争恢复与 staging 验收仍未完成。Helm 已接入灰度开关、角色感知健康探针与 MCP 报告 PVC，但真实 MCP/Workflow、故障演练和部署证据仍未完成。 |
 | P0 真实性/迁移护栏 | Complete | ADR、兼容测试、`AGENT_RUNTIME_V2_MODES`、回滚路径 |
 | P1 AgentRunner | Complete | Runtime 类型、ReActRunner、Action、Adapter、Profile、灰度入口 |
-| P2 Message/Token/Model | Complete | Message/Token/Cost Budget、Catalog 路由、并发准入、Provider Config 加密管理与 Session Summary 已落地 |
+| P2 Message/Token/Model | Partial | Message/Token/Cost Budget、Catalog 路由、并发准入与 Provider Config 加密管理已落地；Session Summary 已完成模型蒸馏、Qdrant 存储、全 Runtime 召回、Mongo 到期调度、租约恢复、指标和五类长会话结构门禁。真实 Provider 的重启与回答质量证据归入 L5 staging。 |
 | P3 Tool Policy/Approval | Complete | ToolExecutor、审批/API/UI、一次性恢复、持久幂等、TweetService 原生幂等、熔断指标、治理对账与 MCP 双重认证已完成 |
 | P4 Workflow Engine | Complete | 版本化 DSL/IR、StateView/单写者 Delta、Reducer、Revision、Snapshot/Replay、节点状态机、持久补偿、共享预算、补偿巡检/人工控制与 Temporal 决策门已闭环 |
 | P5 Observability/Control | Complete | Run 控制、独立 Trace、脱敏查询/控制台、跨协议 OTel、低基数指标、有界事件流、对象引用、可检索 Blackboard、模板身份、安全预览采样和 Agent Grafana 面板已完成 |
@@ -213,5 +231,9 @@ go test ./internal/module/agent/mcp/acceptance ./cmd/agent-mcp-acceptance ./cmd/
 - E2E-13/14 已完成受控进程内集成：ReAct 审批前零写入，checkpoint 恢复后真实 `create_tweet` MCP Handler 只执行一次，Timeline After 证明目标新增；同键完整重跑恢复 Structured Content 且状态不变。该夹具使用内存 Approval/Idempotency Store 与 TweetService Fake，部署态 Mongo/TweetService 验收仍未完成，不得描述为生产闭环。
 - E2E-15/16 已完成受控进程内集成：External MCP Snapshot 绑定 Actor Digest、Connection Revision 与 Binding Digest；只读任务由 Collector/Verifier 复算成功 Observation，跨租户目录为空；写任务审批前远程调用为零，审批后撤权使 Resume 在当前目录校验阶段 blocked，远程调用仍为零。真实外部 MCP、Mongo 持久授权与进程重启恢复仍未验收。
 - E2E-17 已完成受控进程内集成：Workflow Snapshot 绑定 Actor 与不可变 Publication Binding；真实 Scheduler/ToolExecutor 仅执行发布时固定的 Revision，结构化结果绑定父 Run/Action、child Run、DSL Hash、响应摘要和权威 OutputJSON 摘要；Collector/Verifier 重新读取用户隔离 child Run 后才通过。子节点失败会持久化 failed child 并向父级返回固定 Tool 错误，不产生完成证据。真实 Mongo、进程重启与生产 Goal 路由仍未验收。
+- L2 Workflow-as-Tool 只读迁移已完成默认关闭的独立稳定用户灰度：Planner 只接收当前用户 Active Publication 投影出的只读工具，执行继续复用统一 ReAct/ToolExecutor；完成态必须同时通过不可变发布快照、父 Run/Action 谱系和权威 child output digest。暂停恢复固定初始 Task 工具集合并重新读取当前发布目录，发布被停用时在 Runtime Resume 前失败。Legacy 路径仍由单一开关即时回滚；真实 Mongo/进程重启与部署态演练仍待 L3-L5。
 - E2E-19 已完成受控进程内集成：VerifiedCheckpoint Revision 按 1→2 单调推进，两次 JSON 往返模拟持久化边界；审批恢复只执行一次真实 create_tweet，后续 ask_human 挂起前把成功写入 Observation 与中间 After Snapshot 结晶为 Evidence，人工恢复保持同一 Run 并从下一 Step 继续。最终仅一条 Tweet 状态证据、两条摘要化 Resume Evidence，实际写入和幂等完成计数均为 1。真实加密 Mongo Checkpoint、多副本 Claim/租约和进程重启仍未在 Goal Runtime 路径验收。
 - E2E-20 已完成受控进程内集成：ProviderRouter 只沿 Catalog 显式 Fallback 图尝试能力兼容模型；暂时性故障可进入允许的后备模型，认证/永久请求错误立即 `fallback_denied` 且后备调用为零，所有允许路线不可用时为 `fallback_exhausted`。Runtime 保留一个失败模型 Step 和低敏路由轨迹，VerifiedRunner 将有效终止轨迹投影为 blocked Provider Routing Evidence；最终没有 Assistant Message、FinalAnswer 或 Artifact。真实 DashScope/LM Studio 故障演练和生产 Goal 路由仍未验收。
+- L4 用户删除预检使用独立 Mongo 请求集合与单活动请求唯一约束，状态覆盖 requested、preflight running、Legal Hold/subject busy 阻断、preview ready、failed、cancelled 和仅由最终阶段 CAS 写入的 completed。预检复用用户级 retention subject lease，把可证明的用户资产、共享关系和治理保留证据分别计数；Qdrant、MinIO 与 Tweet Service 仍显式列为外部范围，`execution_supported=false` 固定不变。`cmd/agent-data-deletion-request` 提供默认 Plan-only 的 request/get/preflight/cancel 运维入口，除 get 外均需显式 `--execute`；没有用户 API 或生产物理删除入口，不构成用户删除闭环。
+- L4 用户删除协议已增加存储无关的 `agent-data-deletion-protocol/v1`：预检成功时固定写入围栏、共享关系、MinIO、Qdrant、Tweet Service、Mongo、跨存储验证和最终确认八阶段 Plan/Checkpoint。纯领域状态机具有确定性 Digest、Revision、最长 15 分钟租约、过期接管、严格阶段依赖、Receipt Digest 和有界 Failure Code。不可变 Capability Registry 将 Adapter/Version 绑定为 Snapshot Digest，执行前按当前注册表复验；Claim/Success/Failure 审计以双 Revision 和前序摘要形成有界哈希链，并与 Checkpoint 同一 Mongo CAS 原子追加。执行开始后预检不能覆盖审计。Coordinator 仍不选择或调用存储 Adapter，生产注册表为空，因此 Plan 固定不可执行，`execution_supported=false` 仍是停止线。
+- L4 破坏性 Adapter 使用 `agent-data-deletion-adapter/v1` 契约：Operation Key 稳定绑定请求、阶段、Subject/Scope 与 Plan/Capability；短期 Governance Decision 明确传播 Legal Hold Revision/Evidence，Receipt 不保存原始用户身份并可同键回放；独立 Post-state Snapshot 必须与 Receipt 绑定且残留为零。`repository/data_deletion_mongo_owned.go` 已实现未注册的 Mongo owned-data 事务边界。`repository/data_deletion_relationship.go` 已实现未注册的共享关系事务边界：只解绑非 Owner 项目成员、个人 MCP Connection/Snapshot 与 Profile Role Binding，项目 Owner、项目级 MCP 创建者和 Marketplace Publisher Owner 会在计划与事务写前双重阻断，执行后观察也统计这些 blocker 以发现竞争写入。`deletion/external_adapter.go` 与 `repository/data_deletion_external_operation.go` 为 MinIO/Qdrant 增加未注册的统一外部删除内核和 Mongo Journal：外部写前在事务内复核治理证据，以租约串行同键操作，先持久化 before-state，再在零残留后 CAS 固化回执，允许崩溃后的确定性对账。MinIO Adapter 固定桶及租户哈希 Key Manifest；Qdrant Adapter 固定共享集合 `user_id` Filter，并在旧 `episodic_user_<id>` 集合未明确退役时 fail-closed。Tweet Service 已实现受内部认证保护的观察/删除 RPC、单事务六类清理、逐 Tweet Outbox、持久摘要回执、同键回放和 1000 条作者 Tweet 上限；Agent 侧 gRPC Adapter 仍未注册。未注册 Worker 已串联八阶段租约、失败阶段恢复、五存储最终读回和绑定前七阶段证据的终态收据；最后一次 CAS 原子完成请求。`repository/data_deletion_write_fence.go` 已实现未注册的 Agent Mongo Fence Authority 及 fail-closed 写授权读取，但尚未贯通 Agent/Tweet 全部写路径。后台生产装配、真实副本集/外部存储故障恢复证据仍未完成。

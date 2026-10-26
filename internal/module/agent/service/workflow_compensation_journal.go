@@ -87,6 +87,9 @@ func (s *AgentService) RetryWorkflowCompensation(
 	userID uint64,
 	runID string,
 ) (*WorkflowExecutionResult, error) {
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return nil, err
+	}
 	journal, err := s.GetWorkflowCompensationJournal(ctx, userID, runID)
 	if err != nil {
 		return nil, err

@@ -149,6 +149,9 @@ func (s *AgentService) persistWorkflowStateCommit(ctx context.Context, run *repo
 	if run == nil {
 		return nil
 	}
+	if err := s.authorizeSubjectWrite(ctx, run.UserID); err != nil {
+		return err
+	}
 	if commit.StateVersion > math.MaxInt64 {
 		return errors.New("workflow state version exceeds persistence range")
 	}

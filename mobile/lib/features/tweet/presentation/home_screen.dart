@@ -33,6 +33,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _onScroll() {
+    final state = ref.read(feedNotifierProvider);
+    if (state.isLoading || state.errorMessage != null || state.continuation) {
+      return;
+    }
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent * 0.9) {
       ref.read(feedNotifierProvider.notifier).fetchNextPage();
@@ -48,7 +52,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     // Listen to action failures and show error tips
     ref.listen<FeedState>(feedNotifierProvider, (previous, next) {
-      if (next.errorMessage != null && next.errorMessage != previous?.errorMessage) {
+      if (next.errorMessage != null &&
+          next.errorMessage != previous?.errorMessage) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(next.errorMessage!),
@@ -60,7 +65,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     // Resolve current user avatar
     final currentUser = authState.user;
-    final avatarUrl = currentUser?.avatar != null && currentUser!.avatar.isNotEmpty
+    final avatarUrl =
+        currentUser?.avatar != null && currentUser!.avatar.isNotEmpty
         ? DioClient.getMediaUrl(currentUser.avatar)
         : '';
 
@@ -75,7 +81,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               }
             },
             child: CircleAvatar(
-              backgroundColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+              backgroundColor: isDark
+                  ? AppColors.darkBorder
+                  : AppColors.lightBorder,
               backgroundImage: avatarUrl.isNotEmpty
                   ? CachedNetworkImageProvider(avatarUrl)
                   : null,
@@ -92,13 +100,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         centerTitle: true,
         actions: [
+          IconButton(tooltip: '账号安全', icon: const Icon(Icons.security), onPressed: () => context.push('/account/security')),
           // Theme toggler
           IconButton(
             icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
             onPressed: () async {
               final newMode = isDark ? 'light' : 'dark';
               await Storage.saveThemeMode(newMode);
-              
+              if (!context.mounted) return;
+
               // We restart the app or force a redraw by changing themeMode.
               // For simplicity in this demo system, we can prompt or trigger rebuild
               // In production we would use a ThemeProvider.
@@ -141,7 +151,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: () => ref.read(feedNotifierProvider.notifier).refresh(),
+                onPressed: () =>
+                    ref.read(feedNotifierProvider.notifier).retry(),
                 child: const Text('重试'),
               ),
             ],
@@ -151,11 +162,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     if (state.tweets.isEmpty) {
+      if (state.hasMore) {
+        return Center(
+          child: TextButton(
+            onPressed: () =>
+                ref.read(feedNotifierProvider.notifier).fetchNextPage(),
+            child: const Text('继续加载'),
+          ),
+        );
+      }
       return const Center(
-        child: Text(
-          '你的时间线上还没有推文，去关注一些人吧！',
-          style: TextStyle(fontSize: 16),
-        ),
+        child: Text('你的时间线上还没有推文，去关注一些人吧！', style: TextStyle(fontSize: 16)),
       );
     }
 
@@ -166,17 +183,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       itemBuilder: (context, index) {
         if (index == state.tweets.length) {
           // Bottom loading spinner for pagination
-          return state.hasMore
-              ? const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20.0),
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      color: AppColors.primary,
-                      strokeWidth: 2,
-                    ),
-                  ),
-                )
-              : const SizedBox(height: 50); // Spacer at end of timeline
+          if (state.isFetchingMore || state.isLoading) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20.0),
+              child: Center(
+                child: CircularProgressIndicator(
+                  color: AppColors.primary,
+                  strokeWidth: 2,
+                ),
+              ),
+            );
+          }
+          if (state.errorMessage != null) {
+            return Center(
+              child: TextButton(
+                onPressed: () =>
+                    ref.read(feedNotifierProvider.notifier).retry(),
+                child: const Text('加载失败，重试'),
+              ),
+            );
+          }
+          if (state.hasMore) {
+            return Center(
+              child: TextButton(
+                onPressed: () =>
+                    ref.read(feedNotifierProvider.notifier).fetchNextPage(),
+                child: const Text('继续加载'),
+              ),
+            );
+          }
+          return const Padding(
+            padding: EdgeInsets.all(20),
+            child: Center(child: Text('已经到底了')),
+          );
         }
 
         final tweet = state.tweets[index];

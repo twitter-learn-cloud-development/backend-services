@@ -102,7 +102,11 @@ type AgentService struct {
 	runtimeMessages                      agentMessage.Builder
 	runtimeTokens                        agentRuntime.TokenCounter
 	runtimeAdmission                     agentRuntime.AdmissionController
+	providerAdmission                    agentModel.CallAdmission
 	runtimeCostEstimator                 agentRuntime.CostEstimator
+	planningExecute                      PlanningExecuteConfig
+	planningCoordinator                  *agentRuntime.PlanningCoordinator
+	planningExecuteObserver              PlanningExecuteObserver
 	goalRuntimeShadow                    GoalRuntimeShadowConfig
 	goalRuntimeShadowObserver            GoalRuntimeShadowObserver
 	traceRecorder                        agentObservability.Recorder
@@ -164,11 +168,15 @@ type AgentService struct {
 	agentResumeLeaseDuration             time.Duration
 	unifiedAgentApprovalRecovery         bool
 	agentProjectManager                  *agentProject.Manager
+	subjectWriteAuthorizer               SubjectWriteAuthorizer
 
 	summaryWriter        SessionSummaryWriter
+	summaryObserver      SessionSummaryObserver
 	summaryMinMessages   int64
 	summaryIdleDelay     time.Duration
 	summaryLeaseDuration time.Duration
+	summarySweepInterval time.Duration
+	summaryWorkerOnce    sync.Once
 	summaryMu            sync.Mutex
 	summaryTimers        map[primitive.ObjectID]*time.Timer
 	summaryJobs          map[primitive.ObjectID]map[string]context.CancelFunc
@@ -177,6 +185,19 @@ type AgentService struct {
 // Option configures AgentService without expanding its infrastructure-heavy
 // constructor signature for every cross-cutting runtime concern.
 type Option func(*AgentService)
+
+// SubjectWriteAuthorizer blocks writes after a user deletion fence is
+// installed. Production discovers it from MongoAgentRepository; explicit
+// injection keeps service tests and alternate repositories deterministic.
+type SubjectWriteAuthorizer interface {
+	AuthorizeSubjectWrite(context.Context, uint64) error
+}
+
+func WithSubjectWriteAuthorizer(authorizer SubjectWriteAuthorizer) Option {
+	return func(service *AgentService) {
+		service.subjectWriteAuthorizer = authorizer
+	}
+}
 
 // WithRuntimeRollout injects the immutable Runtime v2 rollout snapshot.
 func WithRuntimeRollout(rollout agentRuntime.Rollout) Option {
@@ -230,12 +251,16 @@ func WithRuntimeMessageBuilder(builder agentMessage.Builder) Option {
 	}
 }
 
-// WithRuntimeAdmission replaces the run admission policy. Production uses a
-// process-local limiter; a shared Redis implementation can be injected later.
+// WithRuntimeAdmission replaces the run admission policy. Startup selects the
+// local fallback or the explicitly enabled shared adapter.
 func WithRuntimeAdmission(controller agentRuntime.AdmissionController) Option {
 	return func(service *AgentService) {
 		service.runtimeAdmission = controller
 	}
+}
+
+func WithProviderAdmission(policy agentModel.CallAdmission) Option {
+	return func(service *AgentService) { service.providerAdmission = policy }
 }
 
 // WithExecutionTraceStore injects persistence independently from Runtime,
@@ -510,6 +535,22 @@ func WithSessionSummaryPolicy(minPendingMessages int64, idleDelay time.Duration)
 	}
 }
 
+func WithSessionSummarySweepInterval(interval time.Duration) Option {
+	return func(service *AgentService) {
+		if interval > 0 {
+			service.summarySweepInterval = interval
+		}
+	}
+}
+
+func WithSessionSummaryObserver(observer SessionSummaryObserver) Option {
+	return func(service *AgentService) {
+		if observer != nil {
+			service.summaryObserver = observer
+		}
+	}
+}
+
 // WithSessionSummaryWriter replaces the memory sink independently from the
 // scheduler. Production uses MemoryManager; tests or future event adapters can
 // provide another implementation without changing dialogue persistence.
@@ -673,6 +714,7 @@ func NewAgentService(
 		summaryMinMessages:   defaultSessionSummaryMinMessages,
 		summaryIdleDelay:     defaultSessionSummaryIdleDelay,
 		summaryLeaseDuration: defaultSessionSummaryLeaseDuration,
+		summarySweepInterval: defaultSessionSummarySweepInterval,
 		summaryTimers:        make(map[primitive.ObjectID]*time.Timer),
 		summaryJobs:          make(map[primitive.ObjectID]map[string]context.CancelFunc),
 		runtimeAdmission: agentRuntime.NewInMemoryConcurrencyLimiter(agentRuntime.ConcurrencyLimits{
@@ -705,6 +747,11 @@ func NewAgentService(
 			option(service)
 		}
 	}
+	if service.subjectWriteAuthorizer == nil {
+		if authorizer, ok := repo.(SubjectWriteAuthorizer); ok {
+			service.subjectWriteAuthorizer = authorizer
+		}
+	}
 	if service.runtimeTokens == nil {
 		service.runtimeTokens = agentRuntime.NewHeuristicTokenCounter()
 	}
@@ -723,6 +770,12 @@ func NewAgentService(
 	}
 	if service.goalRuntimeShadowObserver == nil {
 		service.goalRuntimeShadowObserver = noopGoalRuntimeShadowObserver{}
+	}
+	if service.planningExecuteObserver == nil {
+		service.planningExecuteObserver = noopPlanningExecuteObserver{}
+	}
+	if service.summaryObserver == nil {
+		service.summaryObserver = noopSessionSummaryObserver{}
 	}
 	if service.providerConfigCipher == nil {
 		service.providerConfigCipher, _ = agentCredential.NewAESGCMCipherFromEnv()
@@ -794,33 +847,54 @@ func NewAgentService(
 	if service.runtimeTools == nil {
 		service.runtimeTools = &mcpRuntimeToolCatalog{service: service}
 	}
+	var planningModelClient agentRuntime.ModelClient
 	if service.runtimeRunner == nil {
-		modelClient := agentRuntime.ModelClient(agentModel.NewOpenAICompatibleClient(service.llmClient, chatModel, "openai-compatible"))
+		modelClient := agentRuntime.ModelClient(agentModel.NewOpenAICompatibleClient(service.llmClient, chatModel, "openai-compatible", agentModel.WithCallAdmission(service.providerAdmission)))
 		runnerOptions := []agentRuntime.ReActRunnerOption{
 			agentRuntime.WithTokenCounter(service.runtimeTokens),
 			agentRuntime.WithAdmissionController(service.runtimeAdmission),
 		}
-		if router, err := buildDefaultProviderRouter(service.llmClient, chatModel); err != nil {
+		if router, err := buildDefaultProviderRouter(service.llmClient, chatModel, service.providerAdmission); err != nil {
 			log.Printf("warning: model catalog router unavailable, using compatibility client: %v", err)
 		} else {
 			modelClient = router
 			service.runtimeCostEstimator = router
 			runnerOptions = append(runnerOptions, agentRuntime.WithCostEstimator(router))
 		}
+		planningModelClient = &tracingModelClient{
+			delegate: modelClient, recorder: service.traceRecorder,
+			sampler: service.traceContentSampler, now: time.Now,
+		}
 		service.runtimeRunner = agentRuntime.NewReActRunner(
-			&tracingModelClient{
-				delegate: modelClient, recorder: service.traceRecorder,
-				sampler: service.traceContentSampler, now: time.Now,
-			},
+			planningModelClient,
 			&mcpRuntimeToolExecutor{service: service},
 			nil,
 			runnerOptions...,
 		)
 	}
+	if err := service.configurePlanningCoordinator(planningModelClient); err != nil {
+		panic(fmt.Sprintf("invalid Planning-Execute configuration: %v", err))
+	}
 	if service.externalMCPManager != nil {
 		service.externalMCPManager.Start(service.serviceCtx)
 	}
+	service.startSessionSummaryWorker()
 	return service
+}
+
+func (s *AgentService) authorizeSubjectWrite(ctx context.Context, userID uint64) error {
+	if s == nil || userID == 0 {
+		return errors.New("agent subject write authorization is invalid")
+	}
+	// Non-Mongo test doubles and read-only adapters predate the deletion
+	// protocol. Production MongoAgentRepository always supplies the authority.
+	if s.subjectWriteAuthorizer == nil {
+		return nil
+	}
+	if err := s.subjectWriteAuthorizer.AuthorizeSubjectWrite(ctx, userID); err != nil {
+		return fmt.Errorf("authorize agent subject write: %w", err)
+	}
+	return nil
 }
 
 func (s *AgentService) RuntimeCostEstimator() agentRuntime.CostEstimator {
@@ -881,6 +955,9 @@ func (s *AgentService) getOrCreateDialogue(ctx context.Context, userID uint64, d
 	}
 
 	// 创建新对话
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return nil, err
+	}
 	title := repository.GenerateTitle(firstMessage)
 	dialogue, err := s.repo.CreateDialogue(ctx, userID, title, mode)
 	if err != nil {
@@ -908,6 +985,9 @@ func (s *AgentService) loadContextMessages(ctx context.Context, dialogueID primi
 
 // saveUserAndAssistantMessages 保存用户问题和 AI 回复到 MongoDB
 func (s *AgentService) saveUserAndAssistantMessages(ctx context.Context, dialogueID primitive.ObjectID, userID uint64, userContent string, assistantContent string, metadata map[string]any) error {
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return err
+	}
 	msgs := []*repository.DialogueMessage{
 		{
 			DialogueID: dialogueID,
@@ -944,6 +1024,9 @@ func (s *AgentService) saveAssistantMessage(
 	content string,
 	metadata map[string]any,
 ) error {
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return err
+	}
 	if err := s.repo.SaveMessage(ctx, &repository.DialogueMessage{
 		DialogueID: dialogueID,
 		UserID:     userID,
@@ -1011,6 +1094,9 @@ func (s *AgentService) EndDialogueSession(ctx context.Context, userID uint64, di
 	if dialogue.UserID != userID {
 		return fmt.Errorf("dialogue does not belong to user %d", userID)
 	}
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return err
+	}
 
 	s.cancelSessionSummaryTimer(oid)
 	if err := s.waitForSessionSummaryJobs(ctx, oid); err != nil {
@@ -1018,7 +1104,7 @@ func (s *AgentService) EndDialogueSession(ctx context.Context, userID uint64, di
 	}
 	finalizeCtx, cancel := context.WithTimeout(ctx, defaultSessionSummaryTimeout)
 	defer cancel()
-	if err := s.crystallizeDialogueSummary(finalizeCtx, userID, oid, true); err != nil {
+	if err := s.crystallizeDialogueSummaryWithTrigger(finalizeCtx, userID, oid, true, sessionSummaryTriggerSessionEnd); err != nil {
 		return fmt.Errorf("finalize dialogue session summary: %w", err)
 	}
 	return nil
@@ -1029,6 +1115,9 @@ func (s *AgentService) DeleteDialogue(ctx context.Context, userID uint64, dialog
 	oid, err := primitive.ObjectIDFromHex(dialogueIDHex)
 	if err != nil {
 		return fmt.Errorf("invalid dialogue_id: %w", err)
+	}
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return err
 	}
 	s.cancelSessionSummaryTimer(oid)
 	return s.repo.DeleteDialogue(ctx, oid, userID)
@@ -1056,6 +1145,9 @@ func (s *AgentService) AnalysisFile(ctx context.Context, userID uint64, fileKind
 	parsedText, err := ParseFile(fileKindID, fileContent)
 	if err != nil {
 		return nil, fmt.Errorf("parse file failed: %w", err)
+	}
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return nil, err
 	}
 
 	// 2. 创建一个专门的对话来存储文件解析结果
@@ -1144,7 +1236,7 @@ func (s *AgentService) callApiOfAiLegacy(ctx context.Context, userID uint64, dia
 	})
 
 	// 3. 调用 LLM
-	resp, err := s.llmClient.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+	resp, err := s.completeCompatibilityModel(ctx, openai.ChatCompletionRequest{
 		Model:    s.selectedModel(ctx),
 		Messages: messages,
 	})
@@ -1320,7 +1412,7 @@ func (s *AgentService) consultContentLegacy(ctx context.Context, userID uint64, 
 
 	// 4. ReAct 循环：LLM 决策 → 调 Tool → 把结果喂回 LLM → 直到 LLM 不再调 Tool
 	for i := 0; i < 5; i++ { // 最多循环 5 次，防止死循环
-		resp, err := s.llmClient.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+		resp, err := s.completeCompatibilityModel(ctx, openai.ChatCompletionRequest{
 			Model:    s.selectedModel(ctx),
 			Messages: messages,
 			Tools:    openaiTools,
@@ -1525,7 +1617,7 @@ func (s *AgentService) assistPublishTwitterLegacy(ctx context.Context, userID ui
 
 	// 4. ReAct 循环
 	for i := 0; i < 5; i++ {
-		resp, err := s.llmClient.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+		resp, err := s.completeCompatibilityModel(ctx, openai.ChatCompletionRequest{
 			Model:    s.selectedModel(ctx),
 			Messages: messages,
 			Tools:    openaiTools,
@@ -1731,7 +1823,7 @@ func (s *AgentService) MultiAgentPublishTwitter(ctx context.Context, userID uint
 适用场景：`,
 		content, domain, domainTweets, authorTweets, referenceTweets)
 
-	resp, err := s.llmClient.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+	resp, err := s.completeCompatibilityModel(ctx, openai.ChatCompletionRequest{
 		Model: s.selectedModel(ctx),
 		Messages: []openai.ChatCompletionMessage{
 			{

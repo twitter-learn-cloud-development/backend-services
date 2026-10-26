@@ -1,0 +1,589 @@
+name: twitter-clone-production
+
+secrets:
+  tls_certificate:
+    file: ${TLS_CERTIFICATE_FILE:?TLS_CERTIFICATE_FILE is required}
+  tls_private_key:
+    file: ${TLS_PRIVATE_KEY_FILE:?TLS_PRIVATE_KEY_FILE is required}
+  alertmanager_webhook_token:
+    file: ${ALERTMANAGER_WEBHOOK_TOKEN_FILE:?ALERTMANAGER_WEBHOOK_TOKEN_FILE is required}
+
+x-app-defaults: &app-defaults
+  restart: unless-stopped
+  pull_policy: always
+  init: true
+  security_opt:
+    - no-new-privileges:true
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "5"
+  deploy:
+    resources:
+      reservations:
+        cpus: "0.10"
+        memory: 128M
+      limits:
+        cpus: "1.00"
+        memory: 768M
+
+x-worker-defaults: &worker-defaults
+  restart: unless-stopped
+  pull_policy: always
+  init: true
+  security_opt:
+    - no-new-privileges:true
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "5"
+  deploy:
+    resources:
+      reservations:
+        cpus: "0.10"
+        memory: 128M
+      limits:
+        cpus: "1.50"
+        memory: 1G
+
+x-data-defaults: &data-defaults
+  restart: unless-stopped
+  pull_policy: always
+  security_opt:
+    - no-new-privileges:true
+  logging:
+    driver: json-file
+    options:
+      max-size: "20m"
+      max-file: "5"
+  deploy:
+    resources:
+      reservations:
+        cpus: "0.25"
+        memory: 256M
+      limits:
+        cpus: "2.00"
+        memory: 2G
+
+x-observability-defaults: &observability-defaults
+  restart: unless-stopped
+  pull_policy: always
+  security_opt:
+    - no-new-privileges:true
+  logging:
+    driver: json-file
+    options:
+      max-size: "20m"
+      max-file: "5"
+  deploy:
+    resources:
+      reservations:
+        cpus: "0.05"
+        memory: 64M
+      limits:
+        cpus: "1.00"
+        memory: 1G
+
+services:
+  edge-proxy:
+    <<: *app-defaults
+    image: ${EDGE_PROXY_IMAGE:?EDGE_PROXY_IMAGE must be pinned by digest}
+    ports: !override
+      - ${EDGE_BIND_ADDRESS:-0.0.0.0}:80:8080
+      - ${EDGE_BIND_ADDRESS:-0.0.0.0}:443:8443
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:?PUBLIC_HOST is required}
+    volumes:
+      - ./deploy/nginx/production.conf.template:/etc/nginx/templates/default.conf.template:ro
+    secrets:
+      - tls_certificate
+      - tls_private_key
+    depends_on:
+      gateway:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-check-certificate -q --spider https://127.0.0.1:8443/edge-health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  mysql:
+    <<: *data-defaults
+    image: ${MYSQL_IMAGE:?MYSQL_IMAGE must be pinned by digest}
+    ports: !reset []
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD is required}
+      MYSQL_DATABASE: twitter
+      MYSQL_USER: ${DB_USER:?DB_USER is required}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+
+  mongodb:
+    <<: *data-defaults
+    image: ${MONGODB_IMAGE:?MONGODB_IMAGE must be pinned by digest}
+    ports: !reset []
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:?MONGO_USER is required}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:?MONGO_PASSWORD is required}
+      MONGO_INITDB_DATABASE: twitter_agent
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --username \"$$MONGO_INITDB_ROOT_USERNAME\" --password \"$$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin --eval 'quit(db.adminCommand({ ping: 1 }).ok ? 0 : 2)'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  redis:
+    <<: *data-defaults
+    image: ${REDIS_IMAGE:?REDIS_IMAGE must be pinned by digest}
+    ports: !reset []
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    volumes:
+      - redis_data:/data
+
+  rabbitmq:
+    <<: *data-defaults
+    image: ${RABBITMQ_IMAGE:?RABBITMQ_IMAGE must be pinned by digest}
+    ports: !reset []
+    environment:
+      RABBITMQ_DEFAULT_USER: ${MQ_USER:?MQ_USER is required}
+      RABBITMQ_DEFAULT_PASS: ${MQ_PASSWORD:?MQ_PASSWORD is required}
+      RABBITMQ_DEFAULT_VHOST: ${MQ_VHOST:-/}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  minio:
+    <<: *data-defaults
+    image: ${MINIO_IMAGE:?MINIO_IMAGE must be pinned by digest}
+    ports: !reset []
+    environment:
+      MINIO_ROOT_USER: ${MINIO_USER:?MINIO_USER is required}
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD:?MINIO_PASSWORD is required}
+
+  elasticsearch:
+    <<: *data-defaults
+    image: ${ELASTICSEARCH_IMAGE:?ELASTICSEARCH_IMAGE must be pinned by digest}
+    ports: !reset []
+
+  qdrant:
+    <<: *data-defaults
+    image: ${QDRANT_IMAGE:?QDRANT_IMAGE must be pinned by digest}
+    ports: !reset []
+
+  consul:
+    <<: *data-defaults
+    image: ${CONSUL_IMAGE:?CONSUL_IMAGE must be pinned by digest}
+    ports: !reset []
+    command: ["agent", "-server", "-bootstrap-expect=1", "-client=0.0.0.0", "-ui=false", "-data-dir=/consul/data"]
+    volumes:
+      - consul_data:/consul/data
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  temporal:
+    <<: *data-defaults
+    image: ${TEMPORAL_IMAGE:?TEMPORAL_IMAGE must be pinned by digest}
+    ports: !reset []
+    environment:
+      DB: mysql8
+      MYSQL_SEEDS: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PWD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD is required}
+
+  temporal-ui:
+    <<: *observability-defaults
+    image: ${TEMPORAL_UI_IMAGE:?TEMPORAL_UI_IMAGE must be pinned by digest}
+    ports: !reset []
+
+  jaeger:
+    <<: *observability-defaults
+    image: ${JAEGER_IMAGE:?JAEGER_IMAGE must be pinned by digest}
+    ports: !reset []
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+      SPAN_STORAGE_TYPE: badger
+      BADGER_EPHEMERAL: "false"
+      BADGER_DIRECTORY_VALUE: /badger/data
+      BADGER_DIRECTORY_KEY: /badger/key
+      BADGER_SPAN_STORE_TTL: ${JAEGER_RETENTION:-168h}
+    volumes:
+      - jaeger_data:/badger
+
+  prometheus:
+    <<: *observability-defaults
+    image: ${PROMETHEUS_IMAGE:?PROMETHEUS_IMAGE must be pinned by digest}
+    ports: !reset []
+    volumes: !override
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus_data:/prometheus
+    command: !override
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-15d}
+      - --web.enable-lifecycle
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:9090/-/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  alertmanager:
+    <<: *observability-defaults
+    image: ${ALERTMANAGER_IMAGE:?ALERTMANAGER_IMAGE must be pinned by digest}
+    ports: !reset []
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+      - --data.retention=${ALERTMANAGER_RETENTION:-120h}
+    volumes:
+      - ./deploy/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    secrets:
+      - alertmanager_webhook_token
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:9093/-/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  grafana:
+    <<: *observability-defaults
+    image: ${GRAFANA_IMAGE:?GRAFANA_IMAGE must be pinned by digest}
+    ports: !reset []
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}
+      GF_SECURITY_COOKIE_SECURE: "true"
+      GF_SECURITY_COOKIE_SAMESITE: strict
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes: !override
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+
+  loki:
+    <<: *observability-defaults
+    image: ${LOKI_IMAGE:?LOKI_IMAGE must be pinned by digest}
+    ports: !reset []
+    command: !override
+      - -config.file=/etc/loki/loki-config.yaml
+    volumes: !override
+      - ./deploy/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - loki_data:/loki
+
+  promtail:
+    <<: *observability-defaults
+    image: ${PROMTAIL_IMAGE:?PROMTAIL_IMAGE must be pinned by digest}
+    volumes: !override
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./deploy/promtail/promtail-config.yaml:/etc/promtail/config.yml:ro
+      - promtail_data:/var/lib/promtail
+    command: !override
+      - -config.file=/etc/promtail/config.yml
+
+  kibana:
+    <<: *observability-defaults
+    image: ${KIBANA_IMAGE:?KIBANA_IMAGE must be pinned by digest}
+    ports: !reset []
+
+  pyroscope:
+    <<: *observability-defaults
+    image: ${PYROSCOPE_IMAGE:?PYROSCOPE_IMAGE must be pinned by digest}
+    ports: !reset []
+
+  sentinel:
+    <<: *observability-defaults
+    image: ${SENTINEL_IMAGE:?SENTINEL_IMAGE must be pinned by digest}
+    ports: !reset []
+
+  auth-service:
+    <<: *app-defaults
+    image: ${AUTH_SERVICE_IMAGE:?AUTH_SERVICE_IMAGE must be pinned by digest}
+    build: !reset null
+    ports: !reset []
+    environment:
+      APP_ENV: production
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_ISSUER: ${JWT_ISSUER:?JWT_ISSUER is required}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:?JWT_AUDIENCE is required}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 9097"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+
+  user-service:
+    <<: *app-defaults
+    image: ${USER_SERVICE_IMAGE:?USER_SERVICE_IMAGE must be pinned by digest}
+    build: !reset null
+    environment:
+      APP_ENV: production
+      DB_REQUIRE_SERVICE_CREDENTIALS: "true"
+      USER_SERVICE_DB_USER: ${USER_SERVICE_DB_USER:?USER_SERVICE_DB_USER is required}
+      USER_SERVICE_DB_PASSWORD: ${USER_SERVICE_DB_PASSWORD:?USER_SERVICE_DB_PASSWORD is required}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 9091"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+
+  tweet-service:
+    <<: *app-defaults
+    image: ${TWEET_SERVICE_IMAGE:?TWEET_SERVICE_IMAGE must be pinned by digest}
+    build: !reset null
+    environment:
+      APP_ENV: production
+      DB_REQUIRE_SERVICE_CREDENTIALS: "true"
+      TWEET_SERVICE_DB_USER: ${TWEET_SERVICE_DB_USER:?TWEET_SERVICE_DB_USER is required}
+      TWEET_SERVICE_DB_PASSWORD: ${TWEET_SERVICE_DB_PASSWORD:?TWEET_SERVICE_DB_PASSWORD is required}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      MQ_USER: ${MQ_USER:?MQ_USER is required}
+      MQ_PASSWORD: ${MQ_PASSWORD:?MQ_PASSWORD is required}
+      MQ_VHOST: ${MQ_VHOST:-/}
+      TWEET_INTERNAL_SERVICE_TOKEN: ${TWEET_INTERNAL_SERVICE_TOKEN:?TWEET_INTERNAL_SERVICE_TOKEN is required}
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 9092"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+
+  follow-service:
+    <<: *app-defaults
+    image: ${FOLLOW_SERVICE_IMAGE:?FOLLOW_SERVICE_IMAGE must be pinned by digest}
+    build: !reset null
+    environment:
+      APP_ENV: production
+      DB_REQUIRE_SERVICE_CREDENTIALS: "true"
+      FOLLOW_SERVICE_DB_USER: ${FOLLOW_SERVICE_DB_USER:?FOLLOW_SERVICE_DB_USER is required}
+      FOLLOW_SERVICE_DB_PASSWORD: ${FOLLOW_SERVICE_DB_PASSWORD:?FOLLOW_SERVICE_DB_PASSWORD is required}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      MQ_USER: ${MQ_USER:?MQ_USER is required}
+      MQ_PASSWORD: ${MQ_PASSWORD:?MQ_PASSWORD is required}
+      MQ_VHOST: ${MQ_VHOST:-/}
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 9093"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+
+  messenger-service:
+    <<: *app-defaults
+    image: ${MESSENGER_SERVICE_IMAGE:?MESSENGER_SERVICE_IMAGE must be pinned by digest}
+    build: !reset null
+    environment:
+      APP_ENV: production
+      DB_REQUIRE_SERVICE_CREDENTIALS: "true"
+      MESSENGER_SERVICE_DB_USER: ${MESSENGER_SERVICE_DB_USER:?MESSENGER_SERVICE_DB_USER is required}
+      MESSENGER_SERVICE_DB_PASSWORD: ${MESSENGER_SERVICE_DB_PASSWORD:?MESSENGER_SERVICE_DB_PASSWORD is required}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 9094"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+
+  notification-service:
+    <<: *worker-defaults
+    image: ${NOTIFICATION_SERVICE_IMAGE:?NOTIFICATION_SERVICE_IMAGE must be pinned by digest}
+    build: !reset null
+    environment:
+      APP_ENV: production
+      DB_REQUIRE_SERVICE_CREDENTIALS: "true"
+      NOTIFICATION_SERVICE_DB_USER: ${NOTIFICATION_SERVICE_DB_USER:?NOTIFICATION_SERVICE_DB_USER is required}
+      NOTIFICATION_SERVICE_DB_PASSWORD: ${NOTIFICATION_SERVICE_DB_PASSWORD:?NOTIFICATION_SERVICE_DB_PASSWORD is required}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      MQ_USER: ${MQ_USER:?MQ_USER is required}
+      MQ_PASSWORD: ${MQ_PASSWORD:?MQ_PASSWORD is required}
+      MQ_VHOST: ${MQ_VHOST:-/}
+    healthcheck:
+      test: ["CMD-SHELL", "pidof notification-service >/dev/null"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+
+  canal-relay:
+    <<: *worker-defaults
+    image: ${CANAL_RELAY_IMAGE:?CANAL_RELAY_IMAGE must be pinned by digest}
+    build: !reset null
+    environment:
+      APP_ENV: production
+      DB_REQUIRE_SERVICE_CREDENTIALS: "true"
+      CANAL_RELAY_DB_USER: ${CANAL_RELAY_DB_USER:?CANAL_RELAY_DB_USER is required}
+      CANAL_RELAY_DB_PASSWORD: ${CANAL_RELAY_DB_PASSWORD:?CANAL_RELAY_DB_PASSWORD is required}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      MQ_USER: ${MQ_USER:?MQ_USER is required}
+      MQ_PASSWORD: ${MQ_PASSWORD:?MQ_PASSWORD is required}
+      MQ_VHOST: ${MQ_VHOST:-/}
+    healthcheck:
+      test: ["CMD-SHELL", "pidof canal-relay >/dev/null"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+
+  consumer:
+    <<: *worker-defaults
+    image: ${CONSUMER_IMAGE:?CONSUMER_IMAGE must be pinned by digest}
+    build: !reset null
+    environment:
+      APP_ENV: production
+      DB_REQUIRE_SERVICE_CREDENTIALS: "true"
+      CONSUMER_DB_USER: ${CONSUMER_DB_USER:?CONSUMER_DB_USER is required}
+      CONSUMER_DB_PASSWORD: ${CONSUMER_DB_PASSWORD:?CONSUMER_DB_PASSWORD is required}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      MQ_USER: ${MQ_USER:?MQ_USER is required}
+      MQ_PASSWORD: ${MQ_PASSWORD:?MQ_PASSWORD is required}
+      MQ_VHOST: ${MQ_VHOST:-/}
+      LM_STUDIO_API_URL: ${AGENT_LLM_BASE_URL:?AGENT_LLM_BASE_URL is required}
+      LM_STUDIO_MODEL_EMBEDDING: ${AGENT_EMBEDDING_MODEL:?AGENT_EMBEDDING_MODEL is required}
+      MOCK_EMBEDDING: "false"
+    healthcheck:
+      test: ["CMD-SHELL", "pidof consumer >/dev/null"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+
+  agent-service:
+    <<: *worker-defaults
+    image: ${AGENT_SERVICE_IMAGE:?AGENT_SERVICE_IMAGE must be pinned by digest}
+    build: !reset null
+    environment:
+      APP_ENV: production
+      DB_REQUIRE_SERVICE_CREDENTIALS: "true"
+      # API/all validate paired service credentials at startup; Worker has no Persona DB.
+      AGENT_SERVICE_DB_USER: ${AGENT_SERVICE_DB_USER:-}
+      AGENT_SERVICE_DB_PASSWORD: ${AGENT_SERVICE_DB_PASSWORD:-}
+      AGENT_PROCESS_ROLE: ${AGENT_PROCESS_ROLE:-all}
+      AGENT_SHARED_ADMISSION_ENABLED: ${AGENT_SHARED_ADMISSION_ENABLED:-false}
+      AGENT_SHARED_ADMISSION_NAMESPACE: ${AGENT_SHARED_ADMISSION_NAMESPACE:-agent-v1}
+      AGENT_SHARED_ADMISSION_LEASE: ${AGENT_SHARED_ADMISSION_LEASE:-30s}
+      AGENT_SHARED_MAX_RUNS: ${AGENT_SHARED_MAX_RUNS:-64}
+      AGENT_SHARED_MAX_USER_RUNS: ${AGENT_SHARED_MAX_USER_RUNS:-2}
+      AGENT_SHARED_MAX_WORKFLOW_RUNS: ${AGENT_SHARED_MAX_WORKFLOW_RUNS:-2}
+      AGENT_SHARED_MAX_PROVIDER_CALLS: ${AGENT_SHARED_MAX_PROVIDER_CALLS:-8}
+      AGENT_SHARED_MAX_PER_PROVIDER: ${AGENT_SHARED_MAX_PER_PROVIDER:-8}
+      AGENT_SHARED_OUTPUT_TOKEN_LIMIT: ${AGENT_SHARED_OUTPUT_TOKEN_LIMIT:-4096}
+      AGENT_SHARED_TOKEN_BUDGET_PER_MINUTE: ${AGENT_SHARED_TOKEN_BUDGET_PER_MINUTE:-250000}
+      AGENT_SHARED_COST_BUDGET_PER_MINUTE: ${AGENT_SHARED_COST_BUDGET_PER_MINUTE:-0}
+      AGENT_SHARED_COST_MICROS_PER_TOKEN: ${AGENT_SHARED_COST_MICROS_PER_TOKEN:-0}
+      MONGO_USER: ${MONGO_USER:?MONGO_USER is required}
+      MONGO_PASSWORD: ${MONGO_PASSWORD:?MONGO_PASSWORD is required}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      MQ_USER: ${MQ_USER:?MQ_USER is required}
+      MQ_PASSWORD: ${MQ_PASSWORD:?MQ_PASSWORD is required}
+      MQ_VHOST: ${MQ_VHOST:-/}
+      MINIO_USER: ${MINIO_USER:?MINIO_USER is required}
+      MINIO_PASSWORD: ${MINIO_PASSWORD:?MINIO_PASSWORD is required}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:?DASHSCOPE_API_KEY is required}
+      LM_STUDIO_API_URL: ${AGENT_LLM_BASE_URL:?AGENT_LLM_BASE_URL is required}
+      LM_STUDIO_MODEL_CHAT: ${AGENT_CHAT_MODEL:?AGENT_CHAT_MODEL is required}
+      LM_STUDIO_MODEL_EMBEDDING: ${AGENT_EMBEDDING_MODEL:?AGENT_EMBEDDING_MODEL is required}
+      MOCK_EMBEDDING: "false"
+      AGENT_PROVIDER_CONFIG_MASTER_KEY: ${AGENT_PROVIDER_CONFIG_MASTER_KEY:?AGENT_PROVIDER_CONFIG_MASTER_KEY is required}
+      AGENT_RUN_CHECKPOINT_MASTER_KEY: ${AGENT_RUN_CHECKPOINT_MASTER_KEY:?AGENT_RUN_CHECKPOINT_MASTER_KEY is required}
+      AGENT_RECOVERABLE_RUNS_ENABLED: ${AGENT_RECOVERABLE_RUNS_ENABLED:-false}
+      AGENT_UNIFIED_APPROVAL_RECOVERY_ENABLED: ${AGENT_UNIFIED_APPROVAL_RECOVERY_ENABLED:-false}
+      AGENT_PLANNING_EXECUTE_ENABLED: ${AGENT_PLANNING_EXECUTE_ENABLED:-false}
+      AGENT_PLANNING_EXECUTE_CANARY_PERCENT: ${AGENT_PLANNING_EXECUTE_CANARY_PERCENT:-0}
+      AGENT_PLANNING_EXECUTE_EXTERNAL_MCP_WRITE_ENABLED: ${AGENT_PLANNING_EXECUTE_EXTERNAL_MCP_WRITE_ENABLED:-false}
+      AGENT_DATA_RETENTION_ENABLED: ${AGENT_DATA_RETENTION_ENABLED:-false}
+      AGENT_DATA_RETENTION_DRY_RUN: ${AGENT_DATA_RETENTION_DRY_RUN:-true}
+      AGENT_DATA_RETENTION_INTERVAL: ${AGENT_DATA_RETENTION_INTERVAL:-6h}
+      AGENT_DATA_RETENTION_LEASE_DURATION: ${AGENT_DATA_RETENTION_LEASE_DURATION:-15m}
+      AGENT_DATA_RETENTION_OPERATION_TIMEOUT: ${AGENT_DATA_RETENTION_OPERATION_TIMEOUT:-2m}
+      AGENT_DATA_RETENTION_BATCH_SIZE: ${AGENT_DATA_RETENTION_BATCH_SIZE:-100}
+      AGENT_DIALOGUE_RETENTION: ${AGENT_DIALOGUE_RETENTION:-4320h}
+      AGENT_ORPHAN_MESSAGE_GRACE_PERIOD: ${AGENT_ORPHAN_MESSAGE_GRACE_PERIOD:-24h}
+      AGENT_TRACE_RETENTION: ${AGENT_TRACE_RETENTION:-720h}
+      AGENT_TERMINAL_CHECKPOINT_RETENTION: ${AGENT_TERMINAL_CHECKPOINT_RETENTION:-168h}
+      AGENT_SUSPENDED_CHECKPOINT_RETENTION: ${AGENT_SUSPENDED_CHECKPOINT_RETENTION:-720h}
+      AGENT_TOOL_RESULT_RETENTION: ${AGENT_TOOL_RESULT_RETENTION:-720h}
+      AGENT_TASK_EVAL_ARCHIVE_SECURE: "false"
+      AGENT_TOOL_RESULT_MINIO_SECURE: "false"
+    healthcheck:
+      test: ["CMD-SHELL", "if [ \"$$AGENT_PROCESS_ROLE\" = worker ]; then nc -z 127.0.0.1 9191; else nc -z 127.0.0.1 9100; fi"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 30s
+
+  gateway:
+    <<: *app-defaults
+    image: ${GATEWAY_IMAGE:?GATEWAY_IMAGE must be pinned by digest}
+    build: !reset null
+    ports: !reset []
+    environment:
+      APP_ENV: production
+      DB_USER: ${DB_USER:?DB_USER is required}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_ISSUER: ${JWT_ISSUER:?JWT_ISSUER is required}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:?JWT_AUDIENCE is required}
+      GATEWAY_ALLOWED_ORIGINS: ${GATEWAY_ALLOWED_ORIGINS:?GATEWAY_ALLOWED_ORIGINS is required}
+      ALERTMANAGER_WEBHOOK_TOKEN_FILE: /run/secrets/alertmanager_webhook_token
+      TWEET_INTERNAL_SERVICE_TOKEN: ${TWEET_INTERNAL_SERVICE_TOKEN:?TWEET_INTERNAL_SERVICE_TOKEN is required}
+      MINIO_ACCESS_KEY: ${MINIO_USER:?MINIO_USER is required}
+      MINIO_SECRET_KEY: ${MINIO_PASSWORD:?MINIO_PASSWORD is required}
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:?MINIO_PUBLIC_URL is required}
+    secrets:
+      - alertmanager_webhook_token
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 9638"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+
+  frontend:
+    <<: *app-defaults
+    image: ${FRONTEND_IMAGE:?FRONTEND_IMAGE must be pinned by digest}
+    build: !reset null
+    ports: !reset []
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:5556/"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+
+volumes:
+  consul_data:
+  redis_data:
+  rabbitmq_data:
+  jaeger_data:
+  grafana_data:
+  promtail_data:
+  alertmanager_data:

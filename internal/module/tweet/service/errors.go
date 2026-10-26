@@ -1,6 +1,10 @@
 package service
 
-import "errors"
+import (
+	"errors"
+
+	"twitter-clone/internal/domain"
+)
 
 // 推文业务错误
 var (
@@ -35,7 +39,22 @@ var (
 
 	ErrInvalidTweetID = errors.New("invalid tweet id")
 
+	ErrTweetDeletionUnavailable = errors.New("tweet deletion transaction dependencies are unavailable")
+
 	ErrInvalidModerationAction = errors.New("invalid tweet moderation action")
 
 	ErrModerationUnavailable = errors.New("tweet moderation dependencies are unavailable")
+
+	ErrSubjectDeletionInvalid     = errors.New("tweet subject deletion command is invalid")
+	ErrSubjectDeletionUnavailable = errors.New("tweet subject deletion dependencies are unavailable")
+	ErrSubjectDeletionConflict    = errors.New("tweet subject deletion operation conflicts with a different command")
+	ErrSubjectDeletionTooLarge    = errors.New("tweet subject deletion requires a bounded batch protocol")
+	ErrSubjectDeletionResiduals   = errors.New("tweet subject deletion left owned records behind")
+
+	ErrSubjectWriteFenced           = domain.ErrTweetSubjectWriteFenced
+	ErrSubjectWriteFenceMissing     = domain.ErrTweetSubjectWriteFenceMissing
+	ErrSubjectWriteFenceConflict    = domain.ErrTweetSubjectWriteFenceConflict
+	ErrSubjectWriteFenceCorrupt     = domain.ErrTweetSubjectWriteFenceCorrupt
+	ErrSubjectWriteFenceInvalid     = errors.New("tweet subject write fence command is invalid")
+	ErrSubjectWriteFenceUnavailable = errors.New("tweet subject write fence dependencies are unavailable")
 )

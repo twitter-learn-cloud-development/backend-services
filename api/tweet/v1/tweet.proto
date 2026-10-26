@@ -12,6 +12,10 @@ service TweetService {
   // GetTweet 获取推文详情
   rpc GetTweet(GetTweetRequest) returns (GetTweetResponse);
 
+  // Current public content for retrieval. Bypasses caches and omits records
+  // that are deleted, hidden or not public. At most 100 candidate IDs.
+  rpc GetPublicTweets(GetPublicTweetsRequest) returns (GetPublicTweetsResponse);
+
   // DeleteTweet 删除推文
   rpc DeleteTweet(DeleteTweetRequest) returns (DeleteTweetResponse);
 
@@ -70,9 +74,28 @@ service TweetService {
   rpc GetUserLikes(GetUserLikesRequest) returns (GetUserLikesResponse);
   rpc GetUserReplies(GetUserRepliesRequest) returns (GetUserRepliesResponse);
   rpc GetUserMedia(GetUserMediaRequest) returns (GetUserMediaResponse);
+
+  // Internal data-governance query. Returns counts only, never content.
+  rpc ObserveTweetSubjectData(ObserveTweetSubjectDataRequest) returns (ObserveTweetSubjectDataResponse);
+
+  // Internal data-governance command. Serializes future subject-owned writes
+  // before destructive adapters run.
+  rpc EnforceTweetSubjectWriteFence(EnforceTweetSubjectWriteFenceRequest) returns (EnforceTweetSubjectWriteFenceResponse);
+
+  // Internal data-governance command. Requires service authentication.
+  rpc DeleteTweetSubjectData(DeleteTweetSubjectDataRequest) returns (DeleteTweetSubjectDataResponse);
 }
 
 // ==================== 消息定义 ====================
+
+message GetPublicTweetsRequest {
+  repeated uint64 tweet_ids = 1;
+}
+
+message GetPublicTweetsResponse {
+  // Deduplicated, in request order; missing/non-public IDs are omitted.
+  repeated Tweet tweets = 1;
+}
 
 // Tweet 推文
 message Tweet {
@@ -466,6 +489,63 @@ message GetUserMediaResponse {
 	repeated Tweet tweets = 1;
 	uint64 next_cursor = 2;
 	bool has_more = 3;
+}
+
+// ==================== Internal data governance ====================
+
+message TweetSubjectInventory {
+	int64 authored_tweets = 1;
+	int64 authored_comments = 2;
+	int64 likes = 3;
+	int64 bookmarks = 4;
+	int64 retweets = 5;
+	int64 poll_votes = 6;
+}
+
+message ObserveTweetSubjectDataRequest {
+	uint64 user_id = 1;
+}
+
+message ObserveTweetSubjectDataResponse {
+	TweetSubjectInventory inventory = 1;
+}
+
+message EnforceTweetSubjectWriteFenceRequest {
+	string schema_version = 1;
+	string request_id = 2;
+	uint64 user_id = 3;
+	string subject_digest = 4;
+	string plan_digest = 5;
+	string capability_digest = 6;
+	string governance_digest = 7;
+	int64 deadline_unix_ms = 8;
+}
+
+message EnforceTweetSubjectWriteFenceResponse {
+	string schema_version = 1;
+	string request_id = 2;
+	int64 fence_revision = 3;
+	bool replayed = 4;
+	int64 enforced_at_unix_ms = 5;
+}
+
+message DeleteTweetSubjectDataRequest {
+	string schema_version = 1;
+	string operation_key = 2;
+	uint64 user_id = 3;
+	string subject_digest = 4;
+	string governance_digest = 5;
+	int64 deadline_unix_ms = 6;
+}
+
+message DeleteTweetSubjectDataResponse {
+	string schema_version = 1;
+	string operation_key = 2;
+	string receipt_digest = 3;
+	TweetSubjectInventory before = 4;
+	TweetSubjectInventory after = 5;
+	bool replayed = 6;
+	int64 completed_at_unix_ms = 7;
 }
 
 

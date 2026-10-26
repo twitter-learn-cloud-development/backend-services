@@ -35,6 +35,9 @@ func (s *AgentService) CancelWorkflowRun(
 	runID string,
 	reason string,
 ) (*repository.WorkflowRunRecord, error) {
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return nil, err
+	}
 	if s.repo == nil {
 		return nil, errors.New("agent repository is not initialized")
 	}
@@ -96,6 +99,12 @@ func (s *AgentService) commitWorkflowRunExecutionState(
 	ctx context.Context,
 	run *repository.WorkflowRunRecord,
 ) error {
+	if run == nil {
+		return errors.New("workflow run is required")
+	}
+	if err := s.authorizeSubjectWrite(ctx, run.UserID); err != nil {
+		return err
+	}
 	if controlRepo, ok := s.repo.(repository.WorkflowRunCancellationRepository); ok {
 		committed, err := controlRepo.CommitWorkflowRunExecutionState(ctx, run)
 		if err != nil {

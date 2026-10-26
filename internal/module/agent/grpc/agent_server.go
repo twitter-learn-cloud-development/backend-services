@@ -563,6 +563,7 @@ func agentExecutionRunViewToProto(run *service.AgentExecutionRunView) *aiAgentv1
 		SkillId: run.SkillID, SkillVersion: run.SkillVersion,
 		TaskTemplateId: run.TaskTemplateID, TaskTemplateRevision: run.TaskTemplateRevision,
 		ExecutionStrategyPlan: executionStrategyPlanToProto(run.ExecutionStrategyPlan),
+		Planning:              agentPlanningEvidenceViewToProto(run.Planning),
 		Revision:              run.Revision, ResumeSupported: run.ResumeSupported,
 		PendingActionType: run.PendingActionType, PendingActionName: run.PendingActionName,
 		PendingActionId: run.PendingActionID, ApprovalId: run.ApprovalID,
@@ -586,6 +587,7 @@ func agentExecutionRunToProto(run *repository.AgentExecutionRun) *aiAgentv1.Agen
 		SkillId: run.SkillID, SkillVersion: run.SkillVersion,
 		TaskTemplateId: run.TaskTemplateID, TaskTemplateRevision: run.TaskTemplateRevision,
 		ExecutionStrategyPlan: executionStrategyPlanToProto(run.ExecutionStrategyPlan),
+		Planning:              agentPlanningEvidenceToProto(run),
 		Revision:              run.Revision, ResumeSupported: run.ResumeSupported,
 		PendingActionType: run.PendingActionType, PendingActionName: run.PendingActionName,
 		PendingActionId: run.PendingActionID, ApprovalId: run.ApprovalRequestID,
@@ -596,6 +598,42 @@ func agentExecutionRunToProto(run *repository.AgentExecutionRun) *aiAgentv1.Agen
 		FailureCode: run.FailureCode, StartedAt: unixMilliOrZero(run.StartedAt),
 		UpdatedAt: unixMilliOrZero(run.UpdatedAt), SuspendedAt: unixMilliOrZero(run.SuspendedAt),
 		FinishedAt: unixMilliOrZero(run.FinishedAt),
+	}
+}
+
+func agentPlanningEvidenceToProto(run *repository.AgentExecutionRun) *aiAgentv1.AgentPlanningEvidence {
+	if run == nil || (run.PlanningPlanDigest == "" && run.PlanningCalls == 0 && run.GoalRunStatus == "") {
+		return nil
+	}
+	return &aiAgentv1.AgentPlanningEvidence{
+		Enabled: true, PlanDigest: run.PlanningPlanDigest,
+		PlanningCalls: int32(run.PlanningCalls), ModelAttempts: int32(run.PlanningModelAttempts),
+		AdmissionAttempts: int32(run.PlanningAdmissionAttempts), AdmissionRepairs: int32(run.PlanningAdmissionRepairs),
+		RecoveryAttempts: int32(run.PlanningRecoveryAttempts), Model: run.PlanningModel, Provider: run.PlanningProvider,
+		InputTokens: int32(run.PlanningInputTokens), OutputTokens: int32(run.PlanningOutputTokens),
+		TotalTokens: int32(run.PlanningTotalTokens), UsageEstimated: run.PlanningUsageEstimated,
+		EstimatedCostMicros: run.PlanningEstimatedCostMicros, CostEstimated: run.PlanningCostEstimated,
+		PricingVersion: run.PlanningPricingVersion, GoalStatus: run.GoalRunStatus,
+		VerificationStatus: run.GoalVerificationStatus, CheckpointVersion: run.VerifiedCheckpointVersion,
+		CheckpointRevision: run.VerifiedCheckpointRevision, CheckpointDigest: run.VerifiedCheckpointDigest,
+	}
+}
+
+func agentPlanningEvidenceViewToProto(view *service.AgentPlanningEvidenceView) *aiAgentv1.AgentPlanningEvidence {
+	if view == nil || !view.Enabled {
+		return nil
+	}
+	return &aiAgentv1.AgentPlanningEvidence{
+		Enabled: true, PlanDigest: view.PlanDigest,
+		PlanningCalls: int32(view.PlanningCalls), ModelAttempts: int32(view.ModelAttempts),
+		AdmissionAttempts: int32(view.AdmissionAttempts), AdmissionRepairs: int32(view.AdmissionRepairs),
+		RecoveryAttempts: int32(view.RecoveryAttempts), Model: view.Model, Provider: view.Provider,
+		InputTokens: int32(view.InputTokens), OutputTokens: int32(view.OutputTokens),
+		TotalTokens: int32(view.TotalTokens), UsageEstimated: view.UsageEstimated,
+		EstimatedCostMicros: view.EstimatedCostMicros, CostEstimated: view.CostEstimated,
+		PricingVersion: view.PricingVersion, GoalStatus: view.GoalStatus,
+		VerificationStatus: view.VerificationStatus, CheckpointVersion: view.CheckpointVersion,
+		CheckpointRevision: view.CheckpointRevision, CheckpointDigest: view.CheckpointDigest,
 	}
 }
 
@@ -824,15 +862,18 @@ func (s *AgentServer) GetDialogueDetail(ctx context.Context, req *aiAgentv1.GetD
 		}
 
 		protoMessages[i] = &aiAgentv1.RepositoryContentList{
-			Id:          dialogueObjectIDToUint64(m.ID),
-			UserId:      m.UserID,
-			DialogueId:  dialogueObjectIDToUint64(m.DialogueID),
-			Question:    question,
-			Response:    response,
-			DialogueKey: m.DialogueID.Hex(),
-			Role:        string(m.Role),
-			Content:     m.Content,
-			RunId:       dialogueMessageMetadataString(m.Metadata, "runtime_run_id"),
+			Id:                     dialogueObjectIDToUint64(m.ID),
+			UserId:                 m.UserID,
+			DialogueId:             dialogueObjectIDToUint64(m.DialogueID),
+			Question:               question,
+			Response:               response,
+			DialogueKey:            m.DialogueID.Hex(),
+			Role:                   string(m.Role),
+			Content:                m.Content,
+			RunId:                  dialogueMessageMetadataString(m.Metadata, "runtime_run_id"),
+			HasRuntimeUsage:        dialogueMessageHasRuntimeUsage(m.Metadata),
+			RuntimeTotalTokens:     dialogueMessageRuntimeTokens(m.Metadata),
+			RuntimeTokensEstimated: dialogueMessageMetadataBool(m.Metadata, "runtime_tokens_estimated"),
 			PublishableDraft: m.Role == repository.RoleAssistant &&
 				dialogueMessageMetadataString(m.Metadata, "runtime_mode") == "assist",
 		}
@@ -850,6 +891,49 @@ func dialogueMessageMetadataString(metadata map[string]any, key string) string {
 		return ""
 	}
 	value, _ := metadata[key].(string)
+	return value
+}
+
+func dialogueMessageHasRuntimeUsage(metadata map[string]any) bool {
+	if metadata == nil {
+		return false
+	}
+	switch value := metadata["runtime_tokens"].(type) {
+	case int:
+		return value >= 0
+	case int32:
+		return value >= 0
+	case int64:
+		return value >= 0
+	default:
+		return false
+	}
+}
+
+func dialogueMessageRuntimeTokens(metadata map[string]any) int64 {
+	if metadata == nil {
+		return 0
+	}
+	var tokens int64
+	switch value := metadata["runtime_tokens"].(type) {
+	case int:
+		tokens = int64(value)
+	case int32:
+		tokens = int64(value)
+	case int64:
+		tokens = value
+	}
+	if tokens < 0 {
+		return 0
+	}
+	return tokens
+}
+
+func dialogueMessageMetadataBool(metadata map[string]any, key string) bool {
+	if metadata == nil {
+		return false
+	}
+	value, _ := metadata[key].(bool)
 	return value
 }
 

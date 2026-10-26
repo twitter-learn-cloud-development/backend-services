@@ -2372,16 +2372,19 @@ func (h *AgentHandler) GetDialogueDetail(c *gin.Context) {
 	messages := make([]gin.H, len(resp.Messages))
 	for i, m := range resp.Messages {
 		messages[i] = gin.H{
-			"id":                strconv.FormatUint(m.Id, 10),
-			"user_id":           strconv.FormatUint(m.UserId, 10),
-			"dialogue_id":       strconv.FormatUint(m.DialogueId, 10),
-			"dialogue_key":      m.DialogueKey,
-			"question":          m.Question,
-			"response":          m.Response,
-			"role":              m.Role,
-			"content":           m.Content,
-			"run_id":            m.RunId,
-			"publishable_draft": m.PublishableDraft,
+			"id":                       strconv.FormatUint(m.Id, 10),
+			"user_id":                  strconv.FormatUint(m.UserId, 10),
+			"dialogue_id":              strconv.FormatUint(m.DialogueId, 10),
+			"dialogue_key":             m.DialogueKey,
+			"question":                 m.Question,
+			"response":                 m.Response,
+			"role":                     m.Role,
+			"content":                  m.Content,
+			"run_id":                   m.RunId,
+			"has_runtime_usage":        m.HasRuntimeUsage,
+			"runtime_total_tokens":     m.RuntimeTotalTokens,
+			"runtime_tokens_estimated": m.RuntimeTokensEstimated,
+			"publishable_draft":        m.PublishableDraft,
 		}
 	}
 
@@ -2710,6 +2713,7 @@ func agentExecutionRunToJSON(run *aiAgentv1.AgentExecutionRun) gin.H {
 		"skill_id": run.SkillId, "skill_version": run.SkillVersion,
 		"task_template_id": run.TaskTemplateId, "task_template_revision": run.TaskTemplateRevision,
 		"execution_strategy_plan": agentExecutionStrategyPlanToJSON(run.ExecutionStrategyPlan),
+		"planning":                agentPlanningEvidenceToJSON(run.Planning),
 		"status":                  run.Status, "revision": run.Revision, "resume_supported": run.ResumeSupported,
 		"pending_action_type": run.PendingActionType, "pending_action_name": run.PendingActionName,
 		"pending_action_id": run.PendingActionId, "approval_id": run.ApprovalId,
@@ -2719,6 +2723,24 @@ func agentExecutionRunToJSON(run *aiAgentv1.AgentExecutionRun) gin.H {
 		"estimated_cost_micros": run.EstimatedCostMicros, "pricing_version": run.PricingVersion,
 		"failure_code": run.FailureCode, "started_at": run.StartedAt, "updated_at": run.UpdatedAt,
 		"suspended_at": run.SuspendedAt, "finished_at": run.FinishedAt,
+	}
+}
+
+func agentPlanningEvidenceToJSON(planning *aiAgentv1.AgentPlanningEvidence) interface{} {
+	if planning == nil || !planning.Enabled {
+		return nil
+	}
+	return gin.H{
+		"enabled": planning.Enabled, "plan_digest": planning.PlanDigest,
+		"planning_calls": planning.PlanningCalls, "model_attempts": planning.ModelAttempts,
+		"admission_attempts": planning.AdmissionAttempts, "admission_repairs": planning.AdmissionRepairs,
+		"recovery_attempts": planning.RecoveryAttempts, "model": planning.Model, "provider": planning.Provider,
+		"input_tokens": planning.InputTokens, "output_tokens": planning.OutputTokens,
+		"total_tokens": planning.TotalTokens, "usage_estimated": planning.UsageEstimated,
+		"estimated_cost_micros": planning.EstimatedCostMicros, "cost_estimated": planning.CostEstimated,
+		"pricing_version": planning.PricingVersion, "goal_status": planning.GoalStatus,
+		"verification_status": planning.VerificationStatus, "checkpoint_version": planning.CheckpointVersion,
+		"checkpoint_revision": planning.CheckpointRevision, "checkpoint_digest": planning.CheckpointDigest,
 	}
 }
 

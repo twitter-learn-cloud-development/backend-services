@@ -162,6 +162,9 @@ func (s *AgentService) ListToolApprovals(ctx context.Context, userID uint64, sta
 }
 
 func (s *AgentService) DecideToolApproval(ctx context.Context, userID uint64, approvalID, decision, reason string, expectedRevision int64) (*ToolApprovalView, error) {
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return nil, err
+	}
 	repo, err := s.toolApprovalRepository()
 	if err != nil {
 		return nil, err
@@ -244,6 +247,9 @@ func (s *AgentService) IssueWorkflowResumeGrant(
 	approvalID string,
 	expectedRunRevision int64,
 ) (*WorkflowResumeGrantView, error) {
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return nil, err
+	}
 	if userID == 0 {
 		return nil, errors.New("user_id is required")
 	}

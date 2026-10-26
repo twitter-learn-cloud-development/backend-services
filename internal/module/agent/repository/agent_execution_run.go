@@ -53,6 +53,26 @@ type AgentExecutionRun struct {
 	TaskTemplateID         string                  `bson:"task_template_id,omitempty" json:"task_template_id,omitempty"`
 	TaskTemplateRevision   int64                   `bson:"task_template_revision,omitempty" json:"task_template_revision,omitempty"`
 	ExecutionStrategyPlan  *agentStrategy.Plan     `bson:"execution_strategy_plan,omitempty" json:"execution_strategy_plan,omitempty"`
+	PlanningPlanDigest     string                  `bson:"planning_plan_digest,omitempty" json:"planning_plan_digest,omitempty"`
+	PlanningCalls          int                     `bson:"planning_calls,omitempty" json:"planning_calls,omitempty"`
+	PlanningModelAttempts  int                     `bson:"planning_model_attempts,omitempty" json:"planning_model_attempts,omitempty"`
+	PlanningAdmissionAttempts int                  `bson:"planning_admission_attempts,omitempty" json:"planning_admission_attempts,omitempty"`
+	PlanningAdmissionRepairs int                   `bson:"planning_admission_repairs,omitempty" json:"planning_admission_repairs,omitempty"`
+	PlanningRecoveryAttempts int                   `bson:"planning_recovery_attempts,omitempty" json:"planning_recovery_attempts,omitempty"`
+	PlanningModel          string                  `bson:"planning_model,omitempty" json:"planning_model,omitempty"`
+	PlanningProvider       string                  `bson:"planning_provider,omitempty" json:"planning_provider,omitempty"`
+	PlanningInputTokens    int                     `bson:"planning_input_tokens,omitempty" json:"planning_input_tokens,omitempty"`
+	PlanningOutputTokens   int                     `bson:"planning_output_tokens,omitempty" json:"planning_output_tokens,omitempty"`
+	PlanningTotalTokens    int                     `bson:"planning_total_tokens,omitempty" json:"planning_total_tokens,omitempty"`
+	PlanningUsageEstimated bool                    `bson:"planning_usage_estimated,omitempty" json:"planning_usage_estimated,omitempty"`
+	PlanningEstimatedCostMicros int64              `bson:"planning_estimated_cost_micros,omitempty" json:"planning_estimated_cost_micros,omitempty"`
+	PlanningCostEstimated  bool                    `bson:"planning_cost_estimated,omitempty" json:"planning_cost_estimated,omitempty"`
+	PlanningPricingVersion string                  `bson:"planning_pricing_version,omitempty" json:"planning_pricing_version,omitempty"`
+	GoalRunStatus          string                  `bson:"goal_run_status,omitempty" json:"goal_run_status,omitempty"`
+	GoalVerificationStatus string                  `bson:"goal_verification_status,omitempty" json:"goal_verification_status,omitempty"`
+	VerifiedCheckpointVersion string               `bson:"verified_checkpoint_version,omitempty" json:"verified_checkpoint_version,omitempty"`
+	VerifiedCheckpointRevision int64               `bson:"verified_checkpoint_revision,omitempty" json:"verified_checkpoint_revision,omitempty"`
+	VerifiedCheckpointDigest string                `bson:"verified_checkpoint_digest,omitempty" json:"verified_checkpoint_digest,omitempty"`
 	Mode                   string                  `bson:"mode,omitempty" json:"mode,omitempty"`
 	Model                  string                  `bson:"model,omitempty" json:"model,omitempty"`
 	AgentProfileID         string                  `bson:"agent_profile_id,omitempty" json:"agent_profile_id,omitempty"`
@@ -121,6 +141,26 @@ type AgentExecutionRunCommit struct {
 	AgentProfileVersion     string
 	PromptTemplateID        string
 	PromptTemplateVersion   string
+	PlanningPlanDigest      string
+	PlanningCalls           int
+	PlanningModelAttempts   int
+	PlanningAdmissionAttempts int
+	PlanningAdmissionRepairs int
+	PlanningRecoveryAttempts int
+	PlanningModel           string
+	PlanningProvider        string
+	PlanningInputTokens     int
+	PlanningOutputTokens    int
+	PlanningTotalTokens     int
+	PlanningUsageEstimated  bool
+	PlanningEstimatedCostMicros int64
+	PlanningCostEstimated   bool
+	PlanningPricingVersion  string
+	GoalRunStatus           string
+	GoalVerificationStatus  string
+	VerifiedCheckpointVersion string
+	VerifiedCheckpointRevision int64
+	VerifiedCheckpointDigest string
 	ResultDigest            string
 	PublishableDraft        bool
 	FailureCode             string
@@ -304,6 +344,26 @@ func (r *MongoAgentExecutionRunRepository) CommitAgentExecutionRun(
 		"agent_profile_version":     strings.TrimSpace(commit.AgentProfileVersion),
 		"prompt_template_id":        strings.TrimSpace(commit.PromptTemplateID),
 		"prompt_template_version":   strings.TrimSpace(commit.PromptTemplateVersion),
+		"planning_plan_digest":      strings.TrimSpace(commit.PlanningPlanDigest),
+		"planning_calls":            commit.PlanningCalls,
+		"planning_model_attempts":   commit.PlanningModelAttempts,
+		"planning_admission_attempts": commit.PlanningAdmissionAttempts,
+		"planning_admission_repairs": commit.PlanningAdmissionRepairs,
+		"planning_recovery_attempts": commit.PlanningRecoveryAttempts,
+		"planning_model":            strings.TrimSpace(commit.PlanningModel),
+		"planning_provider":         strings.TrimSpace(commit.PlanningProvider),
+		"planning_input_tokens":     commit.PlanningInputTokens,
+		"planning_output_tokens":    commit.PlanningOutputTokens,
+		"planning_total_tokens":     commit.PlanningTotalTokens,
+		"planning_usage_estimated":  commit.PlanningUsageEstimated,
+		"planning_estimated_cost_micros": commit.PlanningEstimatedCostMicros,
+		"planning_cost_estimated":   commit.PlanningCostEstimated,
+		"planning_pricing_version":  strings.TrimSpace(commit.PlanningPricingVersion),
+		"goal_run_status":           strings.TrimSpace(commit.GoalRunStatus),
+		"goal_verification_status":  strings.TrimSpace(commit.GoalVerificationStatus),
+		"verified_checkpoint_version": strings.TrimSpace(commit.VerifiedCheckpointVersion),
+		"verified_checkpoint_revision": commit.VerifiedCheckpointRevision,
+		"verified_checkpoint_digest": strings.TrimSpace(commit.VerifiedCheckpointDigest),
 		"result_digest":             strings.TrimSpace(commit.ResultDigest),
 		"publishable_draft":         commit.PublishableDraft,
 		"failure_code":              strings.TrimSpace(commit.FailureCode),
@@ -694,7 +754,12 @@ func validateAgentExecutionRunCommit(commit AgentExecutionRunCommit) error {
 	}
 	if commit.StepCount < 0 || commit.InputTokens < 0 || commit.OutputTokens < 0 ||
 		commit.TotalTokens < 0 || commit.EstimatedCostMicros < 0 || commit.MaxSteps < 0 ||
-		commit.MaxTotalTokens < 0 || commit.MaxEstimatedCostMicros < 0 {
+		commit.MaxTotalTokens < 0 || commit.MaxEstimatedCostMicros < 0 ||
+		commit.PlanningCalls < 0 || commit.PlanningModelAttempts < 0 ||
+		commit.PlanningAdmissionAttempts < 0 || commit.PlanningAdmissionRepairs < 0 ||
+		commit.PlanningRecoveryAttempts < 0 || commit.PlanningInputTokens < 0 ||
+		commit.PlanningOutputTokens < 0 || commit.PlanningTotalTokens < 0 ||
+		commit.PlanningEstimatedCostMicros < 0 || commit.VerifiedCheckpointRevision < 0 {
 		return errors.New("agent execution run accounting values cannot be negative")
 	}
 	if version := strings.TrimSpace(commit.AccountingVersion); version != "" &&

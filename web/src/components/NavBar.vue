@@ -52,9 +52,10 @@ onUnmounted(() => {
 })
 
 const handleLogout = () => {
-  if (confirm('确定要退出登录吗？')) {
+  if (confirm('退出当前浏览器？其他设备及已签发令牌仍有效至到期。')) {
       messengerStore.disconnect()
       userStore.logout()
+      void router.replace('/login')
   }
 }
 
@@ -67,6 +68,7 @@ const navItems = [
   { name: 'AI 助手', icon: SparklesIcon, activeIcon: SparklesIconSolid, path: '/agent' },
   { name: '工作流定制', icon: Cog6ToothIcon, activeIcon: Cog6ToothIconSolid, path: '/agent/workflow' },
   { name: '个人资料', icon: UserIcon, activeIcon: UserIconSolid, path: '/profile' },
+  { name: '账号安全', icon: Cog6ToothIcon, activeIcon: Cog6ToothIconSolid, path: '/account/security' },
 ]
 
 const isActive = (path: string) => {

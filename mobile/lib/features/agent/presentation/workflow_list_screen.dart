@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../data/agent_repository.dart';
 import 'agent_chat_screen.dart';
 import '../../../core/constants/colors.dart';
@@ -44,7 +43,7 @@ class _WorkflowListScreenState extends ConsumerState<WorkflowListScreen> {
     
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           title: Text('执行工作流: ${workflow.name}'),
           content: TextField(
@@ -57,12 +56,13 @@ class _WorkflowListScreenState extends ConsumerState<WorkflowListScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(dialogContext).pop(),
               child: const Text('取消'),
             ),
             ElevatedButton(
               onPressed: () async {
-                Navigator.of(context).pop();
+                if (!mounted) return;
+                Navigator.of(dialogContext).pop();
                 
                 // Show loading indicator
                 showDialog(
@@ -74,6 +74,7 @@ class _WorkflowListScreenState extends ConsumerState<WorkflowListScreen> {
                 try {
                   final repo = ref.read(agentRepositoryProvider);
                   final result = await repo.runWorkflow(workflow.workflowId, inputController.text);
+                  if (!mounted) return;
                   
                   // Hide loading
                   Navigator.of(context).pop();
@@ -95,6 +96,7 @@ class _WorkflowListScreenState extends ConsumerState<WorkflowListScreen> {
                     ),
                   );
                 } catch (e) {
+                  if (!mounted) return;
                   // Hide loading
                   Navigator.of(context).pop();
                   

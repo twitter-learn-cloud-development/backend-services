@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/websocket_service.dart';
 import '../data/notification_repository.dart';
 import '../domain/notification_model.dart';
+import '../../auth/presentation/auth_notifier.dart';
 
 class NotificationState {
   final bool isLoading;
@@ -40,19 +41,29 @@ class NotificationState {
 }
 
 class NotificationNotifier extends Notifier<NotificationState> {
-  late final NotificationRepository _repository;
+  late NotificationRepository _repository;
+  int _generation = 0;
 
   @override
   NotificationState build() {
     _repository = ref.watch(notificationRepositoryProvider);
-    Future.microtask(() => refresh());
+    ref.watch(authNotifierProvider.select((auth) => auth.token));
+    final generation = ++_generation;
+    ref.onDispose(() {
+      ++_generation;
+    });
+    Future.microtask(() {
+      if (ref.mounted && generation == _generation) refresh();
+    });
     return NotificationState();
   }
 
   Future<void> refresh() async {
+    final generation = ++_generation;
     state = state.copyWith(isLoading: true);
     try {
       final result = await _repository.getNotifications(cursor: '0', limit: 20);
+      if (!ref.mounted || generation != _generation) return;
       final list = result['notifications'] as List<NotificationModel>;
       final nextCursor = result['next_cursor'] as String;
       final hasMore = result['has_more'] as bool;
@@ -66,6 +77,7 @@ class NotificationNotifier extends Notifier<NotificationState> {
       // Auto clear badging/unread counts since we are opening the list
       clearUnreadBadge();
     } catch (e) {
+      if (!ref.mounted || generation != _generation) return;
       state = state.copyWith(
         isLoading: false,
         errorMessage: e.toString().replaceAll('Exception: ', ''),
@@ -74,6 +86,7 @@ class NotificationNotifier extends Notifier<NotificationState> {
   }
 
   Future<void> fetchNextPage() async {
+    final generation = _generation;
     if (state.isFetchingMore || !state.hasMore) return;
 
     state = state.copyWith(isFetchingMore: true);
@@ -86,6 +99,7 @@ class NotificationNotifier extends Notifier<NotificationState> {
       final nextCursor = result['next_cursor'] as String;
       final hasMore = result['has_more'] as bool;
 
+      if (!ref.mounted || generation != _generation) return;
       state = state.copyWith(
         isFetchingMore: false,
         notifications: [...state.notifications, ...list],
@@ -93,6 +107,7 @@ class NotificationNotifier extends Notifier<NotificationState> {
         hasMore: hasMore,
       );
     } catch (e) {
+      if (!ref.mounted || generation != _generation) return;
       state = state.copyWith(
         isFetchingMore: false,
         errorMessage: e.toString().replaceAll('Exception: ', ''),
@@ -101,8 +116,10 @@ class NotificationNotifier extends Notifier<NotificationState> {
   }
 
   Future<void> markAllAsRead() async {
+    final generation = _generation;
     try {
       await _repository.markAllAsRead();
+      if (!ref.mounted || generation != _generation) return;
       final list = state.notifications.map((n) {
         if (n.isRead) return n;
         return NotificationModel(
@@ -124,4 +141,7 @@ class NotificationNotifier extends Notifier<NotificationState> {
   }
 }
 
-final notificationNotifierProvider = NotifierProvider<NotificationNotifier, NotificationState>(NotificationNotifier.new);
+final notificationNotifierProvider =
+    NotifierProvider<NotificationNotifier, NotificationState>(
+      NotificationNotifier.new,
+    );

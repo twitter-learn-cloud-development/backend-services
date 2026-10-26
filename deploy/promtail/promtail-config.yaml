@@ -3,7 +3,7 @@ server:
   grpc_listen_port: 0
 
 positions:
-  filename: /tmp/positions.yaml
+  filename: /var/lib/promtail/positions.yaml
 
 clients:
   - url: http://loki:3100/loki/api/v1/push
@@ -31,7 +31,7 @@ scrape_configs:
             trace_id: trace_id
             msg: msg
           source: log
-      # 3. 第三步：将提取出的 level 与 trace_id 升级为 Loki 的索引标签
+      # Keep only bounded labels. trace_id remains in the parsed log payload and
+      # must not become a high-cardinality Loki index label.
       - labels:
           level:
-          trace_id:

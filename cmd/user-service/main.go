@@ -20,8 +20,8 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 
 	userv1 "twitter-clone/api/user/v1"
-	"twitter-clone/internal/domain"
 	"twitter-clone/internal/infrastructure/persistence"
+	"twitter-clone/internal/infrastructure/schema"
 	userGrpc "twitter-clone/internal/module/user/grpc"
 	userRepository "twitter-clone/internal/module/user/repository"
 	userService "twitter-clone/internal/module/user/service"
@@ -76,7 +76,10 @@ func main() {
 	registryAddr := consulHost + ":" + consulPort
 
 	// 初始化数据库
-	dbConfig := persistence.DefaultDBConfig()
+	dbConfig, err := persistence.ServiceDBConfig("user-service")
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// 🆕 从 Consul 加载配置覆盖默认值
 	if consulClient, err := consulConfig.NewConsulConfigClient(registryAddr); err == nil {
@@ -107,10 +110,10 @@ func main() {
 	log.Println("✅ Database connected")
 
 	// 3. 自动迁移
-	if err := db.AutoMigrate(&domain.User{}); err != nil {
-		log.Fatalf("❌ Failed to migrate database: %v", err)
+	if err := schema.CheckRuntime(context.Background(), db, "user-service"); err != nil {
+		log.Fatal(err)
 	}
-	log.Println("✅ Database migrated")
+	log.Println("Database schema verified; runtime DDL disabled")
 
 	// 4. 创建依赖
 	userRepo := userRepository.NewUserRepository(db)

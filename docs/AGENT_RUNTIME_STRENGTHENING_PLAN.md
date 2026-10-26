@@ -1,6 +1,8 @@
 # Go Agent Runtime 与社交内容智能工作流平台加强计划
 
 > 文档状态：历史 P0-P8 强化计划；2026-08-08 起平台扩张冻结，当前执行主线转入 `docs/AGENT_CORE_REFOCUS_PLAN.md`
+>
+> 2026-10-13 架构修复M7-R2补充：Persona应用Port/SQL适配器、API拥有MySQL/认知引擎；Runtime外共享Run/Provider租约与估算预算、失效取消、显式初始化/完整Runtime模式启用门禁、固定指标告警已接线并通过完整Agent Test/Vet及相关Race。开关默认false，无新API/产品能力或真实初始化/部署。摘要/RAG/Embedding/Reranker/Temporal/Eval仍不纳入此共享费用，Worker其他依赖未完全最小化；真实权限/Redis持久化/容量/账单未Accepted。当前模块—轮次与后续M8-R1见ARCHITECTURE_REMEDIATION_PLAN，操作见AGENT_SHARED_ADMISSION_RUNBOOK，原平台扩张冻结不变。
 > 编写日期：2026-07-14
 > 适用范围：`internal/module/agent`、`cmd/agent-service`、Agent Gateway API、工作流前端及相关观测/评测设施
 > 执行约束：按 P0-P8 渐进实施，保持现有 API 与业务模式兼容

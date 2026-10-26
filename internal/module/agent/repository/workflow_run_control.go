@@ -48,6 +48,24 @@ func (r *MongoAgentRepository) RequestWorkflowRunCancellation(
 	userID uint64,
 	reason string,
 ) (*WorkflowRunRecord, error) {
+	if runID.IsZero() || userID == 0 {
+		return nil, errors.New("workflow run identity is incomplete")
+	}
+	var run *WorkflowRunRecord
+	err := withSubjectWriteLease(ctx, r, userID, func() error {
+		var requestErr error
+		run, requestErr = r.requestWorkflowRunCancellation(ctx, runID, userID, reason)
+		return requestErr
+	})
+	return run, err
+}
+
+func (r *MongoAgentRepository) requestWorkflowRunCancellation(
+	ctx context.Context,
+	runID primitive.ObjectID,
+	userID uint64,
+	reason string,
+) (*WorkflowRunRecord, error) {
 	now := time.Now()
 	var run WorkflowRunRecord
 	err := r.runColl.FindOneAndUpdate(
@@ -70,12 +88,12 @@ func (r *MongoAgentRepository) RequestWorkflowRunCancellation(
 	}
 	existing, getErr := r.GetWorkflowRun(ctx, runID, userID)
 	if getErr != nil {
-		return nil, getErr
+		return nil, subjectWriteNotCommitted(getErr)
 	}
 	if existing.Status == workflowRunStatusCanceling || existing.Status == workflowRunStatusCanceled {
 		return existing, nil
 	}
-	return nil, fmt.Errorf("%w while run status is %s", ErrWorkflowRunCancellationUnavailable, existing.Status)
+	return nil, subjectWriteNotCommitted(fmt.Errorf("%w while run status is %s", ErrWorkflowRunCancellationUnavailable, existing.Status))
 }
 
 func (r *MongoAgentRepository) IsWorkflowRunCancellationRequested(
@@ -107,10 +125,23 @@ func (r *MongoAgentRepository) CommitWorkflowRunExecutionState(
 	if run == nil || run.ID.IsZero() || run.UserID == 0 {
 		return nil, errors.New("workflow run identity is incomplete")
 	}
+	var committed *WorkflowRunRecord
+	err := withSubjectWriteLease(ctx, r, run.UserID, func() error {
+		var commitErr error
+		committed, commitErr = r.commitWorkflowRunExecutionState(ctx, run)
+		return commitErr
+	})
+	return committed, err
+}
+
+func (r *MongoAgentRepository) commitWorkflowRunExecutionState(
+	ctx context.Context,
+	run *WorkflowRunRecord,
+) (*WorkflowRunRecord, error) {
 	for attempt := 0; attempt < 5; attempt++ {
 		current, err := r.GetWorkflowRun(ctx, run.ID, run.UserID)
 		if err != nil {
-			return nil, err
+			return nil, subjectWriteNotCommitted(err)
 		}
 		if current.Status != workflowRunStatusRunning && current.Status != workflowRunStatusCanceling {
 			return current, nil
@@ -159,7 +190,7 @@ func (r *MongoAgentRepository) CommitWorkflowRunExecutionState(
 			return &desired, nil
 		}
 	}
-	return nil, errors.New("workflow run execution state changed too frequently")
+	return nil, subjectWriteNotCommitted(errors.New("workflow run execution state changed too frequently"))
 }
 
 func workflowRunExecutionStateFields(run *WorkflowRunRecord) bson.M {

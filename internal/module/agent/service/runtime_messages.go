@@ -1,6 +1,8 @@
 package service
 
 import (
+	"context"
+
 	agentMessage "twitter-clone/internal/module/agent/message"
 	agentRuntime "twitter-clone/internal/module/agent/runtime"
 
@@ -38,6 +40,38 @@ func (s *AgentService) buildRuntimeMessages(
 			BlackboardTokens: maxInputTokens * 10 / 100,
 		},
 	})
+}
+
+// buildRuntimeMessagesWithCognitiveContext injects retrieved semantic session
+// summaries and long-term memory into every governed Runtime path. Raw recent
+// history still follows the token-aware builder rules; older durable context
+// is recovered through the bounded cognitive context block instead of relying
+// on lossy prefix/suffix truncation alone.
+func (s *AgentService) buildRuntimeMessagesWithCognitiveContext(
+	ctx context.Context,
+	userID uint64,
+	systemPrompt string,
+	currentInput string,
+	history []openai.ChatCompletionMessage,
+	runBudget agentRuntime.Budget,
+) (agentMessage.BuildResult, cognitiveContextResult, error) {
+	cognitive := s.buildCognitiveContext(ctx, userID, currentInput)
+	result, err := s.buildRuntimeMessages(
+		s.decorateSystemPromptWithCognitiveContext(systemPrompt, cognitive),
+		currentInput,
+		history,
+		runBudget,
+	)
+	return result, cognitive, err
+}
+
+func addCognitiveContextMetadata(metadata map[string]interface{}, cognitive cognitiveContextResult) {
+	if metadata == nil {
+		return
+	}
+	metadata["cognitive_intent"] = string(cognitive.Intent)
+	metadata["cognitive_rewritten_query"] = cognitive.RewrittenQuery
+	metadata["cognitive_chunk_count"] = cognitive.ChunkCount
 }
 
 func stringifyDroppedSources(dropped map[agentMessage.Source]int) map[string]int {

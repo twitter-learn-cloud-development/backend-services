@@ -34,12 +34,14 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
         maxHeight: 1080,
         imageQuality: 85,
       );
+      if (!mounted) return;
       if (pickedFiles.isNotEmpty) {
         setState(() {
           _imagePaths.addAll(pickedFiles.map((e) => e.path));
         });
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('选择图片失败: $e')),
       );
@@ -139,8 +141,8 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
-                disabledBackgroundColor: AppColors.primary.withOpacity(0.5),
-                disabledForegroundColor: Colors.white.withOpacity(0.8),
+                disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
+                disabledForegroundColor: Colors.white.withValues(alpha: 0.8),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -246,7 +248,7 @@ class _ComposeScreenState extends ConsumerState<ComposeScreen> {
                                             child: Container(
                                               padding: const EdgeInsets.all(4),
                                               decoration: BoxDecoration(
-                                                color: Colors.black.withOpacity(0.7),
+                                                color: Colors.black.withValues(alpha: 0.7),
                                                 shape: BoxShape.circle,
                                               ),
                                               child: const Icon(

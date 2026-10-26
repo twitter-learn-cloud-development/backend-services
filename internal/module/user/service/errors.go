@@ -16,7 +16,7 @@ var (
 	ErrUserNotFound = errors.New("user not found")
 
 	// ErrInvalidPassword 密码格式无效
-	ErrInvalidPassword = errors.New("password must be at least 6 characters")
+	ErrInvalidPassword = errors.New("password must contain 6 to 72 UTF-8 bytes")
 
 	// ErrInvalidEmail 邮箱格式无效
 	ErrInvalidEmail = errors.New("invalid email format")

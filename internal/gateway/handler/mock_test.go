@@ -76,6 +76,14 @@ type MockTweetServiceClient struct {
 	mock.Mock
 }
 
+func (m *MockTweetServiceClient) GetPublicTweets(ctx context.Context, in *tweetv1.GetPublicTweetsRequest, opts ...grpc.CallOption) (*tweetv1.GetPublicTweetsResponse, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*tweetv1.GetPublicTweetsResponse), args.Error(1)
+}
+
 func (m *MockTweetServiceClient) CreateTweet(ctx context.Context, in *tweetv1.CreateTweetRequest, opts ...grpc.CallOption) (*tweetv1.CreateTweetResponse, error) {
 	args := m.Called(ctx, in)
 	if args.Get(0) == nil {
@@ -274,4 +282,28 @@ func (m *MockTweetServiceClient) GetUserMedia(ctx context.Context, in *tweetv1.G
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*tweetv1.GetUserMediaResponse), args.Error(1)
+}
+
+func (m *MockTweetServiceClient) ObserveTweetSubjectData(ctx context.Context, in *tweetv1.ObserveTweetSubjectDataRequest, opts ...grpc.CallOption) (*tweetv1.ObserveTweetSubjectDataResponse, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*tweetv1.ObserveTweetSubjectDataResponse), args.Error(1)
+}
+
+func (m *MockTweetServiceClient) EnforceTweetSubjectWriteFence(ctx context.Context, in *tweetv1.EnforceTweetSubjectWriteFenceRequest, opts ...grpc.CallOption) (*tweetv1.EnforceTweetSubjectWriteFenceResponse, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*tweetv1.EnforceTweetSubjectWriteFenceResponse), args.Error(1)
+}
+
+func (m *MockTweetServiceClient) DeleteTweetSubjectData(ctx context.Context, in *tweetv1.DeleteTweetSubjectDataRequest, opts ...grpc.CallOption) (*tweetv1.DeleteTweetSubjectDataResponse, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*tweetv1.DeleteTweetSubjectDataResponse), args.Error(1)
 }

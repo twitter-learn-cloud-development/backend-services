@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/storage.dart';
-import 'core/network/dio_client.dart';
 
 void main() async {
   // Ensure Flutter engine bindings are initialized
@@ -45,7 +44,7 @@ class MyApp extends ConsumerWidget {
       themeMode: themeMode,
       
       // Router
-      routerConfig: AppRouter.router,
+      routerConfig: ref.watch(appRouterProvider),
     );
   }
 }

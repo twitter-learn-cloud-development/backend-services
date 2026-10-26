@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import '../domain/tweet_model.dart';
 import '../domain/comment_model.dart';
-import '../../auth/domain/user_model.dart';
 
 class TweetRepository {
   final Dio _dio;

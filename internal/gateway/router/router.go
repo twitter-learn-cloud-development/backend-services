@@ -2,6 +2,7 @@ package router
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"log"
 	"os"
@@ -42,6 +43,7 @@ func SetupRouter(
 	agentHandler *handler.AgentHandler,
 	authMW *middleware.GatewayAuthMiddleware,
 	redisClient *redis.Client,
+	alertWebhookToken string,
 ) *gin.Engine {
 	// 设置为 Release 模式
 	// gin.SetMode(gin.ReleaseMode)
@@ -79,8 +81,19 @@ func SetupRouter(
 
 	// 🔔 AlertManager Webhook 接收端
 	r.POST("/alerts", func(c *gin.Context) {
-		token := c.GetHeader("X-Alertmanager-Token")
-		if token != "twitter-clone-secret-alert-token" {
+		if len(alertWebhookToken) < 32 {
+			c.JSON(503, gin.H{"error": "alert webhook is not configured"})
+			return
+		}
+		authorization := c.GetHeader("Authorization")
+		providedToken := strings.TrimPrefix(authorization, "Bearer ")
+		if authorization == "" {
+			// Deprecated rolling-upgrade compatibility. Both headers use the
+			// same externally supplied secret; no development token is accepted.
+			providedToken = c.GetHeader("X-Alertmanager-Token")
+		}
+		if providedToken == "" || (authorization != "" && providedToken == authorization) ||
+			subtle.ConstantTimeCompare([]byte(providedToken), []byte(alertWebhookToken)) != 1 {
 			c.JSON(401, gin.H{"error": "unauthorized"})
 			return
 		}
@@ -211,6 +224,9 @@ func SetupRouter(
 		{
 			auth.POST("/register", userHandler.Register)
 			auth.POST("/login", userHandler.Login)
+			auth.GET("/session", authMW.AuthRequired(), userHandler.AuthSession)
+			auth.POST("/logout", authMW.AuthRequired(), userHandler.Logout)
+			auth.POST("/password", authMW.AuthRequired(), userHandler.ChangePassword)
 		}
 
 		// 用户相关

@@ -82,13 +82,37 @@ func (r *MongoAgentRepository) SaveWorkflowCompensationPlan(ctx context.Context,
 	if len(records) == 0 {
 		return nil
 	}
-	models := make([]mongo.WriteModel, 0, len(records))
+	userID, err := workflowCompensationOwner(records)
+	if err != nil || userID == 0 {
+		return err
+	}
+	return withSubjectWriteLease(ctx, r, userID, func() error {
+		return r.saveWorkflowCompensationPlan(ctx, records)
+	})
+}
+
+func workflowCompensationOwner(records []*WorkflowCompensationRecord) (uint64, error) {
+	var userID uint64
 	for _, record := range records {
 		if record == nil {
 			continue
 		}
 		if record.RunID.IsZero() || record.UserID == 0 || record.Sequence < 1 || record.PlanHash == "" {
-			return errors.New("workflow compensation record is incomplete")
+			return 0, errors.New("workflow compensation record is incomplete")
+		}
+		if userID != 0 && userID != record.UserID {
+			return 0, errors.New("workflow compensations must have one owner")
+		}
+		userID = record.UserID
+	}
+	return userID, nil
+}
+
+func (r *MongoAgentRepository) saveWorkflowCompensationPlan(ctx context.Context, records []*WorkflowCompensationRecord) error {
+	models := make([]mongo.WriteModel, 0, len(records))
+	for _, record := range records {
+		if record == nil {
+			continue
 		}
 		if record.ID.IsZero() {
 			record.ID = primitive.NewObjectID()
@@ -194,6 +218,25 @@ func (r *MongoAgentRepository) ClaimWorkflowCompensation(
 	if runID.IsZero() || userID == 0 || sequence < 1 || attemptID == "" || leaseUntil.IsZero() {
 		return nil, errors.New("workflow compensation claim is incomplete")
 	}
+	var claimed *WorkflowCompensationRecord
+	err := withSubjectWriteLease(ctx, r, userID, func() error {
+		var claimErr error
+		claimed, claimErr = r.claimWorkflowCompensation(ctx, runID, userID, sequence, attemptID, leaseUntil, approvalID, retryFailed)
+		return claimErr
+	})
+	return claimed, err
+}
+
+func (r *MongoAgentRepository) claimWorkflowCompensation(
+	ctx context.Context,
+	runID primitive.ObjectID,
+	userID uint64,
+	sequence int,
+	attemptID string,
+	leaseUntil time.Time,
+	approvalID primitive.ObjectID,
+	retryFailed bool,
+) (*WorkflowCompensationRecord, error) {
 	now := time.Now()
 	claimable := bson.A{
 		bson.M{"status": WorkflowCompensationStatusPlanned},
@@ -224,17 +267,52 @@ func (r *MongoAgentRepository) ClaimWorkflowCompensation(
 	).Decode(&claimed)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return nil, ErrWorkflowCompensationUnavailable
+			return nil, subjectWriteNotCommitted(ErrWorkflowCompensationUnavailable)
 		}
 		return nil, fmt.Errorf("claim workflow compensation failed: %w", err)
 	}
 	return &claimed, nil
 }
 
+func (r *MongoAgentRepository) withWorkflowCompensationWrite(
+	ctx context.Context,
+	compensationID primitive.ObjectID,
+	write func(uint64) error,
+) error {
+	if compensationID.IsZero() {
+		return errors.New("workflow compensation identity is incomplete")
+	}
+	var owner struct {
+		UserID uint64 `bson:"user_id"`
+	}
+	err := r.workflowCompensationColl.FindOne(
+		ctx, bson.M{"_id": compensationID},
+		options.FindOne().SetProjection(bson.M{"user_id": 1}),
+	).Decode(&owner)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return ErrWorkflowCompensationClaimInvalid
+	}
+	if err != nil {
+		return fmt.Errorf("load workflow compensation owner failed: %w", err)
+	}
+	if owner.UserID == 0 {
+		return errors.New("workflow compensation owner is invalid")
+	}
+	return withSubjectWriteLease(ctx, r, owner.UserID, func() error {
+		return write(owner.UserID)
+	})
+}
+
 func (r *MongoAgentRepository) CompleteWorkflowCompensation(ctx context.Context, compensationID primitive.ObjectID, attemptID, outputJSON string) error {
+	return r.withWorkflowCompensationWrite(ctx, compensationID, func(userID uint64) error {
+		return r.completeWorkflowCompensation(ctx, compensationID, userID, attemptID, outputJSON)
+	})
+}
+
+func (r *MongoAgentRepository) completeWorkflowCompensation(ctx context.Context, compensationID primitive.ObjectID, userID uint64, attemptID, outputJSON string) error {
 	now := time.Now()
 	result, err := r.workflowCompensationColl.UpdateOne(ctx, bson.M{
-		"_id": compensationID, "status": WorkflowCompensationStatusExecuting, "attempt_id": attemptID,
+		"_id": compensationID, "user_id": userID, "status": WorkflowCompensationStatusExecuting, "attempt_id": attemptID,
 	}, bson.M{"$set": bson.M{
 		"status": WorkflowCompensationStatusSucceeded, "output_json": outputJSON,
 		"attempt_id": "", "lease_until": time.Time{}, "updated_at": now, "finished_at": now,
@@ -243,7 +321,7 @@ func (r *MongoAgentRepository) CompleteWorkflowCompensation(ctx context.Context,
 		return fmt.Errorf("complete workflow compensation failed: %w", err)
 	}
 	if result.MatchedCount == 0 {
-		return ErrWorkflowCompensationClaimInvalid
+		return subjectWriteNotCommitted(ErrWorkflowCompensationClaimInvalid)
 	}
 	return nil
 }
@@ -252,9 +330,15 @@ func (r *MongoAgentRepository) SuspendWorkflowCompensation(ctx context.Context, 
 	if approvalID.IsZero() {
 		return errors.New("workflow compensation approval id is required")
 	}
+	return r.withWorkflowCompensationWrite(ctx, compensationID, func(userID uint64) error {
+		return r.suspendWorkflowCompensation(ctx, compensationID, userID, attemptID, approvalID)
+	})
+}
+
+func (r *MongoAgentRepository) suspendWorkflowCompensation(ctx context.Context, compensationID primitive.ObjectID, userID uint64, attemptID string, approvalID primitive.ObjectID) error {
 	now := time.Now()
 	result, err := r.workflowCompensationColl.UpdateOne(ctx, bson.M{
-		"_id": compensationID, "status": WorkflowCompensationStatusExecuting, "attempt_id": attemptID,
+		"_id": compensationID, "user_id": userID, "status": WorkflowCompensationStatusExecuting, "attempt_id": attemptID,
 	}, bson.M{"$set": bson.M{
 		"status": WorkflowCompensationStatusSuspended, "approval_request_id": approvalID,
 		"attempt_id": "", "lease_until": time.Time{}, "updated_at": now,
@@ -263,15 +347,21 @@ func (r *MongoAgentRepository) SuspendWorkflowCompensation(ctx context.Context, 
 		return fmt.Errorf("suspend workflow compensation failed: %w", err)
 	}
 	if result.MatchedCount == 0 {
-		return ErrWorkflowCompensationClaimInvalid
+		return subjectWriteNotCommitted(ErrWorkflowCompensationClaimInvalid)
 	}
 	return nil
 }
 
 func (r *MongoAgentRepository) FailWorkflowCompensation(ctx context.Context, compensationID primitive.ObjectID, attemptID, errorMessage string) error {
+	return r.withWorkflowCompensationWrite(ctx, compensationID, func(userID uint64) error {
+		return r.failWorkflowCompensation(ctx, compensationID, userID, attemptID, errorMessage)
+	})
+}
+
+func (r *MongoAgentRepository) failWorkflowCompensation(ctx context.Context, compensationID primitive.ObjectID, userID uint64, attemptID, errorMessage string) error {
 	now := time.Now()
 	result, err := r.workflowCompensationColl.UpdateOne(ctx, bson.M{
-		"_id": compensationID, "status": WorkflowCompensationStatusExecuting, "attempt_id": attemptID,
+		"_id": compensationID, "user_id": userID, "status": WorkflowCompensationStatusExecuting, "attempt_id": attemptID,
 	}, bson.M{"$set": bson.M{
 		"status": WorkflowCompensationStatusFailed, "error_message": errorMessage,
 		"attempt_id": "", "lease_until": time.Time{}, "updated_at": now, "finished_at": now,
@@ -280,12 +370,21 @@ func (r *MongoAgentRepository) FailWorkflowCompensation(ctx context.Context, com
 		return fmt.Errorf("fail workflow compensation failed: %w", err)
 	}
 	if result.MatchedCount == 0 {
-		return ErrWorkflowCompensationClaimInvalid
+		return subjectWriteNotCommitted(ErrWorkflowCompensationClaimInvalid)
 	}
 	return nil
 }
 
 func (r *MongoAgentRepository) RejectWorkflowCompensation(ctx context.Context, runID primitive.ObjectID, userID uint64, approvalID primitive.ObjectID, reason string) error {
+	if runID.IsZero() || userID == 0 || approvalID.IsZero() {
+		return errors.New("workflow compensation rejection identity is incomplete")
+	}
+	return withSubjectWriteLease(ctx, r, userID, func() error {
+		return r.rejectWorkflowCompensation(ctx, runID, userID, approvalID, reason)
+	})
+}
+
+func (r *MongoAgentRepository) rejectWorkflowCompensation(ctx context.Context, runID primitive.ObjectID, userID uint64, approvalID primitive.ObjectID, reason string) error {
 	now := time.Now()
 	result, err := r.workflowCompensationColl.UpdateOne(ctx, bson.M{
 		"run_id": runID, "user_id": userID, "status": WorkflowCompensationStatusSuspended,
@@ -298,7 +397,7 @@ func (r *MongoAgentRepository) RejectWorkflowCompensation(ctx context.Context, r
 		return fmt.Errorf("reject workflow compensation failed: %w", err)
 	}
 	if result.MatchedCount == 0 {
-		return ErrWorkflowCompensationUnavailable
+		return subjectWriteNotCommitted(ErrWorkflowCompensationUnavailable)
 	}
 	return nil
 }

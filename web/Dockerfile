@@ -1,19 +1,18 @@
 # 第一阶段：构建
-FROM node:22-alpine AS builder
+ARG BUILDER_IMAGE=node:22-alpine
+ARG RUNTIME_IMAGE=nginx:alpine
+FROM ${BUILDER_IMAGE} AS builder
 WORKDIR /app
 
-# 安装 pnpm
-RUN npm install -g pnpm
-
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install
+COPY package.json package-lock.json ./
+RUN npm ci
 
 COPY . .
-RUN pnpm run build
+RUN npm run build
 
 # 第二阶段：nginx 托管
-FROM nginx:alpine
+FROM ${RUNTIME_IMAGE}
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
+EXPOSE 5556
 CMD ["nginx", "-g", "daemon off;"]

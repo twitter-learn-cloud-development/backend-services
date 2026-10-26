@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -15,9 +16,9 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	messengerv1 "twitter-clone/api/messenger/v1"
-	"twitter-clone/internal/domain"
 	"twitter-clone/internal/infrastructure/cache"
 	"twitter-clone/internal/infrastructure/persistence"
+	"twitter-clone/internal/infrastructure/schema"
 	messengerRepo "twitter-clone/internal/module/messenger/repository"
 	messengerService "twitter-clone/internal/module/messenger/service"
 	consulConfig "twitter-clone/pkg/config"
@@ -58,7 +59,10 @@ func main() {
 	registryAddr := consulHost + ":" + consulPort
 
 	// 2. 初始化数据库
-	dbConfig := persistence.DefaultDBConfig()
+	dbConfig, err := persistence.ServiceDBConfig("messenger-service")
+	if err != nil {
+		log.Fatal(err)
+	}
 	var consulConfigClient *consulConfig.ConsulConfigClient
 	if client, err := consulConfig.NewConsulConfigClient(registryAddr); err == nil {
 		consulConfigClient = client
@@ -74,10 +78,10 @@ func main() {
 	log.Println("✅ Database connected")
 
 	// 3. 自动迁移
-	if err := db.AutoMigrate(&domain.Message{}); err != nil {
-		log.Fatalf("❌ Failed to migrate database: %v", err)
+	if err := schema.CheckRuntime(context.Background(), db, "messenger-service"); err != nil {
+		log.Fatal(err)
 	}
-	log.Println("✅ Database migrated")
+	log.Println("Database schema verified; runtime DDL disabled")
 
 	// 4. 初始化 Redis
 	redisConfig := cache.DefaultRedisConfig()

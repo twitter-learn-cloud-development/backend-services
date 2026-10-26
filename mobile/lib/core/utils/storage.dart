@@ -51,7 +51,8 @@ class Storage {
 
   // Clear all auth data
   static Future<void> clearAuthData() async {
-    await removeToken();
-    await removeUserProfile();
+    // Start both removals synchronously so cached reads cannot observe half a logout.
+    final results = await Future.wait([removeToken(), removeUserProfile()]);
+    if (results.any((saved) => !saved)) throw StateError('无法清除登录状态');
   }
 }

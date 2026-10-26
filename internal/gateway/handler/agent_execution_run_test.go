@@ -55,6 +55,12 @@ func (f *agentExecutionRunGatewayClientFake) GetAgentRun(
 		RunId: "run-1", DialogueKey: "dialogue-1", Status: "approval_required",
 		Revision: 2, ResumeSupported: true, PendingActionType: "tool_call",
 		PendingActionId: "action-1", ApprovalId: "approval-1", ApprovalExpiresAt: 1234,
+		Planning: &aiAgentv1.AgentPlanningEvidence{
+			Enabled: true, PlanDigest: "safe-plan-digest", PlanningCalls: 1,
+			TotalTokens: 12, GoalStatus: "suspended", VerificationStatus: "inconclusive",
+			CheckpointVersion: "goal.v1", CheckpointRevision: 1,
+			CheckpointDigest: "safe-checkpoint-digest",
+		},
 	}}, nil
 }
 
@@ -116,6 +122,11 @@ func TestGetAgentRunReturnsOnlySanitizedLifecycleProjection(t *testing.T) {
 		PendingActionID   string `json:"pending_action_id"`
 		ApprovalID        string `json:"approval_id"`
 		ApprovalExpiresAt int64  `json:"approval_expires_at"`
+		Planning          struct {
+			PlanDigest         string `json:"plan_digest"`
+			VerificationStatus string `json:"verification_status"`
+			CheckpointVersion  string `json:"checkpoint_version"`
+		} `json:"planning"`
 	}
 	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
 	require.Equal(t, "approval_required", response.Status)
@@ -124,6 +135,12 @@ func TestGetAgentRunReturnsOnlySanitizedLifecycleProjection(t *testing.T) {
 	require.Equal(t, "action-1", response.PendingActionID)
 	require.Equal(t, "approval-1", response.ApprovalID)
 	require.Equal(t, int64(1234), response.ApprovalExpiresAt)
+	require.Equal(t, "safe-plan-digest", response.Planning.PlanDigest)
+	require.Equal(t, "inconclusive", response.Planning.VerificationStatus)
+	require.Equal(t, "goal.v1", response.Planning.CheckpointVersion)
+	require.NotContains(t, recorder.Body.String(), `"task":`)
+	require.NotContains(t, recorder.Body.String(), `"evidence":`)
+	require.NotContains(t, recorder.Body.String(), "tool_arguments")
 }
 
 func TestGetAgentRunAccountingReturnsBoundedSanitizedProjection(t *testing.T) {

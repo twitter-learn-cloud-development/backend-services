@@ -15,19 +15,44 @@ import (
 
 type GatewayAuthMiddleware struct {
 	jwksKeyfunc keyfunc.Keyfunc // 内部自带缓存和异步更新的公钥管理器
+	issuer      string
+	audience    string
 }
 
-func NewGatewayAuthMiddleware(authServiceJWKSUrl string) (*GatewayAuthMiddleware, error) {
+type GatewayAuthOption func(*GatewayAuthMiddleware)
+
+func WithExpectedTokenClaims(issuer, audience string) GatewayAuthOption {
+	return func(middleware *GatewayAuthMiddleware) {
+		middleware.issuer = strings.TrimSpace(issuer)
+		middleware.audience = strings.TrimSpace(audience)
+	}
+}
+
+func NewGatewayAuthMiddleware(authServiceJWKSUrl string, options ...GatewayAuthOption) (*GatewayAuthMiddleware, error) {
 	// 🔴 JWKS 会在底层自动处理公钥的热更新和动态拉取，你的 RWMutex 读写锁从此光荣退休！
 	kf, err := keyfunc.NewDefault([]string{authServiceJWKSUrl})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create JWKS keyfunc: %w", err)
 	}
-	return &GatewayAuthMiddleware{jwksKeyfunc: kf}, nil
+	middleware := &GatewayAuthMiddleware{jwksKeyfunc: kf}
+	for _, option := range options {
+		option(middleware)
+	}
+	return middleware, nil
 }
 
 // ParseTokenViaJWKS 核心的纯 JWKS 解密算法
 func (m *GatewayAuthMiddleware) ParseTokenViaJWKS(tokenString string) (*service.UserClaims, error) {
+	parserOptions := []jwt.ParserOption{
+		jwt.WithValidMethods([]string{jwt.SigningMethodRS256.Alg()}),
+		jwt.WithExpirationRequired(),
+	}
+	if m.issuer != "" {
+		parserOptions = append(parserOptions, jwt.WithIssuer(m.issuer))
+	}
+	if m.audience != "" {
+		parserOptions = append(parserOptions, jwt.WithAudience(m.audience))
+	}
 	token, err := jwt.ParseWithClaims(tokenString, &service.UserClaims{}, func(token *jwt.Token) (interface{}, error) {
 		// 🔴 算法校验更替为非对称的 RS256
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
@@ -35,7 +60,7 @@ func (m *GatewayAuthMiddleware) ParseTokenViaJWKS(tokenString string) (*service.
 		}
 		// 根据 kid 自动匹配获取内存缓存里的 *rsa.PublicKey
 		return m.jwksKeyfunc.Keyfunc(token)
-	})
+	}, parserOptions...)
 
 	if err != nil {
 		return nil, err
@@ -75,7 +100,7 @@ func (m *GatewayAuthMiddleware) AuthRequired() gin.HandlerFunc {
 		// 调用 JWKS 解析
 		claims, err := m.ParseTokenViaJWKS(parts[1])
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": fmt.Sprintf("invalid token: %v", err)})
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
 			c.Abort()
 			return
 		}

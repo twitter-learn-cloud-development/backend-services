@@ -15,6 +15,11 @@ export default defineConfig({
       '/uploads': {
         target: 'http://localhost:9638',
         changeOrigin: true,
+      },
+      '/media/twitter-media/': {
+        target: 'http://localhost:9000',
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/media/, ''),
       }
     },
     port: 5173

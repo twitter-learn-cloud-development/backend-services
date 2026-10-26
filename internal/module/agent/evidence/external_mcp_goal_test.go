@@ -106,3 +106,81 @@ func TestExternalMCPReadGoalVerifierBindsObservationToAuthorizationSnapshot(t *t
 		t.Fatalf("forged evidence passed: %+v", verification)
 	}
 }
+
+func TestExternalMCPGovernedGoalVerifierAcceptsPolicyBoundWriteObservation(t *testing.T) {
+	const qualifiedName = "mcp_crm.create_record"
+	binding := agentEnvironment.ExternalMCPToolBinding{
+		Tool: agentRuntime.ToolDefinition{
+			Name: qualifiedName, Category: agentRuntime.ToolCategoryWrite,
+			RequiresApproval: true, InputSchema: json.RawMessage(`{"type":"object"}`),
+		},
+		ConnectionID:      "mcpconn_0123456789abcdef0123456789abcdef",
+		ConnectionOwnerID: 42, ConnectionScope: "user", ConnectionRevision: 8,
+		ServerID: "mcp_crm", SnapshotID: "mcpsnap_0123456789abcdef0123456789abcdef",
+		SnapshotVersion:  4,
+		SchemaHash:       "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		PolicySnapshotID: "mcpsnap_0123456789abcdef0123456789abcdef",
+		PolicyToolName:   "create_record", PolicyCategory: "write",
+		PolicyQualifiedName: qualifiedName, PolicyEnabled: true,
+	}
+	environment, err := agentEnvironment.NewExternalMCPEnvironment(externalMCPGoalCatalog{
+		bindings: []agentEnvironment.ExternalMCPToolBinding{binding},
+	}, 42)
+	if err != nil {
+		t.Fatal(err)
+	}
+	task := agentRuntime.TaskSpec{
+		ID: "external-mcp-governed", Goal: "create one approved record",
+		AllowedTools: []string{qualifiedName},
+		CompletionCriteria: []agentRuntime.CompletionCriterion{{
+			ID:          ExternalMCPGovernedObservedCriterion,
+			Description: "a governed MCP observation is verified", Required: true,
+		}},
+	}
+	before, err := environment.Snapshot(context.Background(), agentRuntime.SnapshotRequest{
+		Task: task, Phase: agentRuntime.SnapshotPhaseBefore,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	after, err := environment.Snapshot(context.Background(), agentRuntime.SnapshotRequest{
+		Task: task, Phase: agentRuntime.SnapshotPhaseAfter,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	run := agentRuntime.RunResult{
+		Context: agentRuntime.RunContext{RunID: "run-mcp-write", UserID: 42},
+		Status:  agentRuntime.RunStatusCompleted,
+		Steps: []agentRuntime.Step{{
+			Index: 1, FinishedAt: time.Date(2026, 9, 24, 9, 0, 0, 0, time.UTC),
+			Actions: []agentRuntime.Action{{
+				ID: "write-1", Type: agentRuntime.ActionToolCall, Name: qualifiedName,
+			}},
+			Observations: []agentRuntime.Observation{{
+				ActionID: "write-1", Name: qualifiedName,
+				StructuredContent: json.RawMessage(`{"record_id":"record-1"}`),
+			}},
+		}},
+	}
+	items, err := (ExternalMCPGovernedGoalCollector{}).Collect(
+		context.Background(),
+		agentRuntime.EvidenceCollectionRequest{Task: task, Run: run, Before: &before, After: &after},
+	)
+	if err != nil || len(items) != 1 {
+		t.Fatalf("Collect() items/error = %+v/%v", items, err)
+	}
+	ledger, err := (agentRuntime.EvidenceLedger{}).With(items[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	verification, err := (ExternalMCPGovernedGoalVerifier{}).Verify(
+		context.Background(),
+		agentRuntime.VerificationRequest{
+			Task: task, Run: run, Before: &before, After: &after, Evidence: ledger,
+		},
+	)
+	if err != nil || !verification.Passed() {
+		t.Fatalf("Verify() result/error = %+v/%v", verification, err)
+	}
+}

@@ -11,10 +11,8 @@ class AppTheme {
       colorScheme: const ColorScheme.light(
         primary: AppColors.primary,
         secondary: AppColors.primary,
-        background: AppColors.lightBg,
         surface: AppColors.lightSurface,
         onPrimary: Colors.white,
-        onBackground: AppColors.lightTextPrimary,
         onSurface: AppColors.lightTextPrimary,
       ),
       appBarTheme: const AppBarTheme(
@@ -81,10 +79,8 @@ class AppTheme {
       colorScheme: const ColorScheme.dark(
         primary: AppColors.primary,
         secondary: AppColors.primary,
-        background: AppColors.darkBg,
         surface: AppColors.darkSurface,
         onPrimary: Colors.white,
-        onBackground: AppColors.darkTextPrimary,
         onSurface: AppColors.darkTextPrimary,
       ),
       appBarTheme: const AppBarTheme(

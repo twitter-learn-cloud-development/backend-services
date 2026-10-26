@@ -12,6 +12,7 @@ class FeedState {
   final String nextCursor;
   final bool hasMore;
   final String? errorMessage;
+  final bool continuation;
 
   FeedState({
     this.isLoading = false,
@@ -20,6 +21,7 @@ class FeedState {
     this.nextCursor = '0',
     this.hasMore = false,
     this.errorMessage,
+    this.continuation = false,
   });
 
   FeedState copyWith({
@@ -29,6 +31,7 @@ class FeedState {
     String? nextCursor,
     bool? hasMore,
     String? errorMessage,
+    bool? continuation,
   }) {
     return FeedState(
       isLoading: isLoading ?? this.isLoading,
@@ -37,6 +40,7 @@ class FeedState {
       nextCursor: nextCursor ?? this.nextCursor,
       hasMore: hasMore ?? this.hasMore,
       errorMessage: errorMessage,
+      continuation: continuation ?? this.continuation,
     );
   }
 }
@@ -49,68 +53,94 @@ final tweetRepositoryProvider = Provider<TweetRepository>((ref) {
 
 // 3. Feed Notifier Provider
 class FeedNotifier extends Notifier<FeedState> {
-  late final TweetRepository _repository;
+  late TweetRepository _repository;
 
   @override
   FeedState build() {
     _repository = ref.watch(tweetRepositoryProvider);
-    Future.microtask(() => refresh());
+    ref.watch(authNotifierProvider.select((auth) => auth.token));
+    final generation = ++_generation;
+    ref.onDispose(() {
+      _generation++;
+    });
+    Future.microtask(() {
+      if (ref.mounted && generation == _generation) refresh();
+    });
     return FeedState();
   }
 
-  // Refresh feeds (clear state and load first page)
+  int _generation = 0;
+  bool _retryRefresh = false;
+
   Future<void> refresh() async {
-    state = state.copyWith(isLoading: true);
-    try {
-      final result = await _repository.getFeeds(cursor: '0', limit: 20);
-      final tweets = result['tweets'] as List<Tweet>;
-      final nextCursor = result['next_cursor'] as String;
-      final hasMore = result['has_more'] as bool;
-      
-      state = FeedState(
-        tweets: tweets,
-        nextCursor: nextCursor,
-        hasMore: hasMore,
-      );
-    } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: e.toString().replaceAll('Exception: ', ''),
-      );
-    }
+    final generation = ++_generation;
+    _retryRefresh = true;
+    state = state.copyWith(
+      isLoading: true,
+      isFetchingMore: false,
+      nextCursor: '0',
+      hasMore: true,
+      continuation: false,
+    );
+    await _loadPage(generation, replace: true);
   }
 
-  // Fetch next page of feeds
   Future<void> fetchNextPage() async {
-    if (state.isFetchingMore || !state.hasMore) return;
-    
-    state = state.copyWith(isFetchingMore: true);
+    if (state.isLoading || state.isFetchingMore || !state.hasMore) return;
+    state = state.copyWith(isFetchingMore: true, continuation: false);
+    await _loadPage(_generation, replace: false);
+  }
+
+  Future<void> retry() => _retryRefresh ? refresh() : fetchNextPage();
+
+  Future<void> _loadPage(int generation, {required bool replace}) async {
+    var replacing = replace;
     try {
-      final result = await _repository.getFeeds(
-        cursor: state.nextCursor,
-        limit: 20,
-      );
-      
-      final newTweets = result['tweets'] as List<Tweet>;
-      final nextCursor = result['next_cursor'] as String;
-      final hasMore = result['has_more'] as bool;
-      
-      state = state.copyWith(
-        isFetchingMore: false,
-        tweets: [...state.tweets, ...newTweets],
-        nextCursor: nextCursor,
-        hasMore: hasMore,
-      );
-    } catch (e) {
-      state = state.copyWith(
-        isFetchingMore: false,
-        errorMessage: e.toString().replaceAll('Exception: ', ''),
-      );
+      for (var attempt = 0; attempt < 3; attempt++) {
+        final requested = state.nextCursor;
+        final result = await _repository.getFeeds(cursor: requested, limit: 20);
+        if (!ref.mounted || generation != _generation) return;
+        final rows = result['tweets'] as List<Tweet>;
+        final next = result['next_cursor'] as String;
+        final more = result['has_more'] as bool;
+        if (more && (next.isEmpty || next == '0' || next == requested)) {
+          throw Exception('分页结果无效，请刷新重试');
+        }
+        final previous = replacing ? <Tweet>[] : state.tweets;
+        final ids = previous.map((tweet) => tweet.id).toSet();
+        final added = <Tweet>[];
+        for (final tweet in rows) {
+          if (tweet.id.isEmpty) throw Exception('推文数据无效，请刷新重试');
+          if (ids.add(tweet.id)) added.add(tweet);
+        }
+        state = state.copyWith(
+          tweets: [...previous, ...added],
+          nextCursor: next,
+          hasMore: more,
+        );
+        _retryRefresh = false;
+        replacing = false;
+        if (added.isNotEmpty || !more) return;
+      }
+      state = state.copyWith(continuation: true);
+    } catch (_) {
+      if (ref.mounted && generation == _generation) {
+        state = state.copyWith(errorMessage: '加载失败，请重试');
+      }
+    } finally {
+      if (ref.mounted && generation == _generation) {
+        state = state.copyWith(
+          isLoading: false,
+          isFetchingMore: false,
+          errorMessage: state.errorMessage,
+        );
+      }
     }
   }
 
   // Optimistic Like / Unlike update
   Future<void> toggleLike(String tweetId) async {
+    final generation = _generation;
     final oldTweets = [...state.tweets];
     final index = oldTweets.indexWhere((t) => t.id == tweetId);
     if (index == -1) return;
@@ -133,8 +163,9 @@ class FeedNotifier extends Notifier<FeedState> {
       } else {
         updatedCount = await _repository.unlikeTweet(tweetId);
       }
-      
+
       // Confirm final server count
+      if (!ref.mounted || generation != _generation) return;
       final updatedTweets = [...state.tweets];
       final currentIdx = updatedTweets.indexWhere((t) => t.id == tweetId);
       if (currentIdx != -1) {
@@ -144,6 +175,7 @@ class FeedNotifier extends Notifier<FeedState> {
         state = state.copyWith(tweets: updatedTweets);
       }
     } catch (e) {
+      if (!ref.mounted || generation != _generation) return;
       if (kDebugMode) {
         print('❌ [FeedNotifier] toggleLike Error: $e');
       }
@@ -162,6 +194,7 @@ class FeedNotifier extends Notifier<FeedState> {
 
   // Optimistic Retweet update
   Future<void> toggleRetweet(String tweetId) async {
+    final generation = _generation;
     final oldTweets = [...state.tweets];
     final index = oldTweets.indexWhere((t) => t.id == tweetId);
     if (index == -1) return;
@@ -184,8 +217,9 @@ class FeedNotifier extends Notifier<FeedState> {
       } else {
         result = await _repository.unretweet(tweetId);
       }
-      
+
       // Confirm final server states
+      if (!ref.mounted || generation != _generation) return;
       final updatedTweets = [...state.tweets];
       final currentIdx = updatedTweets.indexWhere((t) => t.id == tweetId);
       if (currentIdx != -1) {
@@ -195,14 +229,15 @@ class FeedNotifier extends Notifier<FeedState> {
         );
         state = state.copyWith(tweets: updatedTweets);
       }
-      
+
       // If we just retweeted, refresh the feed after a short delay so the new tweet appears
       if (newIsRetweeted) {
         Future.delayed(const Duration(milliseconds: 300), () {
-          refresh();
+          if (ref.mounted && generation == _generation) refresh();
         });
       }
     } catch (e) {
+      if (!ref.mounted || generation != _generation) return;
       if (kDebugMode) {
         print('❌ [FeedNotifier] toggleRetweet Error: $e');
       }
@@ -221,6 +256,7 @@ class FeedNotifier extends Notifier<FeedState> {
 
   // Optimistic Bookmark update
   Future<void> toggleBookmark(String tweetId) async {
+    final generation = _generation;
     final oldTweets = [...state.tweets];
     final index = oldTweets.indexWhere((t) => t.id == tweetId);
     if (index == -1) return;
@@ -229,9 +265,7 @@ class FeedNotifier extends Notifier<FeedState> {
     final bool newIsBookmarked = !tweet.isBookmarked;
 
     // Apply optimistic update in UI
-    oldTweets[index] = tweet.copyWith(
-      isBookmarked: newIsBookmarked,
-    );
+    oldTweets[index] = tweet.copyWith(isBookmarked: newIsBookmarked);
     state = state.copyWith(tweets: oldTweets);
 
     try {
@@ -241,6 +275,7 @@ class FeedNotifier extends Notifier<FeedState> {
         await _repository.unbookmark(tweetId);
       }
     } catch (e) {
+      if (!ref.mounted || generation != _generation) return;
       if (kDebugMode) {
         print('❌ [FeedNotifier] toggleBookmark Error: $e');
       }
@@ -260,9 +295,14 @@ class FeedNotifier extends Notifier<FeedState> {
   // Append a newly created tweet to the top of the feed list
   void insertNewTweet(Tweet newTweet) {
     state = state.copyWith(
-      tweets: [newTweet, ...state.tweets],
+      tweets: [
+        newTweet,
+        ...state.tweets.where((tweet) => tweet.id != newTweet.id),
+      ],
     );
   }
 }
 
-final feedNotifierProvider = NotifierProvider<FeedNotifier, FeedState>(FeedNotifier.new);
+final feedNotifierProvider = NotifierProvider<FeedNotifier, FeedState>(
+  FeedNotifier.new,
+);

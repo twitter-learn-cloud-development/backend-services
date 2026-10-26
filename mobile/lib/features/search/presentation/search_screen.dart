@@ -83,6 +83,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     try {
       final repo = ref.read(searchRepositoryProvider);
       final result = await repo.searchTweets(query, cursor: '0');
+      if (!mounted) return;
       setState(() {
         _searchResults = result['tweets'] as List<Tweet>;
         _searchCursor = result['next_cursor'] as String;
@@ -90,6 +91,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         _isLoadingSearch = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isLoadingSearch = false;
       });

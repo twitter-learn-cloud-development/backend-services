@@ -3,6 +3,7 @@ package canal
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/go-redis/redis/v8"
@@ -26,7 +27,9 @@ func (s *RedisPositionStore) SavePosition(pos mysql.Position) error {
 	if err != nil {
 		return err
 	}
-	return s.redisClient.Set(context.Background(), s.key, data, 0).Err()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return s.redisClient.Set(ctx, s.key, data, 0).Err()
 }
 
 func (s *RedisPositionStore) GetPosition() (mysql.Position, error) {

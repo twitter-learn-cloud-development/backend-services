@@ -17,17 +17,24 @@ type ChatCompletionClient interface {
 }
 
 type OpenAICompatibleClient struct {
-	client   ChatCompletionClient
-	model    string
-	provider string
+	client    ChatCompletionClient
+	model     string
+	provider  string
+	admission CallAdmission
 }
 
-func NewOpenAICompatibleClient(client ChatCompletionClient, model, provider string) *OpenAICompatibleClient {
-	return &OpenAICompatibleClient{
+func NewOpenAICompatibleClient(client ChatCompletionClient, model, provider string, options ...OpenAIClientOption) *OpenAICompatibleClient {
+	adapter := &OpenAICompatibleClient{
 		client:   client,
 		model:    strings.TrimSpace(model),
 		provider: strings.TrimSpace(provider),
 	}
+	for _, option := range options {
+		if option != nil {
+			option(adapter)
+		}
+	}
+	return adapter
 }
 
 func (c *OpenAICompatibleClient) Complete(
@@ -49,6 +56,13 @@ func (c *OpenAICompatibleClient) Complete(
 	if err != nil {
 		return agentRuntime.ModelResponse{}, err
 	}
+	if c.provider == "dashscope" {
+		for index := range messages {
+			if messages[index].Role == "developer" {
+				messages[index].Role = openai.ChatMessageRoleSystem
+			}
+		}
+	}
 	tools, err := toOpenAITools(request.Tools)
 	if err != nil {
 		return agentRuntime.ModelResponse{}, err
@@ -62,8 +76,16 @@ func (c *OpenAICompatibleClient) Complete(
 	if !request.ToolChoice.Valid() {
 		return agentRuntime.ModelResponse{}, fmt.Errorf("unsupported tool choice %q", request.ToolChoice)
 	}
-	if request.ToolChoice != "" {
+	if request.ToolChoice != "" && len(tools) > 0 {
 		completionRequest.ToolChoice = string(request.ToolChoice)
+	}
+	if c.admission != nil {
+		var release func()
+		ctx, release, err = c.admission.AcquireCall(ctx, c.provider, &request)
+		if err != nil {
+			return agentRuntime.ModelResponse{}, err
+		}
+		defer release()
 	}
 	if request.MaxOutputTokens > 0 {
 		completionRequest.MaxTokens = request.MaxOutputTokens

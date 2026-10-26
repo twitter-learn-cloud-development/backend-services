@@ -26,6 +26,22 @@ type MockAiAgentServiceClient struct {
 	MockRCA   string
 }
 
+func TestAuthSessionRoutesRequireIdentity(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := SetupRouter(&handler.TweetHandler{}, &handler.FollowHandler{}, &handler.UserHandler{}, &handler.UploadHandler{}, &handler.NotificationHandler{}, &handler.BookmarkHandler{}, &handler.MessengerHandler{}, &handler.WebSocketHandler{}, handler.NewAgentHandler(&MockAiAgentServiceClient{}), &middleware.GatewayAuthMiddleware{}, nil, "test-alert-webhook-token-at-least-32-characters")
+	for _, path := range []string{"/session", "/logout", "/password"} {
+		method := http.MethodPost
+		if path == "/session" {
+			method = http.MethodGet
+		}
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(method, "/api/v1/auth"+path, nil))
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("%s: expected 401, got %d", path, w.Code)
+		}
+	}
+}
+
 func (m *MockAiAgentServiceClient) AnalyzeAlert(ctx context.Context, in *aiAgentv1.AnalyzeAlertRequest, opts ...grpc.CallOption) (*aiAgentv1.AnalyzeAlertResponse, error) {
 	atomic.AddInt32(&m.CallCount, 1)
 	return &aiAgentv1.AnalyzeAlertResponse{
@@ -39,6 +55,7 @@ func TestRouter_AlertsWebhook(t *testing.T) {
 
 	mockClient := &MockAiAgentServiceClient{}
 	agentHandler := handler.NewAgentHandler(mockClient)
+	const alertWebhookToken = "test-alert-webhook-token-at-least-32-characters"
 
 	// 最小化路由初始化，传入空指针或占位符
 	r := SetupRouter(
@@ -53,6 +70,7 @@ func TestRouter_AlertsWebhook(t *testing.T) {
 		agentHandler,
 		&middleware.GatewayAuthMiddleware{},
 		nil,
+		alertWebhookToken,
 	)
 
 	// 用例 1: 未提供 Header Token
@@ -69,7 +87,7 @@ func TestRouter_AlertsWebhook(t *testing.T) {
 	// 用例 2: 状态不是 firing (是 resolved)
 	{
 		req, _ := http.NewRequest(http.MethodPost, "/alerts", bytes.NewBufferString(`{"status":"resolved","groupKey":"key-2"}`))
-		req.Header.Set("X-Alertmanager-Token", "twitter-clone-secret-alert-token")
+		req.Header.Set("Authorization", "Bearer "+alertWebhookToken)
 		resp := httptest.NewRecorder()
 		r.ServeHTTP(resp, req)
 
@@ -83,10 +101,22 @@ func TestRouter_AlertsWebhook(t *testing.T) {
 		}
 	}
 
+	// 旧 Alertmanager 在滚动升级期间仍可使用同一份外部 Secret。
+	{
+		req, _ := http.NewRequest(http.MethodPost, "/alerts", bytes.NewBufferString(`{"status":"resolved","groupKey":"key-legacy"}`))
+		req.Header.Set("X-Alertmanager-Token", alertWebhookToken)
+		resp := httptest.NewRecorder()
+		r.ServeHTTP(resp, req)
+
+		if resp.Code != http.StatusOK {
+			t.Errorf("expected legacy header to remain compatible, got %d", resp.Code)
+		}
+	}
+
 	// 用例 3: 状态是 firing，应该接收并异步触发诊断
 	{
 		req, _ := http.NewRequest(http.MethodPost, "/alerts", bytes.NewBufferString(`{"status":"firing","groupKey":"key-3"}`))
-		req.Header.Set("X-Alertmanager-Token", "twitter-clone-secret-alert-token")
+		req.Header.Set("Authorization", "Bearer "+alertWebhookToken)
 		resp := httptest.NewRecorder()
 		r.ServeHTTP(resp, req)
 
@@ -109,7 +139,7 @@ func TestRouter_AlertsWebhook(t *testing.T) {
 	// 用例 4: 相同 groupKey 短时间内再次触发，应该被防抖机制过滤
 	{
 		req, _ := http.NewRequest(http.MethodPost, "/alerts", bytes.NewBufferString(`{"status":"firing","groupKey":"key-3"}`))
-		req.Header.Set("X-Alertmanager-Token", "twitter-clone-secret-alert-token")
+		req.Header.Set("Authorization", "Bearer "+alertWebhookToken)
 		resp := httptest.NewRecorder()
 		r.ServeHTTP(resp, req)
 
@@ -134,7 +164,7 @@ func TestRouter_AlertsWebhook(t *testing.T) {
 		mockClient.MockRCA = `{"root_cause":"RedisDown","action":"TriggerCircuitBreaker","resource":"GET:/api/v1/feeds"}`
 
 		req, _ := http.NewRequest(http.MethodPost, "/alerts", bytes.NewBufferString(`{"status":"firing","groupKey":"key-5"}`))
-		req.Header.Set("X-Alertmanager-Token", "twitter-clone-secret-alert-token")
+		req.Header.Set("Authorization", "Bearer "+alertWebhookToken)
 		resp := httptest.NewRecorder()
 		r.ServeHTTP(resp, req)
 

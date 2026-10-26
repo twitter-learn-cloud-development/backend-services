@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"twitter-clone/internal/domain"
+	"twitter-clone/internal/pkg/database/uow"
 )
 
 const (
@@ -31,7 +32,7 @@ func NewOutboxRepository(db *gorm.DB) domain.OutboxRepository {
 // Create 创建 Outbox 任务
 func (r *outboxRepo) Create(ctx context.Context, task *domain.OutboxTask) error {
 	prepareOutboxTaskTimestamps(task)
-	return r.db.WithContext(ctx).Create(task).Error
+	return uow.ExtractTx(ctx, r.db).WithContext(ctx).Create(task).Error
 }
 
 // CreateIdempotent inserts a task once for a non-empty deduplication key.
@@ -40,7 +41,7 @@ func (r *outboxRepo) CreateIdempotent(ctx context.Context, task *domain.OutboxTa
 		return false, errors.New("outbox task dedup key is required")
 	}
 	prepareOutboxTaskTimestamps(task)
-	result := r.db.WithContext(ctx).Clauses(clause.OnConflict{
+	result := uow.ExtractTx(ctx, r.db).WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "dedup_key"}},
 		DoNothing: true,
 	}).Create(task)
@@ -231,6 +232,14 @@ func prepareOutboxTaskTimestamps(task *domain.OutboxTask) {
 }
 
 func validateOutboxClaimRequest(request domain.OutboxClaimRequest) error {
+	if len(request.TaskTypes) > 8 {
+		return errors.New("outbox task lane exceeds bound")
+	}
+	for _, kind := range request.TaskTypes {
+		if kind == "" || len(kind) > 50 {
+			return errors.New("invalid outbox task lane")
+		}
+	}
 	if request.Limit <= 0 {
 		return errors.New("outbox claim limit must be positive")
 	}
@@ -267,6 +276,9 @@ func validateOutboxLeaseIdentity(owner, token string) error {
 }
 
 func claimableOutboxTasksQuery(db *gorm.DB, request domain.OutboxClaimRequest) *gorm.DB {
+	if len(request.TaskTypes) > 0 {
+		db = db.Where("task_type IN ?", request.TaskTypes)
+	}
 	return db.Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
 		Where("retries < max_retries AND (status = ? OR (status = ? AND updated_at + (CASE retries WHEN 0 THEN 1000 WHEN 1 THEN 2000 WHEN 2 THEN 4000 WHEN 3 THEN 8000 WHEN 4 THEN 16000 ELSE 32000 END) <= ?))",
 			domain.OutboxStatusPending, domain.OutboxStatusFailed, request.ClaimedAtUnixMilli).

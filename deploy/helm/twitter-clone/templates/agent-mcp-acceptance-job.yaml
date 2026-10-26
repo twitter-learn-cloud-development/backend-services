@@ -9,6 +9,12 @@
 {{- if and $acceptance.requireSigned (not $acceptance.integrityExistingSecret) }}
 {{- fail "externalMCP acceptance signed reports require integrityExistingSecret" }}
 {{- end }}
+{{- if and $acceptance.reportExistingClaim (or (empty $acceptance.reportFileName) (contains "/" $acceptance.reportFileName) (contains "\\" $acceptance.reportFileName)) }}
+{{- fail "externalMCP acceptance reportFileName must be a single file name" }}
+{{- end }}
+{{- if and $acceptance.reportExistingClaim (not (hasPrefix "/" $acceptance.reportMountPath)) }}
+{{- fail "externalMCP acceptance reportMountPath must be absolute" }}
+{{- end }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -79,6 +85,10 @@ spec:
             {{- if $acceptance.requireSigned }}
             - --require-signed
             {{- end }}
+            {{- if $acceptance.reportExistingClaim }}
+            - --out
+            - {{ printf "%s/%s" (trimSuffix "/" $acceptance.reportMountPath) $acceptance.reportFileName | quote }}
+            {{- end }}
           env:
             - name: APP_ENV
               value: "kubernetes-acceptance"
@@ -111,6 +121,10 @@ spec:
               mountPath: {{ $acceptance.credentialMountPath | quote }}
               readOnly: true
             {{- end }}
+            {{- if $acceptance.reportExistingClaim }}
+            - name: acceptance-report
+              mountPath: {{ $acceptance.reportMountPath | quote }}
+            {{- end }}
       volumes:
         - name: acceptance-config
           configMap:
@@ -119,5 +133,10 @@ spec:
         - name: acceptance-credential
           secret:
             secretName: {{ $acceptance.credentialExistingSecret | quote }}
+        {{- end }}
+        {{- if $acceptance.reportExistingClaim }}
+        - name: acceptance-report
+          persistentVolumeClaim:
+            claimName: {{ $acceptance.reportExistingClaim | quote }}
         {{- end }}
 {{- end }}

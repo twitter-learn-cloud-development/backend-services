@@ -139,12 +139,33 @@ func (s *AgentService) executeExternalMCPRuntime(
 	if err != nil {
 		return nil, err
 	}
-	governedCatalog := s.unifiedAgentApprovalRecovery
+	governedPlanningUsed := s.planningExecuteExternalMCPWriteEnabled(userID)
+	planningUsed := governedPlanningUsed || s.planningExecuteEnabled(userID, plan.ExecutionProfile)
+	governedCatalog := governedPlanningUsed
 	var executable []externalmcp.ExecutableTool
-	if governedCatalog {
-		executable, err = manager.ListGovernedTools(ctx, userID)
-	} else {
-		executable, err = manager.ListExecutableTools(ctx, userID)
+	if planningUsed {
+		if governedPlanningUsed {
+			executable, err = manager.ListGovernedTools(ctx, userID)
+		} else {
+			executable, err = manager.ListExecutableTools(ctx, userID)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("list executable external MCP tools failed: %w", err)
+		}
+		if len(executable) == 0 {
+			if governedPlanningUsed {
+				return nil, errors.New("no governed external MCP tools are enabled")
+			}
+			planningUsed = false
+		}
+	}
+	if !planningUsed {
+		governedCatalog = s.unifiedAgentApprovalRecovery
+		if governedCatalog {
+			executable, err = manager.ListGovernedTools(ctx, userID)
+		} else {
+			executable, err = manager.ListExecutableTools(ctx, userID)
+		}
 	}
 	if err != nil {
 		return nil, fmt.Errorf("list executable external MCP tools failed: %w", err)
@@ -179,13 +200,15 @@ func (s *AgentService) executeExternalMCPRuntime(
 		logger.Warn(ctx, "load external MCP context failed", zap.Error(err))
 		contextMessages = nil
 	}
-	messageBuild, err := s.buildRuntimeMessages(profile.Prompt.SystemPrompt, content, contextMessages, profile.Budget)
+	messageBuild, cognitive, err := s.buildRuntimeMessagesWithCognitiveContext(
+		ctx, userID, profile.Prompt.SystemPrompt, content, contextMessages, profile.Budget,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("build external MCP runtime messages failed: %w", err)
 	}
 
 	runID := agentExecutionRunID(ctx)
-	result, err := s.runRuntime(ctx, agentRuntime.RunRequest{
+	runRequest := agentRuntime.RunRequest{
 		Context: agentRuntime.RunContext{
 			RunID: runID, UserID: userID, Mode: agentRuntime.ModeConsult,
 			Budget: profile.Budget, AgentProfileID: profile.ID,
@@ -193,7 +216,31 @@ func (s *AgentService) executeExternalMCPRuntime(
 			PromptTemplateVersion: profile.Prompt.Version,
 		},
 		Model: s.selectedModel(ctx), Messages: messageBuild.Messages, Tools: tools,
-	})
+	}
+	plannedResult := agentRuntime.PlannedVerifiedRunResult{}
+	var result agentRuntime.RunResult
+	if planningUsed {
+		environment, environmentErr := s.newExternalMCPEnvironment(userID)
+		if environmentErr != nil {
+			return nil, fmt.Errorf("create external MCP planning environment: %w", environmentErr)
+		}
+		allowedTools := make([]string, 0, len(tools))
+		for _, tool := range tools {
+			allowedTools = append(allowedTools, tool.Name)
+		}
+		if governedPlanningUsed {
+			plannedResult, err = s.runPlannedExternalMCPGoverned(
+				ctx, content, runRequest, environment, allowedTools,
+			)
+		} else {
+			plannedResult, err = s.runPlannedExternalMCPRead(
+				ctx, content, runRequest, environment, allowedTools,
+			)
+		}
+		result = plannedResult.Verified.Run
+	} else {
+		result, err = s.runRuntime(ctx, runRequest)
+	}
 	s.recordRuntimeResult(ctx, result, err, profile.ID)
 	approvalPending := result.Status == agentRuntime.RunStatusApprovalRequired &&
 		agentRuntime.HasErrorCode(err, agentRuntime.ErrorApprovalRequired)
@@ -218,6 +265,10 @@ func (s *AgentService) executeExternalMCPRuntime(
 	metadata["runtime_context_tokens"] = messageBuild.EstimatedTokens
 	metadata["runtime_context_dropped"] = stringifyDroppedSources(messageBuild.Dropped)
 	metadata["tool_activity_count"] = len(toolActivities)
+	addCognitiveContextMetadata(metadata, cognitive)
+	if planningUsed {
+		addPlanningExecutionMetadata(metadata, plannedResult)
+	}
 	if err := s.saveUserAndAssistantMessages(
 		ctx,
 		dialogue.ID,
@@ -287,7 +338,9 @@ func (s *AgentService) executeWorkflowRuntime(
 		logger.Warn(ctx, "load workflow runtime context failed", zap.Error(err))
 		contextMessages = nil
 	}
-	messageBuild, err := s.buildRuntimeMessages(
+	messageBuild, cognitive, err := s.buildRuntimeMessagesWithCognitiveContext(
+		ctx,
+		userID,
 		selected.Prompt.SystemPrompt,
 		content,
 		contextMessages,
@@ -298,7 +351,7 @@ func (s *AgentService) executeWorkflowRuntime(
 	}
 
 	runID := agentExecutionRunID(ctx)
-	result, err := s.runRuntime(ctx, agentRuntime.RunRequest{
+	runRequest := agentRuntime.RunRequest{
 		Context: agentRuntime.RunContext{
 			RunID:                 runID,
 			UserID:                userID,
@@ -312,7 +365,22 @@ func (s *AgentService) executeWorkflowRuntime(
 		Model:    s.selectedModel(ctx),
 		Messages: messageBuild.Messages,
 		Tools:    tools,
-	})
+	}
+	planningUsed := s.planningExecuteEnabled(userID, plan.ExecutionProfile)
+	plannedResult := agentRuntime.PlannedVerifiedRunResult{}
+	var result agentRuntime.RunResult
+	if planningUsed {
+		environment, environmentErr := s.newWorkflowToolEnvironment(userID)
+		if environmentErr != nil {
+			return nil, fmt.Errorf("build workflow tool environment failed: %w", environmentErr)
+		}
+		plannedResult, err = s.runPlannedWorkflowRead(
+			ctx, content, runRequest, environment, selected.AllowedTools,
+		)
+		result = plannedResult.Verified.Run
+	} else {
+		result, err = s.runRuntime(ctx, runRequest)
+	}
 	s.recordRuntimeResult(ctx, result, err, selected.ID)
 	approvalPending := result.Status == agentRuntime.RunStatusApprovalRequired &&
 		agentRuntime.HasErrorCode(err, agentRuntime.ErrorApprovalRequired)
@@ -343,6 +411,10 @@ func (s *AgentService) executeWorkflowRuntime(
 	metadata["runtime_context_tokens"] = messageBuild.EstimatedTokens
 	metadata["runtime_context_dropped"] = stringifyDroppedSources(messageBuild.Dropped)
 	metadata["tool_activity_count"] = len(toolActivities)
+	addCognitiveContextMetadata(metadata, cognitive)
+	if planningUsed {
+		addPlanningExecutionMetadata(metadata, plannedResult)
+	}
 	if err := s.saveUserAndAssistantMessages(
 		ctx,
 		dialogue.ID,
@@ -427,7 +499,9 @@ func (s *AgentService) executeSkillRuntime(
 	systemPrompt := strings.TrimSpace(selectedProfile.Prompt.SystemPrompt) +
 		"\n\nSelected immutable Skill contract:\n" +
 		strings.TrimSpace(current.Version.Instructions)
-	messageBuild, err := s.buildRuntimeMessages(
+	messageBuild, cognitive, err := s.buildRuntimeMessagesWithCognitiveContext(
+		ctx,
+		userID,
 		systemPrompt,
 		content,
 		contextMessages,
@@ -498,6 +572,7 @@ func (s *AgentService) executeSkillRuntime(
 	metadata["runtime_context_tokens"] = messageBuild.EstimatedTokens
 	metadata["runtime_context_dropped"] = stringifyDroppedSources(messageBuild.Dropped)
 	metadata["tool_activity_count"] = len(toolActivities)
+	addCognitiveContextMetadata(metadata, cognitive)
 	if err := s.saveUserAndAssistantMessages(
 		ctx,
 		dialogue.ID,
@@ -582,13 +657,15 @@ func (s *AgentService) executeRequiredToolRuntime(
 		contextMessages = nil
 	}
 	systemPrompt := profile.Prompt.SystemPrompt + config.systemPromptSuffix
-	messageBuild, err := s.buildRuntimeMessages(systemPrompt, content, contextMessages, profile.Budget)
+	messageBuild, cognitive, err := s.buildRuntimeMessagesWithCognitiveContext(
+		ctx, userID, systemPrompt, content, contextMessages, profile.Budget,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("build %s runtime messages failed: %w", config.label, err)
 	}
 
 	runID := agentExecutionRunID(ctx)
-	result, err := s.runRuntime(ctx, agentRuntime.RunRequest{
+	runRequest := agentRuntime.RunRequest{
 		Context: agentRuntime.RunContext{
 			RunID:                 runID,
 			UserID:                userID,
@@ -602,7 +679,26 @@ func (s *AgentService) executeRequiredToolRuntime(
 		Model:    s.selectedModel(ctx),
 		Messages: messageBuild.Messages,
 		Tools:    tools,
-	})
+	}
+	planningUsed := s.planningExecuteEnabled(userID, plan.ExecutionProfile)
+	plannedResult := agentRuntime.PlannedVerifiedRunResult{}
+	var result agentRuntime.RunResult
+	if planningUsed {
+		switch plan.ExecutionProfile {
+		case ExecutionProfileRuntimePlatformSearch:
+			plannedResult, err = s.runPlannedPlatformSearch(ctx, content, runRequest)
+		case ExecutionProfileRuntimeWebSearch:
+			plannedResult, err = s.runPlannedWebResearch(ctx, content, runRequest)
+		default:
+			planningUsed = false
+			result, err = s.runRuntime(ctx, runRequest)
+		}
+		if planningUsed {
+			result = plannedResult.Verified.Run
+		}
+	} else {
+		result, err = s.runRuntime(ctx, runRequest)
+	}
 	s.recordRuntimeResult(ctx, result, err, profile.ID)
 	if config.profileID == profileUnifiedPlatformSearch {
 		if config.requiredTool == "hybrid_search_tweets" {
@@ -665,6 +761,10 @@ func (s *AgentService) executeRequiredToolRuntime(
 	metadata["runtime_context_dropped"] = stringifyDroppedSources(messageBuild.Dropped)
 	metadata["tool_activity_count"] = len(toolActivities)
 	metadata["citation_count"] = len(citations)
+	addCognitiveContextMetadata(metadata, cognitive)
+	if planningUsed {
+		addPlanningExecutionMetadata(metadata, plannedResult)
+	}
 	if references := platformTweetReferences(citations); len(references) > 0 {
 		metadata[platformTweetReferencesMetadataKey] = references
 	}

@@ -12,6 +12,9 @@ func (s *AgentService) CreateAgentProject(
 	actorUserID uint64,
 	name string,
 ) (*agentproject.Project, error) {
+	if err := s.authorizeSubjectWrite(ctx, actorUserID); err != nil {
+		return nil, err
+	}
 	manager, err := s.agentProjects()
 	if err != nil {
 		return nil, err
@@ -51,8 +54,14 @@ func (s *AgentService) UpsertAgentProjectMember(
 	role string,
 	expectedRevision int64,
 ) (*agentproject.Project, error) {
+	if err := s.authorizeSubjectWrite(ctx, actorUserID); err != nil {
+		return nil, err
+	}
 	manager, err := s.agentProjects()
 	if err != nil {
+		return nil, err
+	}
+	if err := s.authorizeSubjectWrite(ctx, targetUserID); err != nil {
 		return nil, err
 	}
 	return manager.UpsertMember(ctx, actorUserID, projectID, targetUserID, role, expectedRevision)
@@ -65,6 +74,9 @@ func (s *AgentService) RemoveAgentProjectMember(
 	targetUserID uint64,
 	expectedRevision int64,
 ) (*agentproject.Project, error) {
+	if err := s.authorizeSubjectWrite(ctx, actorUserID); err != nil {
+		return nil, err
+	}
 	manager, err := s.agentProjects()
 	if err != nil {
 		return nil, err

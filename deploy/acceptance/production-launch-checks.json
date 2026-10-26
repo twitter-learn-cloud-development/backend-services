@@ -1,0 +1,38 @@
+{
+  "schema": "twitter-clone.production-launch-plan.v1",
+  "checks": [
+    {"id":"l3.mcp_conformance","stage":"L3","title":"MCP protocol conformance completed","required":true},
+    {"id":"l3.mcp_read_live","stage":"L3","title":"One real MCP read tool completed with a signed report","required":true},
+    {"id":"l3.mcp_write_live","stage":"L3","title":"One approval-gated idempotent MCP write completed with post-state readback","required":true},
+    {"id":"l3.mcp_revocation","stage":"L3","title":"Connection or project membership revocation blocked discovery and remote execution","required":true},
+    {"id":"l3.workflow_live","stage":"L3","title":"Immutable Workflow-as-Tool completed with parent-child, timeout and failure evidence","required":true},
+
+    {"id":"l4.compose_preflight","stage":"L4","title":"Production Compose preflight passed with immutable images and external secrets","required":true},
+    {"id":"l4.clean_host_health","stage":"L4","title":"All required services became healthy from a clean host","required":true},
+    {"id":"l4.tls_browser","stage":"L4","title":"Trusted TLS, HTTP redirect, CORS and WebSocket browser checks passed","required":true},
+    {"id":"l4.alert_delivery","stage":"L4","title":"Prometheus alert reached the intended Alertmanager receiver","required":true},
+    {"id":"l4.backup_restore","stage":"L4","title":"Required data stores were restored from a verified backup set","required":true},
+    {"id":"l4.service_restart","stage":"L4","title":"Service restart preserved user-visible state and resumable Agent runs","required":true},
+    {"id":"l4.rollback","stage":"L4","title":"Previous image and environment snapshot restored without deleting volumes","required":true},
+    {"id":"l4.secret_exposure","stage":"L4","title":"Images, repository, logs and API responses contain no deployment secret","required":true},
+    {"id":"l4.retention_deletion","stage":"L4","title":"Observability retention was verified and unsupported application data deletion remained disabled","required":true},
+
+    {"id":"l5.offline_regression","stage":"L5","title":"Deterministic tests, race checks, vet and client builds passed","required":true},
+    {"id":"l5.fixed_journey","stage":"L5","title":"Chat-search-cited draft-approval-publish-inspect-resume journey passed","required":true},
+    {"id":"l5.provider_timeout","stage":"L5","title":"Provider timeout returned a bounded blocked or failure result","required":true},
+    {"id":"l5.mcp_revocation_drill","stage":"L5","title":"MCP revocation during a run failed closed before another remote call","required":true},
+    {"id":"l5.redis_restart","stage":"L5","title":"Redis restart drill preserved documented recovery semantics","required":true},
+    {"id":"l5.mongo_restart","stage":"L5","title":"Mongo restart drill preserved dialogue, run and checkpoint semantics","required":true},
+    {"id":"l5.budget_exhaustion","stage":"L5","title":"Token or cost budget exhaustion stopped before an unauthorized provider call","required":true},
+    {"id":"l5.malformed_model","stage":"L5","title":"Malformed model output exhausted bounded repair and failed closed","required":true},
+    {"id":"l5.dashboard_alerts","stage":"L5","title":"Launch dashboards and rollback alerts were reviewed by an owner","required":true},
+    {"id":"l5.p0_p1_zero","stage":"L5","title":"No open P0 or P1 launch issue remains","required":true},
+    {"id":"l5.beta_limits","stage":"L5","title":"Public beta documentation states disabled and unverified capabilities honestly","required":true},
+    {"id":"l5.canary_rollback","stage":"L5","title":"Internal canary and one-change feature rollback were verified","required":true},
+    {"id":"l5.auth_session","stage":"L5","title":"Web and Mobile sign-in, local sign-out, password change and stale-session isolation passed with JWT revocation limitations confirmed","required":true},
+    {"id":"l5.search_visibility","stage":"L5","title":"Deleted, hidden and nonpublic tweets were excluded before MCP and RAG evidence consumption","required":true},
+    {"id":"l5.feed_messaging","stage":"L5","title":"Cross-client cursor paging and message reconnect readback passed without duplicate or skipped items","required":true},
+    {"id":"l5.schema_ownership","stage":"L5","title":"Owner migrations, denied runtime DDL and cross-owner permission boundaries were verified","required":true},
+    {"id":"l5.shared_admission","stage":"L5","title":"Multi-replica shared admission, budget exhaustion and Redis failure behavior matched deployment policy","required":true}
+  ]
+}

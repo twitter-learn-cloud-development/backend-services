@@ -3,15 +3,14 @@ package repository
 import (
 	"context"
 	"fmt"
-	"time"
 	"twitter-clone/internal/domain"
-	"twitter-clone/pkg/pkg/snowflake"
 
 	"gorm.io/gorm"
 )
 
 type followRepo struct {
-	db *gorm.DB
+	db            *gorm.DB
+	newRelationID func() (uint64, error)
 }
 
 // NewFollowRepository 创建关注仓储
@@ -21,58 +20,14 @@ func NewFollowRepository(db *gorm.DB) domain.FollowRepository {
 
 // Follow 关注用户
 func (r *followRepo) Follow(ctx context.Context, followerID, followeeID uint64) error {
-	//不能关注自己
-	if followerID == followeeID {
-		return fmt.Errorf("cannot follow yourself")
-	}
-
-	//检查是否已经关注
-	var count int64
-	err := r.db.WithContext(ctx).Model(&domain.Follow{}).Where("follower_id = ? AND followee_id = ? AND deleted_at = 0", followerID, followeeID).Count(&count).Error
-	if err != nil {
-		return fmt.Errorf("failed to check follow status: %w", err)
-	}
-
-	if count > 0 {
-		return fmt.Errorf("already following")
-	}
-
-	id, err := snowflake.GenerateID()
-	if err != nil {
-		return fmt.Errorf("failed to generate ID: %w", err)
-	}
-
-	//创建关注关系
-	follow := &domain.Follow{
-		ID:         id,
-		FollowerID: followerID,
-		FolloweeID: followeeID,
-		CreatedAt:  time.Now().UnixMilli(),
-		DeletedAt:  0,
-	}
-
-	if err := r.db.WithContext(ctx).Create(follow).Error; err != nil {
-		return fmt.Errorf("failed to create follow: %w", err)
-	}
-
-	return nil
+	_, err := r.ApplyFollowTransition(ctx, followerID, followeeID, true)
+	return err
 }
 
 // unfollow 取消关注
 func (r *followRepo) Unfollow(ctx context.Context, followerID, followeeID uint64) error {
-	now := time.Now().UnixMilli()
-
-	result := r.db.WithContext(ctx).Model(&domain.Follow{}).Where("follower_id = ? and followee_id = ? and deleted_at = 0", followerID, followeeID).Update("deleted_at", now)
-
-	if result.Error != nil {
-		return fmt.Errorf("failed to unfollow: %w", result.Error)
-	}
-
-	if result.RowsAffected == 0 {
-		return fmt.Errorf("not following this user")
-	}
-
-	return nil
+	_, err := r.ApplyFollowTransition(ctx, followerID, followeeID, false)
+	return err
 }
 
 // IsFollowing 检查是否关注
@@ -124,8 +79,8 @@ func (r *followRepo) GetFollowers(ctx context.Context, userID uint64, cursor uin
 	return followerIDs, nil
 }
 
-// ListFollowerPage exposes the follow relation cursor needed by internal
-// replayable jobs. The public GetFollowers method intentionally stays intact.
+// ListFollowerPage exposes the follow relation cursor for public lists and
+// internal replayable jobs. Legacy IDs-only methods remain for other callers.
 func (r *followRepo) ListFollowerPage(ctx context.Context, userID uint64, cursor uint64, limit int) (domain.FollowerPage, error) {
 	if limit <= 0 {
 		limit = 500
@@ -134,15 +89,8 @@ func (r *followRepo) ListFollowerPage(ctx context.Context, userID uint64, cursor
 		limit = 1000
 	}
 
-	query := r.db.WithContext(ctx).
-		Model(&domain.Follow{}).
-		Where("followee_id = ? AND deleted_at = 0", userID)
-	if cursor > 0 {
-		query = query.Where("id < ?", cursor)
-	}
-
 	var follows []domain.Follow
-	if err := query.Order("id DESC").Limit(limit + 1).Find(&follows).Error; err != nil {
+	if err := r.followerPageQuery(ctx, userID, cursor, limit).Find(&follows).Error; err != nil {
 		return domain.FollowerPage{}, fmt.Errorf("failed to list follower page: %w", err)
 	}
 

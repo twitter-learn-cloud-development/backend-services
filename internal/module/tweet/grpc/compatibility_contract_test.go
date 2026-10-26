@@ -76,6 +76,40 @@ func TestRiskControlRPCCompatibilityContract(t *testing.T) {
 	}
 }
 
+func TestSubjectDeletionRPCCompatibilityContract(t *testing.T) {
+	service := tweetv1.File_api_tweet_v1_tweet_proto.Services().ByName("TweetService")
+	if service == nil {
+		t.Fatal("TweetService protobuf descriptor is missing")
+	}
+	for _, methodName := range []protoreflect.Name{
+		"ObserveTweetSubjectData", "EnforceTweetSubjectWriteFence", "DeleteTweetSubjectData",
+	} {
+		if service.Methods().ByName(methodName) == nil {
+			t.Fatalf("TweetService.%s is missing", methodName)
+		}
+	}
+	assertMessageFieldNumbers(t, "TweetSubjectInventory", map[protoreflect.Name]protoreflect.FieldNumber{
+		"authored_tweets": 1, "authored_comments": 2, "likes": 3,
+		"bookmarks": 4, "retweets": 5, "poll_votes": 6,
+	})
+	assertMessageFieldNumbers(t, "DeleteTweetSubjectDataRequest", map[protoreflect.Name]protoreflect.FieldNumber{
+		"schema_version": 1, "operation_key": 2, "user_id": 3,
+		"subject_digest": 4, "governance_digest": 5, "deadline_unix_ms": 6,
+	})
+	assertMessageFieldNumbers(t, "DeleteTweetSubjectDataResponse", map[protoreflect.Name]protoreflect.FieldNumber{
+		"schema_version": 1, "operation_key": 2, "receipt_digest": 3,
+		"before": 4, "after": 5, "replayed": 6, "completed_at_unix_ms": 7,
+	})
+	assertMessageFieldNumbers(t, "EnforceTweetSubjectWriteFenceRequest", map[protoreflect.Name]protoreflect.FieldNumber{
+		"schema_version": 1, "request_id": 2, "user_id": 3, "subject_digest": 4,
+		"plan_digest": 5, "capability_digest": 6, "governance_digest": 7, "deadline_unix_ms": 8,
+	})
+	assertMessageFieldNumbers(t, "EnforceTweetSubjectWriteFenceResponse", map[protoreflect.Name]protoreflect.FieldNumber{
+		"schema_version": 1, "request_id": 2, "fence_revision": 3,
+		"replayed": 4, "enforced_at_unix_ms": 5,
+	})
+}
+
 func assertMessageFieldNumbers(t *testing.T, messageName protoreflect.Name, want map[protoreflect.Name]protoreflect.FieldNumber) {
 	t.Helper()
 	message := tweetv1.File_api_tweet_v1_tweet_proto.Messages().ByName(messageName)

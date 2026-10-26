@@ -24,6 +24,22 @@ type sessionSummaryRepositoryFake struct {
 	claimMinimum int64
 	completed    int
 	released     int
+	scheduled    []repository.DialogueSummarySchedule
+	scheduleDue  time.Time
+}
+
+func (f *sessionSummaryRepositoryFake) ScheduleDialogueSummary(_ context.Context, dialogueID primitive.ObjectID, userID uint64, dueAt time.Time) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.scheduled = append(f.scheduled, repository.DialogueSummarySchedule{DialogueID: dialogueID, UserID: userID})
+	f.scheduleDue = dueAt
+	return nil
+}
+
+func (f *sessionSummaryRepositoryFake) ListDueDialogueSummaries(_ context.Context, _ time.Time, _ int64) ([]repository.DialogueSummarySchedule, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]repository.DialogueSummarySchedule(nil), f.scheduled...), nil
 }
 
 func (f *sessionSummaryRepositoryFake) ClaimDialogueSummary(_ context.Context, _ primitive.ObjectID, _ uint64, minPendingMessages int64, force bool, _ time.Duration) (*repository.DialogueSummaryClaim, error) {
@@ -213,9 +229,9 @@ func TestDialogueSummaryHistoryRejectsOutOfBoundsClaim(t *testing.T) {
 	}
 }
 
-func TestScheduleSessionSummaryTriggersThresholdAndIdleClaims(t *testing.T) {
+func TestScheduleSessionSummaryPersistsIdleAndTriggersThresholdClaim(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	repo := &sessionSummaryRepositoryFake{claimCh: make(chan bool, 2)}
+	repo := &sessionSummaryRepositoryFake{claimCh: make(chan bool, 1)}
 	service := &AgentService{
 		repo: repo, summaryWriter: &sessionSummaryWriterFake{},
 		serviceCtx: ctx, cancelFunc: cancel,
@@ -226,15 +242,65 @@ func TestScheduleSessionSummaryTriggersThresholdAndIdleClaims(t *testing.T) {
 	defer service.Close()
 
 	service.scheduleSessionSummary(9, primitive.NewObjectID())
-	seen := map[bool]bool{}
-	deadline := time.After(time.Second)
-	for len(seen) < 2 {
-		select {
-		case force := <-repo.claimCh:
-			seen[force] = true
-		case <-deadline:
-			t.Fatalf("timed out waiting for threshold and idle claims: %#v", seen)
+	select {
+	case force := <-repo.claimCh:
+		if force {
+			t.Fatal("durable scheduling should not also start an in-memory idle timer")
 		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for threshold claim")
+	}
+	repo.mu.Lock()
+	scheduled := len(repo.scheduled)
+	due := repo.scheduleDue
+	repo.mu.Unlock()
+	if scheduled != 1 || due.IsZero() {
+		t.Fatalf("durable summary schedule = %d/%v", scheduled, due)
+	}
+}
+
+func TestSweepDueSessionSummariesRecoversPersistedWork(t *testing.T) {
+	dialogueID := primitive.NewObjectID()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	repo := &sessionSummaryRepositoryFake{
+		claim: &repository.DialogueSummaryClaim{
+			DialogueID: dialogueID, UserID: 77, LeaseToken: "lease", Version: 1,
+			FromMessage: 0, ThroughMessage: 2, ScheduleRevision: 3,
+		},
+		messages: []*repository.DialogueMessage{
+			{Role: repository.RoleUser, Content: "remember Go"},
+			{Role: repository.RoleAssistant, Content: "remembered"},
+		},
+		scheduled: []repository.DialogueSummarySchedule{{DialogueID: dialogueID, UserID: 77}},
+	}
+	writer := &countingSessionSummaryWriter{}
+	service := &AgentService{
+		repo: repo, summaryWriter: writer, serviceCtx: ctx, cancelFunc: cancel,
+		summaryObserver: noopSessionSummaryObserver{},
+		summaryJobs:     make(map[primitive.ObjectID]map[string]context.CancelFunc),
+		summaryTimers:   make(map[primitive.ObjectID]*time.Timer),
+	}
+
+	service.sweepDueSessionSummaries()
+	deadline := time.Now().Add(time.Second)
+	for {
+		writer.mu.Lock()
+		calls := writer.calls
+		writer.mu.Unlock()
+		if calls == 1 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("persisted summary was not recovered")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	repo.mu.Lock()
+	completed := repo.completed
+	repo.mu.Unlock()
+	if completed != 1 {
+		t.Fatalf("recovered summary completion count = %d", completed)
 	}
 }
 

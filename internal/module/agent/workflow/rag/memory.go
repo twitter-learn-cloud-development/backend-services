@@ -11,8 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"gorm.io/gorm"
+	"twitter-clone/internal/domain"
 
+	"twitter-clone/internal/module/agent/retrieval"
 	agentRuntime "twitter-clone/internal/module/agent/runtime"
 	"twitter-clone/pkg/ai"
 	"twitter-clone/pkg/es"
@@ -68,18 +69,10 @@ func DefaultEpisodicMemoryConfig() EpisodicMemoryConfig {
 	}
 }
 
-type UserPersona struct {
-	UserID    uint64 `gorm:"primaryKey;column:user_id"`
-	Persona   string `gorm:"column:persona;type:text"`
-	UpdatedAt int64  `gorm:"column:updated_at"`
-}
-
-func (UserPersona) TableName() string {
-	return "agent_personas"
-}
+type UserPersona = domain.AgentPersona
 
 type MemoryManager struct {
-	db           *gorm.DB
+	personas     domain.AgentPersonaStore
 	esClient     *es.Client
 	qdrantClient *qdrant.Client
 	aiClient     *ai.Client
@@ -88,9 +81,16 @@ type MemoryManager struct {
 	tokenCounter agentRuntime.TokenCounter
 	episodic     EpisodicMemoryConfig
 	scoring      ScoringConfig
+	publicTweets retrieval.PublicTweetReader
 }
 
 type MemoryManagerOption func(*MemoryManager)
+
+func WithPublicTweetReader(reader retrieval.PublicTweetReader) MemoryManagerOption {
+	return func(manager *MemoryManager) {
+		manager.publicTweets = reader
+	}
+}
 
 func WithEpisodicMemoryConfig(config EpisodicMemoryConfig) MemoryManagerOption {
 	return func(manager *MemoryManager) {
@@ -135,7 +135,7 @@ func WithScoringConfig(config ScoringConfig) MemoryManagerOption {
 }
 
 func NewMemoryManager(
-	db *gorm.DB,
+	personas domain.AgentPersonaStore,
 	esClient *es.Client,
 	qdrantClient *qdrant.Client,
 	aiClient *ai.Client,
@@ -143,12 +143,9 @@ func NewMemoryManager(
 	embedModel string,
 	options ...MemoryManagerOption,
 ) *MemoryManager {
-	if db != nil {
-		_ = db.AutoMigrate(&UserPersona{})
-	}
 
 	manager := &MemoryManager{
-		db:           db,
+		personas:     personas,
 		esClient:     esClient,
 		qdrantClient: qdrantClient,
 		aiClient:     aiClient,
@@ -174,31 +171,18 @@ func (m *MemoryManager) SetTokenCounter(counter agentRuntime.TokenCounter) {
 }
 
 func (m *MemoryManager) GetPersona(ctx context.Context, userID uint64) (string, error) {
-	if m == nil || m.db == nil {
+	if m == nil || m.personas == nil {
 		return "", nil
 	}
 
-	var up UserPersona
-	err := m.db.WithContext(ctx).First(&up, "user_id = ?", userID).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "", nil
-		}
-		return "", err
-	}
-	return up.Persona, nil
+	return m.personas.Get(ctx, userID)
 }
 
 func (m *MemoryManager) SavePersona(ctx context.Context, userID uint64, persona string) error {
-	if m == nil || m.db == nil {
-		return errors.New("memory persona db is not initialized")
+	if m == nil || m.personas == nil {
+		return errors.New("memory persona store is not initialized")
 	}
-	up := UserPersona{
-		UserID:    userID,
-		Persona:   strings.TrimSpace(persona),
-		UpdatedAt: time.Now().Unix(),
-	}
-	return m.db.WithContext(ctx).Save(&up).Error
+	return m.personas.Put(ctx, userID, persona)
 }
 
 type SessionSummaryRequest struct {
@@ -442,6 +426,10 @@ func (m *MemoryManager) SearchHybridKnowledge(ctx context.Context, query string,
 	if limit <= 0 {
 		limit = 5
 	}
+	// Two sources each retrieve limit*2; authority batches are capped at 100.
+	if limit > 25 {
+		limit = 25
+	}
 
 	type result struct {
 		source string
@@ -530,6 +518,10 @@ func (m *MemoryManager) SearchHybridKnowledge(ctx context.Context, query string,
 		chunk.Score = score
 		merged = append(merged, chunk)
 	}
+	merged, err := m.hydratePublicKnowledge(ctx, merged)
+	if err != nil {
+		return nil, err
+	}
 	sort.SliceStable(merged, func(i, j int) bool {
 		if merged[i].Score != merged[j].Score {
 			return merged[i].Score > merged[j].Score
@@ -566,7 +558,10 @@ func (m *MemoryManager) RetrieveScoredChunks(ctx context.Context, userID uint64,
 	}
 
 	l2Chunks, _ := m.SearchEpisodicMemory(ctx, userID, query, limit/2)
-	l3Chunks, _ := m.SearchHybridKnowledge(ctx, query, limit/2)
+	l3Chunks, err := m.SearchHybridKnowledge(ctx, query, limit/2)
+	if err != nil {
+		return nil, err
+	}
 	allChunks := append(l2Chunks, l3Chunks...)
 	if len(allChunks) == 0 {
 		return nil, nil

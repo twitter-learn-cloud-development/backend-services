@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 	authV1 "twitter-clone/api/auth/v1"
@@ -32,8 +33,8 @@ import (
 	"google.golang.org/grpc"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	_ "github.com/mbobakov/grpc-consul-resolver" // 🆕 导入 Consul 解析器
 	"github.com/joho/godotenv"
+	_ "github.com/mbobakov/grpc-consul-resolver" // 🆕 导入 Consul 解析器
 	"go.uber.org/zap"
 )
 
@@ -121,6 +122,11 @@ func main() {
 		cfg.PrivateKey = privateKey
 		cfg.Kid = kid
 		cfg.Expiration = expiration
+		cfg.Issuer = strings.TrimSpace(getEnv("JWT_ISSUER", ""))
+		cfg.Audience = strings.TrimSpace(getEnv("JWT_AUDIENCE", ""))
+		if getEnv("APP_ENV", "") == "production" && (cfg.Issuer == "" || cfg.Audience == "") {
+			logger.Fatal(context.Background(), "JWT_ISSUER and JWT_AUDIENCE are required in production")
+		}
 
 		logger.Info(context.Background(), "🔐 Loaded auth configurations from Consul",
 			zap.String("kid", kid),

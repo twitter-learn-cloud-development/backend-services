@@ -1,0 +1,48 @@
+groups:
+  - name: twitter-clone-engagement
+    rules:
+      - alert: TrendsDecayBucketFailures
+        expr: sum(increase(trends_decay_bucket_total{result=~"failed|invalid_state|clock_regression|oversized"}[10m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: consumer
+        annotations:
+          summary: "Trend decay is blocked by state or capacity"
+          description: "Inspect the fixed outcome and retained bucket; do not delete the bucket or run legacy decay."
+      - alert: TrendsDecayBucketLatency
+        expr: histogram_quantile(0.95, sum by (le) (rate(trends_decay_bucket_seconds_bucket[10m]))) > 1
+        for: 10m
+        labels:
+          severity: warning
+          service: consumer
+        annotations:
+          summary: "Bounded trend decay latency is elevated"
+          description: "Check Redis cardinality and script duration before increasing capacity."
+      - alert: EngagementProjectionFailures
+        expr: sum(increase(engagement_projection_events_total{result=~"failed|malformed|consume_unavailable"}[10m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: consumer
+        annotations:
+          summary: "Engagement projection failures require inspection"
+          description: "Inspect fixed outcome labels, Redis state and the dedicated engagement recovery queues."
+      - alert: EngagementProjectionAckUncertain
+        expr: sum(increase(engagement_projection_events_total{result="ack_uncertain"}[10m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: consumer
+        annotations:
+          summary: "Engagement acknowledgement outcome is uncertain"
+          description: "Redis deduplication protects retained markers; check consumer connectivity and redelivery."
+      - alert: EngagementProjectionDeadLetters
+        expr: sum(rabbitmq_queue_messages_ready{queue=~"queue\\.tweet\\.liked\\.dlq|queue\\.comment\\.created\\.dlq"}) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: consumer
+        annotations:
+          summary: "Engagement dead letters are retained"
+          description: "Do not replay through the business exchange or remove retained messages; follow the engagement runbook."

@@ -10,10 +10,12 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 
+	agentService "twitter-clone/internal/module/agent/service"
 	workflowTool "twitter-clone/internal/module/agent/workflow/tool"
 )
 
@@ -38,11 +40,23 @@ type toolResultBackend interface {
 	Put(ctx context.Context, bucket, key, contentType string, payload []byte) error
 	Get(ctx context.Context, bucket, key string, maxBytes int) ([]byte, error)
 	Delete(ctx context.Context, bucket, key string) error
+	List(ctx context.Context, bucket, prefix, cursor string, limit int) ([]toolResultObjectMetadata, string, error)
+}
+
+type toolResultObjectMetadata struct {
+	Key          string
+	LastModified time.Time
+	Size         int64
 }
 
 type MinIOToolResultStore struct {
 	backend toolResultBackend
 	bucket  string
+}
+
+type SubjectToolResultDeletion struct {
+	DeletedCount   int64
+	RemainingCount int64
 }
 
 func NewMinIOToolResultStore(config MinIOToolResultConfig) (*MinIOToolResultStore, error) {
@@ -161,6 +175,127 @@ func (s *MinIOToolResultStore) Delete(ctx context.Context, reference workflowToo
 	return nil
 }
 
+func (s *MinIOToolResultStore) ListToolResultObjects(
+	ctx context.Context,
+	cursor string,
+	limit int,
+) ([]agentService.ToolResultObjectInventoryItem, string, error) {
+	if s == nil || s.backend == nil {
+		return nil, "", errors.New("MinIO tool result store is unavailable")
+	}
+	if ctx == nil {
+		return nil, "", errors.New("MinIO tool result store context is nil")
+	}
+	if limit <= 0 || limit > 1000 {
+		return nil, "", errors.New("tool result object inventory limit must be between 1 and 1000")
+	}
+	if cursor != "" && (!strings.HasPrefix(cursor, "tool-results/") || strings.Contains(cursor, "..") || strings.Contains(cursor, "\\")) {
+		return nil, "", errors.New("tool result object inventory cursor is invalid")
+	}
+	objects, nextCursor, err := s.backend.List(ctx, s.bucket, "tool-results/", cursor, limit)
+	if err != nil {
+		return nil, "", fmt.Errorf("list private tool result objects: %w", err)
+	}
+	items := make([]agentService.ToolResultObjectInventoryItem, 0, len(objects))
+	for _, object := range objects {
+		keyDigest := sha256.Sum256([]byte(object.Key))
+		item := agentService.ToolResultObjectInventoryItem{
+			Key: object.Key, KeyDigest: hex.EncodeToString(keyDigest[:]),
+			LastModified: object.LastModified, Length: object.Size,
+			ValidOwnedKey: validToolResultObjectKey(object.Key),
+		}
+		if item.ValidOwnedKey {
+			parts := strings.Split(object.Key, "/")
+			item.TenantHash = parts[1]
+			item.ObjectDigest = strings.TrimSuffix(parts[3], ".json")
+		}
+		items = append(items, item)
+	}
+	return items, nextCursor, nil
+}
+
+// CountSubjectToolResults observes only objects in the current tenant-hashed
+// key namespace. Legacy or malformed keys are intentionally outside this
+// scope and must be handled by a separate audited migration.
+func (s *MinIOToolResultStore) CountSubjectToolResults(ctx context.Context, userID uint64, pageSize int) (int64, error) {
+	if err := s.validateSubjectOperation(ctx, userID, pageSize); err != nil {
+		return 0, err
+	}
+	prefix := toolResultSubjectPrefix(userID)
+	var total int64
+	cursor := ""
+	for {
+		objects, nextCursor, err := s.backend.List(ctx, s.bucket, prefix, cursor, pageSize)
+		if err != nil {
+			return 0, fmt.Errorf("list subject tool result objects: %w", err)
+		}
+		if err := validateSubjectObjectPage(objects, prefix); err != nil {
+			return 0, err
+		}
+		total += int64(len(objects))
+		if nextCursor == "" {
+			return total, nil
+		}
+		if nextCursor == cursor || !strings.HasPrefix(nextCursor, prefix) {
+			return 0, errors.New("subject tool result cursor did not make scoped progress")
+		}
+		cursor = nextCursor
+	}
+}
+
+// DeleteSubjectToolResults removes one tenant's current-format tool-result
+// objects and verifies the scoped namespace is empty before returning.
+func (s *MinIOToolResultStore) DeleteSubjectToolResults(ctx context.Context, userID uint64, pageSize int) (SubjectToolResultDeletion, error) {
+	if err := s.validateSubjectOperation(ctx, userID, pageSize); err != nil {
+		return SubjectToolResultDeletion{}, err
+	}
+	prefix := toolResultSubjectPrefix(userID)
+	var deleted int64
+	for {
+		objects, _, err := s.backend.List(ctx, s.bucket, prefix, "", pageSize)
+		if err != nil {
+			return SubjectToolResultDeletion{DeletedCount: deleted}, fmt.Errorf("list subject tool result objects for deletion: %w", err)
+		}
+		if err := validateSubjectObjectPage(objects, prefix); err != nil {
+			return SubjectToolResultDeletion{DeletedCount: deleted}, err
+		}
+		if len(objects) == 0 {
+			return SubjectToolResultDeletion{DeletedCount: deleted}, nil
+		}
+		for _, object := range objects {
+			if err := s.backend.Delete(ctx, s.bucket, object.Key); err != nil {
+				return SubjectToolResultDeletion{DeletedCount: deleted, RemainingCount: int64(len(objects))}, fmt.Errorf("delete subject tool result object: %w", err)
+			}
+			deleted++
+		}
+	}
+}
+
+func (s *MinIOToolResultStore) validateSubjectOperation(ctx context.Context, userID uint64, pageSize int) error {
+	if s == nil || s.backend == nil {
+		return errors.New("MinIO tool result store is unavailable")
+	}
+	if ctx == nil {
+		return errors.New("MinIO tool result store context is nil")
+	}
+	if userID == 0 {
+		return errors.New("subject tool result operation requires a tenant identity")
+	}
+	if pageSize <= 0 || pageSize > 1000 {
+		return errors.New("subject tool result page size must be between 1 and 1000")
+	}
+	return nil
+}
+
+func validateSubjectObjectPage(objects []toolResultObjectMetadata, prefix string) error {
+	for _, object := range objects {
+		if !strings.HasPrefix(object.Key, prefix) || !validToolResultObjectKey(object.Key) {
+			return errors.New("object store returned an object outside the subject deletion scope")
+		}
+	}
+	return nil
+}
+
 func (s *MinIOToolResultStore) validateReference(reference workflowTool.ResultReference) error {
 	if reference.Storage != "minio" || reference.Bucket != s.bucket {
 		return errors.New("tool result reference targets an unsupported object store")
@@ -208,9 +343,13 @@ func validateArchiveRequest(request workflowTool.ResultArchiveRequest) error {
 }
 
 func toolResultObjectKey(request workflowTool.ResultArchiveRequest) string {
-	tenantHash := sha256.Sum256([]byte("tenant:" + strconv.FormatUint(request.UserID, 10)))
 	resultHash := sha256.Sum256([]byte("result:" + request.ResultID))
-	return fmt.Sprintf("tool-results/%s/%s/%s.json", hex.EncodeToString(tenantHash[:8]), hex.EncodeToString(resultHash[:16]), request.Snapshot.Digest)
+	return fmt.Sprintf("%s%s/%s.json", toolResultSubjectPrefix(request.UserID), hex.EncodeToString(resultHash[:16]), request.Snapshot.Digest)
+}
+
+func toolResultSubjectPrefix(userID uint64) string {
+	tenantHash := sha256.Sum256([]byte("tenant:" + strconv.FormatUint(userID, 10)))
+	return fmt.Sprintf("tool-results/%s/", hex.EncodeToString(tenantHash[:8]))
 }
 
 func validToolResultObjectKey(key string) bool {
@@ -304,4 +443,35 @@ func (b *minioSDKBackend) Get(ctx context.Context, bucket, key string, maxBytes 
 
 func (b *minioSDKBackend) Delete(ctx context.Context, bucket, key string) error {
 	return b.client.RemoveObject(ctx, bucket, key, minio.RemoveObjectOptions{})
+}
+
+func (b *minioSDKBackend) List(
+	ctx context.Context,
+	bucket string,
+	prefix string,
+	cursor string,
+	limit int,
+) ([]toolResultObjectMetadata, string, error) {
+	listCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	objects := make([]toolResultObjectMetadata, 0, limit)
+	for object := range b.client.ListObjects(listCtx, bucket, minio.ListObjectsOptions{
+		Prefix: prefix, Recursive: true, StartAfter: cursor, MaxKeys: limit,
+	}) {
+		if object.Err != nil {
+			return nil, "", object.Err
+		}
+		objects = append(objects, toolResultObjectMetadata{
+			Key: object.Key, LastModified: object.LastModified, Size: object.Size,
+		})
+		if len(objects) >= limit {
+			cancel()
+			break
+		}
+	}
+	nextCursor := ""
+	if len(objects) == limit {
+		nextCursor = objects[len(objects)-1].Key
+	}
+	return objects, nextCursor, nil
 }

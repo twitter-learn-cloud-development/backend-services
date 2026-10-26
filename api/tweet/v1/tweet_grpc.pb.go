@@ -19,31 +19,35 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	TweetService_CreateTweet_FullMethodName           = "/tweet.v1.TweetService/CreateTweet"
-	TweetService_GetTweet_FullMethodName              = "/tweet.v1.TweetService/GetTweet"
-	TweetService_DeleteTweet_FullMethodName           = "/tweet.v1.TweetService/DeleteTweet"
-	TweetService_GetAuthorPostingStats_FullMethodName = "/tweet.v1.TweetService/GetAuthorPostingStats"
-	TweetService_ApplyTweetModeration_FullMethodName  = "/tweet.v1.TweetService/ApplyTweetModeration"
-	TweetService_GetUserTimeline_FullMethodName       = "/tweet.v1.TweetService/GetUserTimeline"
-	TweetService_GetFeeds_FullMethodName              = "/tweet.v1.TweetService/GetFeeds"
-	TweetService_LikeTweet_FullMethodName             = "/tweet.v1.TweetService/LikeTweet"
-	TweetService_UnlikeTweet_FullMethodName           = "/tweet.v1.TweetService/UnlikeTweet"
-	TweetService_CreateComment_FullMethodName         = "/tweet.v1.TweetService/CreateComment"
-	TweetService_DeleteComment_FullMethodName         = "/tweet.v1.TweetService/DeleteComment"
-	TweetService_GetTweetComments_FullMethodName      = "/tweet.v1.TweetService/GetTweetComments"
-	TweetService_SearchTweets_FullMethodName          = "/tweet.v1.TweetService/SearchTweets"
-	TweetService_GetTrendingTopics_FullMethodName     = "/tweet.v1.TweetService/GetTrendingTopics"
-	TweetService_ListTweets_FullMethodName            = "/tweet.v1.TweetService/ListTweets"
-	TweetService_GetTweetReplies_FullMethodName       = "/tweet.v1.TweetService/GetTweetReplies"
-	TweetService_VotePoll_FullMethodName              = "/tweet.v1.TweetService/VotePoll"
-	TweetService_BookmarkTweet_FullMethodName         = "/tweet.v1.TweetService/BookmarkTweet"
-	TweetService_UnbookmarkTweet_FullMethodName       = "/tweet.v1.TweetService/UnbookmarkTweet"
-	TweetService_GetUserBookmarks_FullMethodName      = "/tweet.v1.TweetService/GetUserBookmarks"
-	TweetService_RetweetTweet_FullMethodName          = "/tweet.v1.TweetService/RetweetTweet"
-	TweetService_UnretweetTweet_FullMethodName        = "/tweet.v1.TweetService/UnretweetTweet"
-	TweetService_GetUserLikes_FullMethodName          = "/tweet.v1.TweetService/GetUserLikes"
-	TweetService_GetUserReplies_FullMethodName        = "/tweet.v1.TweetService/GetUserReplies"
-	TweetService_GetUserMedia_FullMethodName          = "/tweet.v1.TweetService/GetUserMedia"
+	TweetService_CreateTweet_FullMethodName                   = "/tweet.v1.TweetService/CreateTweet"
+	TweetService_GetTweet_FullMethodName                      = "/tweet.v1.TweetService/GetTweet"
+	TweetService_GetPublicTweets_FullMethodName               = "/tweet.v1.TweetService/GetPublicTweets"
+	TweetService_DeleteTweet_FullMethodName                   = "/tweet.v1.TweetService/DeleteTweet"
+	TweetService_GetAuthorPostingStats_FullMethodName         = "/tweet.v1.TweetService/GetAuthorPostingStats"
+	TweetService_ApplyTweetModeration_FullMethodName          = "/tweet.v1.TweetService/ApplyTweetModeration"
+	TweetService_GetUserTimeline_FullMethodName               = "/tweet.v1.TweetService/GetUserTimeline"
+	TweetService_GetFeeds_FullMethodName                      = "/tweet.v1.TweetService/GetFeeds"
+	TweetService_LikeTweet_FullMethodName                     = "/tweet.v1.TweetService/LikeTweet"
+	TweetService_UnlikeTweet_FullMethodName                   = "/tweet.v1.TweetService/UnlikeTweet"
+	TweetService_CreateComment_FullMethodName                 = "/tweet.v1.TweetService/CreateComment"
+	TweetService_DeleteComment_FullMethodName                 = "/tweet.v1.TweetService/DeleteComment"
+	TweetService_GetTweetComments_FullMethodName              = "/tweet.v1.TweetService/GetTweetComments"
+	TweetService_SearchTweets_FullMethodName                  = "/tweet.v1.TweetService/SearchTweets"
+	TweetService_GetTrendingTopics_FullMethodName             = "/tweet.v1.TweetService/GetTrendingTopics"
+	TweetService_ListTweets_FullMethodName                    = "/tweet.v1.TweetService/ListTweets"
+	TweetService_GetTweetReplies_FullMethodName               = "/tweet.v1.TweetService/GetTweetReplies"
+	TweetService_VotePoll_FullMethodName                      = "/tweet.v1.TweetService/VotePoll"
+	TweetService_BookmarkTweet_FullMethodName                 = "/tweet.v1.TweetService/BookmarkTweet"
+	TweetService_UnbookmarkTweet_FullMethodName               = "/tweet.v1.TweetService/UnbookmarkTweet"
+	TweetService_GetUserBookmarks_FullMethodName              = "/tweet.v1.TweetService/GetUserBookmarks"
+	TweetService_RetweetTweet_FullMethodName                  = "/tweet.v1.TweetService/RetweetTweet"
+	TweetService_UnretweetTweet_FullMethodName                = "/tweet.v1.TweetService/UnretweetTweet"
+	TweetService_GetUserLikes_FullMethodName                  = "/tweet.v1.TweetService/GetUserLikes"
+	TweetService_GetUserReplies_FullMethodName                = "/tweet.v1.TweetService/GetUserReplies"
+	TweetService_GetUserMedia_FullMethodName                  = "/tweet.v1.TweetService/GetUserMedia"
+	TweetService_ObserveTweetSubjectData_FullMethodName       = "/tweet.v1.TweetService/ObserveTweetSubjectData"
+	TweetService_EnforceTweetSubjectWriteFence_FullMethodName = "/tweet.v1.TweetService/EnforceTweetSubjectWriteFence"
+	TweetService_DeleteTweetSubjectData_FullMethodName        = "/tweet.v1.TweetService/DeleteTweetSubjectData"
 )
 
 // TweetServiceClient is the client API for TweetService service.
@@ -56,6 +60,9 @@ type TweetServiceClient interface {
 	CreateTweet(ctx context.Context, in *CreateTweetRequest, opts ...grpc.CallOption) (*CreateTweetResponse, error)
 	// GetTweet 获取推文详情
 	GetTweet(ctx context.Context, in *GetTweetRequest, opts ...grpc.CallOption) (*GetTweetResponse, error)
+	// Current public content for retrieval. Bypasses caches and omits records
+	// that are deleted, hidden or not public. At most 100 candidate IDs.
+	GetPublicTweets(ctx context.Context, in *GetPublicTweetsRequest, opts ...grpc.CallOption) (*GetPublicTweetsResponse, error)
 	// DeleteTweet 删除推文
 	DeleteTweet(ctx context.Context, in *DeleteTweetRequest, opts ...grpc.CallOption) (*DeleteTweetResponse, error)
 	// Internal risk-control query. Returns timestamps only, never tweet content.
@@ -97,6 +104,13 @@ type TweetServiceClient interface {
 	GetUserLikes(ctx context.Context, in *GetUserLikesRequest, opts ...grpc.CallOption) (*GetUserLikesResponse, error)
 	GetUserReplies(ctx context.Context, in *GetUserRepliesRequest, opts ...grpc.CallOption) (*GetUserRepliesResponse, error)
 	GetUserMedia(ctx context.Context, in *GetUserMediaRequest, opts ...grpc.CallOption) (*GetUserMediaResponse, error)
+	// Internal data-governance query. Returns counts only, never content.
+	ObserveTweetSubjectData(ctx context.Context, in *ObserveTweetSubjectDataRequest, opts ...grpc.CallOption) (*ObserveTweetSubjectDataResponse, error)
+	// Internal data-governance command. Serializes future subject-owned writes
+	// before destructive adapters run.
+	EnforceTweetSubjectWriteFence(ctx context.Context, in *EnforceTweetSubjectWriteFenceRequest, opts ...grpc.CallOption) (*EnforceTweetSubjectWriteFenceResponse, error)
+	// Internal data-governance command. Requires service authentication.
+	DeleteTweetSubjectData(ctx context.Context, in *DeleteTweetSubjectDataRequest, opts ...grpc.CallOption) (*DeleteTweetSubjectDataResponse, error)
 }
 
 type tweetServiceClient struct {
@@ -121,6 +135,16 @@ func (c *tweetServiceClient) GetTweet(ctx context.Context, in *GetTweetRequest, 
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetTweetResponse)
 	err := c.cc.Invoke(ctx, TweetService_GetTweet_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tweetServiceClient) GetPublicTweets(ctx context.Context, in *GetPublicTweetsRequest, opts ...grpc.CallOption) (*GetPublicTweetsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetPublicTweetsResponse)
+	err := c.cc.Invoke(ctx, TweetService_GetPublicTweets_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -357,6 +381,36 @@ func (c *tweetServiceClient) GetUserMedia(ctx context.Context, in *GetUserMediaR
 	return out, nil
 }
 
+func (c *tweetServiceClient) ObserveTweetSubjectData(ctx context.Context, in *ObserveTweetSubjectDataRequest, opts ...grpc.CallOption) (*ObserveTweetSubjectDataResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ObserveTweetSubjectDataResponse)
+	err := c.cc.Invoke(ctx, TweetService_ObserveTweetSubjectData_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tweetServiceClient) EnforceTweetSubjectWriteFence(ctx context.Context, in *EnforceTweetSubjectWriteFenceRequest, opts ...grpc.CallOption) (*EnforceTweetSubjectWriteFenceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(EnforceTweetSubjectWriteFenceResponse)
+	err := c.cc.Invoke(ctx, TweetService_EnforceTweetSubjectWriteFence_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tweetServiceClient) DeleteTweetSubjectData(ctx context.Context, in *DeleteTweetSubjectDataRequest, opts ...grpc.CallOption) (*DeleteTweetSubjectDataResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteTweetSubjectDataResponse)
+	err := c.cc.Invoke(ctx, TweetService_DeleteTweetSubjectData_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TweetServiceServer is the server API for TweetService service.
 // All implementations must embed UnimplementedTweetServiceServer
 // for forward compatibility.
@@ -367,6 +421,9 @@ type TweetServiceServer interface {
 	CreateTweet(context.Context, *CreateTweetRequest) (*CreateTweetResponse, error)
 	// GetTweet 获取推文详情
 	GetTweet(context.Context, *GetTweetRequest) (*GetTweetResponse, error)
+	// Current public content for retrieval. Bypasses caches and omits records
+	// that are deleted, hidden or not public. At most 100 candidate IDs.
+	GetPublicTweets(context.Context, *GetPublicTweetsRequest) (*GetPublicTweetsResponse, error)
 	// DeleteTweet 删除推文
 	DeleteTweet(context.Context, *DeleteTweetRequest) (*DeleteTweetResponse, error)
 	// Internal risk-control query. Returns timestamps only, never tweet content.
@@ -408,6 +465,13 @@ type TweetServiceServer interface {
 	GetUserLikes(context.Context, *GetUserLikesRequest) (*GetUserLikesResponse, error)
 	GetUserReplies(context.Context, *GetUserRepliesRequest) (*GetUserRepliesResponse, error)
 	GetUserMedia(context.Context, *GetUserMediaRequest) (*GetUserMediaResponse, error)
+	// Internal data-governance query. Returns counts only, never content.
+	ObserveTweetSubjectData(context.Context, *ObserveTweetSubjectDataRequest) (*ObserveTweetSubjectDataResponse, error)
+	// Internal data-governance command. Serializes future subject-owned writes
+	// before destructive adapters run.
+	EnforceTweetSubjectWriteFence(context.Context, *EnforceTweetSubjectWriteFenceRequest) (*EnforceTweetSubjectWriteFenceResponse, error)
+	// Internal data-governance command. Requires service authentication.
+	DeleteTweetSubjectData(context.Context, *DeleteTweetSubjectDataRequest) (*DeleteTweetSubjectDataResponse, error)
 	mustEmbedUnimplementedTweetServiceServer()
 }
 
@@ -423,6 +487,9 @@ func (UnimplementedTweetServiceServer) CreateTweet(context.Context, *CreateTweet
 }
 func (UnimplementedTweetServiceServer) GetTweet(context.Context, *GetTweetRequest) (*GetTweetResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetTweet not implemented")
+}
+func (UnimplementedTweetServiceServer) GetPublicTweets(context.Context, *GetPublicTweetsRequest) (*GetPublicTweetsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetPublicTweets not implemented")
 }
 func (UnimplementedTweetServiceServer) DeleteTweet(context.Context, *DeleteTweetRequest) (*DeleteTweetResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteTweet not implemented")
@@ -493,6 +560,15 @@ func (UnimplementedTweetServiceServer) GetUserReplies(context.Context, *GetUserR
 func (UnimplementedTweetServiceServer) GetUserMedia(context.Context, *GetUserMediaRequest) (*GetUserMediaResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetUserMedia not implemented")
 }
+func (UnimplementedTweetServiceServer) ObserveTweetSubjectData(context.Context, *ObserveTweetSubjectDataRequest) (*ObserveTweetSubjectDataResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ObserveTweetSubjectData not implemented")
+}
+func (UnimplementedTweetServiceServer) EnforceTweetSubjectWriteFence(context.Context, *EnforceTweetSubjectWriteFenceRequest) (*EnforceTweetSubjectWriteFenceResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method EnforceTweetSubjectWriteFence not implemented")
+}
+func (UnimplementedTweetServiceServer) DeleteTweetSubjectData(context.Context, *DeleteTweetSubjectDataRequest) (*DeleteTweetSubjectDataResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteTweetSubjectData not implemented")
+}
 func (UnimplementedTweetServiceServer) mustEmbedUnimplementedTweetServiceServer() {}
 func (UnimplementedTweetServiceServer) testEmbeddedByValue()                      {}
 
@@ -546,6 +622,24 @@ func _TweetService_GetTweet_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TweetServiceServer).GetTweet(ctx, req.(*GetTweetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TweetService_GetPublicTweets_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPublicTweetsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TweetServiceServer).GetPublicTweets(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TweetService_GetPublicTweets_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TweetServiceServer).GetPublicTweets(ctx, req.(*GetPublicTweetsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -964,6 +1058,60 @@ func _TweetService_GetUserMedia_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TweetService_ObserveTweetSubjectData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ObserveTweetSubjectDataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TweetServiceServer).ObserveTweetSubjectData(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TweetService_ObserveTweetSubjectData_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TweetServiceServer).ObserveTweetSubjectData(ctx, req.(*ObserveTweetSubjectDataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TweetService_EnforceTweetSubjectWriteFence_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EnforceTweetSubjectWriteFenceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TweetServiceServer).EnforceTweetSubjectWriteFence(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TweetService_EnforceTweetSubjectWriteFence_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TweetServiceServer).EnforceTweetSubjectWriteFence(ctx, req.(*EnforceTweetSubjectWriteFenceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TweetService_DeleteTweetSubjectData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteTweetSubjectDataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TweetServiceServer).DeleteTweetSubjectData(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TweetService_DeleteTweetSubjectData_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TweetServiceServer).DeleteTweetSubjectData(ctx, req.(*DeleteTweetSubjectDataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // TweetService_ServiceDesc is the grpc.ServiceDesc for TweetService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -978,6 +1126,10 @@ var TweetService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetTweet",
 			Handler:    _TweetService_GetTweet_Handler,
+		},
+		{
+			MethodName: "GetPublicTweets",
+			Handler:    _TweetService_GetPublicTweets_Handler,
 		},
 		{
 			MethodName: "DeleteTweet",
@@ -1070,6 +1222,18 @@ var TweetService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetUserMedia",
 			Handler:    _TweetService_GetUserMedia_Handler,
+		},
+		{
+			MethodName: "ObserveTweetSubjectData",
+			Handler:    _TweetService_ObserveTweetSubjectData_Handler,
+		},
+		{
+			MethodName: "EnforceTweetSubjectWriteFence",
+			Handler:    _TweetService_EnforceTweetSubjectWriteFence_Handler,
+		},
+		{
+			MethodName: "DeleteTweetSubjectData",
+			Handler:    _TweetService_DeleteTweetSubjectData_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

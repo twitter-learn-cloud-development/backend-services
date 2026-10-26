@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -37,16 +39,18 @@ type Config struct {
 const TweetIndex = "tweets"
 
 type TweetDocument struct {
-	ID            string    `json:"id"` // uint64 转 string，ES 的 keyword 类型
-	UserID        string    `json:"user_id"`
-	ParentID      string    `json:"parent_id"`      // 区分推文和回复
-	Content       string    `json:"content"`        // 全文检索核心字段
-	ContentVector []float32 `json:"content_vector"` // 向量表示，用于相似度计算
-	Type          int       `json:"type"`           // 0文本 1图片 2视频，用于过滤
-	VisibleType   int       `json:"visible_type"`   // 0公开 1粉丝 2私密，搜索时过滤私密内容
-	CreatedAt     int64     `json:"created_at"`     // 用于时间排序
-	LikeCount     int       `json:"like_count"`     // 用于热度排序
-	DeletedAt     int64     `json:"deleted_at"`     // 软删除过滤，deleted_at=0 才展示
+	ProjectionDigest  string    `json:"projection_digest,omitempty"`
+	ProjectionVersion string    `json:"projection_version,omitempty"`
+	ID                string    `json:"id"` // uint64 转 string，ES 的 keyword 类型
+	UserID            string    `json:"user_id"`
+	ParentID          string    `json:"parent_id"`                // 区分推文和回复
+	Content           string    `json:"content"`                  // 全文检索核心字段
+	ContentVector     []float32 `json:"content_vector,omitempty"` // 兼容旧调用者；文本投影不发送向量字段
+	Type              int       `json:"type"`                     // 0文本 1图片 2视频，用于过滤
+	VisibleType       int       `json:"visible_type"`             // 0公开 1粉丝 2私密，搜索时过滤私密内容
+	CreatedAt         int64     `json:"created_at"`               // 用于时间排序
+	LikeCount         int       `json:"like_count"`               // 用于热度排序
+	DeletedAt         int64     `json:"deleted_at"`               // 软删除过滤，deleted_at=0 才展示
 }
 
 const tweetMapping = `{
@@ -55,6 +59,8 @@ const tweetMapping = `{
             "id":           { "type": "keyword" },
             "user_id":      { "type": "keyword" },
             "parent_id":    { "type": "keyword" },
+            "projection_digest": { "type": "keyword" },
+            "projection_version": { "type": "keyword" },
             "content": {
                 "type":            "text",
                 "analyzer":        "ik_max_word",
@@ -243,11 +249,28 @@ func (c *Client) IndexTweet(ctx context.Context, doc TweetDocument) error {
 
 // DeleteTweet删除推文
 func (c *Client) DeleteTweet(ctx context.Context, id string) error {
-	_, err := c.Delete(TweetIndex, id).Do(ctx)
+	resp, err := c.Delete(TweetIndex, id).Perform(ctx)
 	if err != nil {
-		return fmt.Errorf("delete tweet failed: %w", err)
+		return errors.New("tweet text deletion unavailable")
 	}
-	return nil
+	defer resp.Body.Close()
+	var receipt struct {
+		ID     string `json:"_id"`
+		Result string `json:"result"`
+		Error  struct {
+			Type string `json:"type"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 64*1024)).Decode(&receipt); err != nil {
+		return errors.New("tweet text deletion receipt unavailable")
+	}
+	if resp.StatusCode == http.StatusOK && receipt.ID == id && receipt.Result == "deleted" {
+		return nil
+	}
+	if resp.StatusCode == http.StatusNotFound && ((receipt.ID == id && receipt.Result == "not_found") || receipt.Error.Type == "index_not_found_exception") {
+		return nil
+	}
+	return errors.New("tweet text deletion rejected")
 }
 
 // SearchTweets 搜索推文

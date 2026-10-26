@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
-import { login, getMe } from '../api/auth'
+import { login } from '../api/auth'
 
 const email = ref('')
 const password = ref('')
@@ -11,8 +11,12 @@ const errorMsg = ref('')
 
 const router = useRouter()
 const userStore = useUserStore()
+let disposed = false
+onBeforeUnmount(() => { disposed = true })
 
 const handleLogin = async () => {
+  if (loading.value) return
+  const epoch = userStore.beginLogin()
   loading.value = true
   errorMsg.value = ''
   try {
@@ -21,34 +25,10 @@ const handleLogin = async () => {
       password: password.value
     })
     
-    // 调试日志
-    console.log('Login response:', res)
-
-    // res.data 包含 token
-    const token = res.data.token
-    if (!token) {
-        throw new Error("Token not found in response")
-    }
-    userStore.setToken(token)
-    
-    // 获取用户信息
-    console.log('Fetching user info...')
-    try {
-        const userRes = await getMe()
-        console.log('User info:', userRes)
-        userStore.setUser(userRes.data.user)
-        router.push('/')
-    } catch (e) {
-        console.error('Failed to get user info:', e)
-        // 即使用户信息获取失败，也允许登录（可能是接口问题），或者清理 token 提示重试
-        // 这里选择提示错误，但也跳转（或者留给用户决定）
-        // 暂时策略：报错并清除 token
-        userStore.logout()
-        errorMsg.value = '获取用户信息失败，请重试'
-    }
+    if (!disposed && userStore.completeLogin(epoch, res.data.token, res.data.user)) void router.replace('/')
 
   } catch (err: any) {
-    console.error('Login error:', err)
+    if (disposed || !userStore.isCurrent(epoch)) return
     if (err.response && err.response.data) {
         errorMsg.value = err.response.data.error || '登录失败'
     } else if (err.message) {

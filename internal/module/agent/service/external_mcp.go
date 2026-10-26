@@ -12,6 +12,9 @@ func (s *AgentService) CreateExternalMCPConnection(
 	userID uint64,
 	input externalmcp.ConnectionInput,
 ) (*externalmcp.Connection, error) {
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return nil, err
+	}
 	manager, err := s.externalMCP()
 	if err != nil {
 		return nil, err
@@ -30,6 +33,9 @@ func (s *AgentService) UpdateExternalMCPConnection(
 	expectedRevision int64,
 	input externalmcp.ConnectionInput,
 ) (*externalmcp.Connection, error) {
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return nil, err
+	}
 	manager, err := s.externalMCP()
 	if err != nil {
 		return nil, err
@@ -71,6 +77,9 @@ func (s *AgentService) RevokeExternalMCPConnection(
 	connectionID string,
 	expectedRevision int64,
 ) error {
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return err
+	}
 	manager, err := s.externalMCP()
 	if err != nil {
 		return err
@@ -84,6 +93,9 @@ func (s *AgentService) DiscoverExternalMCPTools(
 	connectionID string,
 	expectedRevision int64,
 ) (*externalmcp.Connection, *externalmcp.ToolSchemaSnapshot, error) {
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return nil, nil, err
+	}
 	manager, err := s.externalMCP()
 	if err != nil {
 		return nil, nil, err
@@ -102,6 +114,9 @@ func (s *AgentService) ApproveExternalMCPSnapshot(
 	snapshotID string,
 	expectedRevision int64,
 ) (*externalmcp.Connection, *externalmcp.ToolSchemaSnapshot, error) {
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return nil, nil, err
+	}
 	manager, err := s.externalMCP()
 	if err != nil {
 		return nil, nil, err
@@ -132,6 +147,9 @@ func (s *AgentService) ConfigureExternalMCPTool(
 	expectedRevision int64,
 	input externalmcp.ToolPolicyInput,
 ) (*externalmcp.Connection, externalmcp.ToolView, error) {
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return nil, externalmcp.ToolView{}, err
+	}
 	manager, err := s.externalMCP()
 	if err != nil {
 		return nil, externalmcp.ToolView{}, err

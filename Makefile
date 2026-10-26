@@ -27,15 +27,8 @@ down:
 # 3. 编译所有微服务二进制到 bin/ 目录（跨平台 mkdir 兼容）
 build:
 	@echo "🔨 Building all microservices..."
-	@mkdir $(BIN_DIR) 2>nul || mkdir -p $(BIN_DIR) 2>/dev/null || true
-	go build -o $(BIN_DIR)/gateway cmd/gateway/main.go
-	go build -o $(BIN_DIR)/user-service cmd/user-service/main.go
-	go build -o $(BIN_DIR)/tweet-service cmd/tweet-service/main.go
-	go build -o $(BIN_DIR)/follow-service cmd/follow-service/main.go
-	go build -o $(BIN_DIR)/notification-service cmd/notification-service/main.go
-	go build -o $(BIN_DIR)/messenger-service cmd/messenger-service/main.go
-	go build -o $(BIN_DIR)/agent-service cmd/agent-service/main.go
-	go build -o $(BIN_DIR)/consumer cmd/consumer/main.go
+	@mkdir -p $(BIN_DIR)
+	go build -trimpath -o $(BIN_DIR)/ ./cmd/...
 	@echo "✅ All binaries built successfully in $(BIN_DIR)/"
 
 # 4. 清理编译二进制文件以及根目录下的历史残留（跨平台 rm 兼容）
@@ -47,29 +40,45 @@ clean:
 
 # 5. 一键运行所有单元测试
 test:
-	go test -v ./internal/... ./pkg/...
+	go test ./... -count=1
+
+.PHONY: vet race release-plan run-auth run-canal
+vet:
+	go vet ./...
+
+race:
+	go test -race ./internal/infrastructure/... ./internal/module/... ./internal/mq/... ./internal/gateway/... ./internal/releaseplan ./cmd/release-manifest -count=1
+
+release-plan:
+	go run ./cmd/release-manifest
+
+run-auth:
+	go run ./cmd/auth-service
+
+run-canal:
+	go run ./cmd/canal-relay
 
 # 6. 本地独立运行各微服务指令
 run-gateway:
-	go run cmd/gateway/main.go
+	go run ./cmd/gateway
 
 run-user:
-	go run cmd/user-service/main.go
+	go run ./cmd/user-service
 
 run-tweet:
-	go run cmd/tweet-service/main.go
+	go run ./cmd/tweet-service
 
 run-follow:
-	go run cmd/follow-service/main.go
+	go run ./cmd/follow-service
 
 run-notification:
-	go run cmd/notification-service/main.go
+	go run ./cmd/notification-service
 
 run-messenger:
-	go run cmd/messenger-service/main.go
+	go run ./cmd/messenger-service
 
 run-agent:
-	go run cmd/agent-service/main.go
+	go run ./cmd/agent-service
 
 run-consumer:
-	go run cmd/consumer/main.go
+	go run ./cmd/consumer

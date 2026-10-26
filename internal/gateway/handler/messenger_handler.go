@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -41,6 +40,7 @@ func (h *MessengerHandler) SendMessage(c *gin.Context) {
 		ReceiverID string `json:"receiver_id" binding:"required"`
 		Content    string `json:"content" binding:"required"`
 	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 32768)
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -48,7 +48,7 @@ func (h *MessengerHandler) SendMessage(c *gin.Context) {
 	}
 
 	receiverID, err := strconv.ParseUint(req.ReceiverID, 10, 64)
-	if err != nil {
+	if err != nil || receiverID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid receiver_id"})
 		return
 	}
@@ -76,7 +76,7 @@ func (h *MessengerHandler) SendMessage(c *gin.Context) {
 }
 
 // GetConversations 获取会话列表
-// GET /api/v1/conversations
+// GET /api/v1/messenger/conversations
 func (h *MessengerHandler) GetConversations(c *gin.Context) {
 	userId, exists := middleware.GetUserID(c)
 	if !exists {
@@ -84,8 +84,10 @@ func (h *MessengerHandler) GetConversations(c *gin.Context) {
 		return
 	}
 
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	cursor := c.DefaultQuery("cursor", "")
+	limit, cursor, ok := parseMessengerPageQuery(c)
+	if !ok {
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
@@ -97,34 +99,21 @@ func (h *MessengerHandler) GetConversations(c *gin.Context) {
 	})
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get conversations"})
+		writeMessengerPageError(c, err)
 		return
 	}
 
-	var conversations []gin.H
+	profileIDs := make([]uint64, 0, len(resp.Conversations)*2)
 	for _, conv := range resp.Conversations {
-		// 获取 Peer 用户信息
-		peerUser := gin.H{
-			"id":       strconv.FormatUint(conv.PeerId, 10),
-			"username": "unknown",
-			"avatar":   "",
-		}
-		userResp, err := h.userClient.GetProfile(ctx, &userv1.GetProfileRequest{UserId: conv.PeerId})
-		if err == nil {
-			peerUser = gin.H{
-				"id":       strconv.FormatUint(userResp.User.Id, 10),
-				"username": userResp.User.Username,
-				"nickname": userResp.User.Username, // Use Username as Nickname
-				"avatar":   userResp.User.Avatar,
-			}
-		} else {
-			log.Printf("Failed to get peer profile %d: %v", conv.PeerId, err)
-		}
-
+		profileIDs = append(profileIDs, conv.PeerId, conv.LatestMessage.SenderId)
+	}
+	profiles := h.messengerPageProfiles(ctx, profileIDs)
+	conversations := make([]gin.H, 0, len(resp.Conversations))
+	for _, conv := range resp.Conversations {
 		conversations = append(conversations, gin.H{
 			"peer_id":        strconv.FormatUint(conv.PeerId, 10),
-			"peer":           peerUser,
-			"latest_message": h.formatMessageWithUser(ctx, conv.LatestMessage),
+			"peer":           messengerPublicProfile(conv.PeerId, profiles),
+			"latest_message": messengerPageMessage(conv.LatestMessage, profiles),
 			"unread_count":   conv.UnreadCount,
 		})
 	}
@@ -137,7 +126,7 @@ func (h *MessengerHandler) GetConversations(c *gin.Context) {
 }
 
 // GetMessages 获取消息历史
-// GET /api/v1/conversations/:peer_id/messages
+// GET /api/v1/messenger/conversations/:peer_id/messages
 func (h *MessengerHandler) GetMessages(c *gin.Context) {
 	userId, exists := middleware.GetUserID(c)
 	if !exists {
@@ -147,13 +136,15 @@ func (h *MessengerHandler) GetMessages(c *gin.Context) {
 
 	peerIDStr := c.Param("peer_id")
 	peerID, err := strconv.ParseUint(peerIDStr, 10, 64)
-	if err != nil {
+	if err != nil || peerID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid peer_id"})
 		return
 	}
 
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	cursor := c.DefaultQuery("cursor", "")
+	limit, cursor, ok := parseMessengerPageQuery(c)
+	if !ok {
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
@@ -166,13 +157,18 @@ func (h *MessengerHandler) GetMessages(c *gin.Context) {
 	})
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get messages"})
+		writeMessengerPageError(c, err)
 		return
 	}
 
-	var messages []gin.H
+	profileIDs := make([]uint64, 0, len(resp.Messages))
 	for _, msg := range resp.Messages {
-		messages = append(messages, h.formatMessageWithUser(ctx, msg))
+		profileIDs = append(profileIDs, msg.SenderId)
+	}
+	profiles := h.messengerPageProfiles(ctx, profileIDs)
+	messages := make([]gin.H, 0, len(resp.Messages))
+	for _, msg := range resp.Messages {
+		messages = append(messages, messengerPageMessage(msg, profiles))
 	}
 
 	c.JSON(http.StatusOK, gin.H{

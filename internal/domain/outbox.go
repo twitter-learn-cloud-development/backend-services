@@ -32,6 +32,7 @@ type OutboxTask struct {
 
 // OutboxClaimRequest 描述一次有界批量领取。LeaseToken 在每次领取时必须重新生成。
 type OutboxClaimRequest struct {
+	TaskTypes           []string // Optional bounded lane; nil preserves legacy claiming.
 	LeaseOwner          string
 	LeaseToken          string
 	ClaimedAtUnixMilli  int64

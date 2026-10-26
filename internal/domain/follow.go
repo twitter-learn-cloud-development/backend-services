@@ -47,7 +47,7 @@ type FollowRepository interface {
 }
 
 // FollowerPage keeps the relation cursor separate from follower user IDs.
-// Internal replayable jobs need this contract for correct keyset pagination.
+// Public lists and internal replayable jobs use the same keyset contract.
 type FollowerPage struct {
 	FollowerIDs []uint64
 	NextCursor  uint64
@@ -56,4 +56,21 @@ type FollowerPage struct {
 
 type FollowerPageRepository interface {
 	ListFollowerPage(ctx context.Context, userID uint64, cursor uint64, limit int) (FollowerPage, error)
+}
+
+// FolloweePage contains followed user IDs ordered by their follow relations.
+// NextCursor is a relation ID, never a user ID; it is zero on the final page.
+type FolloweePage struct {
+	FolloweeIDs []uint64
+	NextCursor  uint64
+	HasMore     bool
+}
+
+type FolloweePageRepository interface {
+	ListFolloweePage(ctx context.Context, userID uint64, cursor uint64, limit int) (FolloweePage, error)
+}
+
+// FollowReadRepository revalidates bounded authors, using only active relations.
+type FollowReadRepository interface {
+	BatchIsFollowing(ctx context.Context, followerID uint64, followeeIDs []uint64) (map[uint64]bool, error)
 }

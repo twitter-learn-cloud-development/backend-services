@@ -55,6 +55,37 @@
 {{- if and .Values.services.agentService.externalMCP.managedCredentials.enabled (or (empty .Values.services.agentService.externalMCP.managedCredentials.registryJSON) (eq (trim .Values.services.agentService.externalMCP.managedCredentials.registryJSON) "[]")) }}
 {{- fail "externalMCP managedCredentials require non-empty registryJSON" }}
 {{- end }}
+{{- $planning := .Values.services.agentService.planningExecute }}
+{{- if or (lt (int $planning.canaryPercent) 0) (gt (int $planning.canaryPercent) 100) }}
+{{- fail "planningExecute.canaryPercent must be within 0..100" }}
+{{- end }}
+{{- if and $planning.enabled (not .Values.services.agentService.recoverableRuns.enabled) }}
+{{- fail "planningExecute.enabled requires recoverableRuns.enabled" }}
+{{- end }}
+{{- if and $planning.enabled .Values.services.agentService.mockEmbedding }}
+{{- fail "planningExecute.enabled cannot use mockEmbedding" }}
+{{- end }}
+{{- if and $planning.webResearchEnabled (not .Values.services.agentService.webSearch.enabled) }}
+{{- fail "planningExecute.webResearchEnabled requires webSearch.enabled" }}
+{{- end }}
+{{- if and (or $planning.externalMCPReadEnabled $planning.externalMCPWriteEnabled) (not .Values.services.agentService.externalMCP.enabled) }}
+{{- fail "planningExecute external MCP routes require externalMCP.enabled" }}
+{{- end }}
+{{- if and $planning.externalMCPWriteEnabled (not .Values.services.agentService.recoverableRuns.unifiedApprovalRecoveryEnabled) }}
+{{- fail "planningExecute.externalMCPWriteEnabled requires unifiedApprovalRecoveryEnabled" }}
+{{- end }}
+{{- if and $planning.workflowReadEnabled (not .Values.services.agentService.workflowAsTool.enabled) }}
+{{- fail "planningExecute.workflowReadEnabled requires workflowAsTool.enabled" }}
+{{- end }}
+{{- if lt (int $planning.maxOutputTokens) 1 }}
+{{- fail "planningExecute.maxOutputTokens must be positive" }}
+{{- end }}
+{{- if or (lt (int $planning.parseRepairs) 0) (lt (int $planning.admissionRepairs) 0) }}
+{{- fail "planningExecute repair counts cannot be negative" }}
+{{- end }}
+{{- if lt (int .Values.services.agentService.sessionSummary.minMessages) 1 }}
+{{- fail "sessionSummary.minMessages must be positive" }}
+{{- end }}
 {{- if not (has .Values.services.agentService.processRole (list "api" "worker" "all")) }}
 {{- fail "agentService.processRole must be api, worker, or all" }}
 {{- end }}
@@ -96,6 +127,52 @@ spec:
             - name: metrics
               containerPort: {{ .Values.services.agentService.metricsPort }}
               protocol: TCP
+          {{- if .Values.services.agentService.healthProbes.enabled }}
+          {{- if eq .Values.services.agentService.processRole "worker" }}
+          startupProbe:
+            tcpSocket:
+              port: metrics
+            initialDelaySeconds: {{ .Values.services.agentService.healthProbes.startup.initialDelaySeconds }}
+            periodSeconds: {{ .Values.services.agentService.healthProbes.startup.periodSeconds }}
+            timeoutSeconds: {{ .Values.services.agentService.healthProbes.startup.timeoutSeconds }}
+            failureThreshold: {{ .Values.services.agentService.healthProbes.startup.failureThreshold }}
+          readinessProbe:
+            tcpSocket:
+              port: metrics
+            periodSeconds: {{ .Values.services.agentService.healthProbes.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.services.agentService.healthProbes.readiness.timeoutSeconds }}
+            failureThreshold: {{ .Values.services.agentService.healthProbes.readiness.failureThreshold }}
+          livenessProbe:
+            tcpSocket:
+              port: metrics
+            periodSeconds: {{ .Values.services.agentService.healthProbes.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.services.agentService.healthProbes.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.services.agentService.healthProbes.liveness.failureThreshold }}
+          {{- else }}
+          startupProbe:
+            grpc:
+              port: {{ .Values.services.agentService.containerPort }}
+              service: aiAgent.v1.AiAgentService
+            initialDelaySeconds: {{ .Values.services.agentService.healthProbes.startup.initialDelaySeconds }}
+            periodSeconds: {{ .Values.services.agentService.healthProbes.startup.periodSeconds }}
+            timeoutSeconds: {{ .Values.services.agentService.healthProbes.startup.timeoutSeconds }}
+            failureThreshold: {{ .Values.services.agentService.healthProbes.startup.failureThreshold }}
+          readinessProbe:
+            grpc:
+              port: {{ .Values.services.agentService.containerPort }}
+              service: aiAgent.v1.AiAgentService
+            periodSeconds: {{ .Values.services.agentService.healthProbes.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.services.agentService.healthProbes.readiness.timeoutSeconds }}
+            failureThreshold: {{ .Values.services.agentService.healthProbes.readiness.failureThreshold }}
+          livenessProbe:
+            grpc:
+              port: {{ .Values.services.agentService.containerPort }}
+              service: aiAgent.v1.AiAgentService
+            periodSeconds: {{ .Values.services.agentService.healthProbes.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.services.agentService.healthProbes.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.services.agentService.healthProbes.liveness.failureThreshold }}
+          {{- end }}
+          {{- end }}
           env:
             - name: DB_HOST
               value: {{ include "twitter.mysql.host" . }}
@@ -158,10 +235,64 @@ spec:
               value: {{ .Values.services.agentService.trendingReporter.owner | quote }}
             - name: AGENT_TRENDING_REPORTER_INTERVAL
               value: {{ .Values.services.agentService.trendingReporter.interval | quote }}
+            - name: AGENT_DATA_RETENTION_ENABLED
+              value: {{ .Values.services.agentService.dataRetention.enabled | quote }}
+            - name: AGENT_DATA_RETENTION_DRY_RUN
+              value: {{ .Values.services.agentService.dataRetention.dryRun | quote }}
+            - name: AGENT_DATA_RETENTION_INTERVAL
+              value: {{ .Values.services.agentService.dataRetention.interval | quote }}
+            - name: AGENT_DATA_RETENTION_LEASE_DURATION
+              value: {{ .Values.services.agentService.dataRetention.leaseDuration | quote }}
+            - name: AGENT_DATA_RETENTION_OPERATION_TIMEOUT
+              value: {{ .Values.services.agentService.dataRetention.operationTimeout | quote }}
+            - name: AGENT_DATA_RETENTION_BATCH_SIZE
+              value: {{ .Values.services.agentService.dataRetention.batchSize | quote }}
+            - name: AGENT_DIALOGUE_RETENTION
+              value: {{ .Values.services.agentService.dataRetention.dialogueRetention | quote }}
+            - name: AGENT_ORPHAN_MESSAGE_GRACE_PERIOD
+              value: {{ .Values.services.agentService.dataRetention.orphanMessageGracePeriod | quote }}
+            - name: AGENT_TRACE_RETENTION
+              value: {{ .Values.services.agentService.dataRetention.traceRetention | quote }}
+            - name: AGENT_TERMINAL_CHECKPOINT_RETENTION
+              value: {{ .Values.services.agentService.dataRetention.terminalCheckpointRetention | quote }}
+            - name: AGENT_SUSPENDED_CHECKPOINT_RETENTION
+              value: {{ .Values.services.agentService.dataRetention.suspendedCheckpointRetention | quote }}
+            - name: AGENT_TOOL_RESULT_RETENTION
+              value: {{ .Values.services.agentService.dataRetention.toolResultRetention | quote }}
             - name: AGENT_METRICS_PORT
               value: {{ .Values.services.agentService.metricsPort | quote }}
             - name: AGENT_TRACE_SAMPLE_RATIO
               value: {{ .Values.services.agentService.traceSampleRatio | quote }}
+            - name: AGENT_RUNTIME_V2_MODES
+              value: {{ .Values.services.agentService.runtimeV2Modes | quote }}
+            - name: AGENT_SESSION_SUMMARY_MODEL
+              value: {{ .Values.services.agentService.sessionSummary.model | quote }}
+            - name: AGENT_SESSION_SUMMARY_MIN_MESSAGES
+              value: {{ .Values.services.agentService.sessionSummary.minMessages | quote }}
+            - name: AGENT_SESSION_SUMMARY_IDLE_DELAY
+              value: {{ .Values.services.agentService.sessionSummary.idleDelay | quote }}
+            - name: AGENT_SESSION_SUMMARY_SWEEP_INTERVAL
+              value: {{ .Values.services.agentService.sessionSummary.sweepInterval | quote }}
+            - name: AGENT_PLANNING_EXECUTE_ENABLED
+              value: {{ .Values.services.agentService.planningExecute.enabled | quote }}
+            - name: AGENT_PLANNING_EXECUTE_CANARY_PERCENT
+              value: {{ .Values.services.agentService.planningExecute.canaryPercent | quote }}
+            - name: AGENT_PLANNING_EXECUTE_PLATFORM_SEARCH_ENABLED
+              value: {{ .Values.services.agentService.planningExecute.platformSearchEnabled | quote }}
+            - name: AGENT_PLANNING_EXECUTE_WEB_RESEARCH_ENABLED
+              value: {{ .Values.services.agentService.planningExecute.webResearchEnabled | quote }}
+            - name: AGENT_PLANNING_EXECUTE_EXTERNAL_MCP_READ_ENABLED
+              value: {{ .Values.services.agentService.planningExecute.externalMCPReadEnabled | quote }}
+            - name: AGENT_PLANNING_EXECUTE_EXTERNAL_MCP_WRITE_ENABLED
+              value: {{ .Values.services.agentService.planningExecute.externalMCPWriteEnabled | quote }}
+            - name: AGENT_PLANNING_EXECUTE_WORKFLOW_READ_ENABLED
+              value: {{ .Values.services.agentService.planningExecute.workflowReadEnabled | quote }}
+            - name: AGENT_PLANNING_MAX_OUTPUT_TOKENS
+              value: {{ .Values.services.agentService.planningExecute.maxOutputTokens | quote }}
+            - name: AGENT_PLANNING_PARSE_REPAIRS
+              value: {{ .Values.services.agentService.planningExecute.parseRepairs | quote }}
+            - name: AGENT_PLANNING_ADMISSION_REPAIRS
+              value: {{ .Values.services.agentService.planningExecute.admissionRepairs | quote }}
             - name: AGENT_RECOVERABLE_RUNS_ENABLED
               value: {{ .Values.services.agentService.recoverableRuns.enabled | quote }}
             - name: AGENT_TASK_TEMPLATES_ENABLED
@@ -438,7 +569,7 @@ spec:
             - name: JAEGER_SAMPLER_PARAM
               value: "1"
             - name: MOCK_EMBEDDING
-              value: "true"
+              value: {{ .Values.services.agentService.mockEmbedding | quote }}
           resources:
             {{- toYaml .Values.services.agentService.resources | nindent 12 }}
           {{- if .Values.services.agentService.externalMCP.managedCredentials.enabled }}

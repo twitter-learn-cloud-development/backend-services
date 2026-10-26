@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -287,6 +288,98 @@ type scrollResponse struct {
 		Points       []Point     `json:"points"`
 		NextPageMark interface{} `json:"next_page_offset"`
 	} `json:"result"`
+}
+
+type countResponse struct {
+	Result struct {
+		Count int64 `json:"count"`
+	} `json:"result"`
+}
+
+// CountByFilter counts points inside a non-empty payload filter. Requiring a
+// filter keeps subject-level governance code from accidentally observing an
+// entire shared collection.
+func (c *Client) CountByFilter(ctx context.Context, collection string, filter map[string]interface{}, exact bool) (int64, error) {
+	if err := validateFilteredMutation(collection, filter); err != nil {
+		return 0, err
+	}
+	body, err := json.Marshal(map[string]interface{}{"filter": filter, "exact": exact})
+	if err != nil {
+		return 0, fmt.Errorf("marshal count body failed: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/collections/%s/points/count", c.url, collection), bytes.NewReader(body))
+	if err != nil {
+		return 0, fmt.Errorf("create count request failed: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return 0, fmt.Errorf("execute count failed: %w", err)
+	}
+	defer resp.Body.Close()
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, fmt.Errorf("read count response body failed: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("count failed, status: %d, response: %s", resp.StatusCode, string(responseBody))
+	}
+	var result countResponse
+	if err := json.Unmarshal(responseBody, &result); err != nil {
+		return 0, fmt.Errorf("unmarshal count response failed: %w", err)
+	}
+	if result.Result.Count < 0 {
+		return 0, errors.New("qdrant count response is negative")
+	}
+	return result.Result.Count, nil
+}
+
+// DeleteByFilter deletes points selected by a non-empty payload filter and
+// waits for Qdrant to apply the mutation before returning.
+func (c *Client) DeleteByFilter(ctx context.Context, collection string, filter map[string]interface{}) error {
+	if err := validateFilteredMutation(collection, filter); err != nil {
+		return err
+	}
+	body, err := json.Marshal(map[string]interface{}{"filter": filter})
+	if err != nil {
+		return fmt.Errorf("marshal delete-by-filter body failed: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/collections/%s/points/delete?wait=true", c.url, collection), bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("create delete-by-filter request failed: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("execute delete-by-filter failed: %w", err)
+	}
+	defer resp.Body.Close()
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("read delete-by-filter response body failed: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("delete-by-filter failed, status: %d, response: %s", resp.StatusCode, string(responseBody))
+	}
+	return nil
+}
+
+func validateFilteredMutation(collection string, filter map[string]interface{}) error {
+	collection = strings.TrimSpace(collection)
+	if collection == "" || len(collection) > 255 {
+		return errors.New("qdrant collection identity is invalid")
+	}
+	for _, character := range collection {
+		if (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z') ||
+			(character >= '0' && character <= '9') || character == '_' || character == '-' {
+			continue
+		}
+		return errors.New("qdrant collection identity is invalid")
+	}
+	if len(filter) == 0 {
+		return errors.New("qdrant filtered operation requires a non-empty filter")
+	}
+	return nil
 }
 
 // Scroll reads one bounded page from a collection. The caller owns the page

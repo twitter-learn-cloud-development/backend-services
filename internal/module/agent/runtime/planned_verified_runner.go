@@ -152,10 +152,10 @@ func bindAdmittedPlanToVerifiedRequest(
 		if step.Kind != ShortPlanStepTool {
 			continue
 		}
-		if step.ToolCategory != ToolCategoryRead || step.ApprovalRequired {
+		if !validPlannedToolGovernance(step.ToolCategory, step.ApprovalRequired) {
 			return VerifiedRunRequest{}, &RunError{
 				Code: ErrorUnsupported, Step: index + 1,
-				Message: "planned verified execution currently supports read tools only",
+				Message: "planned tool governance is unsupported",
 			}
 		}
 		if _, duplicate := seenTools[step.ToolName]; duplicate {
@@ -168,7 +168,9 @@ func bindAdmittedPlanToVerifiedRequest(
 				Message: fmt.Sprintf("planned tool %q is no longer in the request catalog", step.ToolName),
 			}
 		}
-		if definition.Category != ToolCategoryRead || definition.ApprovalRequired() {
+		if definition.Category != step.ToolCategory ||
+			definition.ApprovalRequired() != step.ApprovalRequired ||
+			!validPlannedToolGovernance(definition.Category, definition.ApprovalRequired()) {
 			return VerifiedRunRequest{}, &RunError{
 				Code: ErrorInvalidRequest, Step: index + 1,
 				Message: fmt.Sprintf("planned tool %q policy changed before execution", step.ToolName),
@@ -211,6 +213,17 @@ func bindAdmittedPlanToVerifiedRequest(
 		Task: boundTask, Run: boundRun, Environment: request.Environment,
 		Evidence: cloneEvidenceLedger(request.Evidence),
 	}, nil
+}
+
+func validPlannedToolGovernance(category ToolCategory, approvalRequired bool) bool {
+	switch category {
+	case ToolCategoryRead:
+		return !approvalRequired
+	case ToolCategoryRisky, ToolCategoryWrite:
+		return approvalRequired
+	default:
+		return false
+	}
 }
 
 func remainingExecutionBudget(budget Budget, planningUsage TokenUsage) (Budget, error) {
@@ -258,7 +271,8 @@ func admittedPlanExecutionInstruction(plan AdmittedShortPlan) string {
 	payload, _ := json.Marshal(projection)
 	return "Execute the admitted short plan below in order. The plan is guidance, not authorization; " +
 		"runtime tool policy remains authoritative. Derive tool arguments only from the task and conversation, " +
-		"never invent missing values, and call only the listed read tools. For an ask_human terminal step, ask one " +
+		"never invent missing values, and call only the listed governed tools. A tool marked approval_required must " +
+		"stop for platform approval before execution. For an ask_human terminal step, ask one " +
 		"useful clarification question. For a respond terminal step, return the answer using only observed evidence. " +
 		"Admitted plan: " + string(payload)
 }
@@ -268,6 +282,15 @@ func validateAdmittedPlanExecution(plan AdmittedShortPlan, result VerifiedRunRes
 	for index, planned := range plan.Steps {
 		switch planned.Kind {
 		case ShortPlanStepTool:
+			if result.Status == GoalRunSuspended && result.Run.Status == RunStatusApprovalRequired &&
+				planned.ApprovalRequired && result.Run.PendingAction != nil &&
+				result.Run.PendingAction.Type == ActionToolCall &&
+				result.Run.PendingAction.Name == planned.ToolName {
+				return nil
+			}
+			if admittedToolContinuationSuspended(planned, result) {
+				return nil
+			}
 			found := false
 			for ; stepCursor < len(result.Run.Steps); stepCursor++ {
 				for _, observation := range result.Run.Steps[stepCursor].Observations {
@@ -305,4 +328,28 @@ func validateAdmittedPlanExecution(plan AdmittedShortPlan, result VerifiedRunRes
 		}
 	}
 	return nil
+}
+
+func admittedToolContinuationSuspended(planned AdmittedShortPlanStep, result VerifiedRunResult) bool {
+	if result.Status != GoalRunSuspended || result.Checkpoint == nil ||
+		result.Run.PendingAction == nil || result.Run.PendingAction.Type != ActionToolCall ||
+		result.Run.PendingAction.Name != planned.ToolName ||
+		result.Run.PendingToolContinuation == nil {
+		return false
+	}
+	checkpoint := result.Checkpoint.Run
+	if checkpoint.PendingAction.ID != result.Run.PendingAction.ID ||
+		checkpoint.PendingAction.Name != planned.ToolName ||
+		checkpoint.PendingResumeKind != result.Run.PendingResumeKind ||
+		ValidateRunCheckpoint(checkpoint) != nil {
+		return false
+	}
+	switch result.Run.PendingResumeKind {
+	case ResumeKindHumanResponse:
+		return result.Run.Status == RunStatusAwaitingHuman
+	case ResumeKindDelegatedToolApproval:
+		return result.Run.Status == RunStatusApprovalRequired
+	default:
+		return false
+	}
 }

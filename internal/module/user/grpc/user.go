@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"errors"
 	"log"
 
 	"google.golang.org/grpc/codes"
@@ -100,8 +101,16 @@ func (s *UserServer) ChangePassword(ctx context.Context, req *userv1.ChangePassw
 
 	err := s.svc.ChangePassword(ctx, req.UserId, req.OldPassword, req.NewPassword)
 	if err != nil {
-		log.Printf("❌ ChangePassword error: %v", err)
-		return nil, status.Errorf(codes.Internal, "failed to change password: %v", err)
+		switch {
+		case errors.Is(err, service.ErrInvalidCredentials):
+			return nil, status.Error(codes.PermissionDenied, "incorrect current password")
+		case errors.Is(err, service.ErrInvalidPassword):
+			return nil, status.Error(codes.InvalidArgument, "password must contain 6 to 72 UTF-8 bytes")
+		case errors.Is(err, service.ErrUserNotFound):
+			return nil, status.Error(codes.NotFound, "user not found")
+		default:
+			return nil, status.Error(codes.Internal, "password change failed")
+		}
 	}
 
 	return &userv1.ChangePasswordResponse{

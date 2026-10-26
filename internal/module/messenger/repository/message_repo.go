@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -24,11 +25,10 @@ func (r *messageRepo) Create(ctx context.Context, message *domain.Message) error
 
 func (r *messageRepo) GetMessages(ctx context.Context, conversationID string, cursor uint64, limit int) ([]*domain.Message, error) {
 	var messages []*domain.Message
-	query := r.db.WithContext(ctx).Where("conversation_id = ?", conversationID)
-	if cursor > 0 {
-		query = query.Where("id < ?", cursor)
+	if conversationID == "" || limit <= 0 || limit > 101 {
+		return nil, fmt.Errorf("invalid message page request")
 	}
-	err := query.Order("id DESC").Limit(limit).Find(&messages).Error
+	err := r.messagePageQuery(ctx, conversationID, cursor, limit).Find(&messages).Error
 	return messages, err
 }
 

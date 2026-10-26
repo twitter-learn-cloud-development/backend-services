@@ -45,6 +45,9 @@ type ProviderConfigView struct {
 }
 
 func (s *AgentService) CreateProviderConfig(ctx context.Context, userID uint64, input ProviderConfigInput) (*ProviderConfigView, error) {
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return nil, err
+	}
 	repo, err := s.providerConfigRepository()
 	if err != nil {
 		return nil, err
@@ -73,6 +76,9 @@ func (s *AgentService) UpdateProviderConfig(
 	configID string,
 	input ProviderConfigInput,
 ) (*ProviderConfigView, error) {
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return nil, err
+	}
 	repo, err := s.providerConfigRepository()
 	if err != nil {
 		return nil, err
@@ -185,6 +191,9 @@ func (s *AgentService) GetProviderConfig(ctx context.Context, userID uint64, con
 }
 
 func (s *AgentService) RevokeProviderConfig(ctx context.Context, userID uint64, configID string, revision int64) error {
+	if err := s.authorizeSubjectWrite(ctx, userID); err != nil {
+		return err
+	}
 	repo, err := s.providerConfigRepository()
 	if err != nil {
 		return err

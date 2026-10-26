@@ -1,17 +1,20 @@
 # 1. Build Stage
 #åå»ºæé éåï¼å¹¶å½åä¸ºbuilder
-FROM golang:1.25-alpine AS builder   
+ARG BUILDER_IMAGE=golang:1.25.5-alpine
+ARG RUNTIME_IMAGE=alpine:latest
+FROM ${BUILDER_IMAGE} AS builder
 #è®¾ç½®å·¥ä½ç®å½
 WORKDIR /app
 #è®¾ç½®ä»£çå¯¹è±¡ç½ç«
 #å¤å¶æºç å?appç®å½ä¸?
 COPY . .
 #æå»ºconsumerå¯æ§è¡æä»?
-RUN go build -mod=vendor -o consumer ./cmd/consumer/main.go
+RUN CGO_ENABLED=0 go build -mod=vendor -trimpath -o consumer ./cmd/consumer
 
 # 2. Run Stage
 #è·å¾è¿è¡ç¯å¢éå
-FROM alpine:latest
+FROM ${RUNTIME_IMAGE}
+RUN apk add --no-cache ca-certificates
 #è®¾ç½®å·¥ä½ç®å½
 WORKDIR /app
 #å¤å¶builderä¸?app/consumerå°å½åç®å½?

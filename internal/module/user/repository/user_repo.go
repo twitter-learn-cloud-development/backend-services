@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 	"twitter-clone/internal/domain"
@@ -47,6 +48,9 @@ func (r *userRepo) GetByID(ctx context.Context, id uint64) (*domain.User, error)
 		Where("id = ? AND deleted_at = 0", id).
 		First(&user).Error
 
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, domain.ErrUserNotFound
+	}
 	if err != nil {
 		return nil, err
 	}

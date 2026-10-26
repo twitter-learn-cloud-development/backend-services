@@ -82,7 +82,8 @@ func (r *pollRepo) GetVote(ctx context.Context, pollID, userID uint64) (*domain.
 }
 
 func (r *pollRepo) Vote(ctx context.Context, vote *domain.PollVote) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	db := uow.ExtractTx(ctx, r.db)
+	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 1. 创建投票记录
 		if vote.ID == 0 {
 			id, err := snowflake.GenerateID()

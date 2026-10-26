@@ -16,7 +16,8 @@ import (
 
 // likeRepo 点赞仓储实现
 type likeRepo struct {
-	db *gorm.DB
+	db        *gorm.DB
+	newLikeID func() (uint64, error)
 }
 
 // NewLikeRepository 创建点赞仓储

@@ -1,0 +1,21 @@
+groups:
+  - name: twitter-clone-messenger
+    rules:
+      - alert: MessengerRealtimeHintsUnavailable
+        expr: sum(increase(messenger_realtime_publish_total{outcome=~"error|unavailable|encode_error"}[10m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: messenger-service
+        annotations:
+          summary: "Stored messages have failed realtime hints"
+          description: "Inspect Redis and request traces. Clients must recover from HTTP history; never resend stored messages automatically."
+      - alert: GatewayRealtimeDegraded
+        expr: sum(increase(gateway_realtime_events_total{outcome=~"subscribe_error|write_error|oversize"}[10m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: gateway
+        annotations:
+          summary: "Realtime socket hints are degraded"
+          description: "Inspect Redis, slow sockets and bounded payloads. Socket writes are not device acknowledgements."

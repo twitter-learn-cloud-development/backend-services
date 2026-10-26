@@ -23,6 +23,7 @@ func TestAgentMongoCollectionCompatibilityContract(t *testing.T) {
 		"profile_versions":       CollectionProfileVersions,
 		"profile_releases":       CollectionProfileReleases,
 		"profile_audits":         CollectionProfileAudits,
+		"data_deletion_requests": CollectionAgentDataDeletionRequests,
 	}
 	for contract, got := range want {
 		if got == "" {
@@ -71,6 +72,9 @@ func TestAgentMongoCollectionCompatibilityContract(t *testing.T) {
 	}
 	if CollectionProfileAudits != "agent_profile_audit_events" {
 		t.Fatalf("CollectionProfileAudits = %q, want agent_profile_audit_events", CollectionProfileAudits)
+	}
+	if CollectionAgentDataDeletionRequests != "agent_data_deletion_requests" {
+		t.Fatalf("CollectionAgentDataDeletionRequests = %q, want agent_data_deletion_requests", CollectionAgentDataDeletionRequests)
 	}
 }
 
@@ -133,6 +137,12 @@ func TestAgentMongoBSONFieldCompatibilityContract(t *testing.T) {
 	assertBSONField(t, reflect.TypeOf(ProfileAuditEvent{}), "OperationID", "operation_id")
 	assertBSONField(t, reflect.TypeOf(ProfileAuditEvent{}), "ActorUserID", "actor_user_id")
 	assertBSONField(t, reflect.TypeOf(ProfileAuditEvent{}), "SnapshotHash", "snapshot_hash")
+	assertBSONField(t, reflect.TypeOf(DataDeletionRequest{}), "Status", "status")
+	assertBSONField(t, reflect.TypeOf(DataDeletionRequest{}), "ActorDigest", "actor_digest")
+	assertBSONField(t, reflect.TypeOf(DataDeletionRequest{}), "Unsupported", "unsupported_resources")
+	assertBSONField(t, reflect.TypeOf(DataDeletionRequest{}), "ExecutionAudit", "execution_audit")
+	assertBSONField(t, reflect.TypeOf(DataDeletionRequest{}), "ExecutionAuditCount", "execution_audit_count")
+	assertBSONField(t, reflect.TypeOf(DataDeletionRequest{}), "ExecutionAuditTail", "execution_audit_tail_digest")
 }
 
 func assertBSONField(t *testing.T, typ reflect.Type, fieldName, want string) {

@@ -25,61 +25,8 @@ const trends = ref<TrendTopic[]>([])
 const activeTab = ref<'trends' | 'latest'>('latest')
 const searchType = ref<'latest' | 'people'>('latest')
 
-const trendStopwords = new Set([
-  '这次',
-  '一个',
-  '我们',
-  '你们',
-  '他们',
-  '这个',
-  '那个',
-  '网友',
-  '话题',
-  '推文',
-  '搜索',
-  'twitter',
-])
-
-const compactTrendTopic = (topic: string) => {
-  const raw = String(topic || '').trim()
-  if (!raw) return ''
-
-  const trimTopic = (value: string) => {
-    let result = value.trim()
-    for (const marker of ['话题', '真是', '真的', '网友', '我们', '你们', '他们', '一个', '这次', '这个', '那个']) {
-      const idx = result.indexOf(marker)
-      if (idx > 0) {
-        result = result.slice(0, idx)
-        break
-      }
-    }
-    return result.slice(0, 16)
-  }
-
-  const hashtag = raw.match(/#([\u4e00-\u9fa5A-Za-z0-9_][\u4e00-\u9fa5A-Za-z0-9_-]{0,63})/)
-  if (hashtag?.[1]) return trimTopic(hashtag[1])
-
-  const cleaned = raw
-    .replace(/https?:\/\/\S+/g, ' ')
-    .replace(/[【】「」『』"'“”‘’。，、！？!?,.:;；：（）()\[\]{}<>]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-
-  const candidates = [
-    ...(cleaned.match(/[A-Za-z][A-Za-z0-9_-]{1,23}/g) || []),
-    ...(cleaned.match(/[\u4e00-\u9fa5]{2,12}/g) || []),
-  ]
-
-  const candidate = candidates.find(item => !trendStopwords.has(item.toLowerCase()))
-  return trimTopic(candidate || cleaned)
-}
-
 const visibleTrends = computed(() => trends.value
-  .map(trend => ({
-    ...trend,
-    label: compactTrendTopic(trend.topic),
-  }))
-  .filter(trend => trend.label && trend.label.length <= 16))
+  .filter(trend => trend.topic && trend.score >= 1))
 
 const fetchTrends = async () => {
   try {
@@ -263,15 +210,15 @@ const switchSearchType = (type: 'latest' | 'people') => {
       <div v-if="!searchQuery && activeTab === 'trends'" class="divide-y divide-gray-100 dark:divide-gray-800">
         <div
           v-for="(trend, idx) in visibleTrends"
-          :key="`${trend.label}-${idx}`"
-          @click="goToTrend(trend.label)"
+          :key="`${trend.topic}-${idx}`"
+          @click="goToTrend(trend.topic)"
           class="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition-colors group"
         >
           <div class="flex justify-between items-start">
             <div class="min-w-0">
               <div class="text-[13px] text-gray-500 mb-0.5">正在热搜</div>
-              <div class="font-bold text-gray-900 dark:text-gray-100 group-hover:underline truncate">#{{ trend.label }}</div>
-              <div class="text-[13px] text-gray-500 mt-0.5">{{ formatNumber(trend.score) }} 条推文</div>
+              <div class="font-bold text-gray-900 dark:text-gray-100 group-hover:underline truncate">#{{ trend.topic }}</div>
+              <div class="text-[13px] text-gray-500 mt-0.5">近期热度 {{ formatNumber(trend.score) }}</div>
             </div>
           </div>
         </div>

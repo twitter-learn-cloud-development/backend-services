@@ -63,7 +63,8 @@ func (r *tweetRepo) Create(ctx context.Context, tweet *domain.Tweet) error {
 // Delete 删除(软删除)
 func (r *tweetRepo) Delete(ctx context.Context, id uint64) error {
 	now := time.Now().UnixMilli()
-	result := r.db.WithContext(ctx).Model(&domain.Tweet{}).Where("id = ? and deleted_at = 0", id).Updates(map[string]interface{}{
+	db := uow.ExtractTx(ctx, r.db)
+	result := db.WithContext(ctx).Model(&domain.Tweet{}).Where("id = ? and deleted_at = 0", id).Updates(map[string]interface{}{
 		"deleted_at": now,
 		"updated_at": now,
 	})
@@ -142,8 +143,9 @@ func (r *tweetRepo) GetFeeds(ctx context.Context, userIDs []uint64, cursor uint6
 	if limit <= 0 {
 		limit = 20
 	}
-	if limit > 100 {
-		limit = 100
+	// Internal callers need the public maximum plus a lookahead row.
+	if limit > 101 {
+		limit = 101
 	}
 
 	var tweets []*domain.Tweet

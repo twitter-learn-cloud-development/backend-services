@@ -101,7 +101,7 @@ func TestPlannedVerifiedRunnerPreservesClarificationCheckpoint(t *testing.T) {
 	}
 }
 
-func TestPlannedVerifiedRunnerRejectsWritePlanBeforeExecution(t *testing.T) {
+func TestPlannedVerifiedRunnerAllowsGovernedWriteToSuspendForApproval(t *testing.T) {
 	planner := &scriptedPlanningCoordinatorPlanner{results: []ShortPlanResult{{
 		Proposal: ShortPlanProposal{Version: ShortPlanVersionV1, Steps: []ShortPlanStep{{
 			ID: "publish", Kind: ShortPlanStepTool, Objective: "publish the result", ToolName: "publish",
@@ -112,12 +112,79 @@ func TestPlannedVerifiedRunnerRejectsWritePlanBeforeExecution(t *testing.T) {
 	base := plannedVerifiedTestRequest()
 	base.Task.AllowedTools = []string{"publish"}
 	base.Run.Tools = []ToolDefinition{{Name: "publish", Category: ToolCategoryWrite}}
-	scripted := &scriptedGoalRunner{}
+	pending := Action{ID: "publish-1", Type: ActionToolCall, Name: "publish"}
+	scripted := &scriptedGoalRunner{results: []RunResult{{
+		Context: base.Run.Context, Status: RunStatusApprovalRequired,
+		PendingAction: &pending, ApprovalID: "approval-1",
+		Messages: []Message{{Role: RoleAssistant, Actions: []Action{pending}}},
+		Steps: []Step{{Index: 1, Actions: []Action{pending}, Observations: []Observation{{
+			ActionID: pending.ID, Name: pending.Name, IsError: true, Content: "approval required",
+		}}}},
+	}}}
 	runner := NewPlannedVerifiedRunner(coordinator, NewVerifiedRunner(scripted, alwaysPassVerifier{}, nil))
 
-	_, err := runner.Run(context.Background(), base)
-	if !HasErrorCode(err, ErrorUnsupported) || len(scripted.requests) != 0 {
-		t.Fatalf("error/runner calls = %v/%d", err, len(scripted.requests))
+	result, err := runner.Run(context.Background(), base)
+	if err != nil || result.Verified.Status != GoalRunSuspended ||
+		result.Verified.Checkpoint == nil || len(scripted.requests) != 1 {
+		t.Fatalf("result/error/runner calls = %+v/%v/%d", result, err, len(scripted.requests))
+	}
+	if len(scripted.requests[0].Tools) != 1 ||
+		!scripted.requests[0].Tools[0].ApprovalRequired() {
+		t.Fatalf("bound governed request = %+v", scripted.requests[0])
+	}
+}
+
+func TestPlannedVerifiedRunnerAllowsBoundToolContinuation(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		status     RunStatus
+		resumeKind ResumeKind
+		approvalID string
+	}{
+		{name: "human input", status: RunStatusAwaitingHuman, resumeKind: ResumeKindHumanResponse},
+		{name: "delegated approval", status: RunStatusApprovalRequired, resumeKind: ResumeKindDelegatedToolApproval, approvalID: "approval-1"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			planner := &scriptedPlanningCoordinatorPlanner{results: []ShortPlanResult{{
+				Proposal: ShortPlanProposal{Version: ShortPlanVersionV1, Steps: []ShortPlanStep{{
+					ID: "workflow", Kind: ShortPlanStepTool, Objective: "run the workflow", ToolName: "search",
+					CriterionIDs: []string{"source-found"},
+				}}},
+			}}}
+			coordinator, err := NewPlanningCoordinator(planner, DeterministicShortPlanPolicy{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			base := plannedVerifiedTestRequest()
+			pending := Action{ID: "workflow-1", Type: ActionToolCall, Name: "search"}
+			continuation := &ToolContinuation{
+				Version: "workflow.v1", Prompt: "Which topic?", ResumeKind: test.resumeKind,
+				ApprovalID: test.approvalID, State: json.RawMessage(`{"child_run_id":"child-1"}`),
+			}
+			scripted := &scriptedGoalRunner{results: []RunResult{{
+				Context: base.Run.Context, Status: test.status,
+				Messages: []Message{{Role: RoleAssistant, Actions: []Action{pending}}},
+				Steps: []Step{{Index: 1, Actions: []Action{pending}, Observations: []Observation{{
+					ActionID: pending.ID, Name: pending.Name, IsError: true, Content: "suspended",
+				}}}},
+				PendingAction: &pending, PendingResumeKind: test.resumeKind,
+				PendingToolContinuation: continuation, ApprovalID: test.approvalID,
+			}}}
+			runner := NewPlannedVerifiedRunner(coordinator, NewVerifiedRunner(scripted, alwaysPassVerifier{}, nil))
+			result, err := runner.Run(context.Background(), base)
+			if err != nil || result.Verified.Status != GoalRunSuspended || result.Verified.Checkpoint == nil {
+				t.Fatalf("result/error = %+v/%v", result, err)
+			}
+			result.Verified.Run.PendingAction.Name = "other"
+			if err := validateAdmittedPlanExecution(result.Planning.Plan, result.Verified); !HasErrorCode(err, ErrorInvalidAction) {
+				t.Fatalf("mismatched tool action error = %v", err)
+			}
+			result.Verified.Run.PendingAction.Name = "search"
+			result.Verified.Checkpoint.Run.PendingToolContinuation.State = json.RawMessage(`null`)
+			if err := validateAdmittedPlanExecution(result.Planning.Plan, result.Verified); !HasErrorCode(err, ErrorInvalidAction) {
+				t.Fatalf("invalid checkpoint error = %v", err)
+			}
+		})
 	}
 }
 

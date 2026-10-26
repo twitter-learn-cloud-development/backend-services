@@ -39,3 +39,13 @@ logs/
 docker-compose.override.yml
 .env
 .env.example
+**/.env
+**/.env.*
+**/*.production.env
+**/*.pem
+**/*.key
+**/*.pfx
+**/*.p12
+.agents/
+.codex/
+dist/

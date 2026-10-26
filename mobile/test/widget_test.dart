@@ -1,30 +1,57 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mobile/core/utils/storage.dart';
+import 'package:mobile/features/auth/presentation/auth_notifier.dart';
 import 'package:mobile/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
-
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  setUpAll(() async {
+    SharedPreferences.setMockInitialValues({StorageKeys.themeMode: 'light'});
+    await Storage.init();
   });
+
+  testWidgets(
+    'Unauthenticated boot shows login and registration without API calls',
+    (WidgetTester tester) async {
+      var requests = 0;
+      final dio = Dio();
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            requests++;
+            handler.reject(
+              DioException(
+                requestOptions: options,
+                error: 'Network is forbidden in this fixture',
+              ),
+            );
+          },
+        ),
+      );
+      addTearDown(() => dio.close(force: true));
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [dioProvider.overrideWithValue(dio)],
+          child: const MyApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('登录 Twitter Clone'), findsOneWidget);
+
+      await tester.tap(find.text('登 录'));
+      await tester.pumpAndSettle();
+      expect(find.text('请输入邮箱'), findsOneWidget);
+      expect(find.text('请输入密码'), findsOneWidget);
+
+      await tester.ensureVisible(find.text('立即注册'));
+      await tester.tap(find.text('立即注册'));
+      await tester.pumpAndSettle();
+      expect(find.text('创建您的账号'), findsOneWidget);
+      expect(requests, 0);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

@@ -6,25 +6,38 @@ class AuthRepository {
 
   AuthRepository(this._dio);
 
+  Future<void> changePassword(String oldPassword, String newPassword) async {
+    try {
+      await _dio.post(
+        '/auth/password',
+        data: {'old_password': oldPassword, 'new_password': newPassword},
+      );
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      throw Exception(
+        data is Map && data['error'] is String
+            ? data['error']
+            : '请求结果可能未确定，请尝试用新密码登录；不要自动重试',
+      );
+    }
+  }
+
   // Login
   Future<Map<String, dynamic>> login({
     required String email,
     required String password,
   }) async {
     try {
-      final response = await _dio.post('/auth/login', data: {
-        'email': email,
-        'password': password,
-      });
+      final response = await _dio.post(
+        '/auth/login',
+        data: {'email': email, 'password': password},
+      );
 
       if (response.statusCode == 200) {
         final data = response.data as Map<String, dynamic>;
         final token = data['token'] as String;
         final user = User.fromJson(data['user']);
-        return {
-          'token': token,
-          'user': user,
-        };
+        return {'token': token, 'user': user};
       } else {
         throw Exception(response.data['error'] ?? '登录失败');
       }
@@ -41,11 +54,10 @@ class AuthRepository {
     required String password,
   }) async {
     try {
-      final response = await _dio.post('/auth/register', data: {
-        'username': username,
-        'email': email,
-        'password': password,
-      });
+      final response = await _dio.post(
+        '/auth/register',
+        data: {'username': username, 'email': email, 'password': password},
+      );
 
       if (response.statusCode == 200) {
         final data = response.data as Map<String, dynamic>;

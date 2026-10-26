@@ -250,7 +250,7 @@ func TestGetFeeds_HybridCacheFlow(t *testing.T) {
 
 	svc := NewTweetService(
 		mockRepo,
-		nil,
+		&feedFollowRepo{},
 		mockLike,
 		mockComment,
 		mockPoll,
@@ -264,7 +264,7 @@ func TestGetFeeds_HybridCacheFlow(t *testing.T) {
 	)
 
 	userID := uint64(100)
-	celebID := uint64(200)
+	celebID := uint64(2)
 	tweetID := uint64(12345)
 
 	// 1. 设置关注关系：userID 关注了大V celebID
@@ -284,7 +284,7 @@ func TestGetFeeds_HybridCacheFlow(t *testing.T) {
 	mockPoll.On("GetByTweetIDs", mock.Anything, mock.Anything).Return(nil, nil)
 
 	// ==========================================
-	// Test Case 1: L2 Celebrity Timeline Cache Hit (No DB)
+	// Test Case 1: L2 candidate hit; current DB facts override stale bodies.
 	// ==========================================
 	// 写入大V时间线缓存
 	err = timelineCache.AddToUserTimeline(ctx, celebID, tweetID)
@@ -297,39 +297,40 @@ func TestGetFeeds_HybridCacheFlow(t *testing.T) {
 		Content:     "Hello from VIP",
 		VisibleType: domain.VisiblePublic,
 	}
-	err = timelineCache.SetBaseTweet(ctx, baseTweet)
+	staleTweet := *baseTweet
+	staleTweet.Content = "stale cached VIP content"
+	err = timelineCache.SetBaseTweet(ctx, &staleTweet)
 	assert.NoError(t, err)
+	mockRepo.On("ListFollowingFeed", mock.Anything, userID, uint64(0), 101).Return([]*domain.Tweet{baseTweet}, nil).Twice()
+	mockRepo.On("ListFollowingFeed", mock.Anything, userID, uint64(0), 1000).Return([]*domain.Tweet{baseTweet}, nil).Once()
 
-	// 运行 GetFeeds，预期完全从缓存读取，GORM 不会收到任何 SQL 查询
+	// Feed only uses Redis as candidate IDs; both calls revalidate current rows.
 	feeds, nextCursor, hasMore, err := svc.GetFeeds(ctx, userID, 0, 10)
 	assert.NoError(t, err)
 	assert.Len(t, feeds, 1)
 	assert.Equal(t, "Hello from VIP", feeds[0].Content)
-	assert.Equal(t, tweetID, nextCursor)
+	assert.Zero(t, nextCursor)
 	assert.False(t, hasMore)
 
 	// ==========================================
-	// Test Case 2: L2 Cache Miss -> Trigger Rebuild from DB (Singleflight)
+	// Test Case 2: obsolete celebrity marker loss does not limit current DB read.
 	// ==========================================
 	// 彻底删除该大V的初始化标志，模拟缓存缺失状态
 	initKey := fmt.Sprintf("user_timeline:%d:initialized", celebID)
 	err = rClient.Del(ctx, initKey).Err()
 	assert.NoError(t, err)
 
-	// Mock DB：预期在重建时会查询数据库中该大V的帖子列表
-	mockRepo.On("ListByUserID", mock.Anything, celebID, uint64(0), 1000).Return([]*domain.Tweet{baseTweet}, nil).Once()
-
 	feeds2, nextCursor2, hasMore2, err := svc.GetFeeds(ctx, userID, 0, 10)
 	assert.NoError(t, err)
 	assert.Len(t, feeds2, 1)
 	assert.Equal(t, "Hello from VIP", feeds2[0].Content)
-	assert.Equal(t, tweetID, nextCursor2)
+	assert.Zero(t, nextCursor2)
 	assert.False(t, hasMore2)
 
-	// 重建后，初始化标志应该已被重新写入 Redis
+	// Feed no longer rebuilds the old per-celebrity marker from a truncated list.
 	exists, err := rClient.Exists(ctx, initKey).Result()
 	assert.NoError(t, err)
-	assert.Equal(t, int64(1), exists)
+	assert.Equal(t, int64(0), exists)
 
 	mockRepo.AssertExpectations(t)
 }
@@ -340,6 +341,14 @@ func TestGetFeeds_HybridCacheFlow(t *testing.T) {
 
 type MockLikeRepository struct {
 	mock.Mock
+}
+
+func (m *MockLikeRepository) ApplyLike(ctx context.Context, userID, tweetID uint64) (*domain.Like, bool, error) {
+	args := m.Called(ctx, userID, tweetID)
+	if args.Get(0) == nil {
+		return nil, args.Bool(1), args.Error(2)
+	}
+	return args.Get(0).(*domain.Like), args.Bool(1), args.Error(2)
 }
 
 func (m *MockLikeRepository) Like(ctx context.Context, userID, tweetID uint64) error {

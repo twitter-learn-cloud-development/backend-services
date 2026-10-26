@@ -17,10 +17,10 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	notificationv1 "twitter-clone/api/notification/v1"
-	"twitter-clone/internal/domain"
 	"twitter-clone/internal/infrastructure/cache"
 	"twitter-clone/internal/infrastructure/mq"
 	"twitter-clone/internal/infrastructure/persistence"
+	"twitter-clone/internal/infrastructure/schema"
 	notificationGrpc "twitter-clone/internal/module/notification/grpc"
 	"twitter-clone/internal/module/notification/repository"
 	"twitter-clone/internal/module/notification/worker"
@@ -60,7 +60,10 @@ func main() {
 	}
 
 	// 3. Database
-	dbConfig := persistence.DefaultDBConfig()
+	dbConfig, err := persistence.ServiceDBConfig("notification-service")
+	if err != nil {
+		log.Fatal(err)
+	}
 	if consulConfigClient != nil {
 		if host, err := consulConfigClient.GetConfig("config/notification-service/db_host"); err == nil {
 			dbConfig.Host = host
@@ -72,10 +75,10 @@ func main() {
 	}
 
 	// 自动迁移
-	if err := db.AutoMigrate(&domain.Notification{}); err != nil {
-		log.Fatalf("❌ Failed to migrate database: %v", err)
+	if err := schema.CheckRuntime(context.Background(), db, "notification-service"); err != nil {
+		log.Fatal(err)
 	}
-	log.Println("✅ Database migrated")
+	log.Println("Database schema verified; runtime DDL disabled")
 
 	// 4. Redis
 	redisConfig := cache.DefaultRedisConfig()

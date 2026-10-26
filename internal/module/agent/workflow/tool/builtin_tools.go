@@ -39,9 +39,14 @@ type LLMChatTool struct {
 	costEstimator   agentRuntime.CostEstimator
 	traceRecorder   agentObservability.Recorder
 	contentSampler  agentObservability.ContentSampler
+	callAdmission   agentModel.CallAdmission
 }
 
 type LLMChatToolOption func(*LLMChatTool)
+
+func WithLLMCallAdmission(policy agentModel.CallAdmission) LLMChatToolOption {
+	return func(tool *LLMChatTool) { tool.callAdmission = policy }
+}
 
 func WithLLMCredentialResolver(resolver CredentialResolver) LLMChatToolOption {
 	return func(tool *LLMChatTool) {
@@ -233,6 +238,33 @@ func (t *LLMChatTool) executeCompletion(ctx context.Context, inputs map[string]i
 	if model == "" {
 		return "", errors.New("missing LLM model; set provider_config_id or node properties.model")
 	}
+	policy := t.endpointPolicy
+	if policy == nil {
+		policy = agentModel.NewEndpointPolicy()
+	}
+	if baseURL != "" {
+		if err := policy.Validate(baseURL, provider); err != nil {
+			return "", fmt.Errorf("validate LLM base_url: %w", err)
+		}
+	}
+	if t.callAdmission != nil {
+		if baseURL == "" {
+			return "", errors.New("shared provider policy requires an explicit bounded endpoint")
+		}
+		request := agentRuntime.ModelRequest{Model: model, MaxOutputTokens: maxTokens, Messages: []agentRuntime.Message{{Role: agentRuntime.RoleSystem, Content: systemPrompt}, {Role: agentRuntime.RoleUser, Content: prompt}}}
+		providerScope := provider
+		if providerScope == "" {
+			providerScope = "openai-compatible"
+		}
+		var release func()
+		var err error
+		ctx, release, err = t.callAdmission.AcquireCall(ctx, providerScope, &request)
+		if err != nil {
+			return "", err
+		}
+		defer release()
+		maxTokens = request.MaxOutputTokens
+	}
 	reservation, err := t.reserveCompletionBudget(ctx, systemPrompt, prompt, model, maxTokens)
 	if err != nil {
 		return "", err
@@ -240,13 +272,6 @@ func (t *LLMChatTool) executeCompletion(ctx context.Context, inputs map[string]i
 	defer reservation.Release()
 
 	if baseURL != "" {
-		policy := t.endpointPolicy
-		if policy == nil {
-			policy = agentModel.NewEndpointPolicy()
-		}
-		if err := policy.Validate(baseURL, provider); err != nil {
-			return "", fmt.Errorf("validate LLM base_url: %w", err)
-		}
 		if apiKey == "" {
 			apiKey = "local"
 		}

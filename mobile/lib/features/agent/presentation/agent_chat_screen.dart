@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../data/agent_repository.dart';
 import '../../auth/presentation/auth_notifier.dart';
 import '../../../core/constants/colors.dart';
-import '../../tweet/domain/tweet_model.dart';
 import '../../tweet/presentation/feed_notifier.dart';
 import 'workflow_list_screen.dart';
 
@@ -302,6 +301,7 @@ class _DialogueChatScreenState extends ConsumerState<DialogueChatScreen> {
     try {
       final repo = ref.read(agentRepositoryProvider);
       final respText = await repo.confirmPublish(draftContent);
+      if (!mounted) return;
       
       if (respText.isNotEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -325,6 +325,7 @@ class _DialogueChatScreenState extends ConsumerState<DialogueChatScreen> {
         });
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('发布失败: $e'), backgroundColor: AppColors.likeColor),
       );
@@ -348,7 +349,7 @@ class _DialogueChatScreenState extends ConsumerState<DialogueChatScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 10),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: Colors.grey.withOpacity(0.5)),
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.5)),
               ),
               child: DropdownButton<AgentModel>(
                 value: _selectedModel,
@@ -562,8 +563,8 @@ class _DialogueChatScreenState extends ConsumerState<DialogueChatScreen> {
       margin: const EdgeInsets.only(right: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface.withOpacity(0.5) : AppColors.lightSurface,
-        border: Border.all(color: Colors.grey.withOpacity(0.3)),
+        color: isDark ? AppColors.darkSurface.withValues(alpha: 0.5) : AppColors.lightSurface,
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -603,8 +604,8 @@ class _DialogueChatScreenState extends ConsumerState<DialogueChatScreen> {
       margin: const EdgeInsets.only(right: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface.withOpacity(0.5) : AppColors.lightSurface,
-        border: Border.all(color: Colors.grey.withOpacity(0.3)),
+        color: isDark ? AppColors.darkSurface.withValues(alpha: 0.5) : AppColors.lightSurface,
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(

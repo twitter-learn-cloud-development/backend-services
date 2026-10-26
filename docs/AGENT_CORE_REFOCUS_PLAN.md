@@ -5,6 +5,8 @@
 > Scope: Agent execution core and its adapters. Social platform, timeline and unrelated control planes are out of scope.
 > Current stage: G0/G1/G2/G3 complete. G4 fixed migration matrix has deterministic or controlled evidence through E2E-20; production Goal execution and controlled provider/profile promotion remain off.
 
+> 2026-10-12 prerequisite: public Tweet retrieval must re-read current public content before reranking, Evidence and cognitive context assembly. This correctness work is tracked as M1-R1/R2/R3 in `ARCHITECTURE_REMEDIATION_PLAN.md`; it does not enable Goal/MCP flags or expand the control plane. Deployment/live acceptance remains separate.
+
 
 ## 1. Decision
 

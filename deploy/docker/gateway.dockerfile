@@ -1,5 +1,7 @@
 # 1. Build Stage
-FROM golang:1.25-alpine AS builder
+ARG BUILDER_IMAGE=golang:1.25.5-alpine
+ARG RUNTIME_IMAGE=alpine:latest
+FROM ${BUILDER_IMAGE} AS builder
 
 WORKDIR /app
 
@@ -10,10 +12,11 @@ WORKDIR /app
 COPY . .
 
 # ç¼è¯
-RUN go build -mod=vendor -o gateway ./cmd/gateway/main.go
+RUN CGO_ENABLED=0 go build -mod=vendor -trimpath -o gateway ./cmd/gateway
 
 # 2. Run Stage
-FROM alpine:latest
+FROM ${RUNTIME_IMAGE}
+RUN apk add --no-cache ca-certificates
 
 WORKDIR /app
 

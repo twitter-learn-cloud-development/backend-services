@@ -44,6 +44,8 @@ func (s *TweetServer) CreateTweet(ctx context.Context, req *tweetv1.CreateTweetR
 			code = codes.AlreadyExists
 		case errors.Is(err, service.ErrIdempotencyUnavailable):
 			code = codes.FailedPrecondition
+		case isSubjectWriteFenceError(err):
+			code = codes.FailedPrecondition
 		}
 		return nil, status.Errorf(code, "failed to create tweet: %v", err)
 	}
@@ -157,6 +159,93 @@ func (s *TweetServer) ApplyTweetModeration(ctx context.Context, req *tweetv1.App
 	}, nil
 }
 
+func (s *TweetServer) ObserveTweetSubjectData(ctx context.Context, req *tweetv1.ObserveTweetSubjectDataRequest) (*tweetv1.ObserveTweetSubjectDataResponse, error) {
+	if req.UserId == 0 {
+		return nil, status.Error(codes.InvalidArgument, "user_id is required")
+	}
+	inventory, err := s.svc.ObserveTweetSubjectData(ctx, req.UserId)
+	if err != nil {
+		code := codes.Internal
+		if errors.Is(err, service.ErrSubjectDeletionInvalid) {
+			code = codes.InvalidArgument
+		} else if errors.Is(err, service.ErrSubjectDeletionUnavailable) {
+			code = codes.FailedPrecondition
+		}
+		return nil, status.Errorf(code, "observe tweet subject data: %v", err)
+	}
+	return &tweetv1.ObserveTweetSubjectDataResponse{Inventory: tweetSubjectInventoryToProto(inventory)}, nil
+}
+
+func (s *TweetServer) EnforceTweetSubjectWriteFence(
+	ctx context.Context,
+	req *tweetv1.EnforceTweetSubjectWriteFenceRequest,
+) (*tweetv1.EnforceTweetSubjectWriteFenceResponse, error) {
+	result, err := s.svc.EnforceTweetSubjectWriteFence(ctx, service.TweetSubjectWriteFenceCommand{
+		SchemaVersion: req.SchemaVersion, RequestID: req.RequestId, UserID: req.UserId,
+		SubjectDigest: req.SubjectDigest, PlanDigest: req.PlanDigest,
+		CapabilityDigest: req.CapabilityDigest, GovernanceDigest: req.GovernanceDigest,
+		Deadline: time.UnixMilli(req.DeadlineUnixMs).UTC(),
+	})
+	if err != nil {
+		code := codes.Internal
+		switch {
+		case errors.Is(err, service.ErrSubjectWriteFenceInvalid):
+			code = codes.InvalidArgument
+		case errors.Is(err, service.ErrSubjectWriteFenceConflict):
+			code = codes.AlreadyExists
+		case errors.Is(err, service.ErrSubjectWriteFenceUnavailable),
+			errors.Is(err, service.ErrSubjectWriteFenceCorrupt):
+			code = codes.FailedPrecondition
+		}
+		return nil, status.Errorf(code, "enforce tweet subject write fence: %v", err)
+	}
+	return &tweetv1.EnforceTweetSubjectWriteFenceResponse{
+		SchemaVersion: result.SchemaVersion, RequestId: result.RequestID,
+		FenceRevision: result.FenceRevision, Replayed: result.Replayed,
+		EnforcedAtUnixMs: result.EnforcedAt.UnixMilli(),
+	}, nil
+}
+
+func (s *TweetServer) DeleteTweetSubjectData(ctx context.Context, req *tweetv1.DeleteTweetSubjectDataRequest) (*tweetv1.DeleteTweetSubjectDataResponse, error) {
+	result, err := s.svc.DeleteTweetSubjectData(ctx, service.TweetSubjectDeletionCommand{
+		SchemaVersion: req.SchemaVersion, OperationKey: req.OperationKey, UserID: req.UserId,
+		SubjectDigest: req.SubjectDigest, GovernanceDigest: req.GovernanceDigest,
+		Deadline: time.UnixMilli(req.DeadlineUnixMs).UTC(),
+	})
+	if err != nil {
+		code := codes.Internal
+		switch {
+		case errors.Is(err, service.ErrSubjectDeletionInvalid):
+			code = codes.InvalidArgument
+		case errors.Is(err, service.ErrSubjectDeletionUnavailable), errors.Is(err, service.ErrSubjectDeletionResiduals):
+			code = codes.FailedPrecondition
+		case errors.Is(err, service.ErrSubjectWriteFenceMissing),
+			errors.Is(err, service.ErrSubjectWriteFenceCorrupt),
+			errors.Is(err, service.ErrSubjectWriteFenceUnavailable):
+			code = codes.FailedPrecondition
+		case errors.Is(err, service.ErrSubjectDeletionConflict):
+			code = codes.AlreadyExists
+		case errors.Is(err, service.ErrSubjectDeletionTooLarge):
+			code = codes.ResourceExhausted
+		}
+		return nil, status.Errorf(code, "delete tweet subject data: %v", err)
+	}
+	return &tweetv1.DeleteTweetSubjectDataResponse{
+		SchemaVersion: result.SchemaVersion, OperationKey: result.OperationKey,
+		ReceiptDigest: result.ReceiptDigest, Before: tweetSubjectInventoryToProto(result.Before),
+		After: tweetSubjectInventoryToProto(result.After), Replayed: result.Replayed,
+		CompletedAtUnixMs: result.CompletedAt.UnixMilli(),
+	}, nil
+}
+
+func tweetSubjectInventoryToProto(inventory domain.TweetSubjectInventory) *tweetv1.TweetSubjectInventory {
+	return &tweetv1.TweetSubjectInventory{
+		AuthoredTweets: inventory.AuthoredTweets, AuthoredComments: inventory.AuthoredComments,
+		Likes: inventory.Likes, Bookmarks: inventory.Bookmarks,
+		Retweets: inventory.Retweets, PollVotes: inventory.PollVotes,
+	}
+}
+
 func (s *TweetServer) GetUserTimeline(ctx context.Context, req *tweetv1.GetUserTimelineRequest) (*tweetv1.GetUserTimelineResponse, error) {
 	log.Printf("gRPC: GetUserTimeline - user_id=%d, cursor=%d, limit=%d", req.UserId, req.Cursor, req.Limit)
 
@@ -181,12 +270,18 @@ func (s *TweetServer) GetUserTimeline(ctx context.Context, req *tweetv1.GetUserT
 
 // GetFeeds 获取关注流
 func (s *TweetServer) GetFeeds(ctx context.Context, req *tweetv1.GetFeedsRequest) (*tweetv1.GetFeedsResponse, error) {
+	if req == nil || req.UserId == 0 {
+		return nil, status.Error(codes.InvalidArgument, "user_id is required")
+	}
 	log.Printf("gRPC: GetFeeds - user_id=%d, cursor=%d, limit=%d", req.UserId, req.Cursor, req.Limit)
 
 	tweets, nextCursor, hasMore, err := s.svc.GetFeeds(ctx, req.UserId, req.Cursor, int(req.Limit))
 	if err != nil {
 		log.Printf("❌ GetFeeds error: %v", err)
-		return nil, status.Errorf(codes.Internal, "failed to get feeds: %v", err)
+		if ctx.Err() != nil {
+			return nil, status.FromContextError(ctx.Err()).Err()
+		}
+		return nil, status.Error(codes.Unavailable, "feed is unavailable")
 	}
 
 	// 转换为 Protobuf 消息列表
@@ -209,7 +304,7 @@ func (s *TweetServer) LikeTweet(ctx context.Context, req *tweetv1.LikeTweetReque
 	count, err := s.svc.LikeTweet(ctx, req.UserId, req.TweetId)
 	if err != nil {
 		log.Printf("❌ LikeTweet error: %v", err)
-		return nil, status.Errorf(codes.Internal, "failed to like tweet: %v", err)
+		return nil, status.Errorf(subjectWriteCode(err), "failed to like tweet: %v", err)
 	}
 
 	return &tweetv1.LikeTweetResponse{
@@ -239,7 +334,7 @@ func (s *TweetServer) VotePoll(ctx context.Context, req *tweetv1.VotePollRequest
 	poll, err := s.svc.VotePoll(ctx, req.UserId, req.PollId, req.OptionId)
 	if err != nil {
 		log.Printf("❌ VotePoll error: %v", err)
-		return nil, status.Errorf(codes.Internal, "failed to vote poll: %v", err)
+		return nil, status.Errorf(subjectWriteCode(err), "failed to vote poll: %v", err)
 	}
 
 	return &tweetv1.VotePollResponse{
@@ -256,7 +351,7 @@ func (s *TweetServer) CreateComment(ctx context.Context, req *tweetv1.CreateComm
 	comment, err := s.svc.CreateComment(ctx, req.UserId, req.TweetId, req.Content, req.ParentId)
 	if err != nil {
 		log.Printf("❌ CreateComment error: %v", err)
-		return nil, status.Errorf(codes.Internal, "failed to create comment: %v", err)
+		return nil, status.Errorf(subjectWriteCode(err), "failed to create comment: %v", err)
 	}
 
 	return &tweetv1.CreateCommentResponse{
@@ -464,7 +559,7 @@ func (s *TweetServer) BookmarkTweet(ctx context.Context, req *tweetv1.BookmarkTw
 	err := s.svc.BookmarkTweet(ctx, req.UserId, req.TweetId)
 	if err != nil {
 		log.Printf("❌ BookmarkTweet error: %v", err)
-		return nil, status.Errorf(codes.Internal, "failed to bookmark tweet: %v", err)
+		return nil, status.Errorf(subjectWriteCode(err), "failed to bookmark tweet: %v", err)
 	}
 
 	return &tweetv1.BookmarkTweetResponse{
@@ -516,12 +611,25 @@ func (s *TweetServer) RetweetTweet(ctx context.Context, req *tweetv1.RetweetTwee
 	count, err := s.svc.RetweetTweet(ctx, req.UserId, req.TweetId)
 	if err != nil {
 		log.Printf("❌ RetweetTweet error: %v", err)
-		return nil, status.Errorf(codes.Internal, "failed to retweet: %v", err)
+		return nil, status.Errorf(subjectWriteCode(err), "failed to retweet: %v", err)
 	}
 
 	return &tweetv1.RetweetTweetResponse{
 		RetweetCount: count,
 	}, nil
+}
+
+func subjectWriteCode(err error) codes.Code {
+	if isSubjectWriteFenceError(err) {
+		return codes.FailedPrecondition
+	}
+	return codes.Internal
+}
+
+func isSubjectWriteFenceError(err error) bool {
+	return errors.Is(err, service.ErrSubjectWriteFenced) ||
+		errors.Is(err, service.ErrSubjectWriteFenceUnavailable) ||
+		errors.Is(err, service.ErrSubjectWriteFenceCorrupt)
 }
 
 // UnretweetTweet 取消转发

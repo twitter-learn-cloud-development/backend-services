@@ -4,10 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-redis/redis/v8"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	messengerv1 "twitter-clone/api/messenger/v1"
 	"twitter-clone/internal/domain"
@@ -19,19 +23,24 @@ type MessengerService struct {
 	messengerv1.UnimplementedMessengerServiceServer
 	repo        domain.MessageRepository
 	redisClient *redis.Client
+	generateID  func() (uint64, error)
 }
 
 func NewMessengerService(repo domain.MessageRepository, redisClient *redis.Client) *MessengerService {
 	return &MessengerService{
 		repo:        repo,
 		redisClient: redisClient,
+		generateID:  snowflake.GenerateID,
 	}
 }
 
 // SendMessage 发送消息
 func (s *MessengerService) SendMessage(ctx context.Context, req *messengerv1.SendMessageRequest) (*messengerv1.SendMessageResponse, error) {
+	if req == nil || req.SenderId == 0 || req.ReceiverId == 0 || strings.TrimSpace(req.Content) == "" || len(req.Content) > 16384 {
+		return nil, status.Error(codes.InvalidArgument, "invalid message; maximum content is 16384 UTF-8 bytes")
+	}
 	// 1. 生成 ID 和 ConversationID
-	id, err := snowflake.GenerateID()
+	id, err := s.generateID()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate ID: %w", err)
 	}
@@ -56,9 +65,13 @@ func (s *MessengerService) SendMessage(ctx context.Context, req *messengerv1.Sen
 
 	// 3. 实时推送 (Redis PubSub)
 	// 推送给接收者
-	go s.publishMessage(ctx, req.ReceiverId, msg)
+	pushCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
+	defer cancel()
+	s.publishMessage(pushCtx, req.ReceiverId, msg)
 	// 推送给发送者 (多端同步)
-	go s.publishMessage(ctx, req.SenderId, msg)
+	if req.SenderId != req.ReceiverId {
+		s.publishMessage(pushCtx, req.SenderId, msg)
+	}
 
 	return &messengerv1.SendMessageResponse{
 		Message: convertToProto(msg),
@@ -67,63 +80,115 @@ func (s *MessengerService) SendMessage(ctx context.Context, req *messengerv1.Sen
 
 // GetConversations 获取会话列表
 func (s *MessengerService) GetConversations(ctx context.Context, req *messengerv1.GetConversationsRequest) (*messengerv1.GetConversationsResponse, error) {
-	limit := int(req.Limit)
-	if limit <= 0 {
-		limit = 20
+	if req == nil || req.UserId == 0 {
+		return nil, status.Error(codes.InvalidArgument, "user_id is required")
 	}
-	// cursor 这里我们复用 create_at 时间戳
-	// 如果 req.Cursor 是空字符串，则用当前时间
-	// 如果不是空，尝试解析为 int64
-	// 这里简化处理：req.Cursor 传入 timestamp string
-
-	// TODO: 解析 cursorString 到 int64
-
-	conversations, err := s.repo.GetConversations(ctx, req.UserId, limit, 0) // cursor logic pending
+	snapshot, before, err := parseConversationCursor(req.Cursor, req.UserId)
 	if err != nil {
 		return nil, err
 	}
-
-	var protoConvs []*messengerv1.Conversation
+	if ctx.Err() != nil {
+		return nil, status.FromContextError(ctx.Err()).Err()
+	}
+	pager, ok := s.repo.(domain.ConversationPageRepository)
+	if !ok {
+		return nil, status.Error(codes.FailedPrecondition, "conversation pagination is unavailable")
+	}
+	limit := messengerPageLimit(req.Limit)
+	page, err := pager.ListConversationPage(ctx, req.UserId, snapshot, before, limit+1)
+	if err != nil {
+		return nil, messengerReadError(ctx, err)
+	}
+	if err := validateConversationPage(page, req.UserId, snapshot, before, limit+1); err != nil {
+		return nil, err
+	}
+	conversations := page.Conversations
+	hasMore := len(conversations) > limit
+	if hasMore {
+		conversations = conversations[:limit]
+	}
+	protoConvs := make([]*messengerv1.Conversation, 0, len(conversations))
 	for _, c := range conversations {
+		unread := c.UnreadCount
+		if unread > 1<<31-1 {
+			unread = 1<<31 - 1
+		}
 		protoConvs = append(protoConvs, &messengerv1.Conversation{
 			PeerId:        c.PeerID,
 			LatestMessage: convertToProto(c.LatestMessage),
-			UnreadCount:   int32(c.UnreadCount),
+			UnreadCount:   int32(unread),
 		})
+	}
+	var next string
+	if hasMore {
+		next = encodeConversationCursor(req.UserId, page.SnapshotID, conversations[len(conversations)-1].LatestMessage.ID)
 	}
 
 	return &messengerv1.GetConversationsResponse{
 		Conversations: protoConvs,
-		HasMore:       false, // TODO: Implement cursor properly
+		HasMore:       hasMore,
+		NextCursor:    next,
 	}, nil
 }
 
 // GetMessages 获取消息历史
 func (s *MessengerService) GetMessages(ctx context.Context, req *messengerv1.GetMessagesRequest) (*messengerv1.GetMessagesResponse, error) {
-	limit := int(req.Limit)
-	if limit <= 0 {
-		limit = 20
+	if req == nil || req.UserId == 0 || req.PeerId == 0 {
+		return nil, status.Error(codes.InvalidArgument, "user_id and peer_id are required")
 	}
-	// Cursor logic
-	// TODO: parse cursor
-
-	conversationID := getConversationID(req.UserId, req.PeerId)
-	messages, err := s.repo.GetMessages(ctx, conversationID, 0, limit) // cursor logic pending
+	cursor, err := parseMessageCursor(req.Cursor)
 	if err != nil {
 		return nil, err
 	}
+	if ctx.Err() != nil {
+		return nil, status.FromContextError(ctx.Err()).Err()
+	}
+	reader, ok := s.repo.(domain.MessagePageReadRepository)
+	if !ok {
+		return nil, status.Error(codes.FailedPrecondition, "message read pagination is unavailable")
+	}
+	limit := messengerPageLimit(req.Limit)
 
-	// 标记已读 (异步)
-	go s.repo.MarkAsRead(context.Background(), conversationID, req.UserId)
-
-	var protoMsgs []*messengerv1.Message
+	conversationID := getConversationID(req.UserId, req.PeerId)
+	messages, err := s.repo.GetMessages(ctx, conversationID, cursor, limit+1)
+	if err != nil {
+		return nil, messengerReadError(ctx, err)
+	}
+	if err := validateMessagePage(messages, req.UserId, req.PeerId, cursor, limit+1); err != nil {
+		return nil, err
+	}
+	hasMore := len(messages) > limit
+	if hasMore {
+		messages = messages[:limit]
+	}
+	ids := make([]uint64, 0, len(messages))
 	for _, m := range messages {
-		protoMsgs = append(protoMsgs, convertToProto(m))
+		if m.ReceiverID == req.UserId && !m.IsRead {
+			ids = append(ids, m.ID)
+		}
+	}
+	if len(ids) > 0 {
+		if err := reader.MarkMessagePageRead(ctx, conversationID, req.UserId, ids); err != nil {
+			return nil, messengerReadError(ctx, err)
+		}
+	}
+	protoMsgs := make([]*messengerv1.Message, 0, len(messages))
+	for _, m := range messages {
+		message := convertToProto(m)
+		if m.ReceiverID == req.UserId {
+			message.IsRead = true
+		}
+		protoMsgs = append(protoMsgs, message)
+	}
+	var next string
+	if hasMore {
+		next = strconv.FormatUint(messages[len(messages)-1].ID, 10)
 	}
 
 	return &messengerv1.GetMessagesResponse{
-		Messages: protoMsgs,
-		HasMore:  len(messages) >= limit,
+		Messages:   protoMsgs,
+		HasMore:    hasMore,
+		NextCursor: next,
 	}, nil
 }
 
@@ -174,13 +239,26 @@ func (s *MessengerService) publishMessage(ctx context.Context, userID uint64, ms
 		"type": "message",
 		"data": redisMsg,
 	}
-	bytes, _ := json.Marshal(payload)
+	bytes, err := json.Marshal(payload)
+	if err != nil {
+		messagePushResults.WithLabelValues("encode_error").Inc()
+		return
+	}
 
 	// 使用 default context 避免 request context cancel
-	err := s.redisClient.Publish(context.Background(), channel, string(bytes)).Err()
+	if s.redisClient == nil {
+		messagePushResults.WithLabelValues("unavailable").Inc()
+		return
+	}
+	count, err := s.redisClient.Publish(ctx, channel, string(bytes)).Result()
 	if err != nil {
-		logger.Error(ctx, "Failed to publish message to Redis", zap.String("channel", channel), zap.Error(err))
+		messagePushResults.WithLabelValues("error").Inc()
+		logger.Warn(ctx, "message stored; realtime hint unavailable")
 	} else {
-		logger.Info(ctx, "📤 Published message to Redis", zap.String("channel", channel))
+		outcome := "published"
+		if count == 0 {
+			outcome = "no_subscriber"
+		}
+		messagePushResults.WithLabelValues(outcome).Inc()
 	}
 }

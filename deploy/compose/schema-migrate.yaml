@@ -1,0 +1,23 @@
+# Standalone one-shot job. Default is an offline plan, never apply on service start.
+# Supply a reviewed SCHEMA_MIGRATE_IMAGE digest; override command explicitly for Live.
+services:
+  schema-migrate:
+    image: ${SCHEMA_MIGRATE_IMAGE:?SCHEMA_MIGRATE_IMAGE must be pinned by digest}
+    restart: "no"
+    init: true
+    user: "65532:65532"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    command: ["--owner", "${SCHEMA_OWNER:-user}"]
+    environment:
+      DB_HOST: ${DB_HOST:-127.0.0.1}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: ${DB_NAME:-twitter}
+      DB_MIGRATOR_USER: ${DB_MIGRATOR_USER:-}
+      DB_MIGRATOR_PASSWORD: ${DB_MIGRATOR_PASSWORD:-}
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M

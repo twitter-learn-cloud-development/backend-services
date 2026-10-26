@@ -34,6 +34,7 @@ const (
 )
 
 const (
+	OutboxEventTypeTweetDeleted   = "TWEET_DELETED"
 	OutboxEventTypeTweetModerated = "TWEET_MODERATED"
 	TweetModerationSchemaVersion  = 1
 	TweetModerationShadowban      = "shadowban"
@@ -132,6 +133,11 @@ func (e *UserUnfollowedEvent) ToJSON() ([]byte, error) {
 
 // TweetLikedEvent 推文点赞事件
 type TweetLikedEvent struct {
+	LikeID           uint64 `json:"like_id,omitempty"`
+	EventKey         string `json:"event_key,omitempty"`
+	SchemaVersion    string `json:"schema_version,omitempty"`
+	Traceparent      string `json:"traceparent,omitempty"`
+	Tracestate       string `json:"tracestate,omitempty"`
 	TweetID          uint64 `json:"tweet_id"`
 	UserID           uint64 `json:"user_id"`
 	TweetUser        uint64 `json:"tweet_user_id"`
@@ -157,6 +163,10 @@ func (e *TweetUnlikedEvent) ToJSON() ([]byte, error) {
 
 // CommentCreatedEvent 评论创建事件
 type CommentCreatedEvent struct {
+	EventKey         string `json:"event_key,omitempty"`
+	SchemaVersion    string `json:"schema_version,omitempty"`
+	Traceparent      string `json:"traceparent,omitempty"`
+	Tracestate       string `json:"tracestate,omitempty"`
 	CommentID        uint64 `json:"comment_id"`
 	TweetID          uint64 `json:"tweet_id"`
 	UserID           uint64 `json:"user_id"`

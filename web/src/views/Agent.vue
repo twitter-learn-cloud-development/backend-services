@@ -25,6 +25,7 @@ import {
   XMarkIcon,
 } from '@heroicons/vue/24/outline'
 import ApprovalInbox from '../components/agent/ApprovalInbox.vue'
+import AgentMessageContent from '../components/agent/AgentMessageContent.vue'
 import AgentExtensionCatalogDialog from '../components/agent/AgentExtensionCatalogDialog.vue'
 import AgentExtensionMarketplaceDialog from '../components/agent/AgentExtensionMarketplaceDialog.vue'
 import ExternalMCPDialog from '../components/agent/ExternalMCPDialog.vue'
@@ -51,6 +52,7 @@ import {
   type AgentArtifact,
   type AgentCitation,
   type AgentExecutionRunResponse,
+  type AgentPlanningEvidenceResponse,
   type AgentRunAccountingResponse,
   type AgentSkill,
   type AgentTaskTemplate,
@@ -67,9 +69,11 @@ interface ChatMessage {
   role: MessageRole
   content: string
   runId?: string
+  runtimeUsage?: { totalTokens: number; estimated: boolean }
   runStatus?: string
   executionProfile?: string
   capabilityIds?: string[]
+  planning?: AgentPlanningEvidenceResponse
   publishableDraft?: boolean
   draftCandidates?: string[]
   toolActivities?: AgentToolActivity[]
@@ -149,6 +153,20 @@ const accountingDialogOpen = ref(false)
 const accountingLoading = ref(false)
 const accountingError = ref('')
 const runAccounting = ref<AgentRunAccountingResponse | null>(null)
+const messageAccounting = ref<ChatMessage['runtimeUsage']>(undefined)
+interface DialogueUsage {
+  inputTokens: number
+  outputTokens: number
+  totalTokens: number
+  estimatedCostMicros: number
+  estimated: boolean
+  complete: boolean
+  recordedMessages: number
+  totalMessages: number
+}
+const dialogueUsage = ref<DialogueUsage | null>(null)
+const dialogueUsageLoading = ref(false)
+const usageByRun = ref<Record<string, AgentRunAccountingResponse>>({})
 
 const agentSkillKey = (version: AgentSkill) => `${version.skill_id}\u001f${version.version}`
 const selectedSkill = computed(() => (
@@ -185,6 +203,7 @@ const canSubmitTaskTemplate = computed(() => Boolean(
 
 let localMessageSequence = 0
 let dialogueLoadSequence = 0
+let usageLoadSequence = 0
 const dialogueViewRevision = ref(0)
 const sendingViewRevision = ref<number | null>(null)
 const isSendingForCurrentView = computed(() => (
@@ -209,6 +228,7 @@ const applyExecutionRunState = (message: ChatMessage, run: AgentExecutionRunResp
   message.runStatus = String(run.status || '')
   message.executionProfile = String(run.execution_profile || '')
   message.capabilityIds = Array.isArray(run.capability_ids) ? run.capability_ids : []
+  message.planning = run.planning?.enabled ? run.planning : undefined
   message.selectedSkillId = String(run.skill_id || '')
   message.selectedSkillVersion = String(run.skill_version || '')
   message.selectedTaskTemplateId = String(run.task_template_id || '')
@@ -320,6 +340,13 @@ const normalizeDialogueMessages = (rawMessages: any[]): ChatMessage[] => {
         role: message.role === 'user' ? 'user' : 'assistant',
         content: String(message.content),
         runId: String(message.run_id || ''),
+        runtimeUsage: message.has_runtime_usage && Number.isSafeInteger(Number(message.runtime_total_tokens))
+          && Number(message.runtime_total_tokens) >= 0
+          ? {
+              totalTokens: Number(message.runtime_total_tokens),
+              estimated: Boolean(message.runtime_tokens_estimated),
+            }
+          : undefined,
         publishableDraft: Boolean(message.publishable_draft && message.run_id),
       }]
     }
@@ -341,6 +368,73 @@ const normalizeDialogueMessages = (rawMessages: any[]): ChatMessage[] => {
     }
     return legacyMessages
   })
+}
+
+const loadDialogueUsage = async (dialogueKey: string, snapshot: ChatMessage[], revision: number) => {
+  const requestSequence = ++usageLoadSequence
+  const assistantMessages = snapshot.filter(message => message.role === 'assistant')
+  const runIds = [...new Set(assistantMessages.map(message => message.runId).filter((id): id is string => Boolean(id)))]
+  dialogueUsage.value = null
+  usageByRun.value = {}
+  dialogueUsageLoading.value = runIds.length > 0
+
+  const collected: Record<string, AgentRunAccountingResponse> = {}
+  let nextRun = 0
+  const fetchOne = async () => {
+    while (nextRun < runIds.length) {
+      if (requestSequence !== usageLoadSequence || dialogueViewRevision.value !== revision || activeDialogueId.value !== dialogueKey) return
+      const runId = runIds[nextRun++]!
+      try {
+        const response = await getAgentRunAccounting(runId)
+        if (response.data.state !== 'unavailable') collected[runId] = response.data
+      } catch {
+        // Legacy and failed runs have no trusted accounting snapshot.
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(4, runIds.length) }, fetchOne))
+  if (requestSequence !== usageLoadSequence || dialogueViewRevision.value !== revision || activeDialogueId.value !== dialogueKey) return
+
+  const values = Object.values(collected)
+  const fallbackMessages = assistantMessages.filter(message => (
+    (!message.runId || !collected[message.runId]) && message.runtimeUsage
+  ))
+  const recordedMessages = assistantMessages.filter(message => (
+    message.runtimeUsage || (message.runId && collected[message.runId])
+  )).length
+  dialogueUsage.value = {
+    inputTokens: values.reduce((sum, run) => sum + Number(run.total_usage.input_tokens || 0), 0),
+    outputTokens: values.reduce((sum, run) => sum + Number(run.total_usage.output_tokens || 0), 0),
+    totalTokens: values.reduce((sum, run) => sum + Number(run.total_usage.total_tokens || 0), 0)
+      + fallbackMessages.reduce((sum, message) => sum + message.runtimeUsage!.totalTokens, 0),
+    estimatedCostMicros: values.reduce((sum, run) => sum + Number(run.total_usage.estimated_cost_micros || 0), 0),
+    estimated: values.some(run => run.total_usage.estimated || run.total_usage.cost_estimated)
+      || fallbackMessages.some(message => message.runtimeUsage!.estimated),
+    complete: fallbackMessages.length === 0 && recordedMessages === assistantMessages.length
+      && values.every(run => run.state === 'complete'),
+    recordedMessages,
+    totalMessages: assistantMessages.length,
+  }
+  usageByRun.value = collected
+  dialogueUsageLoading.value = false
+}
+
+const hydrateMessageUsage = async (dialogueKey: string, message: ChatMessage, revision: number) => {
+  try {
+    const response = await getDialogueMessages(dialogueKey)
+    if (dialogueViewRevision.value !== revision || activeDialogueId.value !== dialogueKey) return
+    const stored = [...(response.data.messages || [])].reverse().find((entry: any) => (
+      entry.role === 'assistant' && entry.run_id === message.runId && entry.content === message.content
+    ))
+    if (stored) {
+      message.runtimeUsage = normalizeDialogueMessages([stored])[0]?.runtimeUsage
+    }
+  } catch {
+    // The authoritative Run endpoint may still provide usage if history is temporarily unavailable.
+  }
+  if (dialogueViewRevision.value === revision && activeDialogueId.value === dialogueKey) {
+    void loadDialogueUsage(dialogueKey, [...messages.value], revision)
+  }
 }
 
 const extractDraftCandidates = (content: string) => {
@@ -500,16 +594,25 @@ const canSaveTaskTemplate = (message: ChatMessage) => Boolean(
 )
 
 const openRunAccounting = async (message: ChatMessage) => {
-  if (!message.runId || accountingLoading.value) return
+  if ((!message.runId && !message.runtimeUsage) || accountingLoading.value) return
   accountingDialogOpen.value = true
-  accountingLoading.value = true
+  accountingLoading.value = Boolean(message.runId)
   accountingError.value = ''
   runAccounting.value = null
+  messageAccounting.value = message.runtimeUsage
+  if (!message.runId) return
   try {
     const response = await getAgentRunAccounting(message.runId)
-    runAccounting.value = response.data
+    if (response.data.state !== 'unavailable' || !messageAccounting.value) {
+      runAccounting.value = response.data
+      usageByRun.value = { ...usageByRun.value, [message.runId]: response.data }
+    }
   } catch (err: any) {
-    accountingError.value = err?.response?.data?.error || err?.message || '读取运行用量失败'
+    if (err?.response?.status !== 404 && err?.response?.status !== 422) {
+      accountingError.value = err?.response?.data?.error || err?.message || '读取运行用量失败'
+    } else if (!messageAccounting.value) {
+      accountingError.value = '这条历史回答没有保存可用的 Token 用量。'
+    }
   } finally {
     accountingLoading.value = false
   }
@@ -519,6 +622,7 @@ const closeRunAccounting = () => {
   accountingDialogOpen.value = false
   accountingError.value = ''
   runAccounting.value = null
+  messageAccounting.value = undefined
 }
 
 const accountingStateLabel = (state: string) => {
@@ -638,6 +742,7 @@ const selectDialogue = async (id: string) => {
     if (requestSequence !== dialogueLoadSequence || activeDialogueId.value !== id) return
     const msgs = res.data.messages || []
     messages.value = normalizeDialogueMessages(msgs)
+    void loadDialogueUsage(id, messages.value, dialogueViewRevision.value)
     if (messages.value.length === 0) {
       dialogueLoadError.value = '该对话没有已保存的消息，可能在模型或工具返回前失败。你可以在下方重新发送，或新建对话。'
     }
@@ -670,8 +775,12 @@ const selectDialogue = async (id: string) => {
 const createNewDialogue = () => {
   dialogueLoadSequence += 1
   dialogueViewRevision.value += 1
+  usageLoadSequence += 1
   activeDialogueId.value = ''
   messages.value = []
+  dialogueUsage.value = null
+  dialogueUsageLoading.value = false
+  usageByRun.value = {}
   dialogueLoadError.value = ''
   isDialogueLoading.value = false
 }
@@ -726,6 +835,20 @@ const capabilityLabel = (capabilityId: string) => {
     'skill.run': '自定义技能',
   }
   return labels[capabilityId] || capabilityId
+}
+
+const planningVerificationLabel = (planning?: AgentPlanningEvidenceResponse) => {
+  const labels: Record<string, string> = {
+    passed: '验证通过',
+    failed: '验证失败',
+    inconclusive: '等待验证',
+  }
+  return labels[planning?.verification_status || ''] || '执行中'
+}
+
+const planningEvidenceTitle = (planning?: AgentPlanningEvidenceResponse) => {
+  if (!planning) return '短期规划'
+  return `计划调用 ${planning.planning_calls} 次 · ${planning.total_tokens} tokens · ${planning.plan_digest.slice(0, 12)}`
 }
 
 const toolLabel = (toolName: string) => {
@@ -901,7 +1024,11 @@ const sendMessage = async () => {
     )
     if (viewIsCurrent) {
       activeDialogueId.value = returnedDialogueKey
-      messages.value.push(buildRunMessage(res.data))
+      const newMessage = buildRunMessage(res.data)
+      messages.value.push(newMessage)
+      if (returnedDialogueKey) {
+        void hydrateMessageUsage(returnedDialogueKey, newMessage, requestViewRevision)
+      }
       scrollToBottom()
     }
     await fetchDialogues()
@@ -1019,6 +1146,18 @@ const scrollToBottom = () => {
               {{ model.name }}
             </option>
           </select>
+          <div
+            v-if="activeDialogueId"
+            class="hidden items-center gap-1 text-xs text-gray-500 dark:text-gray-400 md:flex"
+            :title="dialogueUsage ? `已记录 ${dialogueUsage.recordedMessages}/${dialogueUsage.totalMessages} 条回答；输入/输出仅统计权威 Run：${formatUsageNumber(dialogueUsage.inputTokens)} / ${formatUsageNumber(dialogueUsage.outputTokens)} Token` : '该对话暂无用量记录'"
+          >
+            <ChartBarSquareIcon class="h-4 w-4" />
+            <span v-if="dialogueUsageLoading">用量计算中</span>
+            <span v-else-if="dialogueUsage?.recordedMessages">
+              {{ dialogueUsage.complete ? '' : '部分 · ' }}{{ formatUsageNumber(dialogueUsage.totalTokens) }} Token
+            </span>
+            <span v-else>用量不可用</span>
+          </div>
         </div>
 
         <div class="flex items-center gap-2">
@@ -1108,13 +1247,14 @@ const scrollToBottom = () => {
 
         <div v-for="msg in messages" :key="msg.id" class="flex w-full" :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
           <div
-            class="max-w-[88%] whitespace-pre-wrap rounded-2xl px-5 py-3 shadow-sm sm:max-w-[80%]"
+            class="max-w-[88%] rounded-2xl px-5 py-3 shadow-sm sm:max-w-[80%]"
             :class="msg.role === 'user' ? 'rounded-br-none bg-primary text-white' : 'rounded-bl-none bg-gray-100 dark:bg-gray-800'"
           >
-            <div v-if="msg.content">{{ msg.content }}</div>
+            <div v-if="msg.role === 'user' && msg.content" class="whitespace-pre-wrap break-words">{{ msg.content }}</div>
+            <AgentMessageContent v-else-if="msg.content" :content="msg.content" />
 
             <div
-              v-if="msg.role === 'assistant' && (msg.capabilityIds?.length || msg.runStatus || msg.selectedSkillId || msg.selectedTaskTemplateId)"
+              v-if="msg.role === 'assistant' && (msg.capabilityIds?.length || msg.runStatus || msg.planning?.enabled || msg.selectedSkillId || msg.selectedTaskTemplateId)"
               class="mt-3 flex flex-wrap items-center gap-1.5 border-t border-gray-200 pt-2 dark:border-gray-700"
             >
               <span
@@ -1139,6 +1279,14 @@ const scrollToBottom = () => {
               >
                 <BookmarkSquareIcon class="h-4 w-4" />
                 任务模板
+              </span>
+              <span
+                v-if="msg.planning?.enabled"
+                :title="planningEvidenceTitle(msg.planning)"
+                class="inline-flex items-center gap-1 text-xs font-medium text-violet-700 dark:text-violet-300"
+              >
+                <ChartBarSquareIcon class="h-4 w-4" />
+                短期规划 · {{ planningVerificationLabel(msg.planning) }}
               </span>
               <span
                 v-if="msg.runStatus"
@@ -1210,7 +1358,7 @@ const scrollToBottom = () => {
             </div>
 
             <div
-              v-if="msg.role === 'assistant' && msg.runId"
+              v-if="msg.role === 'assistant' && (msg.runId || msg.runtimeUsage)"
               class="mt-3 flex flex-wrap items-center gap-4 border-t border-gray-200 pt-2 dark:border-gray-700"
             >
               <button
@@ -1219,7 +1367,7 @@ const scrollToBottom = () => {
                 @click="openRunAccounting(msg)"
               >
                 <ChartBarSquareIcon class="h-4 w-4" />
-                用量
+                用量<span v-if="msg.runId && usageByRun[msg.runId]"> · {{ formatUsageNumber(usageByRun[msg.runId]!.total_usage.total_tokens) }} Token</span><span v-else-if="msg.runtimeUsage"> · {{ formatUsageNumber(msg.runtimeUsage.totalTokens) }} Token</span>
               </button>
               <button
                 v-if="canSaveTaskTemplate(msg)"
@@ -1439,6 +1587,14 @@ const scrollToBottom = () => {
           </div>
           <div v-else-if="accountingError" class="flex min-h-56 items-center justify-center p-6 text-sm text-red-600">
             {{ accountingError }}
+          </div>
+          <div v-else-if="!runAccounting && messageAccounting" class="px-5 py-6">
+            <div class="text-sm text-amber-700 dark:text-amber-300">仅有消息记录用量，缺少权威 Run 核算明细。</div>
+            <div class="mt-5 text-xs text-gray-500 dark:text-gray-400">该次回答 Token 总量</div>
+            <div class="mt-1 text-xl font-semibold text-gray-900 dark:text-white">
+              {{ formatUsageNumber(messageAccounting.totalTokens) }}
+            </div>
+            <div v-if="messageAccounting.estimated" class="mt-2 text-xs text-gray-500 dark:text-gray-400">该值包含估算</div>
           </div>
           <template v-else-if="runAccounting">
             <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-4">

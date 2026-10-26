@@ -27,6 +27,26 @@ const agentExecutionStateCommitTimeout = 3 * time.Second
 
 type agentExecutionCaptureContextKey struct{}
 
+type planningExecutionCapture struct {
+	attempted                  bool
+	context                    agentRuntime.RunContext
+	planDigest                 string
+	usage                      agentRuntime.TokenUsage
+	planningCalls              int
+	modelAttempts              int
+	admissionAttempts          int
+	admissionRepairs           int
+	recoveryAttempts           int
+	model                      string
+	provider                   string
+	goalStatus                 string
+	verificationStatus         string
+	verifiedCheckpointVersion  string
+	verifiedCheckpointRevision int64
+	verifiedCheckpointDigest   string
+	verifiedCheckpoint         *agentRuntime.VerifiedCheckpoint
+}
+
 type agentExecutionCapture struct {
 	mu              sync.Mutex
 	runID           string
@@ -36,6 +56,7 @@ type agentExecutionCapture struct {
 	request         agentRuntime.RunRequest
 	result          agentRuntime.RunResult
 	err             error
+	planning        planningExecutionCapture
 }
 
 type capturedAgentExecution struct {
@@ -46,6 +67,7 @@ type capturedAgentExecution struct {
 	request         agentRuntime.RunRequest
 	result          agentRuntime.RunResult
 	err             error
+	planning        planningExecutionCapture
 }
 
 func (s *AgentService) beginUnifiedAgentExecutionRun(
@@ -59,6 +81,9 @@ func (s *AgentService) beginUnifiedAgentExecutionRun(
 	}
 	if s.agentExecutionRunStore == nil {
 		return ctx, nil, ErrAgentExecutionRunStoreUnavailable
+	}
+	if err := s.authorizeSubjectWrite(ctx, request.UserID); err != nil {
+		return ctx, nil, err
 	}
 	now := time.Now()
 	runID := primitive.NewObjectID().Hex()
@@ -140,7 +165,15 @@ func (s *AgentService) finishUnifiedAgentExecutionRun(
 		}
 	}
 	runtimeContext := captured.request.Context
+	model := captured.request.Model
 	usage := captured.result.Usage
+	if captured.planning.attempted {
+		runtimeContext = captured.planning.context
+		usage.Add(captured.planning.usage)
+		if model == "" {
+			model = captured.planning.model
+		}
+	}
 	checkpoint := sealedAgentRunCheckpoint{}
 	resumeSupported := false
 	var approvalBinding *repository.ToolApprovalRequest
@@ -151,7 +184,11 @@ func (s *AgentService) finishUnifiedAgentExecutionRun(
 	if status == repository.AgentExecutionRunAwaitingHuman && humanResumeAction {
 		if _, resumable := s.runtimeRunner.(agentRuntime.ResumableAgentRunner); resumable &&
 			s.agentCheckpointCipher != nil {
-			checkpoint, lifecycleErr = s.sealAgentRunCheckpoint(run, captured.request, captured.result)
+			if captured.planning.attempted && captured.planning.verifiedCheckpoint != nil {
+				checkpoint, lifecycleErr = s.sealVerifiedAgentRunCheckpoint(run, *captured.planning.verifiedCheckpoint)
+			} else {
+				checkpoint, lifecycleErr = s.sealAgentRunCheckpoint(run, captured.request, captured.result)
+			}
 			if lifecycleErr != nil {
 				status = repository.AgentExecutionRunFailed
 				failureCode = "checkpoint_unavailable"
@@ -169,7 +206,11 @@ func (s *AgentService) finishUnifiedAgentExecutionRun(
 			s.agentCheckpointCipher != nil {
 			approvalBinding, lifecycleErr = s.resolveRuntimeApprovalBinding(ctx, run, captured)
 			if lifecycleErr == nil {
-				checkpoint, lifecycleErr = s.sealAgentRunCheckpoint(run, captured.request, captured.result)
+				if captured.planning.attempted && captured.planning.verifiedCheckpoint != nil {
+					checkpoint, lifecycleErr = s.sealVerifiedAgentRunCheckpoint(run, *captured.planning.verifiedCheckpoint)
+				} else {
+					checkpoint, lifecycleErr = s.sealAgentRunCheckpoint(run, captured.request, captured.result)
+				}
 			}
 			if lifecycleErr != nil {
 				status = repository.AgentExecutionRunFailed
@@ -183,47 +224,67 @@ func (s *AgentService) finishUnifiedAgentExecutionRun(
 		}
 	}
 	commit := repository.AgentExecutionRunCommit{
-		RunID:                   run.ID,
-		UserID:                  run.UserID,
-		ExpectedRevision:        run.Revision,
-		DialogueID:              captured.dialogueID,
-		Status:                  status,
-		Mode:                    string(runtimeContext.Mode),
-		Model:                   captured.request.Model,
-		AgentProfileID:          runtimeContext.AgentProfileID,
-		AgentProfileVersion:     runtimeContext.AgentProfileVersion,
-		PromptTemplateID:        runtimeContext.PromptTemplateID,
-		PromptTemplateVersion:   runtimeContext.PromptTemplateVersion,
-		ResultDigest:            agentExecutionScopedDigest(run.ID, output),
-		PublishableDraft:        status == repository.AgentExecutionRunCompleted && result != nil && result.PublishableDraft,
-		FailureCode:             failureCode,
-		FailureDigest:           agentExecutionErrorDigest(run.ID, executionErr, captured.err),
-		PendingActionType:       pendingType,
-		PendingActionName:       pendingName,
-		PendingActionID:         pendingID,
-		PendingResumeKind:       pendingResumeKind,
-		StepCount:               len(captured.result.Steps),
-		InputTokens:             usage.InputTokens,
-		OutputTokens:            usage.OutputTokens,
-		TotalTokens:             usage.TotalTokens,
-		UsageEstimated:          usage.Estimated,
-		EstimatedCostMicros:     usage.EstimatedCostMicros,
-		CostEstimated:           usage.CostEstimated,
-		PricingVersion:          usage.PricingVersion,
-		MaxSteps:                runtimeContext.Budget.MaxSteps,
-		MaxTotalTokens:          runtimeContext.Budget.MaxTotalTokens,
-		MaxEstimatedCostMicros:  runtimeContext.Budget.MaxEstimatedCostMicros,
-		ResumeSupported:         resumeSupported,
-		CheckpointVersion:       checkpoint.Version,
-		CheckpointKeyID:         checkpoint.KeyID,
-		CheckpointNonce:         checkpoint.Nonce,
-		CheckpointCiphertext:    checkpoint.Ciphertext,
-		CheckpointDigest:        checkpoint.Digest,
-		CheckpointSizeBytes:     checkpoint.SizeBytes,
-		ExpectedResumeAttemptID: captured.resumeAttemptID,
-		UpdatedAt:               time.Now(),
+		RunID:                       run.ID,
+		UserID:                      run.UserID,
+		ExpectedRevision:            run.Revision,
+		DialogueID:                  captured.dialogueID,
+		Status:                      status,
+		Mode:                        string(runtimeContext.Mode),
+		Model:                       model,
+		AgentProfileID:              runtimeContext.AgentProfileID,
+		AgentProfileVersion:         runtimeContext.AgentProfileVersion,
+		PromptTemplateID:            runtimeContext.PromptTemplateID,
+		PromptTemplateVersion:       runtimeContext.PromptTemplateVersion,
+		PlanningPlanDigest:          captured.planning.planDigest,
+		PlanningCalls:               captured.planning.planningCalls,
+		PlanningModelAttempts:       captured.planning.modelAttempts,
+		PlanningAdmissionAttempts:   captured.planning.admissionAttempts,
+		PlanningAdmissionRepairs:    captured.planning.admissionRepairs,
+		PlanningRecoveryAttempts:    captured.planning.recoveryAttempts,
+		PlanningModel:               captured.planning.model,
+		PlanningProvider:            captured.planning.provider,
+		PlanningInputTokens:         captured.planning.usage.InputTokens,
+		PlanningOutputTokens:        captured.planning.usage.OutputTokens,
+		PlanningTotalTokens:         captured.planning.usage.TotalTokens,
+		PlanningUsageEstimated:      captured.planning.usage.Estimated,
+		PlanningEstimatedCostMicros: captured.planning.usage.EstimatedCostMicros,
+		PlanningCostEstimated:       captured.planning.usage.CostEstimated,
+		PlanningPricingVersion:      captured.planning.usage.PricingVersion,
+		GoalRunStatus:               captured.planning.goalStatus,
+		GoalVerificationStatus:      captured.planning.verificationStatus,
+		VerifiedCheckpointVersion:   captured.planning.verifiedCheckpointVersion,
+		VerifiedCheckpointRevision:  captured.planning.verifiedCheckpointRevision,
+		VerifiedCheckpointDigest:    captured.planning.verifiedCheckpointDigest,
+		ResultDigest:                agentExecutionScopedDigest(run.ID, output),
+		PublishableDraft:            status == repository.AgentExecutionRunCompleted && result != nil && result.PublishableDraft,
+		FailureCode:                 failureCode,
+		FailureDigest:               agentExecutionErrorDigest(run.ID, executionErr, captured.err),
+		PendingActionType:           pendingType,
+		PendingActionName:           pendingName,
+		PendingActionID:             pendingID,
+		PendingResumeKind:           pendingResumeKind,
+		StepCount:                   len(captured.result.Steps),
+		InputTokens:                 usage.InputTokens,
+		OutputTokens:                usage.OutputTokens,
+		TotalTokens:                 usage.TotalTokens,
+		UsageEstimated:              usage.Estimated,
+		EstimatedCostMicros:         usage.EstimatedCostMicros,
+		CostEstimated:               usage.CostEstimated,
+		PricingVersion:              usage.PricingVersion,
+		MaxSteps:                    runtimeContext.Budget.MaxSteps,
+		MaxTotalTokens:              runtimeContext.Budget.MaxTotalTokens,
+		MaxEstimatedCostMicros:      runtimeContext.Budget.MaxEstimatedCostMicros,
+		ResumeSupported:             resumeSupported,
+		CheckpointVersion:           checkpoint.Version,
+		CheckpointKeyID:             checkpoint.KeyID,
+		CheckpointNonce:             checkpoint.Nonce,
+		CheckpointCiphertext:        checkpoint.Ciphertext,
+		CheckpointDigest:            checkpoint.Digest,
+		CheckpointSizeBytes:         checkpoint.SizeBytes,
+		ExpectedResumeAttemptID:     captured.resumeAttemptID,
+		UpdatedAt:                   time.Now(),
 	}
-	if captured.called {
+	if captured.called || captured.planning.attempted {
 		commit.AccountingVersion = repository.ExecutionAccountingVersion
 	}
 	if approvalBinding != nil && resumeSupported {
@@ -238,6 +299,9 @@ func (s *AgentService) finishUnifiedAgentExecutionRun(
 	}
 	commitCtx, cancel := context.WithTimeout(context.WithoutCancel(commitParent), agentExecutionStateCommitTimeout)
 	defer cancel()
+	if err := s.authorizeSubjectWrite(commitCtx, run.UserID); err != nil {
+		return err
+	}
 	updated, err := s.agentExecutionRunStore.CommitAgentExecutionRun(commitCtx, commit)
 	if err != nil {
 		return fmt.Errorf("commit agent execution run: %w", err)
@@ -340,7 +404,7 @@ func (s *AgentService) GetAgentExecutionRun(
 	userID uint64,
 	runID string,
 ) (*repository.AgentExecutionRun, error) {
-	if s == nil || !s.recoverableAgentRuns || s.agentExecutionRunStore == nil {
+	if s == nil || s.agentExecutionRunStore == nil {
 		return nil, ErrAgentExecutionRunStoreUnavailable
 	}
 	return s.agentExecutionRunStore.GetAgentExecutionRun(ctx, strings.TrimSpace(runID), userID)
@@ -353,6 +417,58 @@ func (s *AgentService) runRuntime(
 	result, err := s.runtimeRunner.Run(ctx, request)
 	captureAgentRuntimeExecution(ctx, request, result, err)
 	return result, err
+}
+
+func capturePlannedVerifiedExecution(
+	ctx context.Context,
+	runContext agentRuntime.RunContext,
+	result agentRuntime.PlannedVerifiedRunResult,
+) {
+	capture := agentExecutionCaptureFromContext(ctx)
+	if capture == nil {
+		return
+	}
+	planningUsage := result.Planning.Usage
+	planningCalls := result.Planning.PlanningCalls
+	modelAttempts := result.Planning.ModelAttempts
+	admissionAttempts := result.Planning.AdmissionAttempts
+	admissionRepairs := result.Planning.AdmissionRepairs
+	planDigest := result.Planning.Plan.Digest
+	model := result.Planning.Model
+	provider := result.Planning.Provider
+	for _, recovery := range result.RecoveryPlans {
+		planningUsage.Add(recovery.Usage)
+		planningCalls += recovery.PlanningCalls
+		modelAttempts += recovery.ModelAttempts
+		admissionAttempts += recovery.AdmissionAttempts
+		admissionRepairs += recovery.AdmissionRepairs
+		if recovery.Plan.Digest != "" {
+			planDigest = recovery.Plan.Digest
+		}
+		if recovery.Model != "" {
+			model = recovery.Model
+		}
+		if recovery.Provider != "" {
+			provider = recovery.Provider
+		}
+	}
+	planning := planningExecutionCapture{
+		attempted: true, context: runContext, planDigest: planDigest,
+		usage: planningUsage, planningCalls: planningCalls, modelAttempts: modelAttempts,
+		admissionAttempts: admissionAttempts, admissionRepairs: admissionRepairs,
+		recoveryAttempts: result.RecoveryAttempts, model: model, provider: provider,
+		goalStatus:         string(result.Verified.Status),
+		verificationStatus: string(result.Verified.Verification.Status),
+	}
+	if checkpoint := result.Verified.Checkpoint; checkpoint != nil {
+		planning.verifiedCheckpoint = checkpoint
+		planning.verifiedCheckpointVersion = checkpoint.Version
+		planning.verifiedCheckpointRevision = checkpoint.Revision
+		planning.verifiedCheckpointDigest = verifiedCheckpointPublicDigest(capture.runID, *checkpoint)
+	}
+	capture.mu.Lock()
+	capture.planning = planning
+	capture.mu.Unlock()
 }
 
 func captureAgentRuntimeExecution(
@@ -409,6 +525,7 @@ func capturedAgentExecutionFromContext(ctx context.Context) (capturedAgentExecut
 		runID: capture.runID, dialogueID: capture.dialogueID, resumeAttemptID: capture.resumeAttemptID,
 		called:  capture.called,
 		request: cloneAgentRuntimeRequest(capture.request), result: capture.result, err: capture.err,
+		planning: capture.planning,
 	}, true
 }
 
@@ -418,7 +535,13 @@ func classifyAgentExecutionOutcome(
 	executionErr error,
 ) (repository.AgentExecutionRunStatus, string, error) {
 	if !captured.called {
+		if captured.planning.attempted && executionErr != nil {
+			return repository.AgentExecutionRunFailed, agentExecutionFailureCode(executionErr), nil
+		}
 		return repository.AgentExecutionRunFailed, "runtime_not_entered", ErrAgentExecutionRuntimeNotEntered
+	}
+	if captured.planning.attempted && executionErr != nil {
+		return repository.AgentExecutionRunFailed, agentExecutionFailureCode(executionErr), nil
 	}
 	switch captured.result.Status {
 	case agentRuntime.RunStatusAwaitingHuman:

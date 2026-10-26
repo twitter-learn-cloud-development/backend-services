@@ -1,6 +1,26 @@
 package startup
 
-import "testing"
+import (
+	"testing"
+	agentRuntime "twitter-clone/internal/module/agent/runtime"
+)
+
+func TestSharedAdmissionRequiresAllAPIModes(t *testing.T) {
+	all, _ := agentRuntime.ParseRollout("all")
+	partial, _ := agentRuntime.ParseRollout("chat")
+	for _, role := range []string{"api", "all", "worker"} {
+		plan, _ := Parse(role, "")
+		if err := plan.ValidateSharedAdmission(false, agentRuntime.Rollout{}); err != nil {
+			t.Fatal(err)
+		}
+		if err := plan.ValidateSharedAdmission(true, all); err != nil {
+			t.Fatal(err)
+		}
+		if got := plan.ValidateSharedAdmission(true, partial); (got != nil) != plan.StartsAPI() {
+			t.Fatalf("role %s shared rollout gate: %v", role, got)
+		}
+	}
+}
 
 func TestParse_Defaults(t *testing.T) {
 	plan, err := Parse("", "")
@@ -41,6 +61,9 @@ func TestParse_Roles(t *testing.T) {
 			}
 			if got := plan.StartsWorkers(); got != tt.startsWorker {
 				t.Fatalf("StartsWorkers = %t, want %t", got, tt.startsWorker)
+			}
+			if got := plan.NeedsPersona(); got != tt.startsAPI {
+				t.Fatalf("NeedsPersona = %t, want API-owned %t", got, tt.startsAPI)
 			}
 		})
 	}

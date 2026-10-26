@@ -58,6 +58,10 @@ func Error(ctx context.Context, msg string, fields ...zap.Field) {
 
 // Warn 带有 Context 的 Warn 日志
 func Warn(ctx context.Context, msg string, fields ...zap.Field) {
+	if Log == nil {
+		log.Printf("[WARN] %s\n", msg)
+		return
+	}
 	traceID := trace.SpanFromContext(ctx).SpanContext().TraceID().String()
 	if traceID != "" && traceID != "00000000000000000000000000000000" {
 		fields = append(fields, zap.String("trace_id", traceID))
