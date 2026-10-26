@@ -1,0 +1,8 @@
+[
+  {"document_id":"user-guide-basics","version":"2026-10-02-v1","title":"Twitter Clone 基础导航与操作入口","path":"basics.md","updated_at":"2026-10-02T00:00:00Z","published":true},
+  {"document_id":"user-guide-content-support","version":"2026-10-05-v2","title":"内容可见性与小栖使用向导的分工","path":"content-and-support.md","updated_at":"2026-10-05T04:00:00Z","published":true},
+  {"document_id":"user-guide-agent-workflow","version":"2026-10-02-v1","title":"AI 助手和 Workflow 有什么区别","path":"agent-and-workflow.md","updated_at":"2026-10-02T00:00:00Z","published":true},
+  {"document_id":"user-guide-workflow-create-run","version":"2026-10-02-v2","title":"Workflow 创建、保存和运行步骤","path":"workflow-create-run.md","updated_at":"2026-10-02T03:46:55Z","published":true},
+  {"document_id":"user-guide-workflow-faq","version":"2026-10-02-v1","title":"Workflow 运行记录与常见问题","path":"workflow-faq.md","updated_at":"2026-10-02T00:00:00Z","published":true},
+  {"document_id":"user-guide-social-actions","version":"2026-10-02-v1","title":"发推、回复、点赞、转发、书签与私信操作","path":"social-actions.md","updated_at":"2026-10-02T00:00:00Z","published":true}
+]

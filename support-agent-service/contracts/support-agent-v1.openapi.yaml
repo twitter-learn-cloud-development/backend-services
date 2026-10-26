@@ -1,0 +1,394 @@
+openapi: 3.1.0
+info:
+  title: Support Agent Service API
+  version: 1.0.0-draft
+  description: >-
+    Unified user chat API and internal support query API for the Twitter Clone
+    user-facing support agent. The APIs are capability-oriented and do not
+    encode fixed issue categories or worker types.
+servers:
+  - url: /
+paths:
+  /api/v1/support/chat:
+    post:
+      operationId: supportChat
+      summary: Submit a new support question or continue a conversation
+      security:
+        - userBearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/Accept'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SupportRequest'
+      responses:
+        '200':
+          description: Completed JSON response or an SSE stream selected by Accept
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportResponse'
+            text/event-stream:
+              schema:
+                type: string
+                description: SSE stream using the event envelope documented in api-contract-v1.md
+        '400':
+          $ref: '#/components/responses/ProblemResponse'
+        '401':
+          $ref: '#/components/responses/ProblemResponse'
+        '403':
+          $ref: '#/components/responses/ProblemResponse'
+        '409':
+          $ref: '#/components/responses/ProblemResponse'
+        '413':
+          $ref: '#/components/responses/ProblemResponse'
+        '422':
+          $ref: '#/components/responses/ProblemResponse'
+        '429':
+          $ref: '#/components/responses/ProblemResponse'
+        '503':
+          $ref: '#/components/responses/ProblemResponse'
+        '504':
+          $ref: '#/components/responses/ProblemResponse'
+  /internal/v1/support/query:
+    post:
+      operationId: executeSupportCapability
+      summary: Execute one registered read-only support capability
+      description: Internal-only endpoint used by support-agent-service.
+      security:
+        - serviceBearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Traceparent'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SupportQueryRequest'
+      responses:
+        '200':
+          description: Capability executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupportQueryResponse'
+        '400':
+          $ref: '#/components/responses/ProblemResponse'
+        '401':
+          $ref: '#/components/responses/ProblemResponse'
+        '403':
+          $ref: '#/components/responses/ProblemResponse'
+        '404':
+          $ref: '#/components/responses/ProblemResponse'
+        '409':
+          $ref: '#/components/responses/ProblemResponse'
+        '422':
+          $ref: '#/components/responses/ProblemResponse'
+        '429':
+          $ref: '#/components/responses/ProblemResponse'
+        '502':
+          $ref: '#/components/responses/ProblemResponse'
+        '503':
+          $ref: '#/components/responses/ProblemResponse'
+        '504':
+          $ref: '#/components/responses/ProblemResponse'
+components:
+  securitySchemes:
+    userBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: End-user access token validated by the gateway.
+    serviceBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Short-lived internal service token carrying a verified actor claim.
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Accept:
+      name: Accept
+      in: header
+      required: false
+      schema:
+        type: string
+        enum:
+          - application/json
+          - text/event-stream
+        default: application/json
+    Traceparent:
+      name: traceparent
+      in: header
+      required: false
+      schema:
+        type: string
+  responses:
+    ProblemResponse:
+      description: Request failed
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+  schemas:
+    SupportRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - message
+      properties:
+        conversation_id:
+          type:
+            - string
+            - 'null'
+          format: uuid
+          default: null
+        message:
+          type: string
+          minLength: 1
+          maxLength: 8000
+        client_timezone:
+          type: string
+          minLength: 1
+          maxLength: 64
+          default: UTC
+        context:
+          type: object
+          additionalProperties:
+            type: string
+            maxLength: 1024
+          default: {}
+          description: Untrusted client hints; never used as authorization evidence.
+    SupportResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - request_id
+        - conversation_id
+        - case_id
+        - status
+        - answer
+        - suggested_actions
+        - evidence_refs
+        - created_at
+        - trace_id
+      properties:
+        request_id:
+          type: string
+          format: uuid
+        conversation_id:
+          type: string
+          format: uuid
+        case_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - answered
+            - partial
+            - clarification_required
+            - unsupported
+        answer:
+          type: string
+        suggested_actions:
+          type: array
+          items:
+            type: string
+        evidence_refs:
+          type: array
+          items:
+            type: string
+        citations:
+          type: array
+          maxItems: 100
+          default: []
+          items:
+            $ref: '#/components/schemas/SupportCitation'
+        created_at:
+          type: string
+          format: date-time
+        trace_id:
+          type: string
+    SupportCitation:
+      type: object
+      additionalProperties: false
+      required: [id, kind, label, path, evidence_ref]
+      properties:
+        id:
+          type: string
+          pattern: '^tweet:[0-9]+$'
+        kind:
+          type: string
+          const: tweet
+        label:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        path:
+          type: string
+          pattern: '^/tweets/[0-9]+$'
+          maxLength: 160
+        evidence_ref:
+          type: string
+          maxLength: 128
+      description: Runtime-owned link from verified business records. ID matches path and evidence_ref belongs to evidence_refs.
+    SupportQueryRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - operation
+        - arguments
+        - request_context
+      properties:
+        operation:
+          type: string
+          pattern: '^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$'
+          maxLength: 128
+        arguments:
+          type: object
+          additionalProperties: true
+        request_context:
+          $ref: '#/components/schemas/QueryRequestContext'
+    QueryRequestContext:
+      type: object
+      additionalProperties: false
+      required:
+        - case_id
+        - task_id
+        - tool_call_id
+      properties:
+        case_id:
+          type: string
+          maxLength: 128
+        task_id:
+          type: string
+          maxLength: 128
+        tool_call_id:
+          type: string
+          maxLength: 128
+    SupportQueryResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - request_id
+        - operation
+        - status
+        - data
+        - evidence
+        - meta
+      properties:
+        request_id:
+          type: string
+          format: uuid
+        operation:
+          type: string
+        status:
+          type: string
+          const: success
+        data:
+          type: object
+          additionalProperties: true
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/Evidence'
+        meta:
+          $ref: '#/components/schemas/QueryMeta'
+    Evidence:
+      type: object
+      additionalProperties: false
+      required:
+        - evidence_id
+        - source_type
+        - source_ref
+        - observed_at
+        - safe_summary
+        - attributes
+      properties:
+        evidence_id:
+          type: string
+          maxLength: 128
+        source_type:
+          type: string
+          enum:
+            - business_api
+            - knowledge
+            - platform_status
+        source_ref:
+          type: string
+          maxLength: 256
+        observed_at:
+          type: string
+          format: date-time
+        safe_summary:
+          type: string
+          maxLength: 2000
+        attributes:
+          type: object
+          additionalProperties: true
+    QueryMeta:
+      type: object
+      additionalProperties: false
+      required:
+        - duration_ms
+        - data_freshness
+      properties:
+        duration_ms:
+          type: integer
+          minimum: 0
+        data_freshness:
+          type: string
+          enum:
+            - live
+            - cached
+    ProblemDetails:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - title
+        - status
+        - code
+        - detail
+        - request_id
+        - trace_id
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        code:
+          type: string
+        detail:
+          type: string
+        request_id:
+          type: string
+        trace_id:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - field
+              - reason
+            properties:
+              field:
+                type: string
+              reason:
+                type: string

@@ -1,0 +1,99 @@
+name: support-agent-local
+
+services:
+  support-agent:
+    build:
+      context: .
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 30s
+    environment:
+      SUPPORT_AGENT_APP_ENV: development
+      SUPPORT_AGENT_JSON_LOGS: "true"
+      SUPPORT_AGENT_MONGODB_URI: mongodb://mongo:27017
+      SUPPORT_AGENT_MONGODB_DATABASE: support_agent
+      SUPPORT_AGENT_QDRANT_URL: ${QDRANT_URL:-}
+      SUPPORT_AGENT_QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+      SUPPORT_AGENT_EMBEDDING_MODEL_NAME: ${EMBEDDING_MODEL_NAME:-}
+      SUPPORT_AGENT_MODEL_BASE_URL: ${MODEL_BASE_URL:-}
+      SUPPORT_AGENT_MODEL_NAME: ${MODEL_NAME:-}
+      SUPPORT_AGENT_MODEL_API_KEY: ${MODEL_API_KEY:-}
+      SUPPORT_AGENT_AUDIT_HMAC_KEY: ${AUDIT_HMAC_KEY:?set AUDIT_HMAC_KEY in .env}
+      SUPPORT_AGENT_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+
+  mongo:
+    image: mongo:8.0.32-noble
+    restart: unless-stopped
+    command: ["mongod", "--bind_ip_all", "--quiet"]
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "quit(db.runCommand({ping:1}).ok ? 0 : 2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  qdrant:
+    image: qdrant/qdrant:v1.19.1
+    restart: unless-stopped
+    profiles: ["knowledge"]
+    volumes:
+      - qdrant-data:/qdrant/storage
+    ports:
+      - "127.0.0.1:6333:6333"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  otel-collector:
+    image: otel/opentelemetry-collector:0.161.0
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./deploy/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    restart: unless-stopped
+    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+    volumes:
+      - ./deploy/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    depends_on:
+      support-agent:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+volumes:
+  mongo-data:
+  qdrant-data:
+  prometheus-data:

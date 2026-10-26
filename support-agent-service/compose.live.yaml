@@ -1,0 +1,77 @@
+services:
+  auth-service:
+    environment:
+      APP_ENV: development
+      JWT_ISSUER: ${LIVE_USER_JWT_ISSUER:-twitter-clone-auth}
+      JWT_AUDIENCE: ${LIVE_USER_JWT_AUDIENCE:-twitter-clone-users}
+
+  gateway:
+    ports: !override
+      - "127.0.0.1:9638:9638"
+    environment:
+      APP_ENV: development
+      JWT_ISSUER: ${LIVE_USER_JWT_ISSUER:-twitter-clone-auth}
+      JWT_AUDIENCE: ${LIVE_USER_JWT_AUDIENCE:-twitter-clone-users}
+      SUPPORT_QUERY_ENABLED: "true"
+      SUPPORT_QUERY_JWT_SECRET: ${SUPPORT_QUERY_JWT_SECRET:?set an ephemeral service JWT secret}
+      SUPPORT_QUERY_JWT_ISSUER: support-agent-service
+      SUPPORT_QUERY_JWT_AUDIENCE: twitter-support-query
+      SUPPORT_QUERY_JWT_SUBJECT: support-agent-service
+      SUPPORT_QUERY_JWT_MAX_TTL: 2m
+      SUPPORT_QUERY_TIMEOUT: 3s
+      SUPPORT_QUERY_IDEMPOTENCY_TTL: 10m
+    depends_on:
+      minio:
+        condition: service_started
+
+  support-agent:
+    build:
+      context: ./support-agent-service
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    environment:
+      SUPPORT_AGENT_APP_ENV: staging
+      SUPPORT_AGENT_JSON_LOGS: "true"
+      SUPPORT_AGENT_MAX_TASKS: "3"
+      SUPPORT_AGENT_CHAT_SOFT_TIMEOUT_SECONDS: "90"
+      SUPPORT_AGENT_CHAT_HARD_TIMEOUT_SECONDS: "120"
+      SUPPORT_AGENT_USER_JWKS_URL: http://auth-service:8081/.well-known/jwks.json
+      SUPPORT_AGENT_USER_JWT_ISSUER: ${LIVE_USER_JWT_ISSUER:-twitter-clone-auth}
+      SUPPORT_AGENT_USER_JWT_AUDIENCE: ${LIVE_USER_JWT_AUDIENCE:-twitter-clone-users}
+      SUPPORT_AGENT_USER_JWKS_TIMEOUT_SECONDS: "3"
+      SUPPORT_AGENT_SUPPORT_QUERY_BASE_URL: http://gateway:9638
+      SUPPORT_AGENT_SUPPORT_QUERY_JWT_SECRET: ${SUPPORT_QUERY_JWT_SECRET:?set an ephemeral service JWT secret}
+      SUPPORT_AGENT_MONGODB_URI: ${SUPPORT_AGENT_MONGODB_URI:?set the MongoDB URI for the local joint stack}
+      SUPPORT_AGENT_MONGODB_DATABASE: support_agent_live
+      SUPPORT_AGENT_QDRANT_URL: http://qdrant:6333
+      SUPPORT_AGENT_QDRANT_COLLECTION: support_knowledge_live
+      SUPPORT_AGENT_EMBEDDING_MODEL_NAME: ${LIVE_EMBEDDING_MODEL:-text-embedding-v4}
+      SUPPORT_AGENT_EMBEDDING_DIMENSIONS: "1536"
+      SUPPORT_AGENT_MODEL_BASE_URL: ${DASHSCOPE_API_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      SUPPORT_AGENT_MODEL_NAME: ${LIVE_CHAT_MODEL:-qwen-plus}
+      SUPPORT_AGENT_MODEL_API_KEY: ${DASHSCOPE_API_KEY:?configure DASHSCOPE_API_KEY in the Git-ignored Go .env}
+      SUPPORT_AGENT_AUDIT_HMAC_KEY: ${AUDIT_HMAC_KEY:?set an ephemeral audit HMAC key}
+      SUPPORT_AGENT_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
+      SUPPORT_AGENT_TRACE_SAMPLE_RATIO: "1"
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      auth-service:
+        condition: service_started
+      gateway:
+        condition: service_started
+      mongodb:
+        condition: service_started
+      qdrant:
+        condition: service_started
+      jaeger:
+        condition: service_started
